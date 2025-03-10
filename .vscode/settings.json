@@ -1,0 +1,12 @@
+{
+  "cSpell.words": [
+    "FRAM"
+  ],
+  "terminal.integrated.enableImages": true,
+  "editor.smoothScrolling": true,
+  "terminal.integrated.smoothScrolling": true,
+  "workbench.list.smoothScrolling": true,
+  "editor.cursorSmoothCaretAnimation": "on",
+  "editor.cursorBlinking": "phase",
+  "terminal.integrated.scrollback": 500
+}

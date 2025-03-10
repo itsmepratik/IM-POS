@@ -1,0 +1,318 @@
+/* Hide the bottom date display */
+.custom-date-range .rdrDateDisplay {
+  display: none !important;
+}
+
+/* Keep the top date display visible */
+.custom-date-range .rdrDateDisplay+div {
+  display: block !important;
+}
+
+/* Add these styles to fix visibility */
+.rdrDayNumber {
+  color: var(--foreground) !important;
+}
+
+.rdrDayDisabled {
+  background-color: hsl(var(--muted)/0.4) !important;
+  opacity: 1 !important;
+}
+
+.rdrDayDisabled .rdrDayNumber span {
+  color: hsl(var(--muted-foreground)/0.6) !important;
+}
+
+.rdrInRange {
+  background-color: #ede9fe !important;
+}
+
+.rdrStartEdge,
+.rdrEndEdge {
+  background-color: #8b5cf6 !important;
+}
+
+.rdrWeekDay {
+  color: var(--foreground) !important;
+  opacity: 0.9;
+}
+
+.rdrMonth {
+  width: 100% !important;
+  padding: 0 8px !important;
+}
+
+.rdrCalendarWrapper {
+  color: var(--foreground) !important;
+  font-family: inherit !important;
+}
+
+.rdrDayNumber span {
+  color: hsl(var(--foreground)) !important;
+}
+
+.rdrDayPassive .rdrDayNumber span {
+  color: var(--muted-foreground) !important;
+}
+
+.rdrDayToday .rdrDayNumber span:after {
+  background-color: #8b5cf6 !important;
+}
+
+.rdrDayInPreview {
+  border-color: #8b5cf6 !important;
+}
+
+.rdrNextButton i,
+.rdrPprevButton i {
+  border-color: var(--foreground) !important;
+}
+
+/* Selected date text contrast */
+.rdrStartEdge .rdrDayNumber span,
+.rdrEndEdge .rdrDayNumber span {
+  color: white !important;
+}
+
+/* Ensure all text remains visible */
+.rdrDay .rdrDayNumber>span {
+  color: hsl(var(--foreground)) !important;
+  font-weight: 500;
+}
+
+.rdrMonthName {
+  color: var(--foreground) !important;
+  font-weight: 600 !important;
+}
+
+.custom-date-range {
+  width: 97% !important;
+  font-family: inherit !important;
+  margin: 0 auto !important;
+}
+
+.custom-date-range .rdrMonth {
+  width: 100% !important;
+  padding: 0 !important;
+}
+
+.custom-date-range .rdrMonthAndYearPickers {
+  font-size: 1rem !important;
+  font-weight: 500 !important;
+  display: flex !important;
+  gap: 0.5rem !important;
+  justify-content: center !important;
+  width: 100% !important;
+}
+
+.custom-date-range .rdrMonthPicker,
+.custom-date-range .rdrYearPicker {
+  position: relative !important;
+}
+
+.custom-date-range .rdrMonthPicker select,
+.custom-date-range .rdrYearPicker select {
+  padding: 0.25rem 1.25rem 0.25rem 0.5rem !important;
+  border-radius: 0.375rem !important;
+  appearance: none !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 0.25rem center !important;
+  background-size: 1rem !important;
+  min-width: 90px !important;
+  text-align: center !important;
+}
+
+.custom-date-range .rdrMonthAndYearWrapper {
+  padding: 0.75rem !important;
+  height: auto !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+}
+
+.custom-date-range .rdrWeekDays {
+  margin-top: 0.5rem !important;
+}
+
+.custom-date-range .rdrWeekDay {
+  font-size: 0.875rem !important;
+  font-weight: 400 !important;
+  color: hsl(var(--muted-foreground)) !important;
+  text-transform: uppercase !important;
+}
+
+.custom-date-range .rdrDay {
+  height: 2.75rem !important;
+}
+
+.custom-date-range .rdrDayNumber {
+  font-size: 0.875rem !important;
+  font-weight: 400 !important;
+  top: 0 !important;
+  bottom: 0 !important;
+  height: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.custom-date-range .rdrDayToday .rdrDayNumber span:after {
+  display: none !important;
+}
+
+.custom-date-range .rdrSelected {
+  background: hsl(var(--primary)) !important;
+  border-radius: 9999px !important;
+}
+
+.custom-date-range .rdrDayStartPreview,
+.custom-date-range .rdrDayEndPreview,
+.custom-date-range .rdrDayInPreview {
+  border: none !important;
+  color: hsl(var(--primary)) !important;
+}
+
+.custom-date-range .rdrStartEdge,
+.custom-date-range .rdrEndEdge {
+  border-radius: 9999px !important;
+}
+
+.custom-date-range .rdrDayStartPreview,
+.custom-date-range .rdrDayEndPreview {
+  border-radius: 9999px !important;
+}
+
+.custom-date-range .rdrNextPrevButton {
+  margin: 0 !important;
+  width: 28px !important;
+  height: 28px !important;
+  border-radius: 9999px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: transparent !important;
+  position: relative !important;
+}
+
+.custom-date-range .rdrNextPrevButton:hover {
+  background: hsl(var(--accent)) !important;
+}
+
+.custom-date-range .rdrPprevButton i {
+  display: none !important;
+}
+
+.custom-date-range .rdrNextButton i {
+  display: none !important;
+}
+
+.custom-date-range .rdrPprevButton::before {
+  content: '';
+  width: 8px !important;
+  height: 8px !important;
+  border: solid hsl(var(--foreground)) !important;
+  border-width: 0 2px 2px 0 !important;
+  transform: rotate(135deg) !important;
+  position: absolute !important;
+  left: 11px !important;
+}
+
+.custom-date-range .rdrNextButton::before {
+  content: '';
+  width: 8px !important;
+  height: 8px !important;
+  border: solid hsl(var(--foreground)) !important;
+  border-width: 0 2px 2px 0 !important;
+  transform: rotate(-45deg) !important;
+  position: absolute !important;
+  right: 11px !important;
+}
+
+.custom-date-range .rdrDayDisabled {
+  background-color: transparent !important;
+  opacity: 1 !important;
+  pointer-events: auto !important; /* Allow interaction with disabled days */
+}
+
+.custom-date-range .rdrDayDisabled .rdrDayNumber span {
+  color: hsl(var(--muted-foreground)) !important;
+  opacity: 0.7 !important;
+}
+
+.custom-date-range .rdrMonthName {
+  display: none !important;
+}
+
+.custom-date-range .rdrInRange {
+  background: hsl(var(--accent)) !important;
+}
+
+.custom-date-range .rdrStartEdge,
+.custom-date-range .rdrEndEdge {
+  background: hsl(var(--primary)) !important;
+  color: hsl(var(--primary-foreground)) !important;
+}
+
+.custom-date-range .rdrDayHovered {
+  border-radius: 9999px !important;
+  background: hsl(var(--accent)) !important;
+}
+
+.custom-date-range .rdrDayActive {
+  background: transparent !important;
+}
+
+.custom-date-range .rdrDayActive .rdrDayNumber {
+  color: hsl(var(--primary-foreground)) !important;
+}
+
+.custom-date-range .rdrCalendarWrapper {
+  background: transparent !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+.custom-date-range .rdrDateDisplayWrapper {
+  display: none !important;
+}
+
+@media (max-width: 640px) {
+  .custom-date-range .rdrDayNumber {
+    font-size: 0.75rem !important;
+  }
+
+  .custom-date-range .rdrWeekDay {
+    font-size: 0.7rem !important;
+  }
+
+  .custom-date-range .rdrDay {
+    height: 2.25rem !important;
+  }
+
+  .custom-date-range .rdrMonthAndYearPickers {
+    font-size: 0.875rem !important;
+  }
+
+  .custom-date-range .rdrMonthPicker select,
+  .custom-date-range .rdrYearPicker select {
+    min-width: 85px !important;
+    padding: 0.2rem 1.25rem 0.2rem 0.2rem !important;
+  }
+
+  .custom-date-range .rdrNextPrevButton {
+    width: 24px !important;
+    height: 24px !important;
+  }
+
+  .custom-date-range .rdrPprevButton::before,
+  .custom-date-range .rdrNextButton::before {
+    width: 6px !important;
+    height: 6px !important;
+  }
+
+  .custom-date-range .rdrPprevButton::before {
+    left: 10px !important;
+  }
+
+  .custom-date-range .rdrNextButton::before {
+    right: 10px !important;
+  }
+}

@@ -1,0 +1,14 @@
+---
+description: always ruler
+globs: 
+alwaysApply: true
+---
+---
+description: 
+globs: 
+---
+
+# Your rule content
+
+- I am using bun for this entire project so only give me bun or bun compatible commands.
+- DO NOT GIVE ME 'bun run dev' ON EVERY REQUEST

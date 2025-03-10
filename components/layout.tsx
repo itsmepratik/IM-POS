@@ -1,0 +1,171 @@
+"use client"
+
+import { cn } from "@/lib/utils"
+import {
+  Home,
+  Package,
+  ClipboardList,
+  RefreshCcw,
+  Settings,
+  ChevronLeft,
+  ChevronRight,
+  ShoppingCart,
+  User,
+  BarChart2,
+  LogOut,
+  Users,
+  ArrowLeftRight,
+} from "lucide-react"
+import { Button } from "@/components/ui/button"
+import Link from "next/link"
+import { useState, useEffect } from "react"
+import { useRouter, usePathname } from "next/navigation"
+import { MobileNav } from "./mobile-nav"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import type React from "react"
+import { useUser } from "@/app/user-context"
+import { CustomSidebar } from "./custom-sidebar"
+import { SidebarProvider } from "@/components/ui/sidebar"
+
+interface LayoutProps {
+  children: React.ReactNode
+  pageTitle?: string
+}
+
+export function Layout({ children, pageTitle }: LayoutProps) {
+  const { currentUser } = useUser()
+  const [mounted, setMounted] = useState(false)
+  const pathname = usePathname()
+  
+  // Determine page title based on pathname if not provided
+  const getPageTitle = () => {
+    if (pageTitle) return pageTitle
+    
+    if (pathname === "/") return "Dashboard"
+    if (pathname === "/pos") return "Point of Sale"
+    if (pathname === "/reports") return "Reports"
+    if (pathname === "/customers") return "Customers"
+    if (pathname === "/inventory") return "Inventory"
+    if (pathname === "/orders") return "Orders"
+    if (pathname === "/transfer") return "Transfer Stock"
+    if (pathname === "/restock") return "Restock Orders"
+    if (pathname === "/restock-orders") return "Restock Order History"
+    if (pathname === "/admins") return "Admin"
+    
+    // Extract the last part of the path and capitalize it
+    const parts = pathname.split("/").filter(Boolean)
+    if (parts.length > 0) {
+      const lastPart = parts[parts.length - 1]
+      return lastPart.charAt(0).toUpperCase() + lastPart.slice(1)
+    }
+    
+    return "H Automotives"
+  }
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  return (
+    <SidebarProvider defaultOpen={true}>
+      <div className="flex min-h-screen w-full bg-background">
+        {/* Desktop Sidebar */}
+        <CustomSidebar className="hidden md:flex" />
+
+        {/* Mobile header */}
+        <div className="md:hidden fixed top-0 left-0 right-0 h-16 border-b bg-background z-50 flex items-center justify-between px-4">
+          <div className="flex items-center">
+            <MobileNav className="mr-2" />
+          </div>
+          <h1 className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-lg font-semibold truncate max-w-[60%] text-center">{getPageTitle()}</h1>
+          <div className="flex items-center">
+            {/* Remove the cart icon for POS page */}
+          </div>
+        </div>
+
+        {/* Main content */}
+        <div className="flex-1 w-full flex flex-col mt-16 md:mt-0">
+          <main className="flex-1 w-full p-4 md:p-6 lg:p-8">
+            {children}
+          </main>
+        </div>
+      </div>
+    </SidebarProvider>
+  )
+}
+
+interface NavItemProps {
+  href: string
+  icon: React.ReactNode
+  children: React.ReactNode
+  collapsed?: boolean
+  className?: string
+}
+
+function NavItem({ href, icon, children, collapsed, className }: NavItemProps) {
+  return (
+    <Link
+      href={href}
+      className={cn(
+        "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
+        collapsed && "justify-center px-2",
+        className,
+      )}
+      title={collapsed ? String(children) : undefined}
+    >
+      {icon}
+      {!collapsed && children}
+    </Link>
+  )
+}
+
+function ProfileMenu() {
+  const router = useRouter()
+
+  const handleSettingsClick = () => {
+    router.push("/settings")
+  }
+
+  const handleLogout = () => {
+    // Here you would typically handle the logout process
+    // For example, clearing the authentication token from storage
+    // Then redirect to the auth page
+    router.push("/auth")
+  }
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+          <Avatar className="h-8 w-8">
+            <AvatarImage src="/avatars/01.png" alt="@username" />
+            <AvatarFallback>SC</AvatarFallback>
+          </Avatar>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent className="w-56" align="end" forceMount>
+        <DropdownMenuItem>
+          <User className="mr-2 h-4 w-4" />
+          <span>Profile</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={handleSettingsClick}>
+          <Settings className="mr-2 h-4 w-4" />
+          <span>Settings</span>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onSelect={handleLogout}>
+          <LogOut className="mr-2 h-4 w-4" />
+          <span>Log out</span>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+

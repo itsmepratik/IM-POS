@@ -1,0 +1,50 @@
+<svg width="400" height="300" viewBox="0 0 400 300" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background elements -->
+  <rect x="100" y="40" width="80" height="80" rx="4" fill="#E5E5E5" />
+  <rect x="110" y="50" width="25" height="25" rx="12.5" fill="#FFFFFF" />
+  <rect x="145" y="50" width="25" height="25" rx="4" fill="#FFFFFF" />
+  <rect x="110" y="85" width="60" height="25" rx="4" fill="#FFFFFF" />
+  
+  <!-- Desk -->
+  <rect x="180" y="160" width="120" height="10" rx="2" fill="#D1D1D1" />
+  <rect x="190" y="170" width="100" height="40" rx="2" fill="#E5E5E5" />
+  
+  <!-- Computer monitor -->
+  <rect x="210" y="110" width="60" height="50" rx="4" fill="#E5E5E5" />
+  <rect x="220" y="120" width="40" height="30" rx="2" fill="#F3F3F3" />
+  
+  <!-- 404 text on screen -->
+  <text x="240" y="140" font-family="Arial" font-size="16" font-weight="bold" text-anchor="middle" fill="#666666">404</text>
+  
+  <!-- Chair -->
+  <rect x="220" y="170" width="40" height="10" rx="2" fill="#D1D1D1" />
+  <rect x="230" y="180" width="20" height="40" rx="2" fill="#D1D1D1" />
+  <rect x="200" y="200" width="80" height="10" rx="5" fill="#D1D1D1" />
+  <rect x="200" y="210" width="80" height="30" rx="5" fill="#D1D1D1" />
+  
+  <!-- Person -->
+  <!-- Head -->
+  <circle cx="240" cy="190" r="12" fill="#FFB380" />
+  
+  <!-- Body -->
+  <path d="M240 202 L240 230 Q240 240, 230 245 L210 255" stroke="#FFB380" stroke-width="8" stroke-linecap="round" />
+  
+  <!-- Arms -->
+  <path d="M240 210 L260 220 L270 210" stroke="#FFB380" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M240 210 L220 215" stroke="#FFB380" stroke-width="6" stroke-linecap="round" />
+  
+  <!-- Legs -->
+  <path d="M230 245 L220 270" stroke="#4169E1" stroke-width="8" stroke-linecap="round" />
+  <path d="M230 245 L240 270" stroke="#4169E1" stroke-width="8" stroke-linecap="round" />
+  
+  <!-- Plants -->
+  <path d="M320 200 C325 180, 330 190, 335 170" stroke="#A0C090" stroke-width="2" />
+  <path d="M320 200 C315 180, 310 190, 305 170" stroke="#A0C090" stroke-width="2" />
+  <path d="M320 200 C320 180, 320 190, 320 170" stroke="#A0C090" stroke-width="2" />
+  <rect x="310" y="200" width="20" height="20" rx="2" fill="#E5E5E5" />
+  
+  <path d="M100 200 C105 180, 110 190, 115 170" stroke="#A0C090" stroke-width="2" />
+  <path d="M100 200 C95 180, 90 190, 85 170" stroke="#A0C090" stroke-width="2" />
+  <path d="M100 200 C100 180, 100 190, 100 170" stroke="#A0C090" stroke-width="2" />
+  <rect x="90" y="200" width="20" height="20" rx="2" fill="#E5E5E5" />
+</svg> 
