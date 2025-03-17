@@ -46,7 +46,7 @@ export function CartItem({
           {name}
         </span>
         <span className="font-medium text-[clamp(0.875rem,2vw,1rem)] whitespace-nowrap">
-          ${(price * quantity).toFixed(2)}
+          OMR {(price * quantity).toFixed(2)}
         </span>
       </div>
       <Button

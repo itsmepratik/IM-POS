@@ -17,6 +17,8 @@ import {
   Building,
   Warehouse,
   Truck,
+  User,
+  LogOut
 } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
@@ -31,7 +33,6 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -42,8 +43,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { LogOut, User } from "lucide-react"
 import { cn } from "@/lib/utils"
+
+// Define the type for nav items
+type NavItem = {
+  title: string;
+  href: string;
+  icon: React.ReactNode;
+  isAdmin: boolean;
+  hideMobile?: boolean;
+}
 
 export function CustomSidebar({ className }: { className?: string }) {
   const { currentUser } = useUser()
@@ -52,8 +61,25 @@ export function CustomSidebar({ className }: { className?: string }) {
   const { open, setOpen } = useSidebar()
   const [inventoryOpen, setInventoryOpen] = React.useState(false)
   const [ordersOpen, setOrdersOpen] = React.useState(false)
+  const [isMobile, setIsMobile] = React.useState(false)
 
-  const navItems = [
+  // Check if we're on mobile
+  React.useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768)
+    }
+    
+    // Initial check
+    checkMobile()
+    
+    // Add event listener for window resize
+    window.addEventListener('resize', checkMobile)
+    
+    // Cleanup
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
+
+  const navItems: NavItem[] = [
     {
       title: "Dashboard",
       href: "/",
@@ -83,12 +109,6 @@ export function CustomSidebar({ className }: { className?: string }) {
       href: "/transactions",
       icon: <RefreshCcw className="h-4 w-4" />,
       isAdmin: false,
-    },
-    {
-      title: "Admin",
-      href: "/admins",
-      icon: <Settings className="h-4 w-4" />,
-      isAdmin: true,
     }
   ]
 
@@ -139,7 +159,12 @@ export function CustomSidebar({ className }: { className?: string }) {
         <SidebarMenu>
           {navItems.map((item) => {
             // Skip admin items for non-admin users
-            if (item.isAdmin && (!currentUser || !currentUser.isAdmin)) {
+            if (item.isAdmin && (!currentUser || currentUser.role !== "admin")) {
+              return null
+            }
+
+            // Hide items marked with hideMobile on mobile devices
+            if (item.hideMobile && isMobile) {
               return null
             }
 
@@ -226,7 +251,7 @@ export function CustomSidebar({ className }: { className?: string }) {
               >
                 <span className="mr-2 inline-flex"><Package className="h-4 w-4" /></span>
                 <span className="flex-1 text-left">Inventory</span>
-                {open && <ChevronDown className={cn("h-4 w-4 transition-transform", inventoryOpen && "rotate-180")} />}
+                <ChevronDown className={cn("h-4 w-4 transition-transform", inventoryOpen && "rotate-180")} />
               </button>
               
               {inventoryOpen && (
@@ -271,18 +296,18 @@ export function CustomSidebar({ className }: { className?: string }) {
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-[90%] sm:w-56" align="end" forceMount>
+              <DropdownMenuContent className="w-[90%] sm:w-52 min-w-[13rem] border-2" align="end" forceMount>
                 <DropdownMenuItem>
-                  <User className="mr-2 h-4 w-4" />
+                  <User className="mr-2 h-4 w-4 stroke-[1.5]" />
                   <span>Profile</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => router.push("/settings")}>
-                  <Settings className="mr-2 h-4 w-4" />
+                  <Settings className="mr-2 h-4 w-4 stroke-[1.5]" />
                   <span>Settings</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onSelect={() => router.push("/auth")}>
-                  <LogOut className="mr-2 h-4 w-4" />
+                  <LogOut className="mr-2 h-4 w-4 stroke-[1.5]" />
                   <span>Log out</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -333,18 +358,18 @@ function ProfileMenu() {
           </div>
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-[90%] sm:w-56" align="end" forceMount>
+      <DropdownMenuContent className="w-[90%] sm:w-52 min-w-[13rem] border-2" align="end" forceMount>
         <DropdownMenuItem>
-          <User className="mr-2 h-4 w-4" />
+          <User className="mr-2 h-4 w-4 stroke-[1.5]" />
           <span>Profile</span>
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={handleSettingsClick}>
-          <Settings className="mr-2 h-4 w-4" />
+          <Settings className="mr-2 h-4 w-4 stroke-[1.5]" />
           <span>Settings</span>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onSelect={handleLogout}>
-          <LogOut className="mr-2 h-4 w-4" />
+          <LogOut className="mr-2 h-4 w-4 stroke-[1.5]" />
           <span>Log out</span>
         </DropdownMenuItem>
       </DropdownMenuContent>

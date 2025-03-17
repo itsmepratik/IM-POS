@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useTransfer } from "@/hooks/use-transfer"
 import { Layout } from "@/components/layout"
 import { Button } from "@/components/ui/button"
 import {
@@ -11,7 +11,6 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import {
-  ChevronLeft,
   History,
   FileText,
   Minus,
@@ -20,94 +19,33 @@ import {
   X,
   Printer
 } from "lucide-react"
-import Link from "next/link"
 import { PageHeader } from "@/components/page-title"
 
-// Define item type
-interface InventoryItem {
-  id: number
-  name: string
-  brand: string
-  sku: string
-  location: string
-  stock: number
-  price: number
-}
-
-// Mock data for demonstration
-const mockItems: InventoryItem[] = [
-  {
-    id: 1,
-    name: "Synthetic Motor Oil",
-    brand: "Mobil 1",
-    sku: "M1-5W30-1QT",
-    location: "A1-03",
-    stock: 124,
-    price: 39.99,
-  },
-  {
-    id: 2,
-    name: "Oil Filter",
-    brand: "l",
-    sku: "PH7317",
-    location: "B2-01",
-    stock: 85,
-    price: 8.99,
-  },
-  {
-    id: 3,
-    name: "Transmission Fluid",
-    brand: "Valvoline",
-    sku: "VAL-ATF-1GAL",
-    location: "A2-04",
-    stock: 42,
-    price: 29.99,
-  },
-]
-
 export default function TransferPage() {
-  const [sourceLocation, setSourceLocation] = useState("")
-  const [destinationLocation, setDestinationLocation] = useState("")
-  const [selectedCategory, setSelectedCategory] = useState("All Categories")
-  const [transferItems, setTransferItems] = useState<InventoryItem[]>([])
-  const [quantities, setQuantities] = useState<Record<number, number>>({})
-  const [transferQuantities, setTransferQuantities] = useState<Record<number, number>>({})
-
-  const handleQuantityChange = (itemId: number, value: number) => {
-    setQuantities({
-      ...quantities,
-      [itemId]: Math.max(1, value),
-    })
-  }
-
-  const handleTransferQuantityChange = (itemId: number, value: number) => {
-    setTransferQuantities({
-      ...transferQuantities,
-      [itemId]: Math.max(1, value),
-    })
-  }
-
-  const addToTransfer = (item: InventoryItem) => {
-    if (!transferItems.some(i => i.id === item.id)) {
-      setTransferItems([...transferItems, item])
-      // Use the current quantity value when adding to transfer
-      setTransferQuantities({
-        ...transferQuantities,
-        [item.id]: quantities[item.id] || 1,
-      })
-    }
-  }
-
-  const removeFromTransfer = (itemId: number) => {
-    setTransferItems(transferItems.filter(item => item.id !== itemId))
-    const newTransferQuantities = { ...transferQuantities }
-    delete newTransferQuantities[itemId]
-    setTransferQuantities(newTransferQuantities)
-  }
-
-  const handlePrint = () => {
-    window.print()
-  }
+  const {
+    // State
+    sourceLocation,
+    destinationLocation,
+    selectedCategory,
+    transferItems,
+    quantities,
+    transferQuantities,
+    
+    // Setters
+    setSourceLocation,
+    setDestinationLocation,
+    setSelectedCategory,
+    
+    // Actions
+    handleQuantityChange,
+    handleTransferQuantityChange,
+    addToTransfer,
+    removeFromTransfer,
+    handlePrint,
+    
+    // Data
+    items
+  } = useTransfer();
 
   return (
     <Layout>
@@ -204,7 +142,7 @@ export default function TransferPage() {
             </div>
 
             <div className="space-y-4 max-h-[400px] overflow-y-auto pr-1">
-              {mockItems.map((item) => (
+              {items.map((item) => (
                 <div key={item.id} className="border rounded-lg p-3 md:p-4 space-y-2">
                   <div className="flex flex-col sm:flex-row justify-between items-start gap-3">
                     <div>
@@ -216,7 +154,7 @@ export default function TransferPage() {
                         SKU: {item.sku} • Location: {item.location}
                       </div>
                       <div className="text-xs md:text-sm">
-                        In Stock: {item.stock} • ${item.price.toFixed(2)}/unit
+                        In Stock: {item.stock} • OMR {item.price.toFixed(2)}/unit
                       </div>
                     </div>
                     <div className="flex items-center gap-2 self-end sm:self-start">

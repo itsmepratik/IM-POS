@@ -20,13 +20,16 @@ import {
   ArrowRight,
   ImageIcon,
   Check,
-  Printer
+  Printer,
+  Smartphone,
+  Ticket
 } from "lucide-react"
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogContentWithoutClose
 } from "@/components/ui/dialog"
 import {
   AlertDialog,
@@ -247,17 +250,9 @@ const CartItem = memo(({
   updateQuantity: (id: number, quantity: number) => void
   removeFromCart: (id: number) => void 
 }) => (
-  <div className="flex items-center justify-between py-3 first:pt-0">
-    <div className="flex items-center gap-2">
-      <Button
-        variant="outline"
-        size="icon"
-        className="h-8 w-8"
-        onClick={() => updateQuantity(item.id, item.quantity - 1)}
-      >
-        <Minus className="h-4 w-4" />
-      </Button>
-      <span className="w-6 text-center text-[clamp(0.875rem,2vw,1rem)]">{item.quantity}</span>
+  <div className="grid grid-cols-[auto_1fr_auto] gap-3 py-4 first:pt-0 items-start border-b last:border-b-0">
+    {/* Quantity controls */}
+    <div className="flex flex-col items-center gap-1">
       <Button
         variant="outline"
         size="icon"
@@ -266,19 +261,38 @@ const CartItem = memo(({
       >
         <Plus className="h-4 w-4" />
       </Button>
-    </div>
-    <div className="flex-1 px-3">
-      <div className="font-medium text-[clamp(0.875rem,2vw,1rem)] line-clamp-1">{item.name}</div>
-      <div className="text-[clamp(0.75rem,1.5vw,0.875rem)] text-muted-foreground">${item.price.toFixed(2)} each</div>
-    </div>
-    <div className="flex items-center gap-2">
-      <div className="text-right font-medium text-[clamp(0.875rem,2vw,1rem)] whitespace-nowrap">
-        ${(item.price * item.quantity).toFixed(2)}
-      </div>
-      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => removeFromCart(item.id)}>
-        <X className="h-4 w-4" />
+      <span className="w-6 text-center font-medium text-[clamp(0.875rem,2vw,1rem)]">{item.quantity}</span>
+      <Button
+        variant="outline"
+        size="icon"
+        className="h-8 w-8"
+        onClick={() => updateQuantity(item.id, Math.max(1, item.quantity - 1))}
+      >
+        <Minus className="h-4 w-4" />
       </Button>
     </div>
+    
+    {/* Item details */}
+    <div className="min-w-0 px-1">
+      <div className="font-medium text-[clamp(0.875rem,2vw,1rem)] mb-1">{item.name}</div>
+      <div className="text-[clamp(0.75rem,1.5vw,0.875rem)] text-muted-foreground">
+        OMR {item.price.toFixed(2)} each
+      </div>
+      <div className="font-medium text-[clamp(0.875rem,2vw,1rem)] mt-1">
+        OMR {(item.price * item.quantity).toFixed(2)}
+      </div>
+    </div>
+    
+    {/* Delete button */}
+    <Button 
+      variant="ghost" 
+      size="icon" 
+      className="h-8 w-8 flex-shrink-0 self-start" 
+      onClick={() => removeFromCart(item.id)}
+      aria-label="Remove item"
+    >
+      <X className="h-4 w-4" />
+    </Button>
   </div>
 ))
 CartItem.displayName = 'CartItem'
@@ -292,7 +306,7 @@ const ProductButton = memo(({ product, addToCart }: { product: Product, addToCar
     onClick={() => addToCart(product)}
   >
     <div className="font-semibold text-base mb-2">{product.name}</div>
-    <div className="text-lg font-medium text-primary">${product.price.toFixed(2)}</div>
+    <div className="text-lg font-medium text-primary">OMR {product.price.toFixed(2)}</div>
   </Button>
 ))
 ProductButton.displayName = 'ProductButton'
@@ -314,8 +328,9 @@ export default function POSPage() {
   const [filterImageError, setFilterImageError] = useState(false)
   const [oilImageError, setOilImageError] = useState(false)
   const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false)
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'card' | 'cash' | null>(null)
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'card' | 'cash' | 'mobile' | 'voucher' | null>(null)
   const [showSuccess, setShowSuccess] = useState(false)
+  const [showOtherOptions, setShowOtherOptions] = useState(false)
 
   // Memoize handlers
   const removeFromCart = useCallback((productId: number) => {
@@ -575,7 +590,7 @@ export default function POSPage() {
                                     onClick={() => handleOilSelect(oil)}
                                   >
                                     <span>{oil.type}</span>
-                                    <span className="text-primary">${oil.basePrice.toFixed(2)}</span>
+                                    <span className="text-primary">OMR {oil.basePrice.toFixed(2)}</span>
                                   </Button>
                                 ))}
                               </div>
@@ -673,7 +688,7 @@ export default function POSPage() {
                   <div className="pt-6 mt-auto border-t">
                     <div className="flex justify-between text-[clamp(1rem,2.5vw,1.125rem)] font-semibold mb-4">
                       <span>Total</span>
-                      <span>${total.toFixed(2)}</span>
+                      <span>OMR {total.toFixed(2)}</span>
                     </div>
                     <Button 
                       className="w-full h-[clamp(2.5rem,6vw,2.75rem)] text-[clamp(0.875rem,2vw,1rem)]" 
@@ -735,7 +750,7 @@ export default function POSPage() {
                   <div className="mt-4 space-y-3 border-t pt-4">
                     <div className="flex justify-between text-[clamp(1rem,2.5vw,1.125rem)] font-semibold">
                       <span>Total</span>
-                      <span>${total.toFixed(2)}</span>
+                      <span>OMR {total.toFixed(2)}</span>
                     </div>
                     <Button 
                       className="w-full h-[clamp(2.5rem,6vw,2.75rem)] text-[clamp(0.875rem,2vw,1rem)]" 
@@ -789,7 +804,7 @@ export default function POSPage() {
                       onClick={() => handleVolumeClick(volume)}
                     >
                       <div className="text-sm sm:text-base font-medium">{volume.size}</div>
-                      <div className="text-xs sm:text-sm text-muted-foreground">${volume.price.toFixed(2)}</div>
+                      <div className="text-xs sm:text-sm text-muted-foreground">OMR {volume.price.toFixed(2)}</div>
                     </Button>
                   ))}
                 </div>
@@ -828,7 +843,7 @@ export default function POSPage() {
                             </div>
                             <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0 px-2 sm:px-3">
                               <span className="font-medium text-sm sm:text-base">{volume.size}</span>
-                              <span className="font-medium text-sm sm:text-base whitespace-nowrap">${(volume.price * volume.quantity).toFixed(2)}</span>
+                              <span className="font-medium text-sm sm:text-base whitespace-nowrap">OMR {(volume.price * volume.quantity).toFixed(2)}</span>
                             </div>
                           </div>
                         ))}
@@ -922,7 +937,7 @@ export default function POSPage() {
                         onClick={() => handleFilterClick(filter)}
                       >
                         <div className="text-sm sm:text-base font-medium text-center line-clamp-2">{filter.name}</div>
-                        <div className="text-xs sm:text-sm text-muted-foreground">${filter.price.toFixed(2)}</div>
+                        <div className="text-xs sm:text-sm text-muted-foreground">OMR {filter.price.toFixed(2)}</div>
                       </Button>
                     ))}
                 </div>
@@ -961,7 +976,7 @@ export default function POSPage() {
                             </div>
                             <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0 px-2 sm:px-3">
                               <span className="font-medium text-sm sm:text-base line-clamp-1">{filter.name}</span>
-                              <span className="font-medium text-sm sm:text-base whitespace-nowrap">${(filter.price * filter.quantity).toFixed(2)}</span>
+                              <span className="font-medium text-sm sm:text-base whitespace-nowrap">OMR {(filter.price * filter.quantity).toFixed(2)}</span>
                             </div>
                           </div>
                         ))}
@@ -1033,52 +1048,52 @@ export default function POSPage() {
               // Only allow closing via X button when not in success state
               if (!showSuccess) {
                 setIsCheckoutModalOpen(open)
+                if (!open) {
+                  setShowOtherOptions(false) // Reset other options when closing modal
+                }
               }
             }}
           >
-            <DialogContent 
-              className={cn(
-                "w-[90%] max-w-[500px] p-6 rounded-lg",
-                showSuccess && "[&_button[aria-label='Close']]:hidden"
-              )}
-              onPointerDownOutside={(e) => e.preventDefault()}
-              onEscapeKeyDown={(e) => e.preventDefault()}
-            >
-              <DialogHeader className="pb-4">
-                <DialogTitle className="text-xl font-semibold text-center">
-                  {showSuccess ? "Payment Complete" : "Select Payment Method"}
-                </DialogTitle>
-              </DialogHeader>
+            {showSuccess ? (
+              <DialogContentWithoutClose 
+                className="w-[90%] max-w-[500px] p-6 rounded-lg max-h-[90vh] overflow-auto"
+                onPointerDownOutside={(e) => e.preventDefault()}
+                onEscapeKeyDown={(e) => e.preventDefault()}
+              >
+                <DialogHeader className="pb-4 sticky top-0 bg-background z-10">
+                  <DialogTitle className="text-xl font-semibold text-center">
+                    Payment Complete
+                  </DialogTitle>
+                </DialogHeader>
 
-              <AnimatePresence mode="wait">
-                {showSuccess ? (
+                <motion.div
+                  initial={{ scale: 0.5, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.5, opacity: 0 }}
+                  className="flex flex-col items-center justify-center py-2"
+                >
                   <motion.div
-                    initial={{ scale: 0.5, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    exit={{ scale: 0.5, opacity: 0 }}
-                    className="flex flex-col items-center justify-center py-8"
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+                    className="rounded-full bg-green-100 p-3 mb-4"
                   >
-                    <motion.div
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-                      className="rounded-full bg-green-100 p-3 mb-4"
-                    >
-                      <Check className="w-8 h-8 text-green-600" />
-                    </motion.div>
-                    <motion.p
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ delay: 0.4 }}
-                      className="text-lg font-medium text-green-600 mb-6"
-                    >
-                      Payment Successful!
-                    </motion.p>
-                    
-                    {/* Receipt will appear after 1 second */}
+                    <Check className="w-8 h-8 text-green-600" />
+                  </motion.div>
+                  <motion.p
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.4 }}
+                    className="text-lg font-medium text-green-600 mb-4"
+                  >
+                    Payment Successful!
+                  </motion.p>
+                  
+                  {/* Receipt will appear after 1 second */}
+                  <div className="w-full">
                     <ReceiptComponent 
                       cart={cart} 
-                      paymentMethod={selectedPaymentMethod || 'cash'} 
+                      paymentMethod={selectedPaymentMethod} 
                     />
                     
                     <Button 
@@ -1094,51 +1109,120 @@ export default function POSPage() {
                     >
                       Close
                     </Button>
-                  </motion.div>
-                ) : (
-                  <div className="space-y-6">
-                    <div className="grid grid-cols-2 gap-4">
-                      <Button
-                        variant={selectedPaymentMethod === 'card' ? 'default' : 'outline'}
-                        className={cn(
-                          "h-24 flex flex-col items-center justify-center gap-2",
-                          selectedPaymentMethod === 'card' && "ring-2 ring-primary"
-                        )}
-                        onClick={() => setSelectedPaymentMethod('card')}
-                      >
-                        <CreditCard className="w-6 h-6" />
-                        <span>Card</span>
-                      </Button>
-                      <Button
-                        variant={selectedPaymentMethod === 'cash' ? 'default' : 'outline'}
-                        className={cn(
-                          "h-24 flex flex-col items-center justify-center gap-2",
-                          selectedPaymentMethod === 'cash' && "ring-2 ring-primary"
-                        )}
-                        onClick={() => setSelectedPaymentMethod('cash')}
-                      >
-                        <Banknote className="w-6 h-6" />
-                        <span>Cash</span>
-                      </Button>
-                    </div>
-
-                    <div className="border-t pt-6">
-                      <div className="flex justify-between text-lg font-semibold mb-6">
-                        <span>Total Amount</span>
-                        <span>${total.toFixed(2)}</span>
-                      </div>
-                      <Button 
-                        className="w-full h-12 text-base"
-                        disabled={!selectedPaymentMethod}
-                        onClick={handlePaymentComplete}
-                      >
-                        Complete Payment
-                      </Button>
-                    </div>
                   </div>
-                )}
-              </AnimatePresence>
-            </DialogContent>
+                </motion.div>
+              </DialogContentWithoutClose>
+            ) : (
+              <DialogContent 
+                className="w-[90%] max-w-[500px] p-6 rounded-lg max-h-[90vh] overflow-auto"
+                onPointerDownOutside={(e) => e.preventDefault()}
+                onEscapeKeyDown={(e) => e.preventDefault()}
+              >
+                <DialogHeader className="pb-4 sticky top-0 bg-background z-10 pr-8">
+                  <DialogTitle className="text-xl font-semibold text-center">
+                    Select Payment Method
+                  </DialogTitle>
+                </DialogHeader>
+
+                <div className="space-y-6">
+                  <div className={cn(
+                    "grid gap-4",
+                    showOtherOptions ? "grid-cols-2" : "grid-cols-3"
+                  )}>
+                    <Button
+                      variant={selectedPaymentMethod === 'card' ? 'default' : 'outline'}
+                      className={cn(
+                        "h-24 flex flex-col items-center justify-center gap-2",
+                        selectedPaymentMethod === 'card' && "ring-2 ring-primary"
+                      )}
+                      onClick={() => {
+                        setSelectedPaymentMethod('card')
+                        setShowOtherOptions(false)
+                      }}
+                    >
+                      <CreditCard className="w-6 h-6" />
+                      <span>Card</span>
+                    </Button>
+                    <Button
+                      variant={selectedPaymentMethod === 'cash' ? 'default' : 'outline'}
+                      className={cn(
+                        "h-24 flex flex-col items-center justify-center gap-2",
+                        selectedPaymentMethod === 'cash' && "ring-2 ring-primary"
+                      )}
+                      onClick={() => {
+                        setSelectedPaymentMethod('cash')
+                        setShowOtherOptions(false)
+                      }}
+                    >
+                      <Banknote className="w-6 h-6" />
+                      <span>Cash</span>
+                    </Button>
+                    <Button
+                      variant={showOtherOptions ? 'default' : 'outline'}
+                      className={cn(
+                        "h-24 flex flex-col items-center justify-center gap-2",
+                        (selectedPaymentMethod === 'mobile' || selectedPaymentMethod === 'voucher') && "ring-2 ring-primary"
+                      )}
+                      onClick={() => {
+                        setShowOtherOptions(!showOtherOptions)
+                        if (!showOtherOptions) {
+                          setSelectedPaymentMethod(null)
+                        }
+                      }}
+                    >
+                      <ChevronDown className="w-6 h-6" />
+                      <span>Other</span>
+                    </Button>
+                  </div>
+
+                  {showOtherOptions && (
+                    <motion.div 
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="grid grid-cols-2 gap-4"
+                    >
+                      <Button
+                        variant={selectedPaymentMethod === 'mobile' ? 'default' : 'outline'}
+                        className={cn(
+                          "h-24 flex flex-col items-center justify-center gap-2",
+                          selectedPaymentMethod === 'mobile' && "ring-2 ring-primary"
+                        )}
+                        onClick={() => setSelectedPaymentMethod('mobile')}
+                      >
+                        <Smartphone className="w-6 h-6" />
+                        <span>Mobile Pay</span>
+                      </Button>
+                      <Button
+                        variant={selectedPaymentMethod === 'voucher' ? 'default' : 'outline'}
+                        className={cn(
+                          "h-24 flex flex-col items-center justify-center gap-2",
+                          selectedPaymentMethod === 'voucher' && "ring-2 ring-primary"
+                        )}
+                        onClick={() => setSelectedPaymentMethod('voucher')}
+                      >
+                        <Ticket className="w-6 h-6" />
+                        <span>Voucher</span>
+                      </Button>
+                    </motion.div>
+                  )}
+
+                  <div className="border-t pt-6">
+                    <div className="flex justify-between text-lg font-semibold mb-6">
+                      <span>Total Amount</span>
+                      <span>OMR {total.toFixed(2)}</span>
+                    </div>
+                    <Button 
+                      className="w-full h-12 text-base"
+                      disabled={!selectedPaymentMethod}
+                      onClick={handlePaymentComplete}
+                    >
+                      Complete Payment
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            )}
           </Dialog>
         </div>
       </div>
@@ -1160,6 +1244,20 @@ const ReceiptComponent = ({ cart, paymentMethod }: { cart: CartItem[], paymentMe
     return () => clearTimeout(timer);
   }, []);
   
+  // Generate a random receipt number
+  const receiptNumber = useMemo(() => {
+    return `A${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
+  }, []);
+  
+  // Generate current date and time
+  const currentDate = useMemo(() => {
+    return new Date().toLocaleDateString('en-GB');
+  }, []);
+  
+  const currentTime = useMemo(() => {
+    return new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  }, []);
+  
   const handlePrint = useCallback(() => {
     const content = receiptRef.current;
     if (!content) return;
@@ -1170,6 +1268,12 @@ const ReceiptComponent = ({ cart, paymentMethod }: { cart: CartItem[], paymentMe
       return;
     }
     
+    // Calculate subtotal
+    const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    // No VAT in this example (0%)
+    const vat = 0;
+    const total = subtotal;
+    
     const htmlContent = `
       <!DOCTYPE html>
       <html>
@@ -1179,67 +1283,182 @@ const ReceiptComponent = ({ cart, paymentMethod }: { cart: CartItem[], paymentMe
           <style>
             body {
               font-family: 'Courier New', monospace;
-              padding: 20px;
-              max-width: 300px;
-              margin: 0 auto;
+              padding: 0;
+              margin: 0;
+              width: 80mm;
+              font-size: 12px;
+            }
+            .receipt-container {
+              padding: 5mm;
             }
             .receipt-header {
               text-align: center;
-              margin-bottom: 20px;
+              margin-bottom: 10px;
             }
-            .receipt-item {
-              display: flex;
-              justify-content: space-between;
-              margin-bottom: 8px;
-              font-size: 14px;
+            .receipt-header h2 {
+              margin: 0;
+              font-size: 16px;
             }
-            .receipt-total {
-              display: flex;
-              justify-content: space-between;
-              margin-top: 12px;
-              padding-top: 12px;
-              border-top: 1px dashed #ccc;
+            .receipt-header p {
+              margin: 2px 0;
+              font-size: 12px;
+            }
+            .receipt-info {
+              border-top: 1px dashed #000;
+              border-bottom: 1px dashed #000;
+              padding: 5px 0;
+              margin-bottom: 10px;
+            }
+            .receipt-info p {
+              margin: 2px 0;
+              font-size: 12px;
+            }
+            .receipt-table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-bottom: 10px;
+              table-layout: fixed;
+            }
+            .receipt-table th {
+              text-align: left;
+              font-size: 12px;
+              padding-bottom: 5px;
+            }
+            .receipt-table td {
+              font-size: 12px;
+              padding: 2px 0;
+              word-wrap: break-word;
+              word-break: break-word;
+            }
+            .receipt-table .qty {
+              width: 30px;
+            }
+            .receipt-table .description {
+              width: auto;
+              max-width: 180px;
+            }
+            .receipt-table .price {
+              width: 60px;
+              text-align: right;
+            }
+            .receipt-table .amount {
+              width: 70px;
+              text-align: right;
+            }
+            .receipt-table .total {
+              width: 70px;
+              text-align: right;
+            }
+            .receipt-summary {
+              margin-top: 10px;
+              border-top: 1px dashed #000;
+              padding-top: 5px;
+            }
+            .receipt-summary table {
+              width: 100%;
+            }
+            .receipt-summary td {
+              font-size: 12px;
+            }
+            .receipt-summary .total-label {
+              font-weight: bold;
+            }
+            .receipt-summary .total-amount {
+              text-align: right;
               font-weight: bold;
             }
             .receipt-footer {
-              margin-top: 20px;
+              margin-top: 10px;
               text-align: center;
               font-size: 12px;
+              border-top: 1px dashed #000;
+              padding-top: 5px;
+            }
+            .receipt-footer p {
+              margin: 3px 0;
+            }
+            .barcode {
+              margin-top: 10px;
+              text-align: center;
             }
             @media print {
               body {
-                padding: 0;
+                width: 80mm;
                 margin: 0;
+                padding: 0;
               }
               @page {
-                margin: 10mm;
-                size: 80mm 297mm;
+                margin: 0;
+                size: 80mm auto;
               }
             }
           </style>
         </head>
         <body>
-          <div class="receipt-header">
-            <h2>H Automotives</h2>
-            <p>${new Date().toLocaleDateString('en-GB')}</p>
-            <p>${new Date().toLocaleTimeString('en-GB')}</p>
-          </div>
-          <div>
-            ${cart.map(item => `
-              <div class="receipt-item">
-                <div>${item.quantity} x ${item.name}</div>
-                <div>$${(item.price * item.quantity).toFixed(2)}</div>
-              </div>
-            `).join('')}
-          </div>
-          <div class="receipt-total">
-            <div>Total</div>
-            <div>$${cart.reduce((sum, item) => sum + (item.price * item.quantity), 0).toFixed(2)}</div>
-          </div>
-          <div class="receipt-footer">
-            <p>Payment Method: ${paymentMethod.charAt(0).toUpperCase() + paymentMethod.slice(1)}</p>
-            <p>Thank you for your business!</p>
-            <p>Receipt #${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}</p>
+          <div class="receipt-container">
+            <div class="receipt-header">
+              <h2>H Automotives</h2>
+              <p>Saham, Sultanate of Oman</p>
+              <p>Ph: 92510750 | 26856848</p>
+              <p>VATIN: OM1100006980</p>
+            </div>
+            
+            <div class="receipt-info">
+              <p>INVOICE</p>
+              <p>Date: ${currentDate}</p>
+              <p>Time: ${currentTime}    POS ID: ${receiptNumber}</p>
+            </div>
+            
+            <table class="receipt-table">
+              <thead>
+                <tr>
+                  <th class="qty">Qty.</th>
+                  <th class="description">Description</th>
+                  <th class="price">Price</th>
+                  <th class="amount">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${cart.map((item, index) => `
+                  <tr>
+                    <td class="qty">${item.quantity}</td>
+                    <td class="description">${item.name}${item.details ? ` (${item.details})` : ''}</td>
+                    <td class="price">OMR ${item.price.toFixed(2)}</td>
+                    <td class="amount">OMR ${(item.price * item.quantity).toFixed(2)}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+            
+            <div class="receipt-summary">
+              <table>
+                <tr>
+                  <td>Total w/o VAT</td>
+                  <td class="total-amount">OMR ${subtotal.toFixed(2)}</td>
+                </tr>
+                <tr>
+                  <td>VAT</td>
+                  <td class="total-amount">OMR ${vat.toFixed(2)}</td>
+                </tr>
+                <tr>
+                  <td class="total-label">Total with VAT</td>
+                  <td class="total-amount">OMR ${total.toFixed(2)}</td>
+                </tr>
+              </table>
+            </div>
+            
+            <div class="receipt-footer">
+              <p>Number of Items: ${cart.reduce((sum, item) => sum + item.quantity, 0)}</p>
+              <p>Payment Method: ${paymentMethod.charAt(0).toUpperCase() + paymentMethod.slice(1)}</p>
+              <p>Keep this Invoice for your Exchanges</p>
+              <p>Exchange with in 15 Days</p>
+              <p>Thank you for shopping with us.</p>
+            </div>
+            
+            <div class="barcode">
+              <!-- Barcode would go here in a real implementation -->
+              ${receiptNumber}
+            </div>
           </div>
         </body>
       </html>
@@ -1258,11 +1477,26 @@ const ReceiptComponent = ({ cart, paymentMethod }: { cart: CartItem[], paymentMe
         printWindow.close();
       }
     }, 500);
-  }, [cart, paymentMethod]);
+  }, [cart, paymentMethod, receiptNumber, currentDate, currentTime]);
   
   if (!showReceipt) return null;
   
-  const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  // Calculate totals
+  const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const vat = 0; // No VAT in this example
+  const total = subtotal;
+  const itemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+  
+  // Format payment method name for display
+  const getFormattedPaymentMethod = (method: string) => {
+    switch(method) {
+      case 'card': return 'Card';
+      case 'cash': return 'Cash';
+      case 'mobile': return 'Mobile Pay';
+      case 'voucher': return 'Voucher';
+      default: return method.charAt(0).toUpperCase() + method.slice(1);
+    }
+  };
   
   return (
     <motion.div
@@ -1271,37 +1505,74 @@ const ReceiptComponent = ({ cart, paymentMethod }: { cart: CartItem[], paymentMe
       transition={{ duration: 0.5 }}
       className="w-full"
     >
-      <div className="bg-white border rounded-lg p-4 mb-4 w-full max-w-[300px] mx-auto" ref={receiptRef}>
-        <div className="text-center mb-4">
-          <h3 className="font-bold text-lg">H Automotives</h3>
-          <p className="text-sm text-gray-500">{new Date().toLocaleDateString('en-GB')}</p>
-          <p className="text-sm text-gray-500">{new Date().toLocaleTimeString('en-GB')}</p>
-        </div>
-        
-        <div className="space-y-2 mb-4">
-          {cart.map((item) => (
-            <div key={item.uniqueId} className="flex justify-between text-sm">
-              <div>{item.quantity} x {item.name}</div>
-              <div>${(item.price * item.quantity).toFixed(2)}</div>
+      <div className="max-h-[40vh] overflow-auto mb-4">
+        <div className="bg-white border rounded-lg p-4 w-full max-w-[300px] mx-auto" ref={receiptRef}>
+          {/* Receipt Preview */}
+          <div className="text-center mb-2">
+            <h3 className="font-bold text-lg">H Automotives</h3>
+            <p className="text-xs text-gray-500">Saham, Sultanate of Oman</p>
+            <p className="text-xs text-gray-500">Ph: 92510750 | 26856848</p>
+            <p className="text-xs text-gray-500">VATIN: OM1100006980</p>
+          </div>
+          
+          <div className="border-t border-b border-dashed py-1 mb-3">
+            <p className="text-xs font-medium text-center">INVOICE</p>
+            <div className="flex justify-between text-xs">
+              <span>Date: {currentDate}</span>
             </div>
-          ))}
-        </div>
-        
-        <div className="border-t border-dashed pt-2 flex justify-between font-bold">
-          <div>Total</div>
-          <div>${total.toFixed(2)}</div>
-        </div>
-        
-        <div className="text-center mt-4 text-xs text-gray-500">
-          <p>Payment Method: {paymentMethod.charAt(0).toUpperCase() + paymentMethod.slice(1)}</p>
-          <p>Thank you for your business!</p>
-          <p>Receipt #{Math.floor(Math.random() * 10000).toString().padStart(4, '0')}</p>
+            <div className="flex justify-between text-xs">
+              <span>Time: {currentTime}</span>
+              <span>POS ID: {receiptNumber}</span>
+            </div>
+          </div>
+          
+          <div className="text-xs mb-3">
+            <div className="grid grid-cols-12 gap-1 font-medium mb-1">
+              <span className="col-span-1">Qty.</span>
+              <span className="col-span-7">Description</span>
+              <span className="col-span-2 text-right">Price</span>
+              <span className="col-span-2 text-right">Amount</span>
+            </div>
+            
+            {cart.map((item) => (
+              <div key={item.uniqueId} className="grid grid-cols-12 gap-1 mb-1">
+                <span className="col-span-1">{item.quantity}</span>
+                <span className="col-span-7 break-words">{item.name}{item.details ? ` (${item.details})` : ''}</span>
+                <span className="col-span-2 text-right">OMR {item.price.toFixed(2)}</span>
+                <span className="col-span-2 text-right">OMR {(item.price * item.quantity).toFixed(2)}</span>
+              </div>
+            ))}
+          </div>
+          
+          <div className="border-t border-dashed pt-2 mb-3">
+            <div className="flex justify-between text-xs">
+              <span>Total w/o VAT</span>
+              <span>OMR {subtotal.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between text-xs">
+              <span>VAT</span>
+              <span>OMR {vat.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between text-xs font-bold">
+              <span>Total with VAT</span>
+              <span>OMR {total.toFixed(2)}</span>
+            </div>
+          </div>
+          
+          <div className="text-center text-xs text-gray-600 border-t border-dashed pt-2">
+            <p>Number of Items: {itemCount}</p>
+            <p>Payment Method: {getFormattedPaymentMethod(paymentMethod)}</p>
+            <p>Keep this Invoice for your Exchanges</p>
+            <p>Exchange with in 15 Days</p>
+            <p className="mb-2">Thank you for shopping with us.</p>
+            <p className="font-mono">{receiptNumber}</p>
+          </div>
         </div>
       </div>
       
       <Button 
         onClick={handlePrint}
-        className="w-full flex items-center justify-center gap-2"
+        className="w-full flex items-center justify-center gap-2 mt-2"
       >
         <Printer className="h-4 w-4" />
         Print Receipt

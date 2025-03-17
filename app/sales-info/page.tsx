@@ -112,11 +112,11 @@ const MobileItemCard = memo(({
           <div>
             <h3 className="font-medium">{item.name}</h3>
             <p className="text-sm text-muted-foreground mt-1">
-              {item.quantity} units at ${item.unitPrice.toFixed(2)}
+              {item.quantity} units at OMR {item.unitPrice.toFixed(2)}
             </p>
           </div>
           <div className="text-right">
-            <div className="font-semibold">${item.totalSales.toFixed(2)}</div>
+            <div className="font-semibold">OMR {item.totalSales.toFixed(2)}</div>
             {item.category === "fluid" && (
               <div className="text-blue-500 mt-1">
                 {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
@@ -132,11 +132,11 @@ const MobileItemCard = memo(({
                 <div>
                   <span className="font-medium">{variant.size}</span>
                   <p className="text-xs mt-0.5">
-                    {variant.quantity} units at ${variant.unitPrice.toFixed(2)}
+                    {variant.quantity} units at OMR {variant.unitPrice.toFixed(2)}
                   </p>
                 </div>
                 <div className="font-medium">
-                  ${variant.totalSales.toFixed(2)}
+                  OMR {variant.totalSales.toFixed(2)}
                 </div>
               </div>
             ))}
@@ -191,8 +191,8 @@ const DesktopView = memo(({
                   {stores.find(store => store.id === item.storeId)?.name}
                 </td>
                 <td className="px-6 py-4 text-right">{item.quantity} units</td>
-                <td className="px-6 py-4 text-right">${item.unitPrice.toFixed(2)}</td>
-                <td className="px-6 py-4 text-right">${item.totalSales.toFixed(2)}</td>
+                <td className="px-6 py-4 text-right">OMR {item.unitPrice.toFixed(2)}</td>
+                <td className="px-6 py-4 text-right">OMR {item.totalSales.toFixed(2)}</td>
               </tr>
               {item.category === "fluid" && expandedItems.includes(item.name) && item.variants?.map((variant) => (
                 <tr key={`${item.name}-${variant.size}`} className="border-b bg-gray-50">
@@ -204,10 +204,10 @@ const DesktopView = memo(({
                     {variant.quantity} units
                   </td>
                   <td className="px-6 py-3 text-right text-sm text-gray-600">
-                    ${variant.unitPrice.toFixed(2)}
+                    OMR {variant.unitPrice.toFixed(2)}
                   </td>
                   <td className="px-6 py-3 text-right text-sm text-gray-600">
-                    ${variant.totalSales.toFixed(2)}
+                    OMR {variant.totalSales.toFixed(2)}
                   </td>
                 </tr>
               ))}
@@ -218,7 +218,7 @@ const DesktopView = memo(({
           <tr className="font-semibold text-lg">
             <td colSpan={4} className="px-6 pt-8">Total Sales</td>
             <td className="px-6 pt-8 text-right">
-              ${totalSales.toFixed(2)}
+              OMR {totalSales.toFixed(2)}
             </td>
           </tr>
         </tfoot>
@@ -255,8 +255,7 @@ const MobileView = memo(({
       ))}
       <Card className="p-4 mt-6">
         <div className="flex justify-between items-center text-lg font-semibold">
-          <span>Total Sales</span>
-          <span>${totalSales.toFixed(2)}</span>
+          <span>OMR {totalSales.toFixed(2)}</span>
         </div>
       </Card>
     </div>

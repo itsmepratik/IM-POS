@@ -25,6 +25,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { PageHeader } from "@/components/page-title"
+import { BranchProvider, useBranch } from "../branch-context"
 
 // Add cache configuration
 export const dynamic = 'force-dynamic'
@@ -127,7 +128,7 @@ const MobileItemCard = memo(({ item, onEdit, onDelete, onDuplicate }: {
               <span className="font-medium">{item.stock}</span>
             </div>
             <div className="text-base font-medium text-primary">
-              ${item.price.toFixed(2)}
+              OMR {item.price.toFixed(2)}
             </div>
           </div>
 
@@ -164,7 +165,7 @@ const MobileItemCard = memo(({ item, onEdit, onDelete, onDuplicate }: {
                         className="flex items-center justify-between p-2 rounded-md border text-sm"
                       >
                         <span>{volume.size}</span>
-                        <span className="font-medium">${volume.price.toFixed(2)}</span>
+                        <span className="font-medium">OMR {volume.price.toFixed(2)}</span>
                       </div>
                     ))}
                   </div>
@@ -218,7 +219,7 @@ const TableRow = memo(({
     <td className="p-4">{item.name}</td>
     <td className="p-4">{item.category}</td>
     <td className="p-4">{item.stock}</td>
-    <td className="p-4">${item.price.toFixed(2)}</td>
+    <td className="p-4">OMR {item.price.toFixed(2)}</td>
     {item.isOil && (
       <td className="p-4">
         {item.bottleStates && (
@@ -581,6 +582,7 @@ function DesktopView() {
 
 function ItemsPageContent() {
   const { currentUser } = useUser()
+  const { currentBranch } = useBranch()
   const [isMobile, setIsMobile] = useState(false)
 
   // Check viewport on mount and resize
@@ -600,7 +602,10 @@ function ItemsPageContent() {
 
   return (
     <div className="w-full space-y-6">
-      <PageHeader>Inventory</PageHeader>
+      <PageHeader 
+        title="Inventory" 
+        description={`Manage inventory at ${currentBranch?.name || 'Main Store'}`}
+      />
       {isMobile ? <MobileView /> : <DesktopView />}
     </div>
   )
@@ -609,9 +614,11 @@ function ItemsPageContent() {
 export default function ItemsPage() {
   return (
     <Layout>
-      <ItemsProvider>
-        <ItemsPageContent />
-      </ItemsProvider>
+      <BranchProvider>
+        <ItemsProvider>
+          <ItemsPageContent />
+        </ItemsProvider>
+      </BranchProvider>
     </Layout>
   )
 }

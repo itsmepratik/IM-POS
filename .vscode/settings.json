@@ -1,12 +1,31 @@
 {
+  "[typescript]": {
+    "editor.defaultFormatter": "denoland.vscode-deno"
+  },
   "cSpell.words": [
     "FRAM"
   ],
-  "terminal.integrated.enableImages": true,
-  "editor.smoothScrolling": true,
-  "terminal.integrated.smoothScrolling": true,
-  "workbench.list.smoothScrolling": true,
-  "editor.cursorSmoothCaretAnimation": "on",
+  "deno.lint": true,
+  "deno.unstable": [
+    "bare-node-builtins",
+    "byonm",
+    "sloppy-imports",
+    "unsafe-proto",
+    "webgpu",
+    "broadcast-channel",
+    "worker-options",
+    "cron",
+    "kv",
+    "ffi",
+    "fs",
+    "http",
+    "net"
+  ],
   "editor.cursorBlinking": "phase",
-  "terminal.integrated.scrollback": 500
+  "editor.cursorSmoothCaretAnimation": "on",
+  "editor.smoothScrolling": true,
+  "terminal.integrated.enableImages": true,
+  "terminal.integrated.scrollback": 500,
+  "terminal.integrated.smoothScrolling": true,
+  "workbench.list.smoothScrolling": true
 }

@@ -152,7 +152,7 @@ const TransactionCard = memo(({
           </div>
           <div className="flex items-center gap-4">
             <div className={`text-lg font-semibold ${transaction.type === 'refund' ? 'text-red-500' : 'text-green-500'}`}>
-              ${Math.abs(transaction.amount).toFixed(2)}
+              OMR {Math.abs(transaction.amount).toFixed(2)}
             </div>
             <Button
               variant="ghost"

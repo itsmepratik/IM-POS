@@ -43,22 +43,12 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import Link from "next/link"
+import { useTransfer, InventoryItem } from "@/hooks/use-transfer"
 
 // Define interfaces for our data
 interface Location {
   id: string
   name: string
-}
-
-interface InventoryItem {
-  id: string
-  name: string
-  category: string
-  brand: string
-  sku: string
-  location: string
-  inStock: number
-  price: number
 }
 
 interface TransferItem {
@@ -71,6 +61,18 @@ interface TransferItem {
   price: number
 }
 
+// Define a proper interface for the converted item
+interface ConvertedInventoryItem {
+  id: string;
+  name: string;
+  category: string;
+  brand: string;
+  sku: string;
+  location: string;
+  inStock: number;
+  price: number;
+}
+
 // Mock data for locations
 const locations: Location[] = [
   { id: "loc1", name: "Main Warehouse" },
@@ -81,65 +83,18 @@ const locations: Location[] = [
   { id: "loc6", name: "South Distribution Center" },
 ]
 
-// Mock data for inventory items
-const inventoryItems: InventoryItem[] = [
-  {
-    id: "item1",
-    name: "Synthetic Motor Oil",
-    category: "Oil",
-    brand: "Mobil 1",
-    sku: "M1-5W30-1QT",
-    location: "A1-03",
-    inStock: 124,
-    price: 39.99
-  },
-  {
-    id: "item2",
-    name: "Oil Filter",
-    category: "Filters",
-    brand: "FRAM",
-    sku: "PH7317",
-    location: "B2-01",
-    inStock: 85,
-    price: 8.99
-  },
-  {
-    id: "item3",
-    name: "Transmission Fluid",
-    category: "Fluids",
-    brand: "Valvoline",
-    sku: "VAL-ATF-1GAL",
-    location: "A2-04",
-    inStock: 42,
-    price: 29.99
-  },
-  {
-    id: "item4",
-    name: "Brake Fluid DOT 4",
-    category: "Fluids",
-    brand: "Castrol",
-    sku: "CAST-BF-DOT4",
-    location: "A3-01",
-    inStock: 36,
-    price: 12.99
-  },
-  {
-    id: "item5",
-    name: "Wiper Blades 22\"",
-    category: "Accessories",
-    brand: "Bosch",
-    sku: "BOSCH-WB-22",
-    location: "C1-05",
-    inStock: 28,
-    price: 24.99
-  }
-]
-
 // Categories for filtering
 const categories = ["All Categories", "Oil", "Filters", "Fluids", "Accessories"]
 
 export default function TransferPage() {
   const { toast } = useToast()
+  const { items, refreshItems } = useTransfer() // Get items from the hook
+  
+  // Use useEffect to refresh items when the component mounts
+  useEffect(() => {
+    refreshItems();
+  }, []);
+  
   const [sourceLocation, setSourceLocation] = useState<string>("")
   const [destinationLocation, setDestinationLocation] = useState<string>("")
   const [selectedCategory, setSelectedCategory] = useState<string>("All Categories")
@@ -150,6 +105,28 @@ export default function TransferPage() {
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [transferSuccess, setTransferSuccess] = useState(false)
+  const [currentDate, setCurrentDate] = useState<string>("")
+  const [currentTime, setCurrentTime] = useState<string>("")
+  const [transferId, setTransferId] = useState<string>("")
+
+  // Use useEffect to set the date, time, and transfer ID only on the client side
+  useEffect(() => {
+    setCurrentDate(new Date().toLocaleDateString('en-GB'))
+    setCurrentTime(new Date().toLocaleTimeString('en-GB'))
+    setTransferId(`TO-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`)
+  }, [])
+
+  // Convert hook items to the format expected by this component
+  const inventoryItems = items.map(item => ({
+    id: item.id.toString(),
+    name: item.name,
+    category: item.brand, // Using brand as category for now
+    brand: item.brand,
+    sku: item.sku,
+    location: item.location,
+    inStock: item.stock,
+    price: item.price
+  }))
 
   // Filter items based on search query and category
   const filteredItems = inventoryItems.filter(item => {
@@ -175,7 +152,7 @@ export default function TransferPage() {
   }
 
   // Add item to transfer
-  const addToTransfer = (item: InventoryItem) => {
+  const addToTransfer = (item: ConvertedInventoryItem) => {
     const quantity = quantities[item.id] || 1
     
     // Check if item already exists in transfer
@@ -337,6 +314,25 @@ export default function TransferPage() {
               <FileText className="h-4 w-4" />
               <span className="hidden sm:inline">Generate Receipt</span>
             </Button>
+            <Button 
+              variant="outline" 
+              className="flex items-center gap-2"
+              onClick={() => {
+                refreshItems();
+                toast({
+                  title: "Items Refreshed",
+                  description: "The item list has been refreshed with the latest data",
+                });
+              }}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+                <path d="M21 2v6h-6"></path>
+                <path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path>
+                <path d="M3 22v-6h6"></path>
+                <path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path>
+              </svg>
+              <span className="hidden sm:inline">Refresh Items</span>
+            </Button>
           </div>
         </div>
 
@@ -437,7 +433,7 @@ export default function TransferPage() {
                           <p>SKU: {item.sku} • Location: {item.location}</p>
                           <p className="flex items-center gap-1">
                             In Stock: <span className="font-medium">{item.inStock}</span> •
-                            <span className="font-medium">${item.price.toFixed(2)}/unit</span>
+                            <span className="font-medium">OMR {item.price.toFixed(2)}/unit</span>
                           </p>
                         </div>
                       </div>
@@ -572,8 +568,8 @@ export default function TransferPage() {
           <h2 className="text-xl font-semibold text-center mb-6">Transfer Order</h2>
           
           <div className="mb-6">
-            <p><strong>Date:</strong> {new Date().toLocaleDateString('en-GB')}</p>
-            <p><strong>Time:</strong> {new Date().toLocaleTimeString('en-GB')}</p>
+            <p><strong>Date:</strong> {currentDate}</p>
+            <p><strong>Time:</strong> {currentTime}</p>
             <p><strong>From:</strong> {locations.find(l => l.id === sourceLocation)?.name || 'N/A'}</p>
             <p><strong>To:</strong> {locations.find(l => l.id === destinationLocation)?.name || 'N/A'}</p>
           </div>
@@ -602,8 +598,8 @@ export default function TransferPage() {
           </div>
           
           <div className="text-center text-sm mt-8 pt-4 border-t">
-            <p>Transfer ID: TO-{Math.floor(Math.random() * 10000).toString().padStart(4, '0')}</p>
-            <p>Printed on: {new Date().toLocaleDateString('en-GB')} {new Date().toLocaleTimeString('en-GB')}</p>
+            <p>Transfer ID: {transferId}</p>
+            <p>Printed on: {currentDate} {currentTime}</p>
           </div>
         </div>
       </div>

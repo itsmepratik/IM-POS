@@ -80,12 +80,6 @@ export function MobileNav({ className }: { className?: string }) {
       href: "/transactions",
       icon: <RefreshCcw className="h-4 w-4" />,
       isAdmin: false,
-    },
-    {
-      title: "Admin",
-      href: "/admins",
-      icon: <Settings className="h-4 w-4" />,
-      isAdmin: true,
     }
   ]
 
@@ -251,18 +245,18 @@ export function MobileNav({ className }: { className?: string }) {
                   </div>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-[90%] sm:w-56">
+              <DropdownMenuContent align="end" className="w-[90%] sm:w-52 min-w-[13rem] border-2">
                 <DropdownMenuItem>
-                  <User className="mr-2 h-4 w-4" />
+                  <User className="mr-2 h-4 w-4 stroke-[1.5]" />
                   <span>Profile</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => router.push("/settings")}>
-              <Settings className="mr-2 h-4 w-4" />
+                  <Settings className="mr-2 h-4 w-4 stroke-[1.5]" />
                   <span>Settings</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onSelect={() => router.push("/auth")}>
-                  <LogOut className="mr-2 h-4 w-4" />
+                  <LogOut className="mr-2 h-4 w-4 stroke-[1.5]" />
                   <span>Log out</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
