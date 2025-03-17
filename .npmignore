@@ -1,0 +1,8 @@
+# Don't ignore these files
+!.next/
+!public/
+!package.json
+!next.config.ts
+!netlify.toml
+!netlify-plugin-bun.js
+!bunfig.toml 

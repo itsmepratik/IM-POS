@@ -1,0 +1,14 @@
+[build]
+  command = "bun run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "20"
+  # Use Netlify's official Bun support
+  NETLIFY_USE_BUN = "true"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+[[plugins]]
+  package = "./netlify-plugin-bun.js" 

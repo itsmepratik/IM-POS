@@ -1,0 +1,12 @@
+[install]
+# Bun is more lenient with peer dependencies by default
+# but we can explicitly set it to be even more lenient
+peer_dependency_resolution = "ignore"
+
+[install.cache]
+# Ensure fresh installs
+disable = false
+
+[install.lockfile]
+# Always generate a lockfile
+save = true 
