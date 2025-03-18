@@ -102,7 +102,7 @@ export default function TransferPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="warehouse">Warehouse</SelectItem>
-                    <SelectItem value="store-1">Store 1</SelectItem>
+                    <SelectItem value="store-1">Main</SelectItem>
                     <SelectItem value="store-2">Store 2</SelectItem>
                   </SelectContent>
                 </Select>
