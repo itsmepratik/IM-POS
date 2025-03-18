@@ -734,9 +734,9 @@ export default function POSPage() {
                     </Button>
                   </div>
                 </CardHeader>
-                <CardContent className="flex-1 flex flex-col p-4">
-                  <ScrollArea className="flex-1 -mx-4 px-4">
-                    <div className="space-y-3">
+                <CardContent className="flex-1 flex flex-col p-4 overflow-hidden">
+                  <ScrollArea className="flex-1 -mx-4 px-4 overflow-y-auto">
+                    <div className="space-y-3 pb-4">
                       {cart.map((item) => (
                         <CartItem
                           key={item.uniqueId}
@@ -747,7 +747,7 @@ export default function POSPage() {
                       ))}
                     </div>
                   </ScrollArea>
-                  <div className="mt-4 space-y-3 border-t pt-4">
+                  <div className="mt-2 space-y-3 border-t pt-4 sticky bottom-0 bg-background w-full">
                     <div className="flex justify-between text-[clamp(1rem,2.5vw,1.125rem)] font-semibold">
                       <span>Total</span>
                       <span>OMR {total.toFixed(2)}</span>
