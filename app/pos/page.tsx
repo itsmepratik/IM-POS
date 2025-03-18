@@ -360,7 +360,21 @@ export default function POSPage() {
             : item
         )
       }
-      return [...prevCart, { ...product, quantity, details, uniqueId }]
+      
+      // Find the original product to get the brand if it exists
+      const originalProduct = products.find(p => p.id === product.id) || 
+                             oilProducts.find(p => p.id === product.id)
+      
+      const brand = originalProduct && 'brand' in originalProduct ? originalProduct.brand : undefined
+      const fullName = brand ? `${brand} ${product.name}` : product.name
+      
+      return [...prevCart, { 
+        ...product, 
+        name: fullName,
+        quantity, 
+        details, 
+        uniqueId 
+      }]
     })
   }, [])
 
@@ -1377,9 +1391,20 @@ const ReceiptComponent = ({ cart, paymentMethod }: { cart: CartItem[], paymentMe
             .receipt-footer p {
               margin: 3px 0;
             }
+            .receipt-footer .arabic {
+              font-size: 11px;
+              direction: rtl;
+              margin: 2px 0;
+            }
             .barcode {
               margin-top: 10px;
               text-align: center;
+            }
+            .whatsapp {
+              margin-top: 5px;
+              text-align: center;
+              font-size: 11px;
+              font-weight: bold;
             }
             @media print {
               body {
@@ -1423,8 +1448,8 @@ const ReceiptComponent = ({ cart, paymentMethod }: { cart: CartItem[], paymentMe
                   <tr>
                     <td class="qty">${item.quantity}</td>
                     <td class="description">${item.name}${item.details ? ` (${item.details})` : ''}</td>
-                    <td class="price">OMR ${item.price.toFixed(2)}</td>
-                    <td class="amount">OMR ${(item.price * item.quantity).toFixed(2)}</td>
+                    <td class="price">${item.price.toFixed(2)}</td>
+                    <td class="amount">${(item.price * item.quantity).toFixed(2)}</td>
                   </tr>
                 `).join('')}
               </tbody>
@@ -1451,8 +1476,15 @@ const ReceiptComponent = ({ cart, paymentMethod }: { cart: CartItem[], paymentMe
               <p>Number of Items: ${cart.reduce((sum, item) => sum + item.quantity, 0)}</p>
               <p>Payment Method: ${paymentMethod.charAt(0).toUpperCase() + paymentMethod.slice(1)}</p>
               <p>Keep this Invoice for your Exchanges</p>
+              <p class="arabic">احتفظ بهذه الفاتورة للتبديل</p>
               <p>Exchange with in 15 Days</p>
+              <p class="arabic">التبديل خلال 15 يوم</p>
               <p>Thank you for shopping with us.</p>
+              <p class="arabic">شكراً للتسوق معنا</p>
+            </div>
+            
+            <div class="whatsapp">
+              WhatsApp 72702537 for latest offers
             </div>
             
             <div class="barcode">
@@ -1538,8 +1570,8 @@ const ReceiptComponent = ({ cart, paymentMethod }: { cart: CartItem[], paymentMe
               <div key={item.uniqueId} className="grid grid-cols-12 gap-1 mb-1">
                 <span className="col-span-1">{item.quantity}</span>
                 <span className="col-span-7 break-words">{item.name}{item.details ? ` (${item.details})` : ''}</span>
-                <span className="col-span-2 text-right">OMR {item.price.toFixed(2)}</span>
-                <span className="col-span-2 text-right">OMR {(item.price * item.quantity).toFixed(2)}</span>
+                <span className="col-span-2 text-right">{item.price.toFixed(2)}</span>
+                <span className="col-span-2 text-right">{(item.price * item.quantity).toFixed(2)}</span>
               </div>
             ))}
           </div>
@@ -1563,8 +1595,12 @@ const ReceiptComponent = ({ cart, paymentMethod }: { cart: CartItem[], paymentMe
             <p>Number of Items: {itemCount}</p>
             <p>Payment Method: {getFormattedPaymentMethod(paymentMethod)}</p>
             <p>Keep this Invoice for your Exchanges</p>
+            <p className="text-xs text-right text-gray-600">احتفظ بهذه الفاتورة للتبديل</p>
             <p>Exchange with in 15 Days</p>
-            <p className="mb-2">Thank you for shopping with us.</p>
+            <p className="text-xs text-right text-gray-600">التبديل خلال 15 يوم</p>
+            <p>Thank you for shopping with us.</p>
+            <p className="text-xs text-right text-gray-600">شكراً للتسوق معنا</p>
+            <p className="font-medium mt-2">WhatsApp 72702537 for latest offers</p>
             <p className="font-mono">{receiptNumber}</p>
           </div>
         </div>
