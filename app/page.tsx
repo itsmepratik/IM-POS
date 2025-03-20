@@ -36,11 +36,16 @@ const paymentDetailsData = {
     description: "Breakdown of all card payments",
     icon: CreditCard,
     transactions: [
-      { id: "tx-001", date: "2023-12-31", amount: "OMR 2,345.67", method: "Visa", customer: "John Smith" },
-      { id: "tx-002", date: "2023-12-31", amount: "OMR 1,987.54", method: "Mastercard", customer: "Sarah Johnson" },
-      { id: "tx-003", date: "2023-12-30", amount: "OMR 1,456.78", method: "Amex", customer: "Michael Brown" },
-      { id: "tx-004", date: "2023-12-30", amount: "OMR 2,876.45", method: "Visa", customer: "Emily Davis" },
-      { id: "tx-005", date: "2023-12-29", amount: "OMR 1,210.10", method: "Mastercard", customer: "Robert Wilson" },
+      { id: "tx-001", date: "2023-12-31", amount: "OMR 2,345.67", method: "Visa" },
+      { id: "tx-002", date: "2023-12-31", amount: "OMR 1,987.54", method: "Mastercard" },
+      { id: "tx-003", date: "2023-12-30", amount: "OMR 1,456.78", method: "Amex" },
+      { id: "tx-004", date: "2023-12-30", amount: "OMR 2,876.45", method: "Visa" },
+      { id: "tx-005", date: "2023-12-29", amount: "OMR 1,210.10", method: "Mastercard" },
+      { id: "tx-006", date: "2023-12-29", amount: "OMR 1,845.22", method: "Visa" },
+      { id: "tx-007", date: "2023-12-28", amount: "OMR 2,112.55", method: "Mastercard" },
+      { id: "tx-008", date: "2023-12-28", amount: "OMR 1,678.90", method: "Visa" },
+      { id: "tx-009", date: "2023-12-27", amount: "OMR 3,421.30", method: "Amex" },
+      { id: "tx-010", date: "2023-12-27", amount: "OMR 1,932.18", method: "Visa" },
     ],
     stats: [
       { label: "Average transaction", value: "OMR 1,975.31" },
@@ -53,11 +58,16 @@ const paymentDetailsData = {
     description: "Breakdown of all cash payments",
     icon: Banknote,
     transactions: [
-      { id: "tx-006", date: "2023-12-31", amount: "OMR 567.89", method: "Cash", customer: "David Lee" },
-      { id: "tx-007", date: "2023-12-31", amount: "OMR 345.67", method: "Cash", customer: "Jennifer Taylor" },
-      { id: "tx-008", date: "2023-12-30", amount: "OMR 789.12", method: "Cash", customer: "Thomas Anderson" },
-      { id: "tx-009", date: "2023-12-29", amount: "OMR 432.10", method: "Cash", customer: "Lisa Martinez" },
-      { id: "tx-010", date: "2023-12-29", amount: "OMR 210.89", method: "Cash", customer: "James Johnson" },
+      { id: "tx-101", date: "2023-12-31", amount: "OMR 567.89", method: "Cash" },
+      { id: "tx-102", date: "2023-12-31", amount: "OMR 345.67", method: "Cash" },
+      { id: "tx-103", date: "2023-12-30", amount: "OMR 789.12", method: "Cash" },
+      { id: "tx-104", date: "2023-12-29", amount: "OMR 432.10", method: "Cash" },
+      { id: "tx-105", date: "2023-12-29", amount: "OMR 210.89", method: "Cash" },
+      { id: "tx-106", date: "2023-12-28", amount: "OMR 348.72", method: "Cash" },
+      { id: "tx-107", date: "2023-12-28", amount: "OMR 567.43", method: "Cash" },
+      { id: "tx-108", date: "2023-12-27", amount: "OMR 231.18", method: "Cash" },
+      { id: "tx-109", date: "2023-12-27", amount: "OMR 542.87", method: "Cash" },
+      { id: "tx-110", date: "2023-12-26", amount: "OMR 329.65", method: "Cash" },
     ],
     stats: [
       { label: "Average transaction", value: "OMR 469.13" },
@@ -70,10 +80,16 @@ const paymentDetailsData = {
     description: "Breakdown of alternative payment methods",
     icon: Wallet,
     transactions: [
-      { id: "tx-011", date: "2023-12-31", amount: "OMR 45.67", method: "Mobile Pay", customer: "Kevin Clark" },
-      { id: "tx-012", date: "2023-12-30", amount: "OMR 32.45", method: "Gift Card", customer: "Amanda White" },
-      { id: "tx-013", date: "2023-12-29", amount: "OMR 25.33", method: "Store Credit", customer: "Daniel Brown" },
-      { id: "tx-014", date: "2023-12-28", amount: "OMR 20.00", method: "Mobile Pay", customer: "Michelle Lee" },
+      { id: "tx-201", date: "2023-12-31", amount: "OMR 45.67", method: "Mobile Pay" },
+      { id: "tx-202", date: "2023-12-30", amount: "OMR 32.45", method: "Gift Card" },
+      { id: "tx-203", date: "2023-12-29", amount: "OMR 25.33", method: "Store Credit" },
+      { id: "tx-204", date: "2023-12-28", amount: "OMR 20.00", method: "Mobile Pay" },
+      { id: "tx-205", date: "2023-12-28", amount: "OMR 15.75", method: "Mobile Pay" },
+      { id: "tx-206", date: "2023-12-27", amount: "OMR 30.50", method: "Gift Card" },
+      { id: "tx-207", date: "2023-12-27", amount: "OMR 42.18", method: "Mobile Pay" },
+      { id: "tx-208", date: "2023-12-26", amount: "OMR 22.95", method: "Store Credit" },
+      { id: "tx-209", date: "2023-12-26", amount: "OMR 38.42", method: "Mobile Pay" },
+      { id: "tx-210", date: "2023-12-25", amount: "OMR 28.67", method: "Gift Card" },
     ],
     stats: [
       { label: "Average transaction", value: "OMR 30.86" },
@@ -243,26 +259,26 @@ function PaymentType({ label, amount, percentage, color }: PaymentTypeProps) {
             
             <div className="rounded-xl border overflow-hidden shadow-md">
               <div className="overflow-x-auto rounded-xl">
-                <Table className="rounded-xl overflow-hidden">
-                  <TableHeader>
-                    <TableRow className="bg-muted/50">
-                      <TableHead className="whitespace-nowrap rounded-tl-xl">Date</TableHead>
-                      <TableHead className="whitespace-nowrap">Amount</TableHead>
-                      <TableHead className="whitespace-nowrap">Method</TableHead>
-                      <TableHead className="hidden md:table-cell whitespace-nowrap rounded-tr-xl">Customer</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody className="max-h-[300px]">
-                    {paymentDetails?.transactions.map((tx, index) => (
-                      <TableRow key={tx.id} className={index === paymentDetails.transactions.length - 1 ? "last-row" : ""}>
-                        <TableCell className={index === paymentDetails.transactions.length - 1 ? "rounded-bl-xl" : ""}>{tx.date}</TableCell>
-                        <TableCell>{tx.amount}</TableCell>
-                        <TableCell>{tx.method}</TableCell>
-                        <TableCell className={`hidden md:table-cell ${index === paymentDetails.transactions.length - 1 ? "rounded-br-xl" : ""}`}>{tx.customer}</TableCell>
+                <div className="max-h-[300px] overflow-y-auto">
+                  <Table className="rounded-xl overflow-hidden">
+                    <TableHeader className="sticky top-0 z-10 bg-background">
+                      <TableRow className="bg-muted/50">
+                        <TableHead className="whitespace-nowrap rounded-tl-xl">Date</TableHead>
+                        <TableHead className="whitespace-nowrap">Amount</TableHead>
+                        <TableHead className="whitespace-nowrap rounded-tr-xl">Method</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {paymentDetails?.transactions.map((tx, index) => (
+                        <TableRow key={tx.id}>
+                          <TableCell>{tx.date}</TableCell>
+                          <TableCell>{tx.amount}</TableCell>
+                          <TableCell>{tx.method}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               </div>
             </div>
           </DialogContent>

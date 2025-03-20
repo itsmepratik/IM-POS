@@ -602,7 +602,7 @@ function SettingsContent() {
                   Add User
                 </Button>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="w-[90%] rounded-lg">
                 <DialogHeader>
                   <DialogTitle>Add New User</DialogTitle>
                   <DialogDescription>
@@ -661,7 +661,7 @@ function SettingsContent() {
                                   <Edit className="h-4 w-4" />
                                 </Button>
                               </DialogTrigger>
-                              <DialogContent>
+                              <DialogContent className="w-[90%] rounded-lg">
                                 <DialogHeader>
                                   <DialogTitle>Edit User</DialogTitle>
                                   <DialogDescription>
@@ -758,7 +758,7 @@ function SettingsContent() {
                         Edit
                       </Button>
                     </DialogTrigger>
-                    <DialogContent>
+                    <DialogContent className="w-[90%] rounded-lg">
                       <DialogHeader>
                         <DialogTitle>Edit User</DialogTitle>
                         <DialogDescription>

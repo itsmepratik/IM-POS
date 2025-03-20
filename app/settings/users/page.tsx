@@ -229,7 +229,7 @@ function UsersContent() {
               Add User
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="w-[90%] rounded-lg">
             <DialogHeader>
               <DialogTitle>Add New User</DialogTitle>
               <DialogDescription>
@@ -283,7 +283,7 @@ function UsersContent() {
                             <Edit className="h-4 w-4" />
                           </Button>
                         </DialogTrigger>
-                        <DialogContent>
+                        <DialogContent className="w-[90%] rounded-lg">
                           <DialogHeader>
                             <DialogTitle>Edit User</DialogTitle>
                             <DialogDescription>
@@ -312,7 +312,7 @@ function UsersContent() {
                             <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
                         </DialogTrigger>
-                        <DialogContent>
+                        <DialogContent className="w-[90%] rounded-lg">
                           <DialogHeader>
                             <DialogTitle>Delete User</DialogTitle>
                             <DialogDescription>

@@ -11,7 +11,19 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
-import { Plus, MoreVertical, Phone, Mail, Car, Calendar, Search, Filter, ChevronDown } from "lucide-react"
+import { 
+  Plus, 
+  MoreVertical, 
+  Phone, 
+  Mail, 
+  Car, 
+  Calendar, 
+  Search, 
+  Filter, 
+  ChevronDown,
+  Download,
+  Upload
+} from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,45 +34,43 @@ import { PageHeader } from "@/components/page-title"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-
-interface Customer {
-  id: number
-  name: string
-  email: string
-  phone: string
-  vehicles: number
-  lastVisit: string
-}
-
-const customers: Customer[] = [
-  { id: 1, name: "John Smith", email: "john.smith@example.com", phone: "(555) 123-4567", vehicles: 2, lastVisit: "2023-05-15" },
-  { id: 2, name: "Sarah Johnson", email: "sarah.j@example.com", phone: "(555) 234-5678", vehicles: 1, lastVisit: "2023-06-02" },
-  { id: 3, name: "Michael Brown", email: "mbrown@example.com", phone: "(555) 345-6789", vehicles: 3, lastVisit: "2023-05-28" },
-  { id: 4, name: "Emily Davis", email: "emily.davis@example.com", phone: "(555) 456-7890", vehicles: 1, lastVisit: "2023-06-10" },
-  { id: 5, name: "Robert Wilson", email: "rwilson@example.com", phone: "(555) 567-8901", vehicles: 2, lastVisit: "2023-05-20" },
-  { id: 6, name: "Jennifer Lee", email: "jlee@example.com", phone: "(555) 678-9012", vehicles: 1, lastVisit: "2023-06-05" },
-]
+import { useToast } from "@/components/ui/use-toast"
+import { CustomerForm, CustomerData } from "./customer-form"
+import { CustomerDetails } from "./customer-details"
+import { DeleteDialog } from "./delete-dialog"
+import { ImportDialog } from "./import-dialog"
+import { useCustomers } from "./customers-context"
 
 export default function CustomersPage() {
+  const { customers, addCustomer, updateCustomer, deleteCustomer } = useCustomers()
+  const { toast } = useToast()
+  
   const [searchQuery, setSearchQuery] = useState("")
   const [filterValue, setFilterValue] = useState("All customers")
   const [isFilterExpanded, setIsFilterExpanded] = useState(false)
   const [selectedCustomers, setSelectedCustomers] = useState<number[]>([])
   const [viewMode, setViewMode] = useState<"table" | "cards">("table")
+  
+  // Modal states
+  const [isCustomerFormOpen, setIsCustomerFormOpen] = useState(false)
+  const [isCustomerDetailsOpen, setIsCustomerDetailsOpen] = useState(false)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false)
+  const [currentCustomer, setCurrentCustomer] = useState<number | null>(null)
 
   // Filter customers based on search query and filter value
   const filteredCustomers = customers.filter(customer => {
     const matchesSearch = 
       searchQuery === "" || 
       customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      customer.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      customer.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       customer.phone.includes(searchQuery);
     
     const matchesFilter = 
       filterValue === "All customers" || 
-      (filterValue === "Multiple" && customer.vehicles > 1) ||
-      (filterValue === "Recent" && new Date(customer.lastVisit) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)) ||
-      (filterValue === "New" && new Date(customer.lastVisit) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000));
+      (filterValue === "Multiple" && customer.vehicles.length > 1) ||
+      (filterValue === "Recent" && new Date(customer.lastVisit || "") > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)) ||
+      (filterValue === "New" && new Date(customer.lastVisit || "") > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000));
     
     return matchesSearch && matchesFilter;
   });
@@ -81,11 +91,82 @@ export default function CustomersPage() {
     }
   };
 
-  // Automatically switch to card view on small screens
+  // Modal handlers
+  const openAddCustomer = () => {
+    setCurrentCustomer(null)
+    setIsCustomerFormOpen(true)
+  }
+
+  const openEditCustomer = (id: number) => {
+    setCurrentCustomer(id)
+    setIsCustomerFormOpen(true)
+  }
+
+  const openViewCustomer = (id: number) => {
+    setCurrentCustomer(id)
+    setIsCustomerDetailsOpen(true)
+  }
+
+  const openDeleteCustomer = (id: number) => {
+    setCurrentCustomer(id)
+    setIsDeleteDialogOpen(true)
+  }
+
+  const openImportDialog = () => {
+    setIsImportDialogOpen(true)
+  }
+
+  // Form submission handlers
+  const handleAddCustomer = (customerData: Omit<CustomerData, "id" | "lastVisit">) => {
+    addCustomer(customerData)
+    setIsCustomerFormOpen(false)
+    toast({
+      title: "Customer added",
+      description: `${customerData.name} has been added successfully.`,
+    })
+  }
+
+  const handleUpdateCustomer = (customerData: Omit<CustomerData, "id" | "lastVisit">) => {
+    if (currentCustomer) {
+      updateCustomer(currentCustomer, customerData)
+      setIsCustomerFormOpen(false)
+      toast({
+        title: "Customer updated",
+        description: `${customerData.name} has been updated successfully.`,
+      })
+    }
+  }
+
+  const handleDeleteCustomer = () => {
+    if (currentCustomer) {
+      const customer = customers.find(c => c.id === currentCustomer)
+      deleteCustomer(currentCustomer)
+      setIsDeleteDialogOpen(false)
+      toast({
+        title: "Customer deleted",
+        description: `${customer?.name} has been deleted.`,
+        variant: "destructive"
+      })
+    }
+  }
+
+  const handleImportCustomers = (importedCustomers: Omit<CustomerData, "id" | "lastVisit">[]) => {
+    importedCustomers.forEach(customer => {
+      addCustomer(customer)
+    })
+    toast({
+      title: "Customers imported",
+      description: `${importedCustomers.length} customers have been imported successfully.`,
+    })
+  }
+
+  // Handle mobile view
   useEffect(() => {
     const handleResize = () => {
       if (window.innerWidth < 768) {
         setViewMode("cards");
+      } else {
+        setViewMode("table");
       }
     };
     
@@ -99,12 +180,17 @@ export default function CustomersPage() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Get current customer for modals
+  const getCurrentCustomer = () => {
+    return customers.find(c => c.id === currentCustomer)
+  }
+
   return (
     <Layout>
       <div className="w-full space-y-6">
         <PageHeader
           actions={
-            <Button variant="default" className="w-full sm:w-auto">
+            <Button variant="default" className="w-full sm:w-auto" onClick={openAddCustomer}>
               <Plus className="mr-2 h-4 w-4" />
               Add customer
             </Button>
@@ -113,7 +199,7 @@ export default function CustomersPage() {
           Customers
         </PageHeader>
 
-        {/* Search and Filter Section - Responsive */}
+        {/* Search and Filter Section */}
         <div className="space-y-4">
           <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
             <div className="w-full sm:w-auto max-w-sm relative">
@@ -142,35 +228,24 @@ export default function CustomersPage() {
                 <Button 
                   variant="outline" 
                   className="hidden sm:flex"
+                  onClick={openImportDialog}
                 >
+                  <Upload className="h-4 w-4 mr-2" />
                   Import
                 </Button>
               </div>
-              <div className="flex items-center gap-2 sm:hidden">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full"
-                  onClick={() => setIsFilterExpanded(!isFilterExpanded)}
-                >
-                  <Filter className="h-4 w-4 mr-2" />
-                  Filters
-                  <ChevronDown className={`ml-2 h-4 w-4 transition-transform ${isFilterExpanded ? "rotate-180" : ""}`} />
-                </Button>
-              </div>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full sm:w-auto hidden sm:flex"
+                onClick={() => setIsFilterExpanded(!isFilterExpanded)}
+              >
+                <Filter className="h-4 w-4 mr-2" />
+                Filters
+                <ChevronDown className={`ml-2 h-4 w-4 transition-transform ${isFilterExpanded ? "rotate-180" : ""}`} />
+              </Button>
             </div>
-          </div>
-
-          {/* Mobile View Tabs */}
-          <div className="sm:hidden">
-            <Tabs defaultValue="all" className="w-full">
-              <TabsList className="grid w-full grid-cols-4">
-                <TabsTrigger value="all">All</TabsTrigger>
-                <TabsTrigger value="recent">Recent</TabsTrigger>
-                <TabsTrigger value="multiple">Multiple</TabsTrigger>
-                <TabsTrigger value="new">New</TabsTrigger>
-              </TabsList>
-            </Tabs>
           </div>
         </div>
 
@@ -207,14 +282,14 @@ export default function CustomersPage() {
                     />
                   </td>
                   <td className="p-3 font-medium">{customer.name}</td>
-                  <td className="p-3">{customer.email}</td>
+                  <td className="p-3">{customer.email || "-"}</td>
                   <td className="p-3">{customer.phone}</td>
                   <td className="p-3">
                     <Badge variant="outline" className="font-normal">
-                      {customer.vehicles} {customer.vehicles === 1 ? 'vehicle' : 'vehicles'}
+                      {customer.vehicles.length} {customer.vehicles.length === 1 ? 'vehicle' : 'vehicles'}
                     </Badge>
                   </td>
-                  <td className="p-3">{new Date(customer.lastVisit).toLocaleDateString('en-GB')}</td>
+                  <td className="p-3">{customer.lastVisit ? new Date(customer.lastVisit).toLocaleDateString('en-GB') : "-"}</td>
                   <td className="p-3 text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -224,9 +299,18 @@ export default function CustomersPage() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem>View details</DropdownMenuItem>
-                        <DropdownMenuItem>Edit</DropdownMenuItem>
-                        <DropdownMenuItem className="text-red-600">Delete</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => openViewCustomer(customer.id)}>
+                          View details
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => openEditCustomer(customer.id)}>
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          className="text-red-600"
+                          onClick={() => openDeleteCustomer(customer.id)}
+                        >
+                          Delete
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </td>
@@ -234,12 +318,17 @@ export default function CustomersPage() {
               ))}
             </tbody>
           </table>
+          {filteredCustomers.length === 0 && (
+            <div className="text-center py-8">
+              <p className="text-muted-foreground">No customers found</p>
+            </div>
+          )}
         </div>
 
         {/* Mobile Card View */}
         <div className="md:hidden space-y-4">
           {filteredCustomers.map((customer) => (
-            <Card key={customer.id} className="overflow-hidden rounded-r-lg">
+            <Card key={customer.id} className="overflow-hidden rounded-lg">
               <CardContent className="p-0">
                 <div className="p-4 flex flex-col gap-3">
                   <div className="flex items-start justify-between">
@@ -247,10 +336,10 @@ export default function CustomersPage() {
                       <h3 className="font-semibold text-base">{customer.name}</h3>
                       <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
                         <Badge variant="outline" className="font-normal">
-                          {customer.vehicles} {customer.vehicles === 1 ? 'vehicle' : 'vehicles'}
+                          {customer.vehicles.length} {customer.vehicles.length === 1 ? 'vehicle' : 'vehicles'}
                         </Badge>
                         <span>•</span>
-                        <span>{new Date(customer.lastVisit).toLocaleDateString('en-GB')}</span>
+                        <span>{customer.lastVisit ? new Date(customer.lastVisit).toLocaleDateString('en-GB') : "No visits"}</span>
                       </div>
                     </div>
                     <DropdownMenu>
@@ -261,20 +350,31 @@ export default function CustomersPage() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem>View details</DropdownMenuItem>
-                        <DropdownMenuItem>Edit</DropdownMenuItem>
-                        <DropdownMenuItem className="text-red-600">Delete</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => openViewCustomer(customer.id)}>
+                          View details
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => openEditCustomer(customer.id)}>
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          className="text-red-600"
+                          onClick={() => openDeleteCustomer(customer.id)}
+                        >
+                          Delete
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
                   
-                  <div className="grid grid-cols-1 gap-2 text-sm">
-                    <div className="flex items-center gap-2">
-                      <Mail className="h-4 w-4 text-muted-foreground" />
-                      <a href={`mailto:${customer.email}`} className="text-primary hover:underline">
-                        {customer.email}
-                      </a>
-                    </div>
+                  <div className="space-y-2">
+                    {customer.email && (
+                      <div className="flex items-center gap-2">
+                        <Mail className="h-4 w-4 text-muted-foreground" />
+                        <a href={`mailto:${customer.email}`} className="text-primary hover:underline">
+                          {customer.email}
+                        </a>
+                      </div>
+                    )}
                     <div className="flex items-center gap-2">
                       <Phone className="h-4 w-4 text-muted-foreground" />
                       <a href={`tel:${customer.phone}`} className="hover:underline">
@@ -284,11 +384,21 @@ export default function CustomersPage() {
                   </div>
                   
                   <div className="flex justify-between pt-2 border-t">
-                    <Button variant="ghost" size="sm" className="text-xs">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="text-xs"
+                      onClick={() => openViewCustomer(customer.id)}
+                    >
                       View Details
                     </Button>
-                    <Button variant="outline" size="sm" className="text-xs">
-                      Contact
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="text-xs"
+                      onClick={() => openEditCustomer(customer.id)}
+                    >
+                      Edit Customer
                     </Button>
                   </div>
                 </div>
@@ -297,12 +407,54 @@ export default function CustomersPage() {
           ))}
           
           {filteredCustomers.length === 0 && (
-            <div className="text-center py-8 border rounded-md rounded-r-lg">
+            <div className="text-center py-8 border rounded-md">
               <p className="text-muted-foreground">No customers found</p>
             </div>
           )}
         </div>
       </div>
+
+      {/* Customer Form Modal */}
+      {isCustomerFormOpen && (
+        <CustomerForm 
+          isOpen={isCustomerFormOpen}
+          onClose={() => setIsCustomerFormOpen(false)}
+          customer={getCurrentCustomer()}
+          onSubmit={currentCustomer ? handleUpdateCustomer : handleAddCustomer}
+        />
+      )}
+
+      {/* Customer Details Modal */}
+      {isCustomerDetailsOpen && getCurrentCustomer() && (
+        <CustomerDetails
+          isOpen={isCustomerDetailsOpen}
+          onClose={() => setIsCustomerDetailsOpen(false)}
+          customer={getCurrentCustomer()!}
+          onEdit={() => {
+            setIsCustomerDetailsOpen(false)
+            setIsCustomerFormOpen(true)
+          }}
+        />
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      {isDeleteDialogOpen && getCurrentCustomer() && (
+        <DeleteDialog 
+          isOpen={isDeleteDialogOpen}
+          onClose={() => setIsDeleteDialogOpen(false)}
+          onConfirm={handleDeleteCustomer}
+          customerName={getCurrentCustomer()!.name}
+        />
+      )}
+
+      {/* Import Dialog */}
+      {isImportDialogOpen && (
+        <ImportDialog 
+          isOpen={isImportDialogOpen}
+          onClose={() => setIsImportDialogOpen(false)}
+          onImport={handleImportCustomers}
+        />
+      )}
     </Layout>
   )
 } 

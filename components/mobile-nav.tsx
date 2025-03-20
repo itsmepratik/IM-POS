@@ -70,12 +70,6 @@ export function MobileNav({ className }: { className?: string }) {
       isAdmin: false,
     },
     {
-      title: "Customers",
-      href: "/customers",
-      icon: <Users className="h-4 w-4" />,
-      isAdmin: false,
-    },
-    {
       title: "Transactions",
       href: "/transactions",
       icon: <RefreshCcw className="h-4 w-4" />,

@@ -3,7 +3,8 @@
     "editor.defaultFormatter": "denoland.vscode-deno"
   },
   "cSpell.words": [
-    "FRAM"
+    "FRAM",
+    "myposstore"
   ],
   "deno.lint": true,
   "deno.unstable": [

@@ -22,7 +22,8 @@ import {
   Check,
   Printer,
   Smartphone,
-  Ticket
+  Ticket,
+  RotateCcw
 } from "lucide-react"
 import {
   Dialog,
@@ -49,6 +50,10 @@ import Image from "next/image"
 export const dynamic = 'force-dynamic'
 export const revalidate = 3600 // Revalidate every hour
 export const fetchCache = 'force-cache'
+
+// Import the RefundDialog component
+import { RefundDialog } from "./components/refund-dialog"
+import { ImportDialog } from "./components/import-dialog"
 
 interface OilProduct {
   id: number
@@ -331,6 +336,8 @@ export default function POSPage() {
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'card' | 'cash' | 'mobile' | 'voucher' | null>(null)
   const [showSuccess, setShowSuccess] = useState(false)
   const [showOtherOptions, setShowOtherOptions] = useState(false)
+  const [isRefundDialogOpen, setIsRefundDialogOpen] = useState(false)
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false)
 
   // Memoize handlers
   const removeFromCart = useCallback((productId: number) => {
@@ -539,6 +546,12 @@ export default function POSPage() {
     setShowSuccess(true)
   }
 
+  const handleImportCustomers = (importedCustomers: any[]) => {
+    // In a real implementation, this would add the imported customers to the database
+    console.log('Imported customers:', importedCustomers)
+    setIsImportDialogOpen(false)
+  }
+
   return (
     <Layout>
       <div className="h-[calc(100vh-5rem)] flex flex-col pb-4">
@@ -548,14 +561,26 @@ export default function POSPage() {
             <Card className="flex-1 overflow-hidden flex flex-col h-full">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 px-6 flex-shrink-0">
                 <CardTitle className="text-xl sm:text-2xl">Products</CardTitle>
-                <Button variant="outline" size="icon" className="lg:hidden h-10 w-10 relative" onClick={() => setShowCart(true)}>
-                  <ShoppingCart className="h-5 w-5" />
-                  {cart.length > 0 && (
-                    <span className="absolute -top-2 -right-2 bg-primary text-primary-foreground text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center">
-                      {cart.length}
-                    </span>
-                  )}
-                </Button>
+                <div className="flex gap-2 items-center">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-9 flex items-center gap-1"
+                    onClick={() => setIsRefundDialogOpen(true)}
+                  >
+                    <RotateCcw className="h-4 w-4" />
+                    <span className="hidden sm:inline">Refund</span>
+                  </Button>
+                  
+                  <Button variant="outline" size="icon" className="lg:hidden h-10 w-10 relative" onClick={() => setShowCart(true)}>
+                    <ShoppingCart className="h-5 w-5" />
+                    {cart.length > 0 && (
+                      <span className="absolute -top-2 -right-2 bg-primary text-primary-foreground text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center">
+                        {cart.length}
+                      </span>
+                    )}
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent className="flex-1 overflow-hidden flex flex-col p-6 min-h-0">
                 <Tabs value={activeCategory} className="flex-1 flex flex-col min-h-0" onValueChange={setActiveCategory}>
@@ -1240,6 +1265,21 @@ export default function POSPage() {
           </Dialog>
         </div>
       </div>
+
+      {/* Import Dialog */}
+      {isImportDialogOpen && (
+        <ImportDialog 
+          isOpen={isImportDialogOpen}
+          onClose={() => setIsImportDialogOpen(false)}
+          onImport={handleImportCustomers}
+        />
+      )}
+      
+      {/* Refund Dialog */}
+      <RefundDialog
+        isOpen={isRefundDialogOpen}
+        onClose={() => setIsRefundDialogOpen(false)}
+      />
     </Layout>
   )
 }
