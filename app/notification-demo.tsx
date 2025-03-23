@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import { useState, useEffect } from "react"
 import { useNotification } from "./notification-context"
 import { Button } from "@/components/ui/button"
 import { Bell, X } from "lucide-react"
@@ -23,6 +23,7 @@ export function NotificationDemo() {
       message: "5 items are running low on stock. Check inventory.",
       duration: 8000
     })
+    setIsExpanded(false)
   }
 
   const testOutOfStockNotification = () => {
@@ -32,6 +33,7 @@ export function NotificationDemo() {
       message: "3 items are out of stock. Restock needed.",
       duration: 8000
     })
+    setIsExpanded(false)
   }
 
   const testSuccessNotification = () => {
@@ -41,6 +43,7 @@ export function NotificationDemo() {
       message: "Order #12345 has been successfully fulfilled.",
       duration: 5000
     })
+    setIsExpanded(false)
   }
 
   const testInfoNotification = () => {
@@ -50,11 +53,21 @@ export function NotificationDemo() {
       message: "Try our new analytics dashboard for advanced insights.",
       duration: 6000
     })
+    setIsExpanded(false)
   }
 
-  // Don't render anything during SSR to avoid hydration issues
+  // Show a simple button during SSR to avoid hydration issues
   if (!mounted) {
-    return null
+    return (
+      <div className="fixed bottom-4 right-4 z-50">
+        <div className="rounded-full w-12 h-12 bg-blue-500 text-white shadow-lg flex items-center justify-center">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path>
+            <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path>
+          </svg>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -64,12 +77,13 @@ export function NotificationDemo() {
         <button
           className="rounded-full w-12 h-12 bg-blue-500 text-white shadow-lg flex items-center justify-center hover:bg-blue-600 transition-colors"
           onClick={() => setIsExpanded(true)}
+          aria-label="Open notification test panel"
         >
           <Bell className="h-5 w-5" />
         </button>
       ) : (
         // Expanded state - notification panel
-        <div className="bg-background/95 backdrop-blur-sm rounded-xl shadow-lg border p-3 w-64 animate-in fade-in slide-in-from-bottom-5 duration-200">
+        <div className="bg-background/95 backdrop-blur-sm rounded-xl shadow-lg border p-3 w-64">
           <div className="flex items-center justify-between mb-2">
             <h4 className="text-sm font-medium">Test Notifications</h4>
             <Button
@@ -77,6 +91,7 @@ export function NotificationDemo() {
               size="sm"
               className="h-6 w-6 p-0 rounded-full"
               onClick={() => setIsExpanded(false)}
+              aria-label="Close notification panel"
             >
               <X className="h-3.5 w-3.5" />
             </Button>

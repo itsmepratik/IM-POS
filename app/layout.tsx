@@ -46,9 +46,6 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  // Only show the notification demo in development mode
-  const isDevelopment = process.env.NODE_ENV === "development"
-
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
@@ -74,17 +71,7 @@ export default function RootLayout({
           <BranchProvider>
             <NotificationProvider>
               {children}
-              {isDevelopment && <NotificationDemo />}
-              
-              {/* Fallback toggle if the NotificationDemo component doesn't render */}
-              <div className="fixed bottom-4 left-4 z-50">
-                <a 
-                  href="/test" 
-                  className="rounded-full w-12 h-12 bg-purple-500 text-white shadow-lg flex items-center justify-center"
-                >
-                  <span className="text-sm font-bold">Test</span>
-                </a>
-              </div>
+              <NotificationDemo />
             </NotificationProvider>
           </BranchProvider>
         </UserProvider>
