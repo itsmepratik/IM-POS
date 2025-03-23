@@ -1,7 +1,12 @@
+import { Metadata } from "next"
 import { Inter } from "next/font/google"
 import localFont from "next/font/local"
+import "react-day-picker/dist/style.css"
 import "./globals.css"
 import { UserProvider } from "./user-context"
+import { BranchProvider } from "./branch-context"
+import { NotificationProvider } from "./notification-context"
+import { NotificationDemo } from "./notification-demo"
 
 // Load General Sans Variable font with optimized settings
 const generalSans = localFont({
@@ -41,6 +46,9 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
+  // Only show the notification demo in development mode
+  const isDevelopment = process.env.NODE_ENV === "development"
+
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
@@ -63,7 +71,22 @@ export default function RootLayout({
       </head>
       <body className={`${generalSans.variable} ${inter.variable} font-sans antialiased`} suppressHydrationWarning>
         <UserProvider>
-          {children}
+          <BranchProvider>
+            <NotificationProvider>
+              {children}
+              {isDevelopment && <NotificationDemo />}
+              
+              {/* Fallback toggle if the NotificationDemo component doesn't render */}
+              <div className="fixed bottom-4 left-4 z-50">
+                <a 
+                  href="/test" 
+                  className="rounded-full w-12 h-12 bg-purple-500 text-white shadow-lg flex items-center justify-center"
+                >
+                  <span className="text-sm font-bold">Test</span>
+                </a>
+              </div>
+            </NotificationProvider>
+          </BranchProvider>
         </UserProvider>
       </body>
     </html>

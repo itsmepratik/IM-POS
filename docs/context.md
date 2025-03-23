@@ -2,184 +2,186 @@
 
 This document specifies the integration of a Point-of-Sale (POS) inventory system using Neon for the database backend. The system provides:
 
-- Real-time inventory dashboard for employees
+- Real-time inventory dashboard
 - Enhanced controls for managers
-- Barcode scanning integration
 - Automated stock alerts
 - Financial reporting
-- WebSocket-based real-time synchronization
 
-## Database Schema (Neon)
+## Database Plan: (very important)
 
-### Core Tables
 
-#### Users
+# Updated Supabase Integration Plan for Automotive POS System
+
+I've updated the plan to address the crucial oil inventory management requirements you mentioned. The system will now properly track partial oil usage from larger containers (4L/5L bottles), managing the "open bottle" state and deducting appropriately.
+
+## 1. Database Schema Design (Updated with Oil Handling Focus)
+
+### Core Tables (Updated)
+
+1. **Products**
+   - `id` (primary key)
+   - `name`
+   - `brand`
+   - `category_id` (foreign key to Categories)
+   - `base_price`
+   - `product_type`
+   - `created_at`
+   - `is_oil` (boolean flag for quick filtering)
+   - `image_url`
+
+2. **Oil_Properties** (Expanded)
+   - `id` (primary key)
+   - `product_id` (foreign key to Products)
+   - `viscosity` (e.g., "0W-20", "5W-30")
+   - `is_synthetic` (boolean)
+   - `oil_type` (e.g., engine, transmission, etc.)
+   - `container_size` (either 4L or 5L as per your requirement)
+   - `min_deduction_unit` (smallest amount that can be deducted, e.g., 0.25L)
+
+3. **Oil_Inventory** (New specialized table)
+   - `id` (primary key)
+   - `branch_id` (foreign key to Branches)
+   - `oil_product_id` (foreign key to Products)
+   - `bottle_id` (unique identifier for tracking individual bottles)
+   - `is_open` (boolean - tracks if bottle has been opened)
+   - `remaining_volume` (decimal - starts at full size and decreases with usage)
+   - `initial_volume` (either 4L or 5L depending on product)
+   - `opened_date` (timestamp, null if unopened)
+   - `is_empty` (boolean)
+   - `last_used` (timestamp)
+
+4. **Oil_Transactions** (New specialized table)
+   - `id` (primary key)
+   - `oil_inventory_id` (foreign key to Oil_Inventory)
+   - `sale_id` (foreign key to Sales, nullable)
+   - `volume_used` (decimal - amount deducted from bottle)
+   - `timestamp`
+   - `performed_by` (future user_id)
+
+## 2. Oil Inventory Management Workflow (New)
+
+### Oil Usage Process
+1. When a customer requests an oil change requiring a partial amount (0.25L, 0.5L, 1L, 2L):
+   - System first checks for already-open bottles of required oil type
+   - If open bottle exists with sufficient remaining volume:
+     - Deduct amount from open bottle
+     - Record transaction in Oil_Transactions
+     - Update remaining_volume in Oil_Inventory
+     - If bottle becomes empty (remaining_volume = 0), mark as empty
+   - If no open bottle with sufficient volume:
+     - Find unopened bottle in inventory
+     - Mark it as open (is_open = true, opened_date = current timestamp)
+     - Deduct requested amount
+     - Update remaining_volume
+
+2. For inventory levels:
+   - Total available oil = (Number of unopened bottles × initial_volume) + Sum of remaining_volume in open bottles
+   - System prioritizes oldest opened bottles first (FIFO)
+
+## 3. Database Functions and Triggers
+
 ```sql
-CREATE TABLE users (
-    user_id SERIAL PRIMARY KEY,
-    username TEXT NOT NULL UNIQUE,
-    password_hash TEXT NOT NULL,
-    role TEXT NOT NULL CHECK (role IN ('employee', 'manager')),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+-- Sample SQL function (conceptual, will be implemented later)
+CREATE OR REPLACE FUNCTION use_oil_from_inventory(
+  p_branch_id INT,
+  p_oil_product_id INT,
+  p_volume_needed DECIMAL,
+  p_sale_id INT
+) RETURNS BOOLEAN AS $$
+DECLARE
+  v_oil_inventory_id INT;
+  v_remaining_in_bottle DECIMAL;
+  v_amount_to_use DECIMAL;
+  v_bottle_found BOOLEAN := FALSE;
+BEGIN
+  -- First try to find an open bottle with enough oil
+  SELECT id, remaining_volume INTO v_oil_inventory_id, v_remaining_in_bottle
+  FROM oil_inventory
+  WHERE branch_id = p_branch_id
+    AND oil_product_id = p_oil_product_id
+    AND is_open = TRUE
+    AND is_empty = FALSE
+    AND remaining_volume >= p_volume_needed
+  ORDER BY opened_date ASC
+  LIMIT 1;
+  
+  -- If found, use this bottle
+  IF v_oil_inventory_id IS NOT NULL THEN
+    -- Update bottle
+    UPDATE oil_inventory
+    SET remaining_volume = remaining_volume - p_volume_needed,
+        last_used = NOW(),
+        is_empty = CASE WHEN (remaining_volume - p_volume_needed) <= 0 THEN TRUE ELSE FALSE END
+    WHERE id = v_oil_inventory_id;
+    
+    -- Record transaction
+    INSERT INTO oil_transactions (oil_inventory_id, sale_id, volume_used, timestamp)
+    VALUES (v_oil_inventory_id, p_sale_id, p_volume_needed, NOW());
+    
+    RETURN TRUE;
+  END IF;
+  
+  -- Logic to open a new bottle if needed would go here
+  -- ...
+  
+  RETURN v_bottle_found;
+END;
+$$ LANGUAGE plpgsql;
 ```
 
-#### Products
-```sql
-CREATE TABLE products (
-    product_id SERIAL PRIMARY KEY,
-    name TEXT NOT NULL,
-    barcode TEXT UNIQUE,
-    description TEXT,
-    price NUMERIC(10,2) NOT NULL,
-    stock_quantity INTEGER NOT NULL,
-    low_stock_threshold INTEGER NOT NULL DEFAULT 10,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-```
+## 4. UI Integration for Oil Management
 
-#### Transactions
-```sql
-CREATE TABLE transactions (
-    transaction_id SERIAL PRIMARY KEY,
-    user_id INTEGER REFERENCES users(user_id),
-    product_id INTEGER REFERENCES products(product_id),
-    quantity INTEGER NOT NULL,
-    total_price NUMERIC(10,2) NOT NULL,
-    transaction_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-```
+The POS interface will be enhanced to:
 
-#### Inventory Logs
-```sql
-CREATE TABLE inventory_logs (
-    log_id SERIAL PRIMARY KEY,
-    product_id INTEGER REFERENCES products(product_id),
-    change INTEGER NOT NULL,
-    reason TEXT,
-    logged_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-```
+1. Display open bottles and their remaining volumes
+2. Allow selection of specific oil products for service
+3. Show warning when low on certain oil types
+4. Provide a visual indicator of bottle status (unopened, open but not empty, empty)
+5. When processing an oil change service:
+   - Record the exact amount used
+   - Automatically deduct from appropriate open bottle
+   - Open new bottle when needed
 
-### Key Database Operations
+## 5. Real-time Monitoring for Oil Inventory
 
-#### Update Stock After Sale
-```sql
-BEGIN;
-UPDATE products
-SET stock_quantity = stock_quantity - 1,
-    updated_at = CURRENT_TIMESTAMP
-WHERE product_id = 123
-  AND stock_quantity > 0;
+1. Dashboard widget showing:
+   - Total oil available by type
+   - Number of open bottles
+   - Consumption trends
+   - Alerts when bottles are nearly empty
 
-INSERT INTO inventory_logs (product_id, change, reason)
-VALUES (123, -1, 'Sale transaction');
-COMMIT;
-```
+2. Reports for oil consumption including:
+   - Usage by oil type/viscosity
+   - Average consumption per service
+   - Most used oil types
 
-## API Endpoints
+## 6. Implementation Considerations
 
-### Products
+1. **Data Integrity Constraints**
+   - Enforce that remaining_volume cannot be negative
+   - Ensure opened_date is set when is_open becomes true
+   - Track which staff member opened bottles for accountability
 
-| Endpoint | Method | Description | Access |
-|----------|--------|-------------|--------|
-| `/api/products` | GET | List all products | All |
-| `/api/products/{barcode}` | GET | Get product by barcode | All |
-| `/api/products/{id}` | PUT | Update product | Manager |
-| `/api/products` | POST | Create product | Manager |
+2. **Transaction Safety**
+   - Use database transactions to ensure that inventory updates and sale records are atomic
+   - Implement optimistic locking for concurrent access to same oil bottle
 
-### Transactions
+3. **Rollbacks and Adjustments**
+   - Allow for adjustment of remaining volume (in case of spills or measurement errors)
+   - Provide audit log of all bottle openings and usage
 
-| Endpoint | Method | Description | Access |
-|----------|--------|-------------|--------|
-| `/api/transactions` | POST | Process sale | All |
-| `/api/transactions` | GET | View history | Manager |
-| `/api/inventory/alerts` | GET | Low stock alerts | Manager |
+4. **Migration Strategy**
+   - Initial setup of oil inventory with all unopened bottles
+   - Process for entering current open bottles with remaining volumes during system launch
 
-## Real-Time Sync Implementation
+## 7. Benefits of This Design
 
-### WebSocket Server
-```javascript
-const WebSocket = require('ws');
-const wss = new WebSocket.Server({ port: 8080 });
+1. **Accurate Inventory**: Precise tracking of partial oil usage ensures inventory counts are always accurate
+2. **Reduced Waste**: By tracking open bottles and using them first, the system minimizes waste
+3. **Cost Control**: Better visibility into oil consumption helps control costs and identify unusual usage patterns
+4. **Streamlined Operations**: Staff doesn't need to manually track which bottles are open
+5. **Data-Driven Purchasing**: Consumption data helps optimize purchasing of different oil types
 
-function broadcast(data) {
-    wss.clients.forEach(client => {
-        if (client.readyState === WebSocket.OPEN) {
-            client.send(JSON.stringify(data));
-        }
-    });
-}
+This specialized oil inventory management system integrates with the overall POS system while addressing the unique requirements of automotive service operations. The design accounts for the reality that oil is consumed in partial amounts from larger containers, with proper tracking of opened bottles until they're completely used.
 
-wss.on('connection', (ws) => {
-    console.log('Client connected');
-    ws.on('message', (message) => {
-        console.log(`Received: ${message}`);
-    });
-    ws.on('close', () => console.log('Client disconnected'));
-});
-```
-
-### Client Integration
-```javascript
-const socket = new WebSocket('ws://yourdomain.com:8080');
-
-socket.addEventListener('message', (event) => {
-    const data = JSON.parse(event.data);
-    if (data.type === 'inventory_update') {
-        // Update UI with new stock levels
-        updateProductDisplay(data.payload);
-    }
-});
-```
-
-## User Roles & Permissions
-
-### Role Types
-- **Employee**: Basic operations (view products, process sales)
-- **Manager**: Full access (inventory management, reporting)
-
-### Permission Middleware
-```javascript
-function authorize(requiredRole) {
-    return (req, res, next) => {
-        if (req.user.role !== requiredRole) {
-            return res.status(403).json({
-                error: 'Access denied'
-            });
-        }
-        next();
-    };
-}
-```
-
-## Automated Stock Alerts
-
-### Alert Query
-```sql
-SELECT product_id, name, stock_quantity, low_stock_threshold
-FROM products
-WHERE stock_quantity <= low_stock_threshold;
-```
-
-### Alert Process
-1. Background job runs alert query periodically
-2. Alerts pushed to WebSocket clients
-3. Dashboard updates in real-time
-4. Managers notified of low stock items
-
-## Integration Points
-
-- WebSocket service maintains real-time UI updates
-- Role-based middleware secures API endpoints
-- Barcode scanning integrates with product lookup API
-- Background jobs monitor stock levels
-- Transaction processing updates inventory in real-time
-
-## Additional Resources
-
-- [Neon Documentation](https://neon.tech/docs)
-- [WebSocket Best Practices](https://websockets.spec.whatwg.org/)
-- [API Security Guidelines](https://owasp.org/www-project-api-security/)
 ```

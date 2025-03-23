@@ -26,6 +26,8 @@ import { Badge } from "@/components/ui/badge"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { PageHeader } from "@/components/page-title"
 import { BranchProvider, useBranch, type Branch } from "../../branch-context"
+import { useInventoryData } from "../hooks/useInventoryData"
+import { Label } from "@/components/ui/label"
 
 // Add cache configuration
 export const dynamic = 'force-dynamic'
@@ -274,130 +276,39 @@ const TableRow = memo(({
 TableRow.displayName = 'TableRow'
 
 function MobileView() {
-  const { items, categories, deleteItem, duplicateItem } = useItems()
-  const { branches, currentBranch, setCurrentBranch } = useBranch()
-  const [searchQuery, setSearchQuery] = useState("")
-  const [selectedCategory, setSelectedCategory] = useState<string>("all")
-  const [showLowStock, setShowLowStock] = useState(false)
-  const [isItemModalOpen, setIsItemModalOpen] = useState(false)
-  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false)
-  const [currentItem, setCurrentItem] = useState<Item | null>(null)
-  const [isFiltersOpen, setIsFiltersOpen] = useState(false)
-  
-  const filteredItems = useMemo(() => {
-    return items.filter((item: Item) => {
-      const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                           (item.brand && item.brand.toLowerCase().includes(searchQuery.toLowerCase())) ||
-                           (item.sku && item.sku.toLowerCase().includes(searchQuery.toLowerCase()))
-      const matchesCategory = selectedCategory === "all" || item.category === selectedCategory
-      const matchesStock = !showLowStock || item.stock < 10
-      
-      return matchesSearch && matchesCategory && matchesStock
-    })
-  }, [items, searchQuery, selectedCategory, showLowStock])
-  
-  const handleEditItem = useCallback((item: Item) => {
-    setCurrentItem(item)
-    setIsItemModalOpen(true)
-  }, [])
-  
-  const handleAddItem = useCallback(() => {
-    setCurrentItem(null)
-    setIsItemModalOpen(true)
-  }, [])
-  
-  const handleDeleteItem = useCallback((id: string) => {
-    deleteItem(id)
-    toast({
-      title: "Item deleted",
-      description: "The item has been deleted successfully.",
-    })
-  }, [deleteItem])
-  
-  const handleDuplicateItem = useCallback((id: string) => {
-    duplicateItem(id)
-    toast({
-      title: "Item duplicated",
-      description: "The item has been duplicated successfully.",
-    })
-  }, [duplicateItem])
-
-  const handleManageCategories = useCallback(() => {
-    setIsCategoryModalOpen(true)
-  }, [])
-
-  const resetFilters = useCallback(() => {
-    setSearchQuery("")
-    setSelectedCategory("all")
-    setShowLowStock(false)
-    setIsFiltersOpen(false)
-  }, [])
+  const {
+    filteredItems,
+    categories,
+    
+    searchQuery,
+    setSearchQuery,
+    selectedCategory,
+    setSelectedCategory,
+    showLowStock,
+    setShowLowStock,
+    
+    isModalOpen,
+    setIsModalOpen,
+    isCategoryModalOpen,
+    setIsCategoryModalOpen,
+    isFiltersOpen,
+    setIsFiltersOpen,
+    editingItem,
+    setEditingItem,
+    
+    handleEdit,
+    handleAddItem,
+    handleDelete,
+    handleDuplicate,
+    resetFilters,
+    
+    branches,
+    currentBranch
+  } = useInventoryData();
+  const { setCurrentBranch } = useBranch();
   
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold">Branch Inventory</h2>
-        <Sheet open={isFiltersOpen} onOpenChange={setIsFiltersOpen}>
-          <SheetTrigger asChild>
-            <Button variant="outline" size="icon">
-              <Menu className="h-5 w-5" />
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="right" className="w-[280px] sm:w-[350px]">
-            <SheetHeader className="text-left mb-5">
-              <SheetTitle>Filters</SheetTitle>
-            </SheetHeader>
-            <div className="space-y-5">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Category</label>
-                <Select 
-                  value={selectedCategory} 
-                  onValueChange={(value) => setSelectedCategory(value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="All Categories" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Categories</SelectItem>
-                    {categories.map((category: string) => (
-                      <SelectItem key={category} value={category}>
-                        {category}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox 
-                  id="lowStock" 
-                  checked={showLowStock} 
-                  onCheckedChange={(checked) => setShowLowStock(checked as boolean)} 
-                />
-                <label htmlFor="lowStock" className="text-sm font-medium">
-                  Show low stock items only
-                </label>
-              </div>
-              <Button 
-                variant="outline" 
-                className="w-full"
-                onClick={resetFilters}
-              >
-                Reset Filters
-              </Button>
-              <div className="pt-4 border-t">
-                <Button 
-                  variant="outline" 
-                  className="w-full"
-                  onClick={handleManageCategories}
-                >
-                  Manage Categories
-                </Button>
-              </div>
-            </div>
-          </SheetContent>
-        </Sheet>
-      </div>
-      
       <div className="flex items-center gap-2 mb-2">
         <Select 
           value={currentBranch?.id || "main"} 
@@ -440,161 +351,181 @@ function MobileView() {
         <div className="text-sm text-muted-foreground">
           {filteredItems.length} {filteredItems.length === 1 ? 'item' : 'items'} found
         </div>
+        <Sheet open={isFiltersOpen} onOpenChange={setIsFiltersOpen}>
+          <SheetTrigger asChild>
+            <Button variant="outline" size="sm">
+              Filters
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="right" className="w-[280px] sm:w-[350px]">
+            <SheetHeader className="text-left mb-5">
+              <SheetTitle>Filters</SheetTitle>
+            </SheetHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="categoryFilter">Category</Label>
+                <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Categories" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Categories</SelectItem>
+                    {categories.map((category) => (
+                      <SelectItem key={category} value={category}>{category}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox 
+                  id="lowStock" 
+                  checked={showLowStock} 
+                  onCheckedChange={(checked) => setShowLowStock(!!checked)} 
+                />
+                <Label htmlFor="lowStock">Show low stock only</Label>
+              </div>
+              <div className="flex items-center justify-between mt-6">
+                <Button variant="outline" size="sm" onClick={resetFilters}>Reset</Button>
+                <Button size="sm" onClick={() => setIsFiltersOpen(false)}>Apply</Button>
+              </div>
+              <div className="border-t my-4 pt-4">
+                <Button variant="outline" size="sm" onClick={() => setIsCategoryModalOpen(true)} className="w-full">
+                  Manage Categories
+                </Button>
+              </div>
+            </div>
+          </SheetContent>
+        </Sheet>
       </div>
       
-      <div className="grid grid-cols-1 gap-4">
-        {filteredItems.map((item: Item) => (
+      <div className="space-y-2">
+        {filteredItems.map((item) => (
           <MobileItemCard
             key={item.id}
             item={item}
-            onEdit={handleEditItem}
-            onDelete={handleDeleteItem}
-            onDuplicate={handleDuplicateItem}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+            onDuplicate={handleDuplicate}
           />
         ))}
         {filteredItems.length === 0 && (
           <div className="text-center py-8 text-muted-foreground">
-            No items found. Try adjusting your filters or add a new item.
+            No items found. Try adjusting your filters.
           </div>
         )}
       </div>
       
       <ItemModal
-        isOpen={isItemModalOpen}
+        isOpen={isModalOpen}
         onClose={() => {
-          setIsItemModalOpen(false)
-          setCurrentItem(null)
+          setIsModalOpen(false)
+          setEditingItem(undefined)
         }}
-        item={currentItem as Item | undefined}
+        item={editingItem}
       />
-      
-      <CategoryModal
-        isOpen={isCategoryModalOpen}
-        onClose={() => setIsCategoryModalOpen(false)}
-      />
+      <CategoryModal isOpen={isCategoryModalOpen} onClose={() => setIsCategoryModalOpen(false)} />
     </div>
   )
 }
 
 function DesktopView() {
-  const { currentUser } = useUser()
-  const { items, categories, deleteItem, duplicateItem } = useItems()
-  const [selectedItems, setSelectedItems] = useState<string[]>([])
-  const [isModalOpen, setIsModalOpen] = useState(false)
-  const [editingItem, setEditingItem] = useState<Item | undefined>(undefined)
-  const [searchTerm, setSearchTerm] = useState("")
-  const [categoryFilter, setCategoryFilter] = useState("all-categories")
-  const [brandFilter, setBrandFilter] = useState("all-brands")
-  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false)
-
-  const uniqueBrands = useMemo(() => {
-    const brands = items
-      .map((item: Item) => item.brand)
-      .filter((brand): brand is string => !!brand);
-    return ["all-brands", ...Array.from(new Set(brands))];
-  }, [items]);
-
-  const toggleItem = useCallback((itemId: string) => {
-    setSelectedItems((prev) => 
-      prev.includes(itemId) ? prev.filter((id) => id !== itemId) : [...prev, itemId]
-    )
-  }, [])
-
-  const toggleAll = useCallback(() => {
-    setSelectedItems((prev) => (prev.length === items.length ? [] : items.map((item: Item) => item.id)))
-  }, [items])
-
-  const handleEdit = useCallback((item: Item) => {
-    setEditingItem(item)
-    setIsModalOpen(true)
-  }, [])
-
-  const handleDelete = useCallback((id: string) => {
-    deleteItem(id)
-    toast({
-      title: "Item deleted",
-      description: "The item has been successfully deleted.",
-    })
-  }, [deleteItem])
-
-  const handleDuplicate = useCallback((id: string) => {
-    duplicateItem(id)
-    toast({
-      title: "Item duplicated",
-      description: "A copy of the item has been created.",
-    })
-  }, [duplicateItem])
-
-  const filteredItems = useMemo(() => 
-    items.filter(
-      (item: Item) =>
-        item.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
-        (categoryFilter === "all-categories" || item.category === categoryFilter) &&
-        (brandFilter === "all-brands" || item.brand === brandFilter)
-    ),
-    [items, searchTerm, categoryFilter, brandFilter]
-  )
-
-  if (currentUser?.role === "staff") {
-    return <div className="text-center py-8">You don&apos;t have permission to access this page.</div>
-  }
-
+  const {
+    filteredItems,
+    categories,
+    
+    searchQuery,
+    setSearchQuery,
+    selectedCategory,
+    setSelectedCategory,
+    showLowStock,
+    setShowLowStock,
+    selectedItems,
+    setSelectedItems,
+    
+    isModalOpen,
+    setIsModalOpen,
+    isCategoryModalOpen,
+    setIsCategoryModalOpen,
+    editingItem,
+    setEditingItem,
+    
+    toggleItem,
+    toggleAll,
+    handleEdit,
+    handleAddItem,
+    handleDelete,
+    handleDuplicate,
+    resetFilters,
+    
+    branches,
+    currentBranch
+  } = useInventoryData();
+  const { setCurrentBranch } = useBranch();
+  
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:flex-1 md:mr-4">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search items"
-              className="pl-8"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Category" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all-categories">All categories</SelectItem>
-                {categories.map((category: string) => (
-                  <SelectItem key={category} value={category}>
-                    {category}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select value={brandFilter} onValueChange={setBrandFilter}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Brand" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all-brands">All brands</SelectItem>
-                {uniqueBrands.slice(1).map((brand: string) => (
-                  <SelectItem key={brand} value={brand}>
-                    {brand}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Button variant="outline" className="h-10" onClick={() => setIsCategoryModalOpen(true)}>
-              Manage Categories
-            </Button>
-          </div>
+      <div className="flex items-center gap-4 mb-4">
+        <Select 
+          value={currentBranch?.id || "main"} 
+          onValueChange={(value) => {
+            const branch = branches.find((b: Branch) => b.id === value)
+            if (branch) setCurrentBranch(branch)
+          }}
+        >
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Select branch" />
+          </SelectTrigger>
+          <SelectContent>
+            {branches.map((branch: Branch) => (
+              <SelectItem key={branch.id} value={branch.id}>
+                {branch.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    
+      <div className="flex items-center gap-4">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            type="search"
+            placeholder="Search items..."
+            className="pl-9"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
         </div>
-
-        <div className="flex items-center gap-2">
-          <Button className="h-10" onClick={() => setIsModalOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Create item
+        <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="All Categories" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Categories</SelectItem>
+            {categories.map((category) => (
+              <SelectItem key={category} value={category}>{category}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <div className="flex items-center space-x-2">
+          <Checkbox 
+            id="lowStockDesktop" 
+            checked={showLowStock} 
+            onCheckedChange={(checked) => setShowLowStock(!!checked)} 
+          />
+          <Label htmlFor="lowStockDesktop">Show low stock only</Label>
+        </div>
+        <div className="flex-1 text-right space-x-2">
+          <Button variant="outline" onClick={() => setIsCategoryModalOpen(true)}>
+            Categories
+          </Button>
+          <Button onClick={handleAddItem}>
+            <Plus className="h-4 w-4 mr-1" />
+            Add Item
           </Button>
         </div>
       </div>
-
+      
       <div className="border rounded-lg">
         <div className="overflow-x-auto">
           <table className="w-full">
