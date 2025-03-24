@@ -8,11 +8,6 @@ import { Layout } from "@/components/layout"
 import React from "react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
-// Add cache configuration
-export const dynamic = 'force-dynamic'
-export const revalidate = 3600 // Revalidate every hour
-export const fetchCache = 'force-cache'
-
 interface SaleItemVariant {
   size: string
   quantity: number

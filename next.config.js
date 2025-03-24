@@ -10,7 +10,6 @@ const nextConfig = {
     forceSwcTransforms: true,
   },
   output: 'export',
-  distDir: 'out',
   images: {
     unoptimized: true,
   },

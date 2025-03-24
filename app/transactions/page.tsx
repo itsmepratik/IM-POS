@@ -23,11 +23,6 @@ import 'react-date-range/dist/styles.css'
 import 'react-date-range/dist/theme/default.css'
 import './Calendar.css'
 
-// Add cache configuration
-export const dynamic = 'force-dynamic'
-export const revalidate = 3600 // Revalidate every hour
-export const fetchCache = 'force-cache'
-
 dayjs.extend(isBetween)
 
 const timeOptions = [

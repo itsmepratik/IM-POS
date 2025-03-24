@@ -31,11 +31,6 @@ import { Label } from "@/components/ui/label"
 import { OpenBottleBadge, ClosedBottleBadge } from "@/components/ui/inventory-bottle-icons"
 import { OpenBottleIcon, ClosedBottleIcon } from "@/components/ui/bottle-icons"
 
-// Add cache configuration
-export const dynamic = 'force-dynamic'
-export const revalidate = 3600 // Revalidate every hour
-export const fetchCache = 'force-cache'
-
 // Define volume type
 interface Volume {
   size: string;
