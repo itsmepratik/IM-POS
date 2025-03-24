@@ -11,6 +11,9 @@ function useInventoryStatus() {
   const [outOfStockItems, setOutOfStockItems] = useState(0)
   const { currentBranch } = useBranch()
 
+  // We've disabled automatic inventory checks to prevent auto-loading notifications
+  // If you want to re-enable this feature, uncomment the useEffect below
+  /*
   useEffect(() => {
     // This would be replaced with a real API call in production
     const checkInventoryStatus = async () => {
@@ -37,6 +40,7 @@ function useInventoryStatus() {
     
     return () => clearInterval(interval)
   }, [currentBranch])
+  */
 
   return { lowStockItems, outOfStockItems }
 }
@@ -49,11 +53,12 @@ interface Notification {
   message: string
   title?: string
   duration?: number
+  timestamp: number
 }
 
 interface NotificationContextType {
   notifications: Notification[]
-  addNotification: (notification: Omit<Notification, "id">) => void
+  addNotification: (notification: Omit<Notification, "id" | "timestamp">) => void
   removeNotification: (id: string) => void
   clearAllNotifications: () => void
 }
@@ -76,9 +81,10 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const { lowStockItems, outOfStockItems } = useInventoryStatus()
 
-  const addNotification = useCallback((notification: Omit<Notification, "id">) => {
+  const addNotification = useCallback((notification: Omit<Notification, "id" | "timestamp">) => {
     const id = Math.random().toString(36).substring(2, 9)
     const duration = notification.duration || 5000
+    const timestamp = Date.now()
 
     setNotifications((prev) => {
       // Check if a notification with similar content already exists
@@ -90,7 +96,7 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
         return prev
       }
       
-      return [...prev, { ...notification, id }]
+      return [...prev, { ...notification, id, timestamp }]
     })
 
     // Auto remove notification after duration
@@ -110,6 +116,9 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
   }, [])
 
   // Check for low stock items and show notifications
+  // Automatic inventory notifications are disabled
+  // Uncomment this useEffect if you want to re-enable automatic inventory notifications
+  /*
   useEffect(() => {
     if (lowStockItems > 0) {
       addNotification({
@@ -129,6 +138,7 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
       })
     }
   }, [lowStockItems, outOfStockItems, addNotification])
+  */
 
   const value = {
     notifications,
@@ -149,16 +159,25 @@ function NotificationContainer() {
   const { notifications, removeNotification } = useNotification()
 
   return (
-    <div className="fixed top-4 z-50 left-1/2 transform -translate-x-1/2 w-full max-w-sm px-4 flex flex-col items-center space-y-2">
+    <div className="fixed top-4 z-50 left-1/2 transform -translate-x-1/2 w-full max-w-sm px-4 flex flex-col items-center">
       <AnimatePresence>
-        {notifications.map((notification) => (
+        {notifications.map((notification, index) => (
           <motion.div
             key={notification.id}
             initial={{ opacity: 0, y: -20, scale: 0.9 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
+            animate={{ 
+              opacity: 1, 
+              y: index * -8, // Create a slight stacking effect
+              scale: 1 - (index * 0.02), // Slightly scale down stacked notifications
+              zIndex: notifications.length - index // Control stacking order
+            }}
             exit={{ opacity: 0, y: -20, scale: 0.9 }}
             transition={{ duration: 0.2 }}
-            className="w-full"
+            style={{ 
+              position: 'relative',
+              marginTop: index === 0 ? 0 : '-70px', // Create overlap effect
+              width: '100%'
+            }}
           >
             <NotificationItem notification={notification} onClose={removeNotification} />
           </motion.div>
@@ -191,21 +210,6 @@ function NotificationItem({ notification, onClose }: NotificationItemProps) {
     }
   }
 
-  const getBgColor = () => {
-    switch (type) {
-      case "success":
-        return "bg-green-50 dark:bg-green-900/20"
-      case "error":
-        return "bg-red-50 dark:bg-red-900/20"
-      case "warning":
-        return "bg-amber-50 dark:bg-amber-900/20"
-      case "info":
-        return "bg-blue-50 dark:bg-blue-900/20"
-      default:
-        return "bg-blue-50 dark:bg-blue-900/20"
-    }
-  }
-
   const getBorderColor = () => {
     switch (type) {
       case "success":
@@ -223,10 +227,11 @@ function NotificationItem({ notification, onClose }: NotificationItemProps) {
 
   return (
     <div 
-      className={`rounded-lg shadow-lg backdrop-blur-sm border-l-4 ${getBgColor()} ${getBorderColor()} p-4 flex items-start w-full`}
+      className={`rounded-lg shadow-lg border-2 p-4 flex items-start w-full backdrop-blur-xl bg-background/60 ${getBorderColor()}`}
       style={{ 
-        backdropFilter: "blur(8px)",
-        WebkitBackdropFilter: "blur(8px)"
+        backdropFilter: "blur(16px)",
+        WebkitBackdropFilter: "blur(16px)",
+        boxShadow: "0 8px 32px rgba(0, 0, 0, 0.15)"
       }}
     >
       <div className="flex-shrink-0 mr-3 mt-0.5">

@@ -28,6 +28,8 @@ import { PageHeader } from "@/components/page-title"
 import { BranchProvider, useBranch } from "../branch-context"
 import { useInventoryData } from "./hooks/useInventoryData"
 import { Label } from "@/components/ui/label"
+import { OpenBottleBadge, ClosedBottleBadge } from "@/components/ui/inventory-bottle-icons"
+import { OpenBottleIcon, ClosedBottleIcon } from "@/components/ui/bottle-icons"
 
 // Add cache configuration
 export const dynamic = 'force-dynamic'
@@ -76,20 +78,10 @@ const MobileItemCard = memo(({ item, onEdit, onDelete, onDuplicate }: {
                 {item.isOil && item.bottleStates && (
                   <div className="flex flex-wrap gap-2 mt-1">
                     {item.bottleStates.open > 0 && (
-                      <Badge 
-                        variant="outline" 
-                        className="bg-green-100 text-green-800 border-green-300"
-                      >
-                        {item.bottleStates.open} Open {item.bottleStates.open === 1 ? 'Bottle' : 'Bottles'}
-                      </Badge>
+                      <OpenBottleBadge count={item.bottleStates.open} />
                     )}
                     {item.bottleStates.closed > 0 && (
-                      <Badge 
-                        variant="outline" 
-                        className="bg-red-200 text-red-900 border-red-400 font-medium"
-                      >
-                        {item.bottleStates.closed} Closed {item.bottleStates.closed === 1 ? 'Bottle' : 'Bottles'}
-                      </Badge>
+                      <ClosedBottleBadge count={item.bottleStates.closed} />
                     )}
                   </div>
                 )}
@@ -179,11 +171,17 @@ const MobileItemCard = memo(({ item, onEdit, onDelete, onDuplicate }: {
                   <h4 className="text-sm font-medium mb-1">Bottle Inventory</h4>
                   <div className="grid grid-cols-2 gap-2">
                     <div className="flex items-center justify-between p-2 rounded-md bg-green-50 border border-green-200">
-                      <span className="text-sm text-green-800">Open Bottles:</span>
+                      <span className="text-sm text-green-800 flex items-center gap-1">
+                        <OpenBottleIcon className="h-3 w-3" />
+                        Open Bottles:
+                      </span>
                       <span className="font-medium text-green-800">{item.bottleStates.open}</span>
                     </div>
                     <div className="flex items-center justify-between p-2 rounded-md bg-red-100 border border-red-300">
-                      <span className="text-sm font-medium text-red-900">Closed Bottles:</span>
+                      <span className="text-sm font-medium text-red-900 flex items-center gap-1">
+                        <ClosedBottleIcon className="h-3 w-3" />
+                        Closed Bottles:
+                      </span>
                       <span className="font-bold text-red-900">{item.bottleStates.closed}</span>
                     </div>
                   </div>

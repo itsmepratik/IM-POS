@@ -267,6 +267,7 @@ export default function SalesInfo() {
   const [expandedItems, setExpandedItems] = useState<string[]>([])
   const [isMobileView, setIsMobileView] = useState(false)
   const [selectedStore, setSelectedStore] = useState("all-stores")
+  const [hasMounted, setHasMounted] = useState(false)
 
   useEffect(() => {
     const checkViewport = () => {
@@ -278,6 +279,9 @@ export default function SalesInfo() {
     
     // Add event listener
     window.addEventListener('resize', checkViewport)
+    
+    // Set hasMounted to prevent hydration mismatch
+    setHasMounted(true)
     
     // Cleanup
     return () => window.removeEventListener('resize', checkViewport)
@@ -330,18 +334,22 @@ export default function SalesInfo() {
 
         <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:justify-between">
           <h2 className="text-lg font-semibold">Items Sold</h2>
-          <Select value={selectedStore} onValueChange={setSelectedStore}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Select store" />
-            </SelectTrigger>
-            <SelectContent>
-              {stores.map(store => (
-                <SelectItem key={store.id} value={store.id}>
-                  {store.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {hasMounted ? (
+            <Select value={selectedStore} onValueChange={setSelectedStore}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Select store" />
+              </SelectTrigger>
+              <SelectContent>
+                {stores.map(store => (
+                  <SelectItem key={store.id} value={store.id}>
+                    {store.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <div className="w-[180px] h-10" /> /* Placeholder to maintain layout */
+          )}
         </div>
 
         <Card className={isMobileView ? "p-4" : "p-6"}>

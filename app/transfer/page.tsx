@@ -89,6 +89,7 @@ const categories = ["All Categories", "Oil", "Filters", "Fluids", "Accessories"]
 export default function TransferPage() {
   const { toast } = useToast()
   const { items, refreshItems } = useTransfer() // Get items from the hook
+  const [hasMounted, setHasMounted] = useState(false)
   
   // Use useEffect to refresh items when the component mounts
   useEffect(() => {
@@ -114,6 +115,11 @@ export default function TransferPage() {
     setCurrentDate(new Date().toLocaleDateString('en-GB'))
     setCurrentTime(new Date().toLocaleTimeString('en-GB'))
     setTransferId(`TO-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`)
+  }, [])
+
+  useEffect(() => {
+    // Set hasMounted to true after component mounts
+    setHasMounted(true)
   }, [])
 
   // Convert hook items to the format expected by this component
@@ -345,42 +351,50 @@ export default function TransferPage() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium">Source Location</label>
-                <Select value={sourceLocation} onValueChange={setSourceLocation}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select source location" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {locations.map(location => (
-                      <SelectItem 
-                        key={location.id} 
-                        value={location.id}
-                        disabled={location.id === destinationLocation}
-                      >
-                        {location.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {hasMounted ? (
+                  <Select value={sourceLocation} onValueChange={setSourceLocation}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select source location" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {locations.map(location => (
+                        <SelectItem 
+                          key={location.id} 
+                          value={location.id}
+                          disabled={location.id === destinationLocation}
+                        >
+                          {location.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <div className="h-10 border rounded-md" /> /* Placeholder to maintain layout */
+                )}
               </div>
               
               <div className="space-y-2">
                 <label className="text-sm font-medium">Destination Location</label>
-                <Select value={destinationLocation} onValueChange={setDestinationLocation}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select destination location" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {locations.map(location => (
-                      <SelectItem 
-                        key={location.id} 
-                        value={location.id}
-                        disabled={location.id === sourceLocation}
-                      >
-                        {location.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {hasMounted ? (
+                  <Select value={destinationLocation} onValueChange={setDestinationLocation}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select destination location" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {locations.map(location => (
+                        <SelectItem 
+                          key={location.id} 
+                          value={location.id}
+                          disabled={location.id === sourceLocation}
+                        >
+                          {location.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <div className="h-10 border rounded-md" /> /* Placeholder to maintain layout */
+                )}
               </div>
               
               {isSameLocation && (
@@ -395,18 +409,22 @@ export default function TransferPage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle>Select Items</CardTitle>
-              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="All Categories" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map(category => (
-                    <SelectItem key={category} value={category}>
-                      {category}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {hasMounted ? (
+                <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="All Categories" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map(category => (
+                      <SelectItem key={category} value={category}>
+                        {category}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <div className="w-[180px] h-10 border rounded-md" /> /* Placeholder to maintain layout */
+              )}
             </CardHeader>
             <CardContent className="space-y-4">
               <div>

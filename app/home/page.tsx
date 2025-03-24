@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Layout } from "@/components/layout"
 import { Button } from "@/components/ui/button"
@@ -38,7 +38,16 @@ export default function HomePage() {
 }
 
 function HomePageContent() {
-  const [branchSelection, setBranchSelection] = useState("all")
+  // Use null as initial state to avoid hydration mismatch
+  const [branchSelection, setBranchSelection] = useState<string | null>(null)
+  const [hasMounted, setHasMounted] = useState(false)
+  
+  // Set initial state after component mounts
+  useEffect(() => {
+    setBranchSelection("all")
+    setHasMounted(true)
+  }, [])
+  
   const {
     sales,
     profit,
@@ -57,17 +66,21 @@ function HomePageContent() {
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
           <div className="space-y-1.5">
             <div className="flex flex-wrap items-center gap-2">
-              <Select defaultValue={branchSelection} onValueChange={setBranchSelection}>
-                <SelectTrigger className="h-8 w-[150px]">
-                  <SelectValue placeholder="All branches" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All branches</SelectItem>
-                  <SelectItem value="branch1">Main Branch</SelectItem>
-                  <SelectItem value="branch2">Downtown Branch</SelectItem>
-                  <SelectItem value="branch3">West Branch</SelectItem>
-                </SelectContent>
-              </Select>
+              {hasMounted ? (
+                <Select value={branchSelection || undefined} onValueChange={setBranchSelection}>
+                  <SelectTrigger className="h-8 w-[150px]">
+                    <SelectValue placeholder="All branches" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All branches</SelectItem>
+                    <SelectItem value="branch1">Main Branch</SelectItem>
+                    <SelectItem value="branch2">Downtown Branch</SelectItem>
+                    <SelectItem value="branch3">West Branch</SelectItem>
+                  </SelectContent>
+                </Select>
+              ) : (
+                <div className="h-8 w-[150px] rounded-md border bg-transparent px-3 py-2 text-sm animate-pulse" />
+              )}
               <span className="text-xs text-muted-foreground">
                 {lastUpdated ? `Date: ${format(lastUpdated, 'dd MMM yyyy')}` : 'Loading...'}
               </span>

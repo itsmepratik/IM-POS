@@ -211,6 +211,7 @@ export default function TransactionsPage() {
       key: 'selection'
     } as Range
   ])
+  const [hasMounted, setHasMounted] = useState(false)
 
   useEffect(() => {
     // Reset dates when period changes
@@ -220,6 +221,21 @@ export default function TransactionsPage() {
       key: 'selection'
     } as Range])
   }, [selectedPeriod])
+
+  useEffect(() => {
+    // Check for time of day
+    const hour = new Date().getHours()
+    if (hour < 12) {
+      setTimeOfDay('morning')
+    } else if (hour < 18) {
+      setTimeOfDay('evening')
+    } else {
+      setTimeOfDay('full')
+    }
+    
+    // Set hasMounted to prevent hydration mismatch
+    setHasMounted(true)
+  }, [])
 
   const getMinMaxDates = useCallback(() => {
     const today = new Date()
@@ -300,36 +316,44 @@ export default function TransactionsPage() {
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <h1 className="text-2xl font-semibold">Transactions</h1>
-          <Select value={selectedStore} onValueChange={setSelectedStore}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Select store" />
-            </SelectTrigger>
-            <SelectContent>
-              {stores.map(store => (
-                <SelectItem key={store.id} value={store.id}>
-                  {store.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-wrap items-center gap-3">
-            <Select value={selectedPeriod} onValueChange={(value: keyof AllTransactions) => {
-              setSelectedPeriod(value)
-            }}>
-              <SelectTrigger className="w-[140px]">
-                <SelectValue placeholder="Select period" />
+          {hasMounted ? (
+            <Select value={selectedStore} onValueChange={setSelectedStore}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Select store" />
               </SelectTrigger>
               <SelectContent>
-                {timeOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
+                {stores.map(store => (
+                  <SelectItem key={store.id} value={store.id}>
+                    {store.name}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+          ) : (
+            <div className="w-[180px] h-10" /> /* Placeholder to maintain layout */
+          )}
+        </div>
+
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-wrap items-center gap-3">
+            {hasMounted ? (
+              <Select value={selectedPeriod} onValueChange={(value: keyof AllTransactions) => {
+                setSelectedPeriod(value)
+              }}>
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue placeholder="Select period" />
+                </SelectTrigger>
+                <SelectContent>
+                  {timeOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <div className="w-[140px] h-10" /> /* Placeholder to maintain layout */
+            )}
 
             {selectedPeriod !== 'today' && (
               <Popover>

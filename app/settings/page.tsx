@@ -377,77 +377,67 @@ function formatDate(dateString?: string) {
 function SettingsContent() {
   const router = useRouter()
   const { currentUser } = useUser()
-  const { branches, addBranch, currentBranch } = useBranch()
-  const [storeName, setStoreName] = useState("My POS Store")
-  const [storeAddress, setStoreAddress] = useState("123 Main St, Muscat, Oman")
-  const [storePhone, setStorePhone] = useState("+968 1234 5678")
-  const [storeEmail, setStoreEmail] = useState("info@myposstore.com")
+  const { branches, addBranch, updateBranch, deleteBranch } = useBranch()
+  const { users, addUser, updateUser, deleteUser } = useUser()
+  
+  const [showBranchForm, setShowBranchForm] = useState(false)
+  const [editBranch, setEditBranch] = useState<Branch | undefined>()
+  const [storeName, setStoreName] = useState("HA Automotives")
+  const [storeAddress, setStoreAddress] = useState("123 Main Street, Muscat, Oman")
+  const [storePhone, setStorePhone] = useState("+968 9123 4567")
+  const [storeEmail, setStoreEmail] = useState("info@hautomotives.com")
   const [storeTax, setStoreTax] = useState("5")
-  const [storeWebsite, setStoreWebsite] = useState("www.myposstore.com")
-  const [isAddBranchDialogOpen, setIsAddBranchDialogOpen] = useState(false)
-  const [users, setUsers] = useState<UserType[]>(mockUsers)
-  const [isAddUserDialogOpen, setIsAddUserDialogOpen] = useState(false)
-  const [isEditUserDialogOpen, setIsEditUserDialogOpen] = useState(false)
-  const [isDeleteUserDialogOpen, setIsDeleteUserDialogOpen] = useState(false)
-  const [currentUser2, setCurrentUser2] = useState<UserType | null>(null)
-
-  if (currentUser?.role !== "admin") {
-    return <div className="text-center py-8">You don&apos;t have permission to access this page.</div>
-  }
+  const [storeCurrency, setStoreCurrency] = useState("OMR")
+  const [timeZone, setTimeZone] = useState("GMT+4")
+  const [showUserForm, setShowUserForm] = useState(false)
+  const [editUser, setEditUser] = useState<UserType | undefined>()
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [userToDelete, setUserToDelete] = useState<string>("")
+  const [activeTab, setActiveTab] = useState<string | null>(null)
+  const [hasMounted, setHasMounted] = useState(false)
+  
+  // Set initial tab state after component mounts to avoid hydration mismatch
+  useEffect(() => {
+    setActiveTab("general")
+    setHasMounted(true)
+  }, [])
 
   const handleAddBranch = (branch: Omit<Branch, "id">) => {
-    const newBranch: Branch = {
+    // Add branch with generated ID
+    addBranch({
       ...branch,
-      id: Math.random().toString(36).substring(2, 9)
-    }
-    addBranch(newBranch)
-    setIsAddBranchDialogOpen(false)
-    toast({
-      title: "Branch added",
-      description: `${branch.name} has been added successfully.`
+      id: `branch${Date.now()}`
     })
+    setShowBranchForm(false)
   }
-
+  
   const handleAddUser = (user: Omit<UserType, "id" | "lastActive">) => {
-    const newUser: UserType = {
+    // Add user with generated ID and current timestamp
+    addUser({
       ...user,
-      id: Math.random().toString(36).substring(2, 9),
+      id: `user${Date.now()}`,
       lastActive: new Date().toISOString()
-    }
-    setUsers([...users, newUser])
-    setIsAddUserDialogOpen(false)
-    toast({
-      title: "User added",
-      description: `${user.name} has been added successfully.`
     })
+    setShowUserForm(false)
   }
-
+  
   const handleUpdateUser = (user: Omit<UserType, "id" | "lastActive">) => {
-    if (!currentUser2) return
-    
-    const updatedUsers = users.map(u => 
-      u.id === currentUser2.id ? { ...u, ...user } : u
-    )
-    setUsers(updatedUsers)
-    setIsEditUserDialogOpen(false)
-    setCurrentUser2(null)
-    toast({
-      title: "User updated",
-      description: `${user.name} has been updated successfully.`
-    })
+    if (editUser) {
+      updateUser({
+        ...editUser,
+        ...user
+      })
+    }
+    setShowUserForm(false)
+    setEditUser(undefined)
   }
-
+  
   const handleDeleteUser = () => {
-    if (!currentUser2) return
-    
-    const updatedUsers = users.filter(u => u.id !== currentUser2.id)
-    setUsers(updatedUsers)
-    setIsDeleteUserDialogOpen(false)
-    setCurrentUser2(null)
-    toast({
-      title: "User deleted",
-      description: `${currentUser2.name} has been deleted successfully.`
-    })
+    if (userToDelete) {
+      deleteUser(userToDelete)
+    }
+    setIsDeleting(false)
+    setUserToDelete("")
   }
 
   return (
@@ -464,356 +454,364 @@ function SettingsContent() {
         </div>
       </PageHeader>
       
-      <Tabs defaultValue="general" className="mt-4">
-        <TabsList className="grid w-full grid-cols-3 mb-4">
-          <TabsTrigger value="general">General</TabsTrigger>
-          <TabsTrigger value="branches">Branches</TabsTrigger>
-          <TabsTrigger value="users">Users</TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="general" className="space-y-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle>Store Information</CardTitle>
-              <CardDescription>
-                Update your store details and information
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="storeName">Store Name</Label>
-                  <Input 
-                    id="storeName" 
-                    value={storeName} 
-                    onChange={(e) => setStoreName(e.target.value)} 
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="storeAddress">Address</Label>
-                  <Input 
-                    id="storeAddress" 
-                    value={storeAddress} 
-                    onChange={(e) => setStoreAddress(e.target.value)} 
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="storePhone">Phone</Label>
-                  <Input 
-                    id="storePhone" 
-                    value={storePhone} 
-                    onChange={(e) => setStorePhone(e.target.value)} 
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="storeEmail">Email</Label>
-                  <Input 
-                    id="storeEmail" 
-                    value={storeEmail} 
-                    onChange={(e) => setStoreEmail(e.target.value)} 
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="storeTax">Tax Rate (%)</Label>
-                  <Input 
-                    id="storeTax" 
-                    value={storeTax} 
-                    onChange={(e) => setStoreTax(e.target.value)} 
-                    type="number"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="storeWebsite">Website</Label>
-                  <Input 
-                    id="storeWebsite" 
-                    value={storeWebsite} 
-                    onChange={(e) => setStoreWebsite(e.target.value)} 
-                  />
-                </div>
-              </div>
-            </CardContent>
-            <CardFooter>
-              <Button>Save Changes</Button>
-            </CardFooter>
-          </Card>
+      {hasMounted ? (
+        <Tabs value={activeTab || undefined} onValueChange={setActiveTab} className="mt-4">
+          <TabsList className="grid w-full grid-cols-3 mb-4">
+            <TabsTrigger value="general">General</TabsTrigger>
+            <TabsTrigger value="branches">Branches</TabsTrigger>
+            <TabsTrigger value="users">Users</TabsTrigger>
+          </TabsList>
           
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle>Receipt Settings</CardTitle>
-              <CardDescription>
-                Customize your receipt appearance and information
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                Configure how your receipts look and what information is displayed to customers.
-              </p>
-            </CardContent>
-            <CardFooter>
-              <Button variant="outline">Configure Receipt</Button>
-            </CardFooter>
-          </Card>
-        </TabsContent>
-        
-        <TabsContent value="branches" className="space-y-4">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-semibold">Branch Management</h2>
-            <Dialog open={isAddBranchDialogOpen} onOpenChange={setIsAddBranchDialogOpen}>
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Branch
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="w-[90%] rounded-xl">
-                <DialogHeader>
-                  <DialogTitle>Add New Branch</DialogTitle>
-                  <DialogDescription>
-                    Fill in the details to add a new branch.
-                  </DialogDescription>
-                </DialogHeader>
-                <BranchForm 
-                  onSubmit={handleAddBranch} 
-                  onCancel={() => setIsAddBranchDialogOpen(false)} 
-                />
-              </DialogContent>
-            </Dialog>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {branches.map((branch) => (
-              <BranchCard key={branch.id} branch={branch} />
-            ))}
-          </div>
-        </TabsContent>
-        
-        <TabsContent value="users" className="space-y-4">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-semibold">User Management</h2>
-            <Dialog open={isAddUserDialogOpen} onOpenChange={setIsAddUserDialogOpen}>
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add User
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="w-[90%] rounded-lg">
-                <DialogHeader>
-                  <DialogTitle>Add New User</DialogTitle>
-                  <DialogDescription>
-                    Fill in the details to add a new user.
-                  </DialogDescription>
-                </DialogHeader>
-                <UserForm 
-                  onSubmit={handleAddUser} 
-                  onCancel={() => setIsAddUserDialogOpen(false)} 
-                />
-              </DialogContent>
-            </Dialog>
-          </div>
-          
-          {/* Desktop view for users */}
-          <div className="hidden md:block">
+          <TabsContent value="general" className="space-y-4">
             <Card>
-              <CardContent className="p-0">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>User</TableHead>
-                      <TableHead>Role</TableHead>
-                      <TableHead>Last Active</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {users.map((user) => (
-                      <TableRow key={user.id}>
-                        <TableCell>
-                          <div className="flex items-center gap-3">
-                            <Avatar className="h-8 w-8">
-                              {user.avatar ? (
-                                <AvatarImage src={user.avatar} alt={user.name} />
-                              ) : (
-                                <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                              )}
-                            </Avatar>
-                            <div>
-                              <div className="font-medium">{user.name}</div>
-                              <div className="text-sm text-muted-foreground">{user.email}</div>
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>{getRoleBadge(user.role)}</TableCell>
-                        <TableCell>{formatDate(user.lastActive)}</TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Dialog open={isEditUserDialogOpen && currentUser2?.id === user.id} onOpenChange={(open) => {
-                              setIsEditUserDialogOpen(open)
-                              if (!open) setCurrentUser2(null)
-                            }}>
-                              <DialogTrigger asChild>
-                                <Button variant="outline" size="icon" onClick={() => setCurrentUser2(user)}>
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                              </DialogTrigger>
-                              <DialogContent className="w-[90%] rounded-lg">
-                                <DialogHeader>
-                                  <DialogTitle>Edit User</DialogTitle>
-                                  <DialogDescription>
-                                    Update the user information below.
-                                  </DialogDescription>
-                                </DialogHeader>
-                                {currentUser2 && (
-                                  <UserForm 
-                                    user={currentUser2} 
-                                    onSubmit={handleUpdateUser} 
-                                    onCancel={() => {
-                                      setIsEditUserDialogOpen(false)
-                                      setCurrentUser2(null)
-                                    }} 
-                                  />
-                                )}
-                              </DialogContent>
-                            </Dialog>
-                            
-                            <Dialog open={isDeleteUserDialogOpen && currentUser2?.id === user.id} onOpenChange={(open) => {
-                              setIsDeleteUserDialogOpen(open)
-                              if (!open) setCurrentUser2(null)
-                            }}>
-                              <DialogTrigger asChild>
-                                <Button variant="outline" size="icon" onClick={() => setCurrentUser2(user)}>
-                                  <Trash2 className="h-4 w-4 text-destructive" />
-                                </Button>
-                              </DialogTrigger>
-                              <DialogContent className="w-[90%] rounded-xl">
-                                <DialogHeader>
-                                  <DialogTitle>Delete User</DialogTitle>
-                                  <DialogDescription>
-                                    Are you sure you want to delete this user? This action cannot be undone.
-                                  </DialogDescription>
-                                </DialogHeader>
-                                <DialogFooter>
-                                  <Button variant="outline" onClick={() => {
-                                    setIsDeleteUserDialogOpen(false)
-                                    setCurrentUser2(null)
-                                  }}>
-                                    Cancel
-                                  </Button>
-                                  <Button variant="destructive" onClick={handleDeleteUser}>
-                                    Delete
-                                  </Button>
-                                </DialogFooter>
-                              </DialogContent>
-                            </Dialog>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          </div>
-          
-          {/* Mobile view for users */}
-          <div className="md:hidden space-y-4">
-            {users.map((user) => (
-              <Card key={user.id} className="overflow-hidden">
-                <CardHeader className="pb-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <Avatar className="h-10 w-10">
-                        {user.avatar ? (
-                          <AvatarImage src={user.avatar} alt={user.name} />
-                        ) : (
-                          <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                        )}
-                      </Avatar>
-                      <div>
-                        <CardTitle className="text-base">{user.name}</CardTitle>
-                        <CardDescription className="text-xs">{user.email}</CardDescription>
-                      </div>
-                    </div>
-                    {getRoleBadge(user.role)}
+              <CardHeader className="pb-2">
+                <CardTitle>Store Information</CardTitle>
+                <CardDescription>
+                  Update your store details and information
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="storeName">Store Name</Label>
+                    <Input 
+                      id="storeName" 
+                      value={storeName} 
+                      onChange={(e) => setStoreName(e.target.value)} 
+                    />
                   </div>
-                </CardHeader>
-                <CardContent className="pb-2 pt-0">
-                  <div className="flex items-center text-sm text-muted-foreground">
-                    <span>Last active: {formatDate(user.lastActive)}</span>
-                  </div>
-                </CardContent>
-                <CardFooter className="flex justify-end gap-2 pt-0">
-                  <Dialog open={isEditUserDialogOpen && currentUser2?.id === user.id} onOpenChange={(open) => {
-                    setIsEditUserDialogOpen(open)
-                    if (!open) setCurrentUser2(null)
-                  }}>
-                    <DialogTrigger asChild>
-                      <Button variant="outline" size="sm" onClick={() => setCurrentUser2(user)}>
-                        <Edit className="h-3.5 w-3.5 mr-1" />
-                        Edit
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="w-[90%] rounded-lg">
-                      <DialogHeader>
-                        <DialogTitle>Edit User</DialogTitle>
-                        <DialogDescription>
-                          Update the user information below.
-                        </DialogDescription>
-                      </DialogHeader>
-                      {currentUser2 && (
-                        <UserForm 
-                          user={currentUser2} 
-                          onSubmit={handleUpdateUser} 
-                          onCancel={() => {
-                            setIsEditUserDialogOpen(false)
-                            setCurrentUser2(null)
-                          }} 
-                        />
-                      )}
-                    </DialogContent>
-                  </Dialog>
                   
-                  <Dialog open={isDeleteUserDialogOpen && currentUser2?.id === user.id} onOpenChange={(open) => {
-                    setIsDeleteUserDialogOpen(open)
-                    if (!open) setCurrentUser2(null)
-                  }}>
-                    <DialogTrigger asChild>
-                      <Button variant="outline" size="sm" className="text-destructive border-destructive" onClick={() => setCurrentUser2(user)}>
-                        <Trash2 className="h-3.5 w-3.5 mr-1" />
-                        Delete
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="w-[90%] rounded-xl">
-                      <DialogHeader>
-                        <DialogTitle>Delete User</DialogTitle>
-                        <DialogDescription>
-                          Are you sure you want to delete this user? This action cannot be undone.
-                        </DialogDescription>
-                      </DialogHeader>
-                      <DialogFooter>
-                        <Button variant="outline" onClick={() => {
-                          setIsDeleteUserDialogOpen(false)
-                          setCurrentUser2(null)
-                        }}>
-                          Cancel
+                  <div className="space-y-2">
+                    <Label htmlFor="storeAddress">Address</Label>
+                    <Input 
+                      id="storeAddress" 
+                      value={storeAddress} 
+                      onChange={(e) => setStoreAddress(e.target.value)} 
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="storePhone">Phone</Label>
+                    <Input 
+                      id="storePhone" 
+                      value={storePhone} 
+                      onChange={(e) => setStorePhone(e.target.value)} 
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="storeEmail">Email</Label>
+                    <Input 
+                      id="storeEmail" 
+                      value={storeEmail} 
+                      onChange={(e) => setStoreEmail(e.target.value)} 
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="storeTax">Tax Rate (%)</Label>
+                    <Input 
+                      id="storeTax" 
+                      value={storeTax} 
+                      onChange={(e) => setStoreTax(e.target.value)} 
+                      type="number"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="storeCurrency">Currency</Label>
+                    <Input 
+                      id="storeCurrency" 
+                      value={storeCurrency} 
+                      onChange={(e) => setStoreCurrency(e.target.value)} 
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="timeZone">Time Zone</Label>
+                    <Input 
+                      id="timeZone" 
+                      value={timeZone} 
+                      onChange={(e) => setTimeZone(e.target.value)} 
+                    />
+                  </div>
+                </div>
+              </CardContent>
+              <CardFooter>
+                <Button>Save Changes</Button>
+              </CardFooter>
+            </Card>
+            
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle>Receipt Settings</CardTitle>
+                <CardDescription>
+                  Customize your receipt appearance and information
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  Configure how your receipts look and what information is displayed to customers.
+                </p>
+              </CardContent>
+              <CardFooter>
+                <Button variant="outline">Configure Receipt</Button>
+              </CardFooter>
+            </Card>
+          </TabsContent>
+          
+          <TabsContent value="branches" className="space-y-4">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-semibold">Branch Management</h2>
+              <Dialog open={showBranchForm} onOpenChange={setShowBranchForm}>
+                <DialogTrigger asChild>
+                  <Button>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Branch
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="w-[90%] rounded-xl">
+                  <DialogHeader>
+                    <DialogTitle>Add New Branch</DialogTitle>
+                    <DialogDescription>
+                      Fill in the details to add a new branch.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <BranchForm 
+                    onSubmit={handleAddBranch} 
+                    onCancel={() => setShowBranchForm(false)} 
+                  />
+                </DialogContent>
+              </Dialog>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {branches.map((branch) => (
+                <BranchCard key={branch.id} branch={branch} />
+              ))}
+            </div>
+          </TabsContent>
+          
+          <TabsContent value="users" className="space-y-4">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-semibold">User Management</h2>
+              <Dialog open={showUserForm} onOpenChange={setShowUserForm}>
+                <DialogTrigger asChild>
+                  <Button>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add User
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="w-[90%] rounded-lg">
+                  <DialogHeader>
+                    <DialogTitle>Add New User</DialogTitle>
+                    <DialogDescription>
+                      Fill in the details to add a new user.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <UserForm 
+                    onSubmit={handleAddUser} 
+                    onCancel={() => setShowUserForm(false)} 
+                  />
+                </DialogContent>
+              </Dialog>
+            </div>
+            
+            {/* Desktop view for users */}
+            <div className="hidden md:block">
+              <Card>
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>User</TableHead>
+                        <TableHead>Role</TableHead>
+                        <TableHead>Last Active</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {users.map((user) => (
+                        <TableRow key={user.id}>
+                          <TableCell>
+                            <div className="flex items-center gap-3">
+                              <Avatar className="h-8 w-8">
+                                {user.avatar ? (
+                                  <AvatarImage src={user.avatar} alt={user.name} />
+                                ) : (
+                                  <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                                )}
+                              </Avatar>
+                              <div>
+                                <div className="font-medium">{user.name}</div>
+                                <div className="text-sm text-muted-foreground">{user.email}</div>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>{getRoleBadge(user.role)}</TableCell>
+                          <TableCell>{formatDate(user.lastActive)}</TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-2">
+                              <Dialog open={editUser && editUser.id === user.id} onOpenChange={(open) => {
+                                setEditUser(open ? user : undefined)
+                              }}>
+                                <DialogTrigger asChild>
+                                  <Button variant="outline" size="icon" onClick={() => setEditUser(user)}>
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
+                                </DialogTrigger>
+                                <DialogContent className="w-[90%] rounded-lg">
+                                  <DialogHeader>
+                                    <DialogTitle>Edit User</DialogTitle>
+                                    <DialogDescription>
+                                      Update the user information below.
+                                    </DialogDescription>
+                                  </DialogHeader>
+                                  {editUser && (
+                                    <UserForm 
+                                      user={editUser} 
+                                      onSubmit={handleUpdateUser} 
+                                      onCancel={() => setEditUser(undefined)} 
+                                    />
+                                  )}
+                                </DialogContent>
+                              </Dialog>
+                              
+                              <Dialog open={isDeleting && userToDelete === user.id} onOpenChange={(open) => {
+                                setIsDeleting(open)
+                                if (!open) setUserToDelete("")
+                              }}>
+                                <DialogTrigger asChild>
+                                  <Button variant="outline" size="icon" onClick={() => setUserToDelete(user.id)}>
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                  </Button>
+                                </DialogTrigger>
+                                <DialogContent className="w-[90%] rounded-xl">
+                                  <DialogHeader>
+                                    <DialogTitle>Delete User</DialogTitle>
+                                    <DialogDescription>
+                                      Are you sure you want to delete this user? This action cannot be undone.
+                                    </DialogDescription>
+                                  </DialogHeader>
+                                  <DialogFooter>
+                                    <Button variant="outline" onClick={() => {
+                                      setIsDeleting(false)
+                                      setUserToDelete("")
+                                    }}>
+                                      Cancel
+                                    </Button>
+                                    <Button variant="destructive" onClick={handleDeleteUser}>
+                                      Delete
+                                    </Button>
+                                  </DialogFooter>
+                                </DialogContent>
+                              </Dialog>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </div>
+            
+            {/* Mobile view for users */}
+            <div className="md:hidden space-y-4">
+              {users.map((user) => (
+                <Card key={user.id} className="overflow-hidden">
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-10 w-10">
+                          {user.avatar ? (
+                            <AvatarImage src={user.avatar} alt={user.name} />
+                          ) : (
+                            <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                          )}
+                        </Avatar>
+                        <div>
+                          <CardTitle className="text-base">{user.name}</CardTitle>
+                          <CardDescription className="text-xs">{user.email}</CardDescription>
+                        </div>
+                      </div>
+                      {getRoleBadge(user.role)}
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pb-2 pt-0">
+                    <div className="flex items-center text-sm text-muted-foreground">
+                      <span>Last active: {formatDate(user.lastActive)}</span>
+                    </div>
+                  </CardContent>
+                  <CardFooter className="flex justify-end gap-2 pt-0">
+                    <Dialog open={editUser && editUser.id === user.id} onOpenChange={(open) => {
+                      setEditUser(open ? user : undefined)
+                    }}>
+                      <DialogTrigger asChild>
+                        <Button variant="outline" size="sm" onClick={() => setEditUser(user)}>
+                          <Edit className="h-3.5 w-3.5 mr-1" />
+                          Edit
                         </Button>
-                        <Button variant="destructive" onClick={handleDeleteUser}>
+                      </DialogTrigger>
+                      <DialogContent className="w-[90%] rounded-lg">
+                        <DialogHeader>
+                          <DialogTitle>Edit User</DialogTitle>
+                          <DialogDescription>
+                            Update the user information below.
+                          </DialogDescription>
+                        </DialogHeader>
+                        {editUser && (
+                          <UserForm 
+                            user={editUser} 
+                            onSubmit={handleUpdateUser} 
+                            onCancel={() => setEditUser(undefined)} 
+                          />
+                        )}
+                      </DialogContent>
+                    </Dialog>
+                    
+                    <Dialog open={isDeleting && userToDelete === user.id} onOpenChange={(open) => {
+                      setIsDeleting(open)
+                      if (!open) setUserToDelete("")
+                    }}>
+                      <DialogTrigger asChild>
+                        <Button variant="outline" size="sm" className="text-destructive border-destructive" onClick={() => setUserToDelete(user.id)}>
+                          <Trash2 className="h-3.5 w-3.5 mr-1" />
                           Delete
                         </Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
-                </CardFooter>
-              </Card>
-            ))}
-          </div>
-        </TabsContent>
-      </Tabs>
+                      </DialogTrigger>
+                      <DialogContent className="w-[90%] rounded-xl">
+                        <DialogHeader>
+                          <DialogTitle>Delete User</DialogTitle>
+                          <DialogDescription>
+                            Are you sure you want to delete this user? This action cannot be undone.
+                          </DialogDescription>
+                        </DialogHeader>
+                        <DialogFooter>
+                          <Button variant="outline" onClick={() => {
+                            setIsDeleting(false)
+                            setUserToDelete("")
+                          }}>
+                            Cancel
+                          </Button>
+                          <Button variant="destructive" onClick={handleDeleteUser}>
+                            Delete
+                          </Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
+                  </CardFooter>
+                </Card>
+              ))}
+            </div>
+          </TabsContent>
+        </Tabs>
+      ) : (
+        <div className="mt-4 space-y-4">
+          <div className="bg-muted h-9 rounded-lg animate-pulse w-full"></div>
+          <div className="bg-muted h-[200px] rounded-lg animate-pulse w-full"></div>
+        </div>
+      )}
     </div>
   )
 }

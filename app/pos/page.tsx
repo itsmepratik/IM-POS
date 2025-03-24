@@ -45,6 +45,7 @@ import {
 import { cn } from "@/lib/utils"
 import { motion, AnimatePresence } from "framer-motion"
 import Image from "next/image"
+import { OpenBottleIcon, ClosedBottleIcon } from "@/components/ui/bottle-icons"
 
 // Add cache configuration
 export const dynamic = 'force-dynamic'
@@ -87,6 +88,7 @@ interface SelectedVolume {
   size: string
   quantity: number
   price: number
+  bottleType?: 'open' | 'closed'
 }
 
 // Updated oil products data structure
@@ -280,6 +282,16 @@ const CartItem = memo(({
     {/* Item details */}
     <div className="min-w-0 px-1">
       <div className="font-medium text-[clamp(0.875rem,2vw,1rem)] mb-1">{item.name}</div>
+      {item.bottleType && (
+        <div className="flex items-center gap-1 mb-1">
+          {item.bottleType === 'closed' ? (
+            <ClosedBottleIcon className="h-4 w-4 text-primary" />
+          ) : (
+            <OpenBottleIcon className="h-4 w-4 text-primary" />
+          )}
+          <span className="text-xs text-muted-foreground capitalize">{item.bottleType} bottle</span>
+        </div>
+      )}
       <div className="text-[clamp(0.75rem,1.5vw,0.875rem)] text-muted-foreground">
         OMR {item.price.toFixed(2)} each
       </div>
@@ -339,6 +351,10 @@ export default function POSPage() {
   const [isRefundDialogOpen, setIsRefundDialogOpen] = useState(false)
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false)
 
+  // Add a state to track if bottle type dialog is open
+  const [showBottleTypeDialog, setShowBottleTypeDialog] = useState(false)
+  const [currentBottleVolumeSize, setCurrentBottleVolumeSize] = useState<string | null>(null)
+
   // Memoize handlers
   const removeFromCart = useCallback((productId: number) => {
     setCart((prevCart) => prevCart.filter((item) => item.id !== productId))
@@ -391,18 +407,47 @@ export default function POSPage() {
     setIsVolumeModalOpen(true)
   }, [])
 
+  // Function to handle volume selection with bottle type prompt for smaller volumes
   const handleVolumeClick = (volume: { size: string; price: number }) => {
-    setSelectedVolumes(prev => {
-      const existing = prev.find(v => v.size === volume.size)
-      if (existing) {
-        return prev.map(v =>
-          v.size === volume.size
-            ? { ...v, quantity: v.quantity + 1 }
-            : v
-        )
-      }
-      return [...prev, { ...volume, quantity: 1 }]
-    })
+    // For 4L and 5L, add directly without bottle type
+    if (volume.size === '4L' || volume.size === '5L') {
+      setSelectedVolumes(prev => {
+        const existing = prev.find(v => v.size === volume.size)
+        if (existing) {
+          return prev.map(v =>
+            v.size === volume.size
+              ? { ...v, quantity: v.quantity + 1 }
+              : v
+          )
+        }
+        return [...prev, { ...volume, quantity: 1 }]
+      })
+      return
+    }
+    
+    // For other volumes, show the bottle type dialog
+    setCurrentBottleVolumeSize(volume.size)
+    setShowBottleTypeDialog(true)
+  }
+  
+  // Function to add volume with selected bottle type
+  const addVolumeWithBottleType = (size: string, bottleType: 'open' | 'closed') => {
+    const volumeDetails = selectedOil?.volumes.find(v => v.size === size)
+    if (volumeDetails) {
+      setSelectedVolumes(prev => {
+        const existing = prev.find(v => v.size === size && v.bottleType === bottleType)
+        if (existing) {
+          return prev.map(v =>
+            v.size === size && v.bottleType === bottleType
+              ? { ...v, quantity: v.quantity + 1 }
+              : v
+          )
+        }
+        return [...prev, { ...volumeDetails, quantity: 1, bottleType }]
+      })
+    }
+    setShowBottleTypeDialog(false)
+    setCurrentBottleVolumeSize(null)
   }
 
   const handleQuantityChange = (size: string, change: number) => {
@@ -419,13 +464,14 @@ export default function POSPage() {
   const handleAddSelectedToCart = () => {
     selectedVolumes.forEach(volume => {
       if (selectedOil) {
+        const details = volume.size + (volume.bottleType ? ` (${volume.bottleType} bottle)` : '')
         addToCart(
           {
             id: selectedOil.id,
             name: selectedOil.name,
             price: volume.price,
           },
-          `${volume.size}`,
+          details,
           volume.quantity
         )
       }
@@ -550,6 +596,20 @@ export default function POSPage() {
     // In a real implementation, this would add the imported customers to the database
     console.log('Imported customers:', importedCustomers)
     setIsImportDialogOpen(false)
+  }
+
+  // Function to toggle between open and closed bottle types
+  const toggleBottleType = (size: string) => {
+    setSelectedVolumes(prev => {
+      return prev.map(v =>
+        v.size === size
+          ? { 
+              ...v, 
+              bottleType: v.bottleType === 'open' ? 'closed' : 'open' 
+            }
+          : v
+      )
+    })
   }
 
   return (
@@ -837,7 +897,7 @@ export default function POSPage() {
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
                   {selectedOil?.volumes.map((volume) => (
                     <Button
-                      key={volume.size}
+                      key={`volume-button-${volume.size}`}
                       variant="outline"
                       className="h-auto py-2 sm:py-3 px-2 sm:px-4 flex flex-col items-center gap-1"
                       onClick={() => handleVolumeClick(volume)}
@@ -851,38 +911,50 @@ export default function POSPage() {
                 {/* Selected volumes list */}
                 {selectedVolumes.length > 0 && (
                   <div className="border rounded-lg">
-                    <div className="h-[120px] sm:h-[160px] overflow-y-auto scrollbar-none">
+                    <div className="h-[180px] sm:h-[220px] overflow-y-auto scrollbar-none">
                       <div className="px-2 sm:px-3 py-2">
                         {selectedVolumes.map((volume, index) => (
                           <div
-                            key={volume.size}
+                            key={`${volume.size}-${volume.bottleType || 'default'}`}
                             className={cn(
-                              "flex items-center justify-between py-1.5",
+                              "flex flex-col py-1.5",
                               index === selectedVolumes.length - 1 && "mb-2 sm:mb-4"
                             )}
                           >
-                            <div className="flex items-center gap-1.5 sm:gap-3">
-                              <Button
-                                variant="outline"
-                                size="icon"
-                                className="h-7 w-7 sm:h-9 sm:w-9 shrink-0"
-                                onClick={() => handleQuantityChange(volume.size, -1)}
-                              >
-                                <Minus className="h-3 w-3 sm:h-4 sm:w-4" />
-                              </Button>
-                              <span className="w-5 sm:w-6 text-center text-sm sm:text-base">{volume.quantity}</span>
-                              <Button
-                                variant="outline"
-                                size="icon"
-                                className="h-7 w-7 sm:h-9 sm:w-9 shrink-0"
-                                onClick={() => handleQuantityChange(volume.size, 1)}
-                              >
-                                <Plus className="h-3 w-3 sm:h-4 sm:w-4" />
-                              </Button>
-                            </div>
-                            <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0 px-2 sm:px-3">
-                              <span className="font-medium text-sm sm:text-base">{volume.size}</span>
-                              <span className="font-medium text-sm sm:text-base whitespace-nowrap">OMR {(volume.price * volume.quantity).toFixed(2)}</span>
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-1.5 sm:gap-3">
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  className="h-7 w-7 sm:h-9 sm:w-9 shrink-0"
+                                  onClick={() => handleQuantityChange(volume.size, -1)}
+                                >
+                                  <Minus className="h-3 w-3 sm:h-4 sm:w-4" />
+                                </Button>
+                                <span className="w-5 sm:w-6 text-center text-sm sm:text-base">{volume.quantity}</span>
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  className="h-7 w-7 sm:h-9 sm:w-9 shrink-0"
+                                  onClick={() => handleQuantityChange(volume.size, 1)}
+                                >
+                                  <Plus className="h-3 w-3 sm:h-4 sm:w-4" />
+                                </Button>
+                              </div>
+                              <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0 px-2 sm:px-3">
+                                <span className="font-medium text-sm sm:text-base">{volume.size}</span>
+                                {volume.bottleType && (
+                                  <div className="flex items-center">
+                                    {volume.bottleType === 'closed' ? (
+                                      <ClosedBottleIcon className="h-4 w-4 mr-1 text-primary" />
+                                    ) : (
+                                      <OpenBottleIcon className="h-4 w-4 mr-1 text-primary" />
+                                    )}
+                                    <span className="text-xs text-muted-foreground capitalize">{volume.bottleType} bottle</span>
+                                  </div>
+                                )}
+                                <span className="font-medium text-sm sm:text-base whitespace-nowrap">OMR {(volume.price * volume.quantity).toFixed(2)}</span>
+                              </div>
                             </div>
                           </div>
                         ))}
@@ -1280,6 +1352,56 @@ export default function POSPage() {
         isOpen={isRefundDialogOpen}
         onClose={() => setIsRefundDialogOpen(false)}
       />
+      
+      {/* Bottle Type Selection Dialog */}
+      <Dialog 
+        open={showBottleTypeDialog} 
+        onOpenChange={(open) => {
+          if (!open) {
+            setShowBottleTypeDialog(false)
+            setCurrentBottleVolumeSize(null)
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-[400px] p-0 overflow-hidden">
+          <DialogHeader className="bg-primary text-primary-foreground px-6 py-4">
+            <DialogTitle className="text-center text-xl">Select Bottle Type</DialogTitle>
+          </DialogHeader>
+          
+          <div className="p-6">
+            <div className="text-center mb-4">
+              <div className="text-muted-foreground">For {currentBottleVolumeSize} volume</div>
+              <div className="font-semibold text-lg mt-1">{selectedOil?.brand} {selectedOil?.type}</div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-6">
+              <Button 
+                variant="outline"
+                className="h-40 flex flex-col items-center justify-center gap-3 hover:bg-accent rounded-xl border-2 hover:border-primary"
+                onClick={() => addVolumeWithBottleType(currentBottleVolumeSize!, 'closed')}
+              >
+                <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
+                  <ClosedBottleIcon className="h-10 w-10 text-primary" />
+                </div>
+                <span className="font-medium text-base">Closed Bottle</span>
+                <span className="text-xs text-muted-foreground">Factory sealed</span>
+              </Button>
+              
+              <Button 
+                variant="outline"
+                className="h-40 flex flex-col items-center justify-center gap-3 hover:bg-accent rounded-xl border-2 hover:border-primary"
+                onClick={() => addVolumeWithBottleType(currentBottleVolumeSize!, 'open')}
+              >
+                <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
+                  <OpenBottleIcon className="h-10 w-10 text-primary" />
+                </div>
+                <span className="font-medium text-base">Open Bottle</span>
+                <span className="text-xs text-muted-foreground">For immediate use</span>
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Layout>
   )
 }

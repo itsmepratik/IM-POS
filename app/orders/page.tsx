@@ -1,5 +1,6 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -7,11 +8,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Layout } from "@/components/layout"
 import { ShoppingCart, ChevronDown } from "lucide-react"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { useState } from "react"
 import { PageHeader } from "@/components/page-title"
 
 export default function OrdersPage() {
   const [isFilterExpanded, setIsFilterExpanded] = useState(false)
+  const [activeTab, setActiveTab] = useState<string | null>(null)
+  const [hasMounted, setHasMounted] = useState(false)
+
+  // Set initial state after component mounts to avoid hydration mismatch
+  useEffect(() => {
+    setActiveTab("all")
+    setHasMounted(true)
+  }, [])
 
   const toggleFilters = () => setIsFilterExpanded(!isFilterExpanded)
 
@@ -36,15 +44,19 @@ export default function OrdersPage() {
 
         {/* Tabs - scrollable on all screen sizes */}
         <ScrollArea className="w-full pb-2">
-          <Tabs defaultValue="all" className="w-max">
-            <TabsList className="h-9">
-              <TabsTrigger value="all" className="text-[clamp(0.8rem,3vw,0.875rem)] px-3">All</TabsTrigger>
-              <TabsTrigger value="active" className="text-[clamp(0.8rem,3vw,0.875rem)] px-3">Active</TabsTrigger>
-              <TabsTrigger value="scheduled" className="text-[clamp(0.8rem,3vw,0.875rem)] px-3">Scheduled</TabsTrigger>
-              <TabsTrigger value="completed" className="text-[clamp(0.8rem,3vw,0.875rem)] px-3">Completed</TabsTrigger>
-              <TabsTrigger value="cancelled" className="text-[clamp(0.8rem,3vw,0.875rem)] px-3">Cancelled</TabsTrigger>
-            </TabsList>
-          </Tabs>
+          {hasMounted ? (
+            <Tabs value={activeTab || undefined} onValueChange={setActiveTab} className="w-max">
+              <TabsList className="h-9">
+                <TabsTrigger value="all" className="text-[clamp(0.8rem,3vw,0.875rem)] px-3">All</TabsTrigger>
+                <TabsTrigger value="active" className="text-[clamp(0.8rem,3vw,0.875rem)] px-3">Active</TabsTrigger>
+                <TabsTrigger value="scheduled" className="text-[clamp(0.8rem,3vw,0.875rem)] px-3">Scheduled</TabsTrigger>
+                <TabsTrigger value="completed" className="text-[clamp(0.8rem,3vw,0.875rem)] px-3">Completed</TabsTrigger>
+                <TabsTrigger value="cancelled" className="text-[clamp(0.8rem,3vw,0.875rem)] px-3">Cancelled</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          ) : (
+            <div className="h-9 bg-muted rounded-lg animate-pulse w-[300px]"></div>
+          )}
         </ScrollArea>
 
         {/* Filters - responsive layout */}

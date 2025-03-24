@@ -93,6 +93,12 @@ export function CustomSidebar({ className }: { className?: string }) {
       isAdmin: false,
     },
     {
+      title: "Customers",
+      href: "/customers",
+      icon: <Users className="h-4 w-4" />,
+      isAdmin: false,
+    },
+    {
       title: "Reports",
       href: "/reports",
       icon: <BarChart2 className="h-4 w-4" />,
@@ -290,18 +296,22 @@ export function CustomSidebar({ className }: { className?: string }) {
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-[90%] sm:w-52 min-w-[13rem] border-2" align="end" forceMount>
-                <DropdownMenuItem>
-                  <User className="mr-2 h-4 w-4 stroke-[1.5]" />
+              <DropdownMenuContent 
+                className="w-[90%] sm:w-52 min-w-[13rem] rounded-xl border-2 p-2" 
+                align="end" 
+                forceMount
+              >
+                <DropdownMenuItem className="rounded-lg py-2">
+                  <User className="mr-2 h-5 w-5 stroke-[2]" />
                   <span>Profile</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => router.push("/settings")}>
-                  <Settings className="mr-2 h-4 w-4 stroke-[1.5]" />
+                <DropdownMenuItem className="rounded-lg py-2" onSelect={() => router.push("/settings")}>
+                  <Settings className="mr-2 h-5 w-5 stroke-[2]" />
                   <span>Settings</span>
                 </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onSelect={() => router.push("/auth")}>
-                  <LogOut className="mr-2 h-4 w-4 stroke-[1.5]" />
+                <DropdownMenuSeparator className="my-2" />
+                <DropdownMenuItem className="rounded-lg py-2" onSelect={() => router.push("/auth")}>
+                  <LogOut className="mr-2 h-5 w-5 stroke-[2]" />
                   <span>Log out</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -352,18 +362,22 @@ function ProfileMenu() {
           </div>
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-[90%] sm:w-52 min-w-[13rem] border-2" align="end" forceMount>
-        <DropdownMenuItem>
-          <User className="mr-2 h-4 w-4 stroke-[1.5]" />
+      <DropdownMenuContent 
+        className="w-[90%] sm:w-52 min-w-[13rem] rounded-xl border-2 p-2" 
+        align="end" 
+        forceMount
+      >
+        <DropdownMenuItem className="rounded-lg py-2">
+          <User className="mr-2 h-5 w-5 stroke-[2]" />
           <span>Profile</span>
         </DropdownMenuItem>
-        <DropdownMenuItem onSelect={handleSettingsClick}>
-          <Settings className="mr-2 h-4 w-4 stroke-[1.5]" />
+        <DropdownMenuItem className="rounded-lg py-2" onSelect={handleSettingsClick}>
+          <Settings className="mr-2 h-5 w-5 stroke-[2]" />
           <span>Settings</span>
         </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={handleLogout}>
-          <LogOut className="mr-2 h-4 w-4 stroke-[1.5]" />
+        <DropdownMenuSeparator className="my-2" />
+        <DropdownMenuItem className="rounded-lg py-2" onSelect={handleLogout}>
+          <LogOut className="mr-2 h-5 w-5 stroke-[2]" />
           <span>Log out</span>
         </DropdownMenuItem>
       </DropdownMenuContent>

@@ -28,6 +28,8 @@ import { PageHeader } from "@/components/page-title"
 import { BranchProvider, useBranch, type Branch } from "../../branch-context"
 import { useInventoryData } from "../hooks/useInventoryData"
 import { Label } from "@/components/ui/label"
+import { OpenBottleBadge, ClosedBottleBadge } from "@/components/ui/inventory-bottle-icons"
+import { OpenBottleIcon, ClosedBottleIcon } from "@/components/ui/bottle-icons"
 
 // Add cache configuration
 export const dynamic = 'force-dynamic'
@@ -82,20 +84,10 @@ const MobileItemCard = memo(({ item, onEdit, onDelete, onDuplicate }: {
                 {item.isOil && item.bottleStates && (
                   <div className="flex flex-wrap gap-2 mt-1">
                     {item.bottleStates.open > 0 && (
-                      <Badge 
-                        variant="outline" 
-                        className="bg-green-100 text-green-800 border-green-300"
-                      >
-                        {item.bottleStates.open} Open {item.bottleStates.open === 1 ? 'Bottle' : 'Bottles'}
-                      </Badge>
+                      <OpenBottleBadge count={item.bottleStates.open} />
                     )}
                     {item.bottleStates.closed > 0 && (
-                      <Badge 
-                        variant="outline" 
-                        className="bg-red-200 text-red-900 border-red-400 font-medium"
-                      >
-                        {item.bottleStates.closed} Closed {item.bottleStates.closed === 1 ? 'Bottle' : 'Bottles'}
-                      </Badge>
+                      <ClosedBottleBadge count={item.bottleStates.closed} />
                     )}
                   </div>
                 )}
@@ -185,11 +177,17 @@ const MobileItemCard = memo(({ item, onEdit, onDelete, onDuplicate }: {
                   <h4 className="text-sm font-medium mb-1">Bottle Inventory</h4>
                   <div className="grid grid-cols-2 gap-2">
                     <div className="flex items-center justify-between p-2 rounded-md bg-green-50 border border-green-200">
-                      <span className="text-sm text-green-800">Open Bottles:</span>
+                      <span className="text-sm text-green-800 flex items-center gap-1">
+                        <OpenBottleIcon className="h-3 w-3" />
+                        Open Bottles:
+                      </span>
                       <span className="font-medium text-green-800">{item.bottleStates.open}</span>
                     </div>
                     <div className="flex items-center justify-between p-2 rounded-md bg-red-100 border border-red-300">
-                      <span className="text-sm font-medium text-red-900">Closed Bottles:</span>
+                      <span className="text-sm font-medium text-red-900 flex items-center gap-1">
+                        <ClosedBottleIcon className="h-3 w-3" />
+                        Closed Bottles:
+                      </span>
                       <span className="font-bold text-red-900">{item.bottleStates.closed}</span>
                     </div>
                   </div>
@@ -233,20 +231,10 @@ const TableRow = memo(({
         {item.bottleStates && (
           <div className="flex flex-wrap gap-2 mt-1">
             {item.bottleStates.open > 0 && (
-              <Badge 
-                variant="outline" 
-                className="bg-green-100 text-green-800 border-green-300"
-              >
-                {item.bottleStates.open} Open {item.bottleStates.open === 1 ? 'Bottle' : 'Bottles'}
-              </Badge>
+              <OpenBottleBadge count={item.bottleStates.open} />
             )}
             {item.bottleStates.closed > 0 && (
-              <Badge 
-                variant="outline" 
-                className="bg-red-200 text-red-900 border-red-400 font-medium"
-              >
-                {item.bottleStates.closed} Closed {item.bottleStates.closed === 1 ? 'Bottle' : 'Bottles'}
-              </Badge>
+              <ClosedBottleBadge count={item.bottleStates.closed} />
             )}
           </div>
         )}
@@ -306,28 +294,37 @@ function MobileView() {
     currentBranch
   } = useInventoryData();
   const { setCurrentBranch } = useBranch();
+  const [hasMounted, setHasMounted] = useState(false);
+  
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
   
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2 mb-2">
-        <Select 
-          value={currentBranch?.id || "main"} 
-          onValueChange={(value) => {
-            const branch = branches.find((b: Branch) => b.id === value)
-            if (branch) setCurrentBranch(branch)
-          }}
-        >
-          <SelectTrigger className="flex-1">
-            <SelectValue placeholder="Select branch" />
-          </SelectTrigger>
-          <SelectContent>
-            {branches.map((branch: Branch) => (
-              <SelectItem key={branch.id} value={branch.id}>
-                {branch.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {hasMounted ? (
+          <Select 
+            value={currentBranch?.id || "main"} 
+            onValueChange={(value) => {
+              const branch = branches.find((b: Branch) => b.id === value)
+              if (branch) setCurrentBranch(branch)
+            }}
+          >
+            <SelectTrigger className="flex-1">
+              <SelectValue placeholder="Select branch" />
+            </SelectTrigger>
+            <SelectContent>
+              {branches.map((branch: Branch) => (
+                <SelectItem key={branch.id} value={branch.id}>
+                  {branch.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : (
+          <div className="flex-1 h-10" /> /* Placeholder to maintain layout */
+        )}
       </div>
       
       <div className="flex items-center gap-2">
@@ -364,17 +361,21 @@ function MobileView() {
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="categoryFilter">Category</Label>
-                <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="All Categories" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Categories</SelectItem>
-                    {categories.map((category) => (
-                      <SelectItem key={category} value={category}>{category}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {hasMounted ? (
+                  <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All Categories" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Categories</SelectItem>
+                      {categories.map((category) => (
+                        <SelectItem key={category} value={category}>{category}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <div className="h-10 border rounded-md" /> /* Placeholder to maintain layout */
+                )}
               </div>
               <div className="flex items-center space-x-2">
                 <Checkbox 
@@ -461,28 +462,37 @@ function DesktopView() {
     currentBranch
   } = useInventoryData();
   const { setCurrentBranch } = useBranch();
+  const [hasMounted, setHasMounted] = useState(false);
+  
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
   
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-4 mb-4">
-        <Select 
-          value={currentBranch?.id || "main"} 
-          onValueChange={(value) => {
-            const branch = branches.find((b: Branch) => b.id === value)
-            if (branch) setCurrentBranch(branch)
-          }}
-        >
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Select branch" />
-          </SelectTrigger>
-          <SelectContent>
-            {branches.map((branch: Branch) => (
-              <SelectItem key={branch.id} value={branch.id}>
-                {branch.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {hasMounted ? (
+          <Select 
+            value={currentBranch?.id || "main"} 
+            onValueChange={(value) => {
+              const branch = branches.find((b: Branch) => b.id === value)
+              if (branch) setCurrentBranch(branch)
+            }}
+          >
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Select branch" />
+            </SelectTrigger>
+            <SelectContent>
+              {branches.map((branch: Branch) => (
+                <SelectItem key={branch.id} value={branch.id}>
+                  {branch.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : (
+          <div className="w-[180px] h-10" /> /* Placeholder to maintain layout */
+        )}
       </div>
     
       <div className="flex items-center gap-4">
@@ -496,17 +506,21 @@ function DesktopView() {
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
-        <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="All Categories" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Categories</SelectItem>
-            {categories.map((category) => (
-              <SelectItem key={category} value={category}>{category}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {hasMounted ? (
+          <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="All Categories" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Categories</SelectItem>
+              {categories.map((category) => (
+                <SelectItem key={category} value={category}>{category}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : (
+          <div className="w-[180px] h-10" /> /* Placeholder to maintain layout */
+        )}
         <div className="flex items-center space-x-2">
           <Checkbox 
             id="lowStockDesktop" 

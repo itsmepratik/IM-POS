@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
-import { addDays, subDays, startOfMonth, endOfMonth, startOfDay, endOfDay, subMonths } from "date-fns"
+import { subDays, startOfMonth, endOfMonth, startOfDay, endOfDay, subMonths } from "date-fns"
 import { useBranch } from "@/app/branch-context"
 
 // === TYPES ===
@@ -283,8 +283,8 @@ export function useDashboardData(): UseDashboardDataReturn {
   // For now, we're generating mock data
   
   const fetchSalesMetrics = async () => {
-    // Simulate API call (reduced from 500ms to 50ms)
-    await new Promise(resolve => setTimeout(resolve, 50))
+    // Simulate API call (minimal delay for better responsiveness)
+    await new Promise(resolve => setTimeout(resolve, 20))
     
     // Get date range duration in days
     const durationDays = Math.ceil(
@@ -401,8 +401,8 @@ export function useDashboardData(): UseDashboardDataReturn {
   }
   
   const fetchProfitMetrics = async () => {
-    // Simulate API call (reduced from 400ms to 40ms)
-    await new Promise(resolve => setTimeout(resolve, 40))
+    // Simulate API call (minimal delay for better responsiveness)
+    await new Promise(resolve => setTimeout(resolve, 20))
     
     // Calculate gross profit (about 30-40% of sales)
     const grossProfit = salesMetrics.totalSales * (0.3 + Math.random() * 0.1)
@@ -468,8 +468,8 @@ export function useDashboardData(): UseDashboardDataReturn {
   }
   
   const fetchInventoryMetrics = async () => {
-    // Simulate API call (reduced from 450ms to 45ms)
-    await new Promise(resolve => setTimeout(resolve, 45))
+    // Simulate API call (minimal delay for better responsiveness)
+    await new Promise(resolve => setTimeout(resolve, 20))
     
     // Generate total item count
     const totalItems = 1200 + Math.floor(Math.random() * 300)
@@ -521,8 +521,8 @@ export function useDashboardData(): UseDashboardDataReturn {
   }
   
   const fetchCustomerMetrics = async () => {
-    // Simulate API call (reduced from 500ms to 50ms)
-    await new Promise(resolve => setTimeout(resolve, 50))
+    // Simulate API call (minimal delay for better responsiveness)
+    await new Promise(resolve => setTimeout(resolve, 20))
     
     // Total customers
     const totalCustomers = 800 + Math.floor(Math.random() * 200)
@@ -575,8 +575,8 @@ export function useDashboardData(): UseDashboardDataReturn {
   }
   
   const fetchPaymentMetrics = async () => {
-    // Simulate API call (reduced from 450ms to 45ms)
-    await new Promise(resolve => setTimeout(resolve, 45))
+    // Simulate API call (minimal delay for better responsiveness)
+    await new Promise(resolve => setTimeout(resolve, 20))
     
     // Payment methods and their distribution
     const methods = [
@@ -604,7 +604,7 @@ export function useDashboardData(): UseDashboardDataReturn {
     })
     
     // Generate payment trend data
-    const trend = []
+    const trend: PaymentTrendPoint[] = []
     
     setPaymentMetrics({
       byPaymentMethod,
@@ -643,6 +643,12 @@ export function useDashboardData(): UseDashboardDataReturn {
       setIsLoading(false)
     }
   }
+  
+  // Immediate data fetch when component mounts
+  useEffect(() => {
+    // Load data immediately when component mounts
+    refreshData()
+  }, []) // Empty dependency array ensures it only runs once on mount
   
   // Effect to re-fetch data when filters change
   useEffect(() => {

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, Suspense } from "react"
+import { useState, Suspense, useEffect } from "react"
 import { useChat } from "ai/react"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -39,6 +39,14 @@ export default function ReportsClient() {
   const [dateRange, setDateRange] = useState("last30days")
   const [customStartDate, setCustomStartDate] = useState("")
   const [customEndDate, setCustomEndDate] = useState("")
+  const [activeTab, setActiveTab] = useState<string | null>(null)
+  const [hasMounted, setHasMounted] = useState(false)
+  
+  // Set initial tab state after component mounts to avoid hydration mismatch
+  useEffect(() => {
+    setActiveTab("summary")
+    setHasMounted(true)
+  }, [])
 
   if (currentUser?.role === "staff") {
     return <div className="text-center py-8">You don&apos;t have permission to access this page.</div>
@@ -125,67 +133,74 @@ export default function ReportsClient() {
         </div>
       </div>
 
-      <Tabs defaultValue="summary" className="space-y-4 w-full overflow-x-hidden">
-        <TabsList>
-          <TabsTrigger value="summary">Summary</TabsTrigger>
-          <TabsTrigger value="details">Detailed Analysis</TabsTrigger>
-          <TabsTrigger value="visualizations">Visualizations</TabsTrigger>
-        </TabsList>
-        <TabsContent value="summary" className="space-y-4">
-          <Suspense fallback={<Skeleton className="h-[200px] w-full" />}>
-            <ReportCard
-              title="Executive Summary"
-              icon={<FileText className="h-4 w-4" />}
-              content={
-                messages.length > 0
-                  ? messages[messages.length - 1].content
-                  : "Generate a report to see the AI-powered executive summary."
-              }
-              isLoading={isLoading}
-            />
-          </Suspense>
-        </TabsContent>
-        <TabsContent value="details" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
+      {hasMounted ? (
+        <Tabs value={activeTab || undefined} onValueChange={setActiveTab} className="space-y-4 w-full overflow-x-hidden">
+          <TabsList>
+            <TabsTrigger value="summary">Summary</TabsTrigger>
+            <TabsTrigger value="details">Detailed Analysis</TabsTrigger>
+            <TabsTrigger value="visualizations">Visualizations</TabsTrigger>
+          </TabsList>
+          <TabsContent value="summary" className="space-y-4">
             <Suspense fallback={<Skeleton className="h-[200px] w-full" />}>
               <ReportCard
-                title="Key Metrics"
-                icon={<BarChart2 className="h-4 w-4" />}
-                content="Detailed breakdown of important KPIs and their changes over time."
+                title="Executive Summary"
+                icon={<FileText className="h-4 w-4" />}
+                content={
+                  messages.length > 0
+                    ? messages[messages.length - 1].content
+                    : "Generate a report to see the AI-powered executive summary."
+                }
                 isLoading={isLoading}
               />
             </Suspense>
-            <Suspense fallback={<Skeleton className="h-[200px] w-full" />}>
-              <ReportCard
-                title="Trend Analysis"
-                icon={<TrendingUp className="h-4 w-4" />}
-                content="In-depth analysis of emerging trends and patterns in your business data."
-                isLoading={isLoading}
-              />
-            </Suspense>
-          </div>
-        </TabsContent>
-        <TabsContent value="visualizations" className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
-            <Suspense fallback={<Skeleton className="h-[200px] w-full" />}>
-              <ReportCard
-                title="Sales Distribution"
-                icon={<PieChart className="h-4 w-4" />}
-                content="Visual representation of sales distribution across product categories."
-                isLoading={isLoading}
-              />
-            </Suspense>
-            <Suspense fallback={<Skeleton className="h-[200px] w-full" />}>
-              <ReportCard
-                title="Revenue Forecast"
-                icon={<DollarSign className="h-4 w-4" />}
-                content="AI-generated revenue forecast for the next quarter based on historical data."
-                isLoading={isLoading}
-              />
-            </Suspense>
-          </div>
-        </TabsContent>
-      </Tabs>
+          </TabsContent>
+          <TabsContent value="details" className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <Suspense fallback={<Skeleton className="h-[200px] w-full" />}>
+                <ReportCard
+                  title="Key Metrics"
+                  icon={<BarChart2 className="h-4 w-4" />}
+                  content="Detailed breakdown of important KPIs and their changes over time."
+                  isLoading={isLoading}
+                />
+              </Suspense>
+              <Suspense fallback={<Skeleton className="h-[200px] w-full" />}>
+                <ReportCard
+                  title="Trend Analysis"
+                  icon={<TrendingUp className="h-4 w-4" />}
+                  content="In-depth analysis of emerging trends and patterns in your business data."
+                  isLoading={isLoading}
+                />
+              </Suspense>
+            </div>
+          </TabsContent>
+          <TabsContent value="visualizations" className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+              <Suspense fallback={<Skeleton className="h-[200px] w-full" />}>
+                <ReportCard
+                  title="Sales Distribution"
+                  icon={<PieChart className="h-4 w-4" />}
+                  content="Visual representation of sales distribution across product categories."
+                  isLoading={isLoading}
+                />
+              </Suspense>
+              <Suspense fallback={<Skeleton className="h-[200px] w-full" />}>
+                <ReportCard
+                  title="Revenue Forecast"
+                  icon={<DollarSign className="h-4 w-4" />}
+                  content="AI-generated revenue forecast for the next quarter based on historical data."
+                  isLoading={isLoading}
+                />
+              </Suspense>
+            </div>
+          </TabsContent>
+        </Tabs>
+      ) : (
+        <div className="space-y-4 w-full">
+          <div className="bg-muted h-9 rounded-lg animate-pulse w-[300px]"></div>
+          <div className="bg-muted h-[200px] rounded-lg animate-pulse w-full"></div>
+        </div>
+      )}
     </div>
   )
 
