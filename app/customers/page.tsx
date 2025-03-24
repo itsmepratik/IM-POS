@@ -164,7 +164,7 @@ export default function CustomersPage() {
   // Handle mobile view
   useEffect(() => {
     const handleResize = () => {
-      if (window.innerWidth < 768) {
+      if (window.innerWidth < 1024) {
         setViewMode("cards");
       } else {
         setViewMode("table");
@@ -260,7 +260,7 @@ export default function CustomersPage() {
         </div>
 
         {/* Desktop Table View */}
-        <div className="hidden md:block border rounded-md">
+        <div className="hidden lg:block border rounded-md">
           <table className="w-full">
             <thead>
               <tr className="border-b">
@@ -336,7 +336,7 @@ export default function CustomersPage() {
         </div>
 
         {/* Mobile Card View */}
-        <div className="md:hidden space-y-4">
+        <div className="lg:hidden space-y-4">
           {filteredCustomers.map((customer) => (
             <Card key={customer.id} className="overflow-hidden rounded-lg">
               <CardContent className="p-0">

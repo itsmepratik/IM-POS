@@ -47,11 +47,6 @@ import { motion, AnimatePresence } from "framer-motion"
 import Image from "next/image"
 import { OpenBottleIcon, ClosedBottleIcon } from "@/components/ui/bottle-icons"
 
-// Add cache configuration
-export const dynamic = 'force-dynamic'
-export const revalidate = 3600 // Revalidate every hour
-export const fetchCache = 'force-cache'
-
 // Import the RefundDialog component
 import { RefundDialog } from "./components/refund-dialog"
 import { ImportDialog } from "./components/import-dialog"
@@ -614,7 +609,7 @@ export default function POSPage() {
 
   return (
     <Layout>
-      <div className="h-[calc(100vh-5rem)] flex flex-col pb-4">
+      <div className="h-[calc(100vh-5rem)] flex flex-col pb-4" suppressHydrationWarning>
         <div className="flex-1 flex flex-col lg:flex-row gap-6 min-h-0">
           {/* Product Grid */}
           <div className="flex-1 overflow-hidden flex flex-col min-h-0">
@@ -624,12 +619,12 @@ export default function POSPage() {
                 <div className="flex gap-2 items-center">
                   <Button
                     variant="outline"
-                    size="sm"
-                    className="h-9 flex items-center gap-1"
+                    size="default"
+                    className="h-10 px-4 flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-800"
                     onClick={() => setIsRefundDialogOpen(true)}
                   >
                     <RotateCcw className="h-4 w-4" />
-                    <span className="hidden sm:inline">Refund</span>
+                    <span className="font-medium">Refund</span>
                   </Button>
                   
                   <Button variant="outline" size="icon" className="lg:hidden h-10 w-10 relative" onClick={() => setShowCart(true)}>
@@ -652,6 +647,7 @@ export default function POSPage() {
                         className="pl-9 h-10 text-base"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
+                        suppressHydrationWarning
                       />
                     </div>
                     <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 h-auto p-1 gap-1">
@@ -789,6 +785,7 @@ export default function POSPage() {
                       <span>Total</span>
                       <span>OMR {total.toFixed(2)}</span>
                     </div>
+                    
                     <Button 
                       className="w-full h-[clamp(2.5rem,6vw,2.75rem)] text-[clamp(0.875rem,2vw,1rem)]" 
                       disabled={cart.length === 0}
@@ -851,6 +848,7 @@ export default function POSPage() {
                       <span>Total</span>
                       <span>OMR {total.toFixed(2)}</span>
                     </div>
+                    
                     <Button 
                       className="w-full h-[clamp(2.5rem,6vw,2.75rem)] text-[clamp(0.875rem,2vw,1rem)]" 
                       disabled={cart.length === 0}
@@ -1178,6 +1176,7 @@ export default function POSPage() {
                 </DialogHeader>
 
                 <motion.div
+                  key="payment-success"
                   initial={{ scale: 0.5, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   exit={{ scale: 0.5, opacity: 0 }}
@@ -1203,6 +1202,7 @@ export default function POSPage() {
                   {/* Receipt will appear after 1 second */}
                   <div className="w-full">
                     <ReceiptComponent 
+                      key={`receipt-${new Date().getTime()}`}
                       cart={cart} 
                       paymentMethod={selectedPaymentMethod} 
                     />
@@ -1411,27 +1411,38 @@ const ReceiptComponent = ({ cart, paymentMethod }: { cart: CartItem[], paymentMe
   const [showReceipt, setShowReceipt] = useState(false);
   const receiptRef = useRef<HTMLDivElement>(null);
   
-  // Show receipt after 1 second
+  // Client-side state for random values and dates
+  const [receiptData, setReceiptData] = useState({
+    receiptNumber: '',
+    currentDate: '',
+    currentTime: ''
+  });
+  
+  // Generate values only on client-side after component mounts
   useEffect(() => {
+    // Generate a random receipt number
+    const receiptNumber = `A${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
+    
+    // Generate current date and time
+    const currentDate = new Date().toLocaleDateString('en-GB');
+    const currentTime = new Date().toLocaleTimeString('en-GB', { 
+      hour: '2-digit', 
+      minute: '2-digit', 
+      second: '2-digit' 
+    });
+    
+    setReceiptData({
+      receiptNumber,
+      currentDate,
+      currentTime
+    });
+    
+    // Show receipt after 1 second
     const timer = setTimeout(() => {
       setShowReceipt(true);
     }, 1000);
     
     return () => clearTimeout(timer);
-  }, []);
-  
-  // Generate a random receipt number
-  const receiptNumber = useMemo(() => {
-    return `A${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
-  }, []);
-  
-  // Generate current date and time
-  const currentDate = useMemo(() => {
-    return new Date().toLocaleDateString('en-GB');
-  }, []);
-  
-  const currentTime = useMemo(() => {
-    return new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   }, []);
   
   const handlePrint = useCallback(() => {
@@ -1592,8 +1603,8 @@ const ReceiptComponent = ({ cart, paymentMethod }: { cart: CartItem[], paymentMe
             
             <div class="receipt-info">
               <p>INVOICE</p>
-              <p>Date: ${currentDate}</p>
-              <p>Time: ${currentTime}    POS ID: ${receiptNumber}</p>
+              <p>Date: ${receiptData.currentDate}</p>
+              <p>Time: ${receiptData.currentTime}    POS ID: ${receiptData.receiptNumber}</p>
             </div>
             
             <table class="receipt-table">
@@ -1651,7 +1662,7 @@ const ReceiptComponent = ({ cart, paymentMethod }: { cart: CartItem[], paymentMe
             
             <div class="barcode">
               <!-- Barcode would go here in a real implementation -->
-              ${receiptNumber}
+              ${receiptData.receiptNumber}
             </div>
           </div>
         </body>
@@ -1671,9 +1682,9 @@ const ReceiptComponent = ({ cart, paymentMethod }: { cart: CartItem[], paymentMe
         printWindow.close();
       }
     }, 500);
-  }, [cart, paymentMethod, receiptNumber, currentDate, currentTime]);
+  }, [cart, paymentMethod, receiptData]);
   
-  if (!showReceipt) return null;
+  if (!showReceipt || !receiptData.receiptNumber) return null;
   
   // Calculate totals
   const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
@@ -1712,11 +1723,11 @@ const ReceiptComponent = ({ cart, paymentMethod }: { cart: CartItem[], paymentMe
           <div className="border-t border-b border-dashed py-1 mb-3">
             <p className="text-xs font-medium text-center">INVOICE</p>
             <div className="flex justify-between text-xs">
-              <span>Date: {currentDate}</span>
+              <span>Date: {receiptData.currentDate}</span>
             </div>
             <div className="flex justify-between text-xs">
-              <span>Time: {currentTime}</span>
-              <span>POS ID: {receiptNumber}</span>
+              <span>Time: {receiptData.currentTime}</span>
+              <span>POS ID: {receiptData.receiptNumber}</span>
             </div>
           </div>
           
@@ -1763,7 +1774,7 @@ const ReceiptComponent = ({ cart, paymentMethod }: { cart: CartItem[], paymentMe
             <p>Thank you for shopping with us.</p>
             <p className="text-xs text-right text-gray-600">شكراً للتسوق معنا</p>
             <p className="font-medium mt-2">WhatsApp 72702537 for latest offers</p>
-            <p className="font-mono">{receiptNumber}</p>
+            <p className="font-mono">{receiptData.receiptNumber}</p>
           </div>
         </div>
       </div>

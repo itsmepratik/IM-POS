@@ -271,7 +271,7 @@ export default function SalesInfo() {
 
   useEffect(() => {
     const checkViewport = () => {
-      setIsMobileView(window.innerWidth < 768)
+      setIsMobileView(window.innerWidth < 1024)
     }
     
     // Initial check

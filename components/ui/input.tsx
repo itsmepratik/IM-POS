@@ -4,6 +4,27 @@ import { cn } from "@/lib/utils"
 
 const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
   ({ className, type, ...props }, ref) => {
+    // Use useId for consistent IDs across renders
+    const id = React.useId()
+    
+    // Add client-side only rendering with useEffect
+    const [mounted, setMounted] = React.useState(false)
+
+    React.useEffect(() => {
+      setMounted(true)
+    }, [])
+
+    // Filter out data attributes that might cause hydration mismatches
+    const safeProps = React.useMemo(() => {
+      const filtered: Record<string, any> = {}
+      Object.entries(props).forEach(([key, value]) => {
+        if (!key.startsWith('data-')) {
+          filtered[key] = value
+        }
+      })
+      return filtered
+    }, [props])
+
     return (
       <input
         type={type}
@@ -12,7 +33,8 @@ const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
           className
         )}
         ref={ref}
-        {...props}
+        id={mounted ? props.id : id}
+        {...(mounted ? props : safeProps)}
       />
     )
   }

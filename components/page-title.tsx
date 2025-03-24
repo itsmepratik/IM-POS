@@ -19,21 +19,25 @@ export function PageTitle({ children, className }: PageTitleProps) {
 export function PageHeader({ 
   children, 
   className,
-  actions
+  actions,
+  leftAction
 }: { 
   children: React.ReactNode
   className?: string
   actions?: React.ReactNode
+  leftAction?: React.ReactNode
 }) {
-  // If there are no actions, don't render anything
-  if (!actions) return null;
-  
   return (
-    <div className={cn("flex flex-col sm:flex-row justify-end items-start sm:items-center gap-4 mb-6", className)}>
-      <PageTitle>{children}</PageTitle>
-      <div className="flex items-center gap-2 w-full sm:w-auto">
-        {actions}
+    <div className={cn("flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6", className)}>
+      <div className="flex items-center gap-2">
+        {leftAction}
+        <h2 className="text-2xl font-bold">{children}</h2>
       </div>
+      {actions && (
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          {actions}
+        </div>
+      )}
     </div>
   )
 } 

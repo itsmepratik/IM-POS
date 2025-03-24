@@ -18,7 +18,8 @@ import {
   Warehouse,
   Truck,
   User,
-  LogOut
+  LogOut,
+  Bell
 } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
@@ -44,6 +45,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
+import { Badge } from "@/components/ui/badge"
+import { useNotification } from "@/app/notification-context"
 
 // Define the type for nav items
 type NavItem = {
@@ -56,6 +59,7 @@ type NavItem = {
 
 export function CustomSidebar({ className }: { className?: string }) {
   const { currentUser } = useUser()
+  const { notifications } = useNotification()
   const router = useRouter()
   const pathname = usePathname()
   const { open, setOpen } = useSidebar()
@@ -66,7 +70,7 @@ export function CustomSidebar({ className }: { className?: string }) {
   // Check if we're on mobile
   React.useEffect(() => {
     const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768)
+      setIsMobile(window.innerWidth < 1024)
     }
     
     // Initial check
@@ -166,6 +170,34 @@ export function CustomSidebar({ className }: { className?: string }) {
             // Hide items marked with hideMobile on mobile devices
             if (item.hideMobile && isMobile) {
               return null
+            }
+
+            // Special handling for Notifications item to show badge
+            if (item.title === "Notifications") {
+              return (
+                <SidebarMenuItem key={item.href} className="my-0.5">
+                  <SidebarMenuButton
+                    asChild
+                    tooltip={item.title}
+                    className={cn(
+                      "w-full pl-2",
+                      pathname === item.href && "bg-accent text-accent-foreground"
+                    )}
+                  >
+                    <Link href={item.href} className="relative">
+                      <span className="mr-2 inline-flex">{item.icon}</span>
+                      <span>{item.title}</span>
+                      {notifications.length > 0 && (
+                        <Badge 
+                          className="absolute top-0 -right-1 h-4 min-w-4 px-1 flex items-center justify-center bg-blue-500 text-[10px]"
+                        >
+                          {notifications.length}
+                        </Badge>
+                      )}
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )
             }
 
             return (

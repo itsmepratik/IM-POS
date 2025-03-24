@@ -76,22 +76,22 @@ export function Layout({ children, pageTitle }: LayoutProps) {
   return (
     <SidebarProvider defaultOpen={true}>
       <div className="flex min-h-screen w-full bg-background">
-        {/* Desktop Sidebar */}
-        <CustomSidebar className="hidden md:flex" />
+        {/* Desktop Sidebar - only show on large screens */}
+        <CustomSidebar className="hidden lg:flex" />
 
-        {/* Mobile header */}
-        <div className="md:hidden fixed top-0 left-0 right-0 h-16 border-b bg-background z-50 flex items-center justify-between px-4">
+        {/* Mobile header - show on screens below 1024px */}
+        <div className="lg:hidden fixed top-0 left-0 right-0 h-16 border-b bg-background z-50 flex items-center justify-between px-4">
           <div className="flex items-center">
             <MobileNav className="mr-2" />
           </div>
           <h1 className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-lg font-semibold truncate max-w-[60%] text-center">{getPageTitle()}</h1>
           <div className="flex items-center">
-            {/* Remove the cart icon for POS page */}
+            {/* Placeholder for potential actions */}
           </div>
         </div>
 
         {/* Main content */}
-        <div className="flex-1 w-full flex flex-col mt-16 md:mt-0">
+        <div className="flex-1 w-full flex flex-col mt-16 lg:mt-0">
           <main className="flex-1 w-full p-4 md:p-6 lg:p-8">
             {children}
           </main>

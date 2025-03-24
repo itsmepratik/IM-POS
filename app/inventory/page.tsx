@@ -549,7 +549,7 @@ function ItemsPageContent() {
 
   // Check viewport on mount and resize
   const checkViewport = () => {
-    setIsMobile(window.innerWidth < 768)
+    setIsMobile(window.innerWidth < 1024)
   }
 
   useEffect(() => {
