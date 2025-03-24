@@ -9,13 +9,15 @@ const nextConfig = {
   experimental: {
     forceSwcTransforms: true,
   },
-  output: 'export',
   images: {
     unoptimized: true,
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '**',
+      },
+    ],
   },
-  trailingSlash: true,
-  // Add basePath configuration if deploying to a subdirectory
-  // basePath: '',
 };
 
 module.exports = nextConfig; 
