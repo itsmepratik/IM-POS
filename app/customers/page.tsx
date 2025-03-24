@@ -57,6 +57,7 @@ export default function CustomersPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false)
   const [currentCustomer, setCurrentCustomer] = useState<number | null>(null)
+  const [hasMounted, setHasMounted] = useState(false)
 
   // Filter customers based on search query and filter value
   const filteredCustomers = customers.filter(customer => {
@@ -180,6 +181,11 @@ export default function CustomersPage() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  useEffect(() => {
+    // Set hasMounted to true after component mounts
+    setHasMounted(true)
+  }, [])
+
   // Get current customer for modals
   const getCurrentCustomer = () => {
     return customers.find(c => c.id === currentCustomer)
@@ -214,17 +220,21 @@ export default function CustomersPage() {
             </div>
             <div className="flex flex-col sm:flex-row w-full sm:w-auto gap-2">
               <div className="flex items-center gap-2">
-                <Select value={filterValue} onValueChange={setFilterValue}>
-                  <SelectTrigger className="w-full sm:w-[180px]">
-                    <SelectValue placeholder="All customers" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="All customers">All customers</SelectItem>
-                    <SelectItem value="Recent">Recent customers</SelectItem>
-                    <SelectItem value="Multiple">Multiple vehicles</SelectItem>
-                    <SelectItem value="New">New customers</SelectItem>
-                  </SelectContent>
-                </Select>
+                {hasMounted ? (
+                  <Select value={filterValue} onValueChange={setFilterValue}>
+                    <SelectTrigger className="w-full sm:w-[180px]">
+                      <SelectValue placeholder="All customers" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="All customers">All customers</SelectItem>
+                      <SelectItem value="Recent">Recent customers</SelectItem>
+                      <SelectItem value="Multiple">Multiple vehicles</SelectItem>
+                      <SelectItem value="New">New customers</SelectItem>
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <div className="w-full sm:w-[180px] h-10 border rounded-md" /> /* Placeholder to maintain layout */
+                )}
                 <Button 
                   variant="outline" 
                   className="hidden sm:flex"
