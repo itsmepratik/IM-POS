@@ -85,7 +85,8 @@ function BranchForm({ branch, onSubmit, onCancel }: {
           id="name" 
           value={name} 
           onChange={(e) => setName(e.target.value)} 
-          placeholder="Main Store"
+          placeholder="Main (Sanaya)"
+          className="col-span-3"
           required
         />
       </div>

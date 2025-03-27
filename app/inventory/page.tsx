@@ -478,6 +478,8 @@ function MobileView() {
   const [itemModalOpen, setItemModalOpen] = useState(false)
   const [categoryModalOpen, setCategoryModalOpen] = useState(false)
   const [brandModalOpen, setBrandModalOpen] = useState(false)
+  const [receiveModalOpen, setReceiveModalOpen] = useState(false)
+  const [navigationOpen, setNavigationOpen] = useState(false)
   
   // Open item modal for adding new item
   const openAddItemModal = () => {
@@ -828,8 +830,8 @@ function ItemsPageContent() {
   return (
     <div className="w-full space-y-6">
       <PageHeader 
-        title="Inventory" 
-        description={`Manage inventory at ${currentBranch?.name || 'Main Store'}`}
+        title="Main Inventory" 
+        description={`Manage inventory at ${currentBranch?.name || 'Main (Sanaya)'}`}
       />
       <div className="hidden md:block">
         <DesktopView />

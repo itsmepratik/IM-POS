@@ -34,10 +34,9 @@ export const useBranch = () => {
 export const BranchProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Mock branch data
   const initialBranches: Branch[] = [
-    { id: "main", name: "Main Store", location: "Muscat", manager: "Ahmed Al-Balushi", phone: "+968 9123 4567", email: "main@hautomotives.com" },
-    { id: "branch1", name: "Saham Branch", location: "Saham", manager: "Mohammed Al-Farsi", phone: "+968 9234 5678", email: "saham@hautomotives.com" },
-    { id: "branch2", name: "Sohar Branch", location: "Sohar", manager: "Fatima Al-Zadjali", phone: "+968 9345 6789", email: "sohar@hautomotives.com" },
-    { id: "branch3", name: "Muscat Branch", location: "Muscat", manager: "Khalid Al-Habsi", phone: "+968 9456 7890", email: "muscat@hautomotives.com" },
+    { id: "main", name: "Main (Sanaya)", location: "Muscat", manager: "Ahmed Al-Balushi", phone: "+968 9123 4567", email: "main@hautomotives.com" },
+    { id: "branch1", name: "Hafith", location: "Saham", manager: "Mohammed Al-Farsi", phone: "+968 9234 5678", email: "saham@hautomotives.com" },
+    { id: "branch2", name: "Abu-Dhurus", location: "Sohar", manager: "Fatima Al-Zadjali", phone: "+968 9345 6789", email: "sohar@hautomotives.com" },
   ]
 
   const [branches, setBranches] = useState<Branch[]>(initialBranches)

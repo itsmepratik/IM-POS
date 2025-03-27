@@ -224,6 +224,9 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
   const [brands, setBrands] = useState<string[]>([
     "Toyota",
     "Shell",
+    "Castrol",
+    "Mobil",
+    "Valvoline",
     "Honda"
   ])
 

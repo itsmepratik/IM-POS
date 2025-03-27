@@ -73,9 +73,9 @@ function HomePageContent() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All branches</SelectItem>
-                    <SelectItem value="branch1">Main Branch</SelectItem>
-                    <SelectItem value="branch2">Downtown Branch</SelectItem>
-                    <SelectItem value="branch3">West Branch</SelectItem>
+                    <SelectItem value="main">Main (Sanaya)</SelectItem>
+                    <SelectItem value="branch1">Hafith</SelectItem>
+                    <SelectItem value="branch2">Abu-Dhurus</SelectItem>
                   </SelectContent>
                 </Select>
               ) : (

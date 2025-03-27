@@ -293,14 +293,20 @@ function MobileView() {
   
   useEffect(() => {
     setHasMounted(true);
-  }, []);
+    
+    // Set default branch to Hafith if no branch is selected
+    if (!currentBranch || currentBranch.id === "main") {
+      const hafithBranch = branches.find((b: Branch) => b.id === "branch1");
+      if (hafithBranch) setCurrentBranch(hafithBranch);
+    }
+  }, [branches, currentBranch, setCurrentBranch]);
   
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2 mb-2">
         {hasMounted ? (
           <Select 
-            value={currentBranch?.id || "main"} 
+            value={currentBranch?.id || "branch1"} 
             onValueChange={(value) => {
               const branch = branches.find((b: Branch) => b.id === value)
               if (branch) setCurrentBranch(branch)
@@ -310,11 +316,14 @@ function MobileView() {
               <SelectValue placeholder="Select branch" />
             </SelectTrigger>
             <SelectContent>
-              {branches.map((branch: Branch) => (
-                <SelectItem key={branch.id} value={branch.id}>
-                  {branch.name}
-                </SelectItem>
-              ))}
+              {branches
+                .filter((branch: Branch) => branch.id !== "main")
+                .map((branch: Branch) => (
+                  <SelectItem key={branch.id} value={branch.id}>
+                    {branch.name}
+                  </SelectItem>
+                ))
+              }
             </SelectContent>
           </Select>
         ) : (
@@ -468,7 +477,7 @@ function DesktopView() {
       <div className="flex items-center gap-4 mb-4">
         {hasMounted ? (
           <Select 
-            value={currentBranch?.id || "main"} 
+            value={currentBranch?.id || "branch1"} 
             onValueChange={(value) => {
               const branch = branches.find((b: Branch) => b.id === value)
               if (branch) setCurrentBranch(branch)
@@ -478,11 +487,14 @@ function DesktopView() {
               <SelectValue placeholder="Select branch" />
             </SelectTrigger>
             <SelectContent>
-              {branches.map((branch: Branch) => (
-                <SelectItem key={branch.id} value={branch.id}>
-                  {branch.name}
-                </SelectItem>
-              ))}
+              {branches
+                .filter((branch: Branch) => branch.id !== "main")
+                .map((branch: Branch) => (
+                  <SelectItem key={branch.id} value={branch.id}>
+                    {branch.name}
+                  </SelectItem>
+                ))
+              }
             </SelectContent>
           </Select>
         ) : (
@@ -583,8 +595,9 @@ function DesktopView() {
 
 function ItemsPageContent() {
   const { currentUser } = useUser()
-  const { currentBranch } = useBranch()
+  const { currentBranch, branches } = useBranch()
   const [isMobile, setIsMobile] = useState(false)
+  const [defaultBranch, setDefaultBranch] = useState<Branch | null>(null)
 
   // Check viewport on mount and resize
   const checkViewport = () => {
@@ -594,8 +607,15 @@ function ItemsPageContent() {
   useEffect(() => {
     checkViewport()
     window.addEventListener('resize', checkViewport)
+    
+    // Find Hafith branch to use as default
+    const hafithBranch = branches.find(branch => branch.id === "branch1")
+    if (hafithBranch) {
+      setDefaultBranch(hafithBranch)
+    }
+    
     return () => window.removeEventListener('resize', checkViewport)
-  }, [])
+  }, [branches])
 
   if (currentUser?.role === "staff") {
     return <div className="text-center py-8">You don&apos;t have permission to access this page.</div>
@@ -607,7 +627,7 @@ function ItemsPageContent() {
         <div className="flex flex-col gap-1">
           <h1 className="text-2xl font-bold tracking-tight">Inventory</h1>
           <p className="text-muted-foreground">
-            Manage inventory at {currentBranch?.name || 'Main Store'}
+            Manage inventory at {currentBranch?.name || defaultBranch?.name || 'Hafith'}
           </p>
         </div>
       </PageHeader>
@@ -620,11 +640,29 @@ export default function ItemsPage() {
   return (
     <Layout>
       <BranchProvider>
-        <ItemsProvider>
-          <ItemsPageContent />
-        </ItemsProvider>
+        <BranchInitializer />
       </BranchProvider>
     </Layout>
+  )
+}
+
+// Component to handle branch initialization
+function BranchInitializer() {
+  const { branches, setCurrentBranch } = useBranch()
+  
+  // Set the default branch to Hafith on component mount
+  useEffect(() => {
+    // Find Hafith branch
+    const hafithBranch = branches.find(branch => branch.id === "branch1")
+    if (hafithBranch) {
+      setCurrentBranch(hafithBranch)
+    }
+  }, [branches, setCurrentBranch])
+  
+  return (
+    <ItemsProvider>
+      <ItemsPageContent />
+    </ItemsProvider>
   )
 }
 

@@ -82,9 +82,9 @@ const salesData: SaleItem[] = [
 
 const stores = [
   { id: "all-stores", name: "All Stores" },
-  { id: "store1", name: "Store 1" },
-  { id: "store2", name: "Store 2" },
-  { id: "store3", name: "Store 3" },
+  { id: "store1", name: "Main (Sanaya)" },
+  { id: "store2", name: "Hafith" },
+  { id: "store3", name: "Abu-Dhurus" },
 ]
 
 // Memoize the mobile item card component
