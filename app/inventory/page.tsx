@@ -13,7 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { MoreHorizontal, Plus, Search, ChevronRight, Menu, ImageIcon, MoreVertical } from "lucide-react"
+import { MoreHorizontal, Plus, Search, ChevronRight, Menu, ImageIcon, MoreVertical, Box, DollarSign, PackageCheck, Percent, Pencil, Copy, Trash2 } from "lucide-react"
 import { ItemsProvider, useItems, type Item } from "./items-context"
 import { ItemModal } from "./item-modal"
 import { toast } from "@/components/ui/use-toast"
@@ -26,10 +26,36 @@ import { Badge } from "@/components/ui/badge"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { PageHeader } from "@/components/page-title"
 import { BranchProvider, useBranch } from "../branch-context"
-import { useInventoryData } from "./hooks/useInventoryData"
+import { useInventoryData } from "./inventory-data"
 import { Label } from "@/components/ui/label"
 import { OpenBottleBadge, ClosedBottleBadge } from "@/components/ui/inventory-bottle-icons"
 import { OpenBottleIcon, ClosedBottleIcon } from "@/components/ui/bottle-icons"
+import ReceiveModal from "./receive-modal"
+import BrandModal from "./brand-modal"
+import ExportButton from "./export-button"
+
+// Client-side only component wrapper to prevent hydration mismatch
+const ClientOnly = ({ children }: { children: React.ReactNode }) => {
+  const [hasMounted, setHasMounted] = useState(false);
+  
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
+  
+  if (!hasMounted) {
+    return null; // Return nothing on server-side
+  }
+  
+  return <>{children}</>;
+};
+
+// Add helper function for FIFO order
+const getBatchFifoPosition = (batchIndex: number, totalBatches: number) => {
+  if (totalBatches <= 1) return "";
+  if (batchIndex === 0) return "Next in line";
+  if (batchIndex === totalBatches - 1) return "Last to use";
+  return `Position ${batchIndex + 1} of ${totalBatches}`;
+};
 
 // Memoize the mobile item card component
 const MobileItemCard = memo(({ item, onEdit, onDelete, onDuplicate }: {
@@ -40,10 +66,26 @@ const MobileItemCard = memo(({ item, onEdit, onDelete, onDuplicate }: {
 }) => {
   const [showDetails, setShowDetails] = useState(false)
   const [imageError, setImageError] = useState(false)
+  const { calculateAverageCost } = useItems()
 
   const handleImageError = useCallback(() => {
     setImageError(true)
   }, [])
+
+  // Calculate profit margin
+  const calculateMargin = useCallback(() => {
+    if (!item.batches || item.batches.length === 0 || item.price <= 0) return null;
+    
+    const avgCost = calculateAverageCost(item.id);
+    if (avgCost <= 0) return null;
+    
+    const marginPercentage = ((item.price - avgCost) / item.price) * 100;
+    return Math.round(marginPercentage * 100) / 100; // Round to 2 decimals
+  }, [item, calculateAverageCost]);
+
+  const margin = calculateMargin();
+  const batchCount = item.batches?.length || 0;
+  const avgCost = calculateAverageCost(item.id);
 
   return (
     <Card className="relative overflow-hidden">
@@ -120,6 +162,26 @@ const MobileItemCard = memo(({ item, onEdit, onDelete, onDuplicate }: {
               OMR {item.price.toFixed(2)}
             </div>
           </div>
+          
+          {/* Batch info */}
+          {batchCount > 0 && (
+            <div className="flex items-center justify-between text-sm">
+              <div className="flex items-center gap-1">
+                <Box className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="text-muted-foreground">Batches:</span>
+                <span className="font-medium">{batchCount}</span>
+              </div>
+              {margin !== null && (
+                <div className={`flex items-center gap-1 ${
+                  margin < 15 ? 'text-destructive' : 
+                  margin < 25 ? 'text-yellow-600' : 'text-green-600'
+                }`}>
+                  <Percent className="h-3.5 w-3.5" />
+                  <span className="font-medium">{margin}%</span>
+                </div>
+              )}
+            </div>
+          )}
 
           {item.sku && (
             <div className="text-sm text-muted-foreground">
@@ -144,6 +206,32 @@ const MobileItemCard = memo(({ item, onEdit, onDelete, onDuplicate }: {
                 </div>
               )}
 
+              {/* Cost information */}
+              {batchCount > 0 && avgCost > 0 && (
+                <div className="border-t pt-2">
+                  <h4 className="text-sm font-medium mb-2">Cost & Margin</h4>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="flex flex-col p-2 rounded-md border">
+                      <span className="text-xs text-muted-foreground">Avg. Cost Price:</span>
+                      <div className="flex items-center mt-1">
+                        <DollarSign className="h-3.5 w-3.5 text-muted-foreground mr-1" />
+                        <span className="font-medium">OMR {avgCost.toFixed(2)}</span>
+                      </div>
+                    </div>
+                    <div className="flex flex-col p-2 rounded-md border">
+                      <span className="text-xs text-muted-foreground">Profit Margin:</span>
+                      <div className={`flex items-center mt-1 ${
+                        margin < 15 ? 'text-destructive' : 
+                        margin < 25 ? 'text-yellow-600' : 'text-green-600'
+                      }`}>
+                        <Percent className="h-3.5 w-3.5 mr-1" />
+                        <span className="font-medium">{margin}%</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {item.isOil && item.volumes && item.volumes.length > 0 && (
                 <div className="space-y-2">
                   <span className="text-sm font-medium">Available Volumes:</span>
@@ -157,6 +245,37 @@ const MobileItemCard = memo(({ item, onEdit, onDelete, onDuplicate }: {
                         <span className="font-medium">OMR {volume.price.toFixed(2)}</span>
                       </div>
                     ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Batches summary */}
+              {batchCount > 0 && (
+                <div className="border-t pt-2">
+                  <h4 className="text-sm font-medium mb-2">Batch Summary</h4>
+                  <div className="space-y-2">
+                    {item.batches.slice(0, 3).map((batch, index) => (
+                      <div key={batch.id} className="flex justify-between items-center p-2 rounded-md border text-sm">
+                        <div className="flex flex-col">
+                          <span className="text-xs text-muted-foreground">Purchase: {batch.purchaseDate}</span>
+                          <span>Qty: {batch.quantity}</span>
+                          <span className="text-xs text-muted-foreground">{getBatchFifoPosition(index, item.batches.length)}</span>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-xs text-muted-foreground">Cost:</span>
+                          <div className="font-medium">OMR {batch.costPrice.toFixed(2)}</div>
+                        </div>
+                      </div>
+                    ))}
+                    {batchCount > 3 && (
+                      <Button 
+                        variant="ghost" 
+                        className="w-full text-xs h-7" 
+                        onClick={() => onEdit(item)}
+                      >
+                        View all {batchCount} batches
+                      </Button>
+                    )}
                   </div>
                 </div>
               )}
@@ -208,11 +327,29 @@ const TableRow = memo(({
   onDuplicate: (id: string) => void
 }) => {
   const [imageError, setImageError] = useState(false)
+  const { calculateAverageCost } = useItems()
+  
+  // Calculate profit margin
+  const calculateMargin = useCallback(() => {
+    if (!item.batches || item.batches.length === 0 || item.price <= 0) return null;
+    
+    const avgCost = calculateAverageCost(item.id);
+    if (avgCost <= 0) return null;
+    
+    const marginPercentage = ((item.price - avgCost) / item.price) * 100;
+    return Math.round(marginPercentage * 100) / 100; // Round to 2 decimals
+  }, [item, calculateAverageCost]);
+
+  const margin = calculateMargin();
+  const avgCost = calculateAverageCost(item.id);
+  const batchCount = item.batches?.length || 0;
   
   return (
     <tr className={cn("border-b", isSelected && "bg-muted/50")}>
       <td className="h-12 px-4 text-left align-middle">
-        <Checkbox checked={isSelected} onCheckedChange={() => onToggle(item.id)} />
+        <ClientOnly>
+          <Checkbox checked={isSelected} onCheckedChange={() => onToggle(item.id)} />
+        </ClientOnly>
       </td>
       <td className="h-12 px-4 text-left align-middle">
         <div className="flex items-center gap-3">
@@ -246,7 +383,7 @@ const TableRow = memo(({
           item.stock
         )}
       </td>
-      <td className="h-12 px-4 text-left align-middle">${item.price.toFixed(2)}</td>
+      <td className="h-12 px-4 text-left align-middle">OMR {item.price.toFixed(2)}</td>
       <td className="h-12 px-4 text-left align-middle">
         {item.isOil && item.bottleStates ? (
           <div className="flex gap-2">
@@ -258,6 +395,29 @@ const TableRow = memo(({
               <div className="w-2 h-2 rounded-full bg-red-500"></div>
               Closed: {item.bottleStates.closed}
             </Badge>
+          </div>
+        ) : (
+          <span className="text-muted-foreground">N/A</span>
+        )}
+      </td>
+      {/* Batch and cost/margin info */}
+      <td className="h-12 px-4 text-left align-middle">
+        {batchCount > 0 ? (
+          <div className="flex gap-2">
+            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 gap-1">
+              <Box className="h-3.5 w-3.5" />
+              Batches: {batchCount}
+            </Badge>
+            {margin !== null && (
+              <Badge variant="outline" className={`gap-1 ${
+                margin < 15 ? 'bg-red-50 text-red-700 border-red-200' : 
+                margin < 25 ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : 
+                'bg-green-50 text-green-700 border-green-200'
+              }`}>
+                <Percent className="h-3.5 w-3.5" />
+                {margin}%
+              </Badge>
+            )}
           </div>
         ) : (
           <span className="text-muted-foreground">N/A</span>
@@ -292,20 +452,19 @@ function MobileView() {
   const {
     filteredItems,
     categories,
+    brands,
     
     searchQuery,
     setSearchQuery,
     selectedCategory,
     setSelectedCategory,
-    showLowStock,
-    setShowLowStock,
-    
-    isModalOpen,
-    setIsModalOpen,
-    isCategoryModalOpen,
-    setIsCategoryModalOpen,
+    selectedBrand,
+    setSelectedBrand,
+    showInStock,
+    setShowInStock,
     isFiltersOpen,
     setIsFiltersOpen,
+    
     editingItem,
     setEditingItem,
     
@@ -316,22 +475,47 @@ function MobileView() {
     resetFilters
   } = useInventoryData();
   
+  const [itemModalOpen, setItemModalOpen] = useState(false)
+  const [categoryModalOpen, setCategoryModalOpen] = useState(false)
+  const [brandModalOpen, setBrandModalOpen] = useState(false)
+  
+  // Open item modal for adding new item
+  const openAddItemModal = () => {
+    setEditingItem(undefined);
+    setItemModalOpen(true);
+  };
+  
+  // Open item modal for editing existing item
+  const openEditItemModal = (item: Item) => {
+    setEditingItem(item);
+    setItemModalOpen(true);
+  };
+  
+  // Handle modal state changes
+  const handleItemModalOpenChange = (open: boolean) => {
+    setItemModalOpen(open);
+    if (!open) {
+      setEditingItem(undefined);
+    }
+  };
+  
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
         <div className="relative flex-1">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="Search items..."
-            className="pl-9"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
+          <ClientOnly>
+            <Input
+              type="search"
+              placeholder="Search items..."
+              className="pl-9"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </ClientOnly>
         </div>
-        <Button onClick={handleAddItem}>
-          <Plus className="h-4 w-4 mr-1" />
-          Add
+        <Button variant="default" size="icon" className="bg-blue-600 hover:bg-blue-700" onClick={openAddItemModal}>
+          <Plus className="h-5 w-5" />
         </Button>
       </div>
       
@@ -364,21 +548,43 @@ function MobileView() {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="brandFilter">Brand</Label>
+                <Select value={selectedBrand} onValueChange={setSelectedBrand}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Brands" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Brands</SelectItem>
+                    <SelectItem value="none">No Brand</SelectItem>
+                    {brands && brands.map((brand) => (
+                      <SelectItem key={brand} value={brand}>{brand}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="flex items-center space-x-2">
-                <Checkbox 
-                  id="lowStock" 
-                  checked={showLowStock} 
-                  onCheckedChange={(checked) => setShowLowStock(!!checked)} 
-                />
-                <Label htmlFor="lowStock">Show low stock only</Label>
+                <ClientOnly>
+                  <Checkbox 
+                    id="inStock" 
+                    checked={showInStock} 
+                    onCheckedChange={(checked) => setShowInStock(!!checked)} 
+                  />
+                </ClientOnly>
+                <Label htmlFor="inStock">Show in-stock only</Label>
               </div>
               <div className="flex items-center justify-between mt-6">
                 <Button variant="outline" size="sm" onClick={resetFilters}>Reset</Button>
                 <Button size="sm" onClick={() => setIsFiltersOpen(false)}>Apply</Button>
               </div>
               <div className="border-t my-4 pt-4">
-                <Button variant="outline" size="sm" onClick={() => setIsCategoryModalOpen(true)} className="w-full">
+                <Button variant="outline" size="sm" onClick={() => setCategoryModalOpen(true)} className="w-full">
                   Manage Categories
+                </Button>
+              </div>
+              <div className="mt-2">
+                <Button variant="outline" size="sm" onClick={() => setBrandModalOpen(true)} className="w-full">
+                  Manage Brands
                 </Button>
               </div>
             </div>
@@ -391,7 +597,7 @@ function MobileView() {
           <MobileItemCard
             key={item.id}
             item={item}
-            onEdit={handleEdit}
+            onEdit={openEditItemModal}
             onDelete={handleDelete}
             onDuplicate={handleDuplicate}
           />
@@ -404,14 +610,12 @@ function MobileView() {
       </div>
       
       <ItemModal
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false)
-          setEditingItem(undefined)
-        }}
+        open={itemModalOpen}
+        onOpenChange={handleItemModalOpenChange}
         item={editingItem}
       />
-      <CategoryModal isOpen={isCategoryModalOpen} onClose={() => setIsCategoryModalOpen(false)} />
+      <CategoryModal open={categoryModalOpen} onOpenChange={setCategoryModalOpen} />
+      <BrandModal open={brandModalOpen} onOpenChange={setBrandModalOpen} />
     </div>
   )
 }
@@ -420,91 +624,150 @@ function DesktopView() {
   const {
     filteredItems,
     categories,
+    brands,
     
     searchQuery,
     setSearchQuery,
     selectedCategory,
     setSelectedCategory,
-    showLowStock,
-    setShowLowStock,
+    selectedBrand,
+    setSelectedBrand,
+    showInStock,
+    setShowInStock,
     selectedItems,
-    setSelectedItems,
+    toggleItemSelection,
+    toggleAllSelection,
     
-    isModalOpen,
-    setIsModalOpen,
-    isCategoryModalOpen,
-    setIsCategoryModalOpen,
-    isFiltersOpen,
-    setIsFiltersOpen,
     editingItem,
     setEditingItem,
     
-    toggleItem,
-    toggleAll,
     handleEdit,
     handleAddItem,
     handleDelete,
-    handleDuplicate,
-    resetFilters
+    handleDuplicate
   } = useInventoryData();
+  
+  const [itemModalOpen, setItemModalOpen] = useState(false)
+  const [categoryModalOpen, setCategoryModalOpen] = useState(false)
+  const [brandModalOpen, setBrandModalOpen] = useState(false)
+  
+  // Open item modal for adding new item
+  const openAddItemModal = () => {
+    setEditingItem(undefined);
+    setItemModalOpen(true);
+  };
+  
+  // Open item modal for editing existing item
+  const openEditItemModal = (item: Item) => {
+    setEditingItem(item);
+    setItemModalOpen(true);
+  };
+  
+  // Handle modal state changes
+  const handleItemModalOpenChange = (open: boolean) => {
+    setItemModalOpen(open);
+    if (!open) {
+      setEditingItem(undefined);
+    }
+  };
+  
+  const areAllSelected = selectedItems.length === filteredItems.length && filteredItems.length > 0;
   
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-4">
-        <div className="relative flex-1 max-w-sm">
+      <div className="flex items-center justify-between gap-2">
+        <div className="relative flex-grow max-w-md">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="Search items..."
-            className="pl-9"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
+          <ClientOnly>
+            <Input
+              type="search"
+              placeholder="Search items..."
+              className="pl-9"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </ClientOnly>
         </div>
-        <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="All Categories" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Categories</SelectItem>
-            {categories.map((category) => (
-              <SelectItem key={category} value={category}>{category}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <div className="flex items-center space-x-2">
-          <Checkbox 
-            id="lowStockDesktop" 
-            checked={showLowStock} 
-            onCheckedChange={(checked) => setShowLowStock(!!checked)} 
-          />
-          <Label htmlFor="lowStockDesktop">Show low stock only</Label>
-        </div>
-        <div className="flex-1 text-right space-x-2">
-          <Button variant="outline" onClick={() => setIsCategoryModalOpen(true)}>
+        <div className="flex items-center gap-2">
+          <ClientOnly>
+            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="All Categories" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Categories</SelectItem>
+                {categories.map((category) => (
+                  <SelectItem key={category} value={category}>{category}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </ClientOnly>
+          <ClientOnly>
+            <Select value={selectedBrand} onValueChange={setSelectedBrand}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="All Brands" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Brands</SelectItem>
+                <SelectItem value="none">No Brand</SelectItem>
+                {brands && brands.map((brand) => (
+                  <SelectItem key={brand} value={brand}>{brand}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </ClientOnly>
+          <Button variant="outline" onClick={() => setCategoryModalOpen(true)}>
             Categories
           </Button>
-          <Button onClick={handleAddItem}>
+          <Button variant="ghost" onClick={() => setBrandModalOpen(true)}>
+            Brands
+          </Button>
+          <Button onClick={openAddItemModal}>
             <Plus className="h-4 w-4 mr-1" />
             Add Item
           </Button>
+          <ExportButton items={filteredItems} />
         </div>
       </div>
       
-      <div className="border rounded-lg">
-        <div className="overflow-x-auto">
+      <div className="flex items-center gap-2">
+        <div className="text-sm text-muted-foreground">
+          {filteredItems.length} {filteredItems.length === 1 ? 'item' : 'items'} found
+        </div>
+        <div className="flex gap-2 items-center ml-6">
+          <label htmlFor="showInStock" className="text-sm font-medium">
+            Show in-stock only:
+          </label>
+          <ClientOnly>
+            <Checkbox 
+              id="showInStock" 
+              checked={showInStock} 
+              onCheckedChange={(checked) => setShowInStock(!!checked)} 
+            />
+          </ClientOnly>
+        </div>
+      </div>
+      
+      <div className="rounded-md border bg-white overflow-hidden">
+        <div className="overflow-auto">
           <table className="w-full">
             <thead>
-              <tr className="border-b">
+              <tr className="border-b bg-muted/50">
                 <th className="h-12 px-4 text-left align-middle font-medium">
-                  <Checkbox checked={selectedItems.length === filteredItems.length} onCheckedChange={toggleAll} />
+                  <ClientOnly>
+                    <Checkbox 
+                      checked={areAllSelected} 
+                      onCheckedChange={toggleAllSelection}
+                    />
+                  </ClientOnly>
                 </th>
                 <th className="h-12 px-4 text-left align-middle font-medium">Item</th>
                 <th className="h-12 px-4 text-left align-middle font-medium">Category</th>
                 <th className="h-12 px-4 text-left align-middle font-medium">Stock</th>
                 <th className="h-12 px-4 text-left align-middle font-medium">Price</th>
-                <th className="h-12 px-4 text-left align-middle font-medium">Bottle Inventory</th>
-                <th className="h-12 w-[40px]"></th>
+                <th className="h-12 px-4 text-left align-middle font-medium">Bottle Status</th>
+                <th className="h-12 px-4 text-left align-middle font-medium">Batches</th>
+                <th className="h-12 px-4 text-right align-middle font-medium">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -513,26 +776,31 @@ function DesktopView() {
                   key={item.id}
                   item={item}
                   isSelected={selectedItems.includes(item.id)}
-                  onToggle={toggleItem}
-                  onEdit={handleEdit}
+                  onToggle={toggleItemSelection}
+                  onEdit={openEditItemModal}
                   onDelete={handleDelete}
                   onDuplicate={handleDuplicate}
                 />
               ))}
+              {filteredItems.length === 0 && (
+                <tr>
+                  <td colSpan={8} className="h-24 text-center text-muted-foreground">
+                    No items found. Try adjusting your filters.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
       </div>
-
+      
       <ItemModal
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false)
-          setEditingItem(undefined)
-        }}
+        open={itemModalOpen}
+        onOpenChange={handleItemModalOpenChange}
         item={editingItem}
       />
-      <CategoryModal isOpen={isCategoryModalOpen} onClose={() => setIsCategoryModalOpen(false)} />
+      <CategoryModal open={categoryModalOpen} onOpenChange={setCategoryModalOpen} />
+      <BrandModal open={brandModalOpen} onOpenChange={setBrandModalOpen} />
     </div>
   )
 }
@@ -563,17 +831,24 @@ function ItemsPageContent() {
         title="Inventory" 
         description={`Manage inventory at ${currentBranch?.name || 'Main Store'}`}
       />
-      {isMobile ? <MobileView /> : <DesktopView />}
+      <div className="hidden md:block">
+        <DesktopView />
+      </div>
+      <div className="block md:hidden">
+        <MobileView />
+      </div>
     </div>
   )
 }
 
-export default function ItemsPage() {
+export default function InventoryPage() {
   return (
     <Layout>
       <BranchProvider>
         <ItemsProvider>
-          <ItemsPageContent />
+          <ClientOnly>
+            <ItemsPageContent />
+          </ClientOnly>
         </ItemsProvider>
       </BranchProvider>
     </Layout>

@@ -30,7 +30,9 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogContentWithoutClose
+  DialogContentWithoutClose,
+  DialogDescription,
+  DialogFooter
 } from "@/components/ui/dialog"
 import {
   AlertDialog,
@@ -43,9 +45,10 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { cn } from "@/lib/utils"
-import { motion, AnimatePresence } from "framer-motion"
+import { motion } from "framer-motion"
 import Image from "next/image"
 import { OpenBottleIcon, ClosedBottleIcon } from "@/components/ui/bottle-icons"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 
 // Import the RefundDialog component
 import { RefundDialog } from "./components/refund-dialog"
@@ -77,6 +80,7 @@ interface CartItem extends Omit<Product, 'category'> {
   quantity: number
   details?: string
   uniqueId: string
+  bottleType?: 'open' | 'closed'
 }
 
 interface SelectedVolume {
@@ -84,6 +88,15 @@ interface SelectedVolume {
   quantity: number
   price: number
   bottleType?: 'open' | 'closed'
+}
+
+// Add these after the existing interface definitions near the top of the file
+interface ImportedCustomer {
+  id: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  // Add any other properties that might be in imported customers
 }
 
 // Updated oil products data structure
@@ -350,6 +363,19 @@ export default function POSPage() {
   const [showBottleTypeDialog, setShowBottleTypeDialog] = useState(false)
   const [currentBottleVolumeSize, setCurrentBottleVolumeSize] = useState<string | null>(null)
 
+  // New state for cashiers with proper type
+  const [isCashierSelectOpen, setIsCashierSelectOpen] = useState(false)
+  const [selectedCashier, setSelectedCashier] = useState<string | null>(null)
+  
+  // Mock cashier data
+  const cashiers = [
+    { id: 1, name: "Hossain (Owner)" },
+    { id: 2, name: "Adnan Hossain" },
+    { id: 3, name: "Fatima Al-Zadjali" },
+    { id: 4, name: "Sara Al-Kindi" },
+    { id: 5, name: "Khalid Al-Habsi" }
+  ]
+
   // Memoize handlers
   const removeFromCart = useCallback((productId: number) => {
     setCart((prevCart) => prevCart.filter((item) => item.id !== productId))
@@ -584,10 +610,19 @@ export default function POSPage() {
   }
 
   const handlePaymentComplete = () => {
-    setShowSuccess(true)
+    // Instead of showing success immediately, show cashier selection dialog
+    setIsCheckoutModalOpen(false);
+    setIsCashierSelectOpen(true);
   }
 
-  const handleImportCustomers = (importedCustomers: any[]) => {
+  // Add this new function to handle final payment completion
+  const handleFinalizePayment = () => {
+    setIsCashierSelectOpen(false);
+    setShowSuccess(true);
+  }
+
+  // Replace the handleImportCustomers function definition with this one
+  const handleImportCustomers = (importedCustomers: ImportedCustomer[]) => {
     // In a real implementation, this would add the imported customers to the database
     console.log('Imported customers:', importedCustomers)
     setIsImportDialogOpen(false)
@@ -1163,177 +1198,115 @@ export default function POSPage() {
               }
             }}
           >
-            {showSuccess ? (
-              <DialogContentWithoutClose 
-                className="w-[90%] max-w-[500px] p-6 rounded-lg max-h-[90vh] overflow-auto"
-                onPointerDownOutside={(e) => e.preventDefault()}
-                onEscapeKeyDown={(e) => e.preventDefault()}
-              >
-                <DialogHeader className="pb-4 sticky top-0 bg-background z-10">
-                  <DialogTitle className="text-xl font-semibold text-center">
-                    Payment Complete
-                  </DialogTitle>
-                </DialogHeader>
+            <DialogContent 
+              className="w-[90%] max-w-[500px] p-6 rounded-lg max-h-[90vh] overflow-auto"
+              onPointerDownOutside={(e) => e.preventDefault()}
+              onEscapeKeyDown={(e) => e.preventDefault()}
+            >
+              <DialogHeader className="pb-4 sticky top-0 bg-background z-10 pr-8">
+                <DialogTitle className="text-xl font-semibold text-center">
+                  Select Payment Method
+                </DialogTitle>
+              </DialogHeader>
 
-                <motion.div
-                  key="payment-success"
-                  initial={{ scale: 0.5, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  exit={{ scale: 0.5, opacity: 0 }}
-                  className="flex flex-col items-center justify-center py-2"
-                >
-                  <motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-                    className="rounded-full bg-green-100 p-3 mb-4"
+              <div className="space-y-6">
+                <div className={cn(
+                  "grid gap-4",
+                  showOtherOptions ? "grid-cols-2" : "grid-cols-3"
+                )}>
+                  <Button
+                    variant={selectedPaymentMethod === 'card' ? 'default' : 'outline'}
+                    className={cn(
+                      "h-24 flex flex-col items-center justify-center gap-2",
+                      selectedPaymentMethod === 'card' && "ring-2 ring-primary"
+                    )}
+                    onClick={() => {
+                      setSelectedPaymentMethod('card')
+                      setShowOtherOptions(false)
+                    }}
                   >
-                    <Check className="w-8 h-8 text-green-600" />
-                  </motion.div>
-                  <motion.p
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.4 }}
-                    className="text-lg font-medium text-green-600 mb-4"
+                    <CreditCard className="w-6 h-6" />
+                    <span>Card</span>
+                  </Button>
+                  <Button
+                    variant={selectedPaymentMethod === 'cash' ? 'default' : 'outline'}
+                    className={cn(
+                      "h-24 flex flex-col items-center justify-center gap-2",
+                      selectedPaymentMethod === 'cash' && "ring-2 ring-primary"
+                    )}
+                    onClick={() => {
+                      setSelectedPaymentMethod('cash')
+                      setShowOtherOptions(false)
+                    }}
                   >
-                    Payment Successful!
-                  </motion.p>
-                  
-                  {/* Receipt will appear after 1 second */}
-                  <div className="w-full">
-                    <ReceiptComponent 
-                      key={`receipt-${new Date().getTime()}`}
-                      cart={cart} 
-                      paymentMethod={selectedPaymentMethod} 
-                    />
-                    
-                    <Button 
-                      variant="outline"
-                      onClick={() => {
-                        setShowSuccess(false)
-                        setIsCheckoutModalOpen(false)
-                        setShowCart(false)
-                        setCart([])
+                    <Banknote className="w-6 h-6" />
+                    <span>Cash</span>
+                  </Button>
+                  <Button
+                    variant={showOtherOptions ? 'default' : 'outline'}
+                    className={cn(
+                      "h-24 flex flex-col items-center justify-center gap-2",
+                      (selectedPaymentMethod === 'mobile' || selectedPaymentMethod === 'voucher') && "ring-2 ring-primary"
+                    )}
+                    onClick={() => {
+                      setShowOtherOptions(!showOtherOptions)
+                      if (!showOtherOptions) {
                         setSelectedPaymentMethod(null)
-                      }}
-                      className="w-full mt-4"
-                    >
-                      Close
-                    </Button>
-                  </div>
-                </motion.div>
-              </DialogContentWithoutClose>
-            ) : (
-              <DialogContent 
-                className="w-[90%] max-w-[500px] p-6 rounded-lg max-h-[90vh] overflow-auto"
-                onPointerDownOutside={(e) => e.preventDefault()}
-                onEscapeKeyDown={(e) => e.preventDefault()}
-              >
-                <DialogHeader className="pb-4 sticky top-0 bg-background z-10 pr-8">
-                  <DialogTitle className="text-xl font-semibold text-center">
-                    Select Payment Method
-                  </DialogTitle>
-                </DialogHeader>
-
-                <div className="space-y-6">
-                  <div className={cn(
-                    "grid gap-4",
-                    showOtherOptions ? "grid-cols-2" : "grid-cols-3"
-                  )}>
-                    <Button
-                      variant={selectedPaymentMethod === 'card' ? 'default' : 'outline'}
-                      className={cn(
-                        "h-24 flex flex-col items-center justify-center gap-2",
-                        selectedPaymentMethod === 'card' && "ring-2 ring-primary"
-                      )}
-                      onClick={() => {
-                        setSelectedPaymentMethod('card')
-                        setShowOtherOptions(false)
-                      }}
-                    >
-                      <CreditCard className="w-6 h-6" />
-                      <span>Card</span>
-                    </Button>
-                    <Button
-                      variant={selectedPaymentMethod === 'cash' ? 'default' : 'outline'}
-                      className={cn(
-                        "h-24 flex flex-col items-center justify-center gap-2",
-                        selectedPaymentMethod === 'cash' && "ring-2 ring-primary"
-                      )}
-                      onClick={() => {
-                        setSelectedPaymentMethod('cash')
-                        setShowOtherOptions(false)
-                      }}
-                    >
-                      <Banknote className="w-6 h-6" />
-                      <span>Cash</span>
-                    </Button>
-                    <Button
-                      variant={showOtherOptions ? 'default' : 'outline'}
-                      className={cn(
-                        "h-24 flex flex-col items-center justify-center gap-2",
-                        (selectedPaymentMethod === 'mobile' || selectedPaymentMethod === 'voucher') && "ring-2 ring-primary"
-                      )}
-                      onClick={() => {
-                        setShowOtherOptions(!showOtherOptions)
-                        if (!showOtherOptions) {
-                          setSelectedPaymentMethod(null)
-                        }
-                      }}
-                    >
-                      <ChevronDown className="w-6 h-6" />
-                      <span>Other</span>
-                    </Button>
-                  </div>
-
-                  {showOtherOptions && (
-                    <motion.div 
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      exit={{ opacity: 0, height: 0 }}
-                      className="grid grid-cols-2 gap-4"
-                    >
-                      <Button
-                        variant={selectedPaymentMethod === 'mobile' ? 'default' : 'outline'}
-                        className={cn(
-                          "h-24 flex flex-col items-center justify-center gap-2",
-                          selectedPaymentMethod === 'mobile' && "ring-2 ring-primary"
-                        )}
-                        onClick={() => setSelectedPaymentMethod('mobile')}
-                      >
-                        <Smartphone className="w-6 h-6" />
-                        <span>Mobile Pay</span>
-                      </Button>
-                      <Button
-                        variant={selectedPaymentMethod === 'voucher' ? 'default' : 'outline'}
-                        className={cn(
-                          "h-24 flex flex-col items-center justify-center gap-2",
-                          selectedPaymentMethod === 'voucher' && "ring-2 ring-primary"
-                        )}
-                        onClick={() => setSelectedPaymentMethod('voucher')}
-                      >
-                        <Ticket className="w-6 h-6" />
-                        <span>Voucher</span>
-                      </Button>
-                    </motion.div>
-                  )}
-
-                  <div className="border-t pt-6">
-                    <div className="flex justify-between text-lg font-semibold mb-6">
-                      <span>Total Amount</span>
-                      <span>OMR {total.toFixed(2)}</span>
-                    </div>
-                    <Button 
-                      className="w-full h-12 text-base"
-                      disabled={!selectedPaymentMethod}
-                      onClick={handlePaymentComplete}
-                    >
-                      Complete Payment
-                    </Button>
-                  </div>
+                      }
+                    }}
+                  >
+                    <ChevronDown className="w-6 h-6" />
+                    <span>Other</span>
+                  </Button>
                 </div>
-              </DialogContent>
-            )}
+
+                {showOtherOptions && (
+                  <motion.div 
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="grid grid-cols-2 gap-4"
+                  >
+                    <Button
+                      variant={selectedPaymentMethod === 'mobile' ? 'default' : 'outline'}
+                      className={cn(
+                        "h-24 flex flex-col items-center justify-center gap-2",
+                        selectedPaymentMethod === 'mobile' && "ring-2 ring-primary"
+                      )}
+                      onClick={() => setSelectedPaymentMethod('mobile')}
+                    >
+                      <Smartphone className="w-6 h-6" />
+                      <span>Mobile Pay</span>
+                    </Button>
+                    <Button
+                      variant={selectedPaymentMethod === 'voucher' ? 'default' : 'outline'}
+                      className={cn(
+                        "h-24 flex flex-col items-center justify-center gap-2",
+                        selectedPaymentMethod === 'voucher' && "ring-2 ring-primary"
+                      )}
+                      onClick={() => setSelectedPaymentMethod('voucher')}
+                    >
+                      <Ticket className="w-6 h-6" />
+                      <span>Voucher</span>
+                    </Button>
+                  </motion.div>
+                )}
+
+                <div className="border-t pt-6">
+                  <div className="flex justify-between text-lg font-semibold mb-6">
+                    <span>Total Amount</span>
+                    <span>OMR {total.toFixed(2)}</span>
+                  </div>
+                  <Button 
+                    className="w-full h-12 text-base"
+                    disabled={!selectedPaymentMethod}
+                    onClick={handlePaymentComplete}
+                  >
+                    Complete Payment
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
           </Dialog>
         </div>
       </div>
@@ -1402,12 +1375,145 @@ export default function POSPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Cashier Selection Dialog */}
+      <Dialog 
+        open={isCashierSelectOpen} 
+        onOpenChange={(open) => {
+          setIsCashierSelectOpen(open);
+          if (!open) {
+            // If dialog is closed without selection, go back to payment method
+            if (!selectedCashier) {
+              setIsCheckoutModalOpen(true);
+            }
+          }
+        }}
+      >
+        <DialogContent 
+          className="w-[90%] max-w-[500px] p-6 rounded-lg"
+          onPointerDownOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => e.preventDefault()}
+        >
+          <DialogHeader className="pb-4">
+            <DialogTitle className="text-xl font-semibold text-center">
+              Select Cashier
+            </DialogTitle>
+            <DialogDescription className="text-center">
+              Who is collecting the payment?
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="grid gap-4 py-4">
+            {cashiers.map((cashier) => (
+              <Button
+                key={cashier.id}
+                variant={selectedCashier === cashier.name ? 'default' : 'outline'}
+                className={cn(
+                  "h-16 justify-start text-left px-4",
+                  selectedCashier === cashier.name && "ring-2 ring-primary"
+                )}
+                onClick={() => setSelectedCashier(cashier.name)}
+              >
+                <Avatar className="h-8 w-8 mr-2">
+                  <AvatarFallback>{cashier.name.charAt(0)}</AvatarFallback>
+                </Avatar>
+                <span>{cashier.name}</span>
+              </Button>
+            ))}
+          </div>
+          
+          <DialogFooter className="pt-4">
+            <Button 
+              className="w-full h-12 text-base"
+              disabled={!selectedCashier}
+              onClick={handleFinalizePayment}
+            >
+              Confirm Payment
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Success dialog shown after cashier selection */}
+      {showSuccess && (
+        <Dialog 
+          open={showSuccess} 
+          onOpenChange={(open) => {
+            if (!open) {
+              setShowSuccess(false);
+              setShowCart(false);
+              setCart([]);
+              setSelectedPaymentMethod(null);
+            }
+          }}
+        >
+          <DialogContentWithoutClose 
+            className="w-[90%] max-w-[500px] p-6 rounded-lg max-h-[90vh] overflow-auto"
+            onPointerDownOutside={(e) => e.preventDefault()}
+            onEscapeKeyDown={(e) => e.preventDefault()}
+          >
+            <DialogHeader className="pb-4 sticky top-0 bg-background z-10">
+              <DialogTitle className="text-xl font-semibold text-center">
+                Payment Complete
+              </DialogTitle>
+            </DialogHeader>
+
+            <motion.div
+              key="payment-success"
+              initial={{ scale: 0.5, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.5, opacity: 0 }}
+              className="flex flex-col items-center justify-center py-2"
+            >
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+                className="rounded-full bg-green-100 p-3 mb-4"
+              >
+                <Check className="w-8 h-8 text-green-600" />
+              </motion.div>
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.4 }}
+                className="text-lg font-medium text-green-600 mb-4"
+              >
+                Payment Successful!
+              </motion.p>
+              
+              {/* Receipt will appear after 1 second */}
+              <div className="w-full">
+                <ReceiptComponent 
+                  key={`receipt-${new Date().getTime()}`}
+                  cart={cart} 
+                  paymentMethod={selectedPaymentMethod || 'cash'} 
+                  cashier={selectedCashier ?? undefined}
+                />
+                
+                <Button 
+                  variant="outline"
+                  onClick={() => {
+                    setShowSuccess(false);
+                    setShowCart(false);
+                    setCart([]);
+                    setSelectedPaymentMethod(null);
+                  }}
+                  className="w-full mt-4"
+                >
+                  Close
+                </Button>
+              </div>
+            </motion.div>
+          </DialogContentWithoutClose>
+        </Dialog>
+      )}
     </Layout>
   )
 }
 
 // Add this component at the end of the file, before the final export default
-const ReceiptComponent = ({ cart, paymentMethod }: { cart: CartItem[], paymentMethod: string }) => {
+const ReceiptComponent = ({ cart, paymentMethod, cashier }: { cart: CartItem[], paymentMethod: string, cashier?: string }) => {
   const [showReceipt, setShowReceipt] = useState(false);
   const receiptRef = useRef<HTMLDivElement>(null);
   
@@ -1617,7 +1723,7 @@ const ReceiptComponent = ({ cart, paymentMethod }: { cart: CartItem[], paymentMe
                 </tr>
               </thead>
               <tbody>
-                ${cart.map((item, index) => `
+                ${cart.map((item, _index) => `
                   <tr>
                     <td class="qty">${item.quantity}</td>
                     <td class="description">${item.name}${item.details ? ` (${item.details})` : ''}</td>
@@ -1648,6 +1754,7 @@ const ReceiptComponent = ({ cart, paymentMethod }: { cart: CartItem[], paymentMe
             <div class="receipt-footer">
               <p>Number of Items: ${cart.reduce((sum, item) => sum + item.quantity, 0)}</p>
               <p>Payment Method: ${paymentMethod.charAt(0).toUpperCase() + paymentMethod.slice(1)}</p>
+              ${cashier ? `<p>Cashier: ${cashier}</p>` : ''}
               <p>Keep this Invoice for your Exchanges</p>
               <p class="arabic">احتفظ بهذه الفاتورة للتبديل</p>
               <p>Exchange with in 15 Days</p>
@@ -1682,7 +1789,7 @@ const ReceiptComponent = ({ cart, paymentMethod }: { cart: CartItem[], paymentMe
         printWindow.close();
       }
     }, 500);
-  }, [cart, paymentMethod, receiptData]);
+  }, [cart, paymentMethod, receiptData, cashier]);
   
   if (!showReceipt || !receiptData.receiptNumber) return null;
   

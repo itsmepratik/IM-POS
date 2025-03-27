@@ -10,11 +10,11 @@ import { X } from "lucide-react"
 import { toast } from "@/components/ui/use-toast"
 
 interface CategoryModalProps {
-  isOpen: boolean
-  onClose: () => void
+  open: boolean
+  onOpenChange: (open: boolean) => void
 }
 
-export function CategoryModal({ isOpen, onClose }: CategoryModalProps) {
+export function CategoryModal({ open, onOpenChange }: CategoryModalProps) {
   const { categories, addCategory, removeCategory } = useItems()
   const [newCategory, setNewCategory] = useState("")
 
@@ -38,7 +38,7 @@ export function CategoryModal({ isOpen, onClose }: CategoryModalProps) {
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Manage Categories</DialogTitle>
@@ -52,6 +52,11 @@ export function CategoryModal({ isOpen, onClose }: CategoryModalProps) {
                 value={newCategory}
                 onChange={(e) => setNewCategory(e.target.value)}
                 placeholder="Enter new category"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleAddCategory();
+                  }
+                }}
               />
             </div>
             <Button onClick={handleAddCategory} className="mt-8">
@@ -60,18 +65,22 @@ export function CategoryModal({ isOpen, onClose }: CategoryModalProps) {
           </div>
           <div className="space-y-2">
             <Label>Existing Categories</Label>
-            {categories.map((category) => (
-              <div key={category} className="flex items-center justify-between bg-secondary p-2 rounded-md">
-                <span>{category}</span>
-                <Button variant="ghost" size="sm" onClick={() => handleRemoveCategory(category)}>
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            ))}
+            {categories.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No categories added yet.</p>
+            ) : (
+              categories.map((category) => (
+                <div key={category} className="flex items-center justify-between bg-secondary p-2 rounded-md">
+                  <span>{category}</span>
+                  <Button variant="ghost" size="sm" onClick={() => handleRemoveCategory(category)}>
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))
+            )}
           </div>
         </div>
         <DialogFooter>
-          <Button onClick={onClose}>Close</Button>
+          <Button onClick={() => onOpenChange(false)}>Close</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
