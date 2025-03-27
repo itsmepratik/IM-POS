@@ -7,6 +7,8 @@ import { UserProvider } from "./user-context"
 import { BranchProvider } from "./branch-context"
 import { NotificationProvider } from "./notification-context"
 import { NotificationDemo } from "./notification-demo"
+import { Analytics } from "@vercel/analytics/react"
+import { SpeedInsights } from "@vercel/speed-insights/next"
 
 // Load General Sans Variable font with optimized settings
 const generalSans = localFont({
@@ -75,6 +77,8 @@ export default function RootLayout({
             </NotificationProvider>
           </BranchProvider>
         </UserProvider>
+        <SpeedInsights />
+        <Analytics />
       </body>
     </html>
   )

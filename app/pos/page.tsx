@@ -377,7 +377,7 @@ export default function POSPage() {
   ]
 
   // Memoize handlers
-  const removeFromCart = useCallback((productId: number) => {
+  const removeFromCart = useCallback((productId: number) => {b
     setCart((prevCart) => prevCart.filter((item) => item.id !== productId))
   }, [])
 
