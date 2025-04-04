@@ -285,30 +285,9 @@ const CartItem = memo(({
   updateQuantity: (id: number, quantity: number) => void
   removeFromCart: (id: number) => void 
 }) => (
-  <div className="grid grid-cols-[auto_1fr_auto] gap-3 py-4 first:pt-0 items-start border-b last:border-b-0">
-    {/* Quantity controls */}
-    <div className="flex flex-col items-center gap-1">
-      <Button
-        variant="outline"
-        size="icon"
-        className="h-8 w-8"
-        onClick={() => updateQuantity(item.id, item.quantity + 1)}
-      >
-        <Plus className="h-4 w-4" />
-      </Button>
-      <span className="w-6 text-center font-medium text-[clamp(0.875rem,2vw,1rem)]">{item.quantity}</span>
-      <Button
-        variant="outline"
-        size="icon"
-        className="h-8 w-8"
-        onClick={() => updateQuantity(item.id, Math.max(1, item.quantity - 1))}
-      >
-        <Minus className="h-4 w-4" />
-      </Button>
-    </div>
-    
+  <div className="grid grid-cols-[1fr_auto] gap-3 py-3 first:pt-0 items-start border-b last:border-b-0">
     {/* Item details */}
-    <div className="min-w-0 px-1">
+    <div className="min-w-0">
       <div className="font-medium text-[clamp(0.875rem,2vw,1rem)] mb-1">{item.name}</div>
       {item.bottleType && (
         <div className="flex items-center gap-1 mb-1">
@@ -328,16 +307,40 @@ const CartItem = memo(({
       </div>
     </div>
     
-    {/* Delete button */}
-    <Button 
-      variant="ghost" 
-      size="icon" 
-      className="h-8 w-8 flex-shrink-0 self-start" 
-      onClick={() => removeFromCart(item.id)}
-      aria-label="Remove item"
-    >
-      <X className="h-4 w-4" />
-    </Button>
+    {/* Right side controls: quantity and delete */}
+    <div className="flex flex-col gap-2 items-end">
+      {/* Delete button */}
+      <Button 
+        variant="ghost" 
+        size="icon" 
+        className="h-6 w-6 flex-shrink-0" 
+        onClick={() => removeFromCart(item.id)}
+        aria-label="Remove item"
+      >
+        <X className="h-3 w-3" />
+      </Button>
+      
+      {/* Quantity controls - horizontal */}
+      <div className="flex items-center gap-1 mt-1">
+        <Button
+          variant="outline"
+          size="icon"
+          className="h-6 w-6"
+          onClick={() => updateQuantity(item.id, Math.max(1, item.quantity - 1))}
+        >
+          <Minus className="h-3 w-3" />
+        </Button>
+        <span className="w-5 text-center font-medium text-xs">{item.quantity}</span>
+        <Button
+          variant="outline"
+          size="icon"
+          className="h-6 w-6"
+          onClick={() => updateQuantity(item.id, item.quantity + 1)}
+        >
+          <Plus className="h-3 w-3" />
+        </Button>
+      </div>
+    </div>
   </div>
 ))
 CartItem.displayName = 'CartItem'
@@ -713,12 +716,12 @@ export default function POSPage() {
 
   return (
     <Layout>
-      <div className="h-[calc(100vh-5rem)] flex flex-col pb-4" suppressHydrationWarning>
-        <div className="flex-1 flex flex-col lg:flex-row gap-6 min-h-0">
+      <div className="h-[calc(100vh-4rem)] flex flex-col pb-0" suppressHydrationWarning>
+        <div className="flex-1 flex flex-col lg:flex-row gap-4 min-h-0">
           {/* Product Grid */}
           <div className="flex-1 overflow-hidden flex flex-col min-h-0">
             <Card className="flex-1 overflow-hidden flex flex-col h-full">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 px-6 flex-shrink-0">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 px-4 flex-shrink-0">
                 <CardTitle className="text-xl sm:text-2xl">Products</CardTitle>
                 <div className="flex gap-2 items-center">
                   <Button
@@ -741,9 +744,9 @@ export default function POSPage() {
                   </Button>
                 </div>
               </CardHeader>
-              <CardContent className="flex-1 overflow-hidden flex flex-col p-6 min-h-0">
+              <CardContent className="flex-1 overflow-hidden flex flex-col p-4 min-h-0">
                 <Tabs value={activeCategory} className="flex-1 flex flex-col min-h-0" onValueChange={setActiveCategory}>
-                  <div className="space-y-6 flex-shrink-0">
+                  <div className="space-y-4 flex-shrink-0">
                     <div className="relative">
                       <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                       <Input
@@ -761,7 +764,7 @@ export default function POSPage() {
                       <TabsTrigger value="Additives">Additives</TabsTrigger>
                     </TabsList>
                   </div>
-                  <ScrollArea className="flex-1 mt-6 -mx-2 px-2">
+                  <ScrollArea className="flex-1 mt-4 -mx-2 px-2">
                     <div className="grid grid-cols-1 gap-4">
                       {activeCategory === "Oil" ? (
                         // Show oil brands with dropdown
@@ -857,8 +860,8 @@ export default function POSPage() {
 
           {/* Desktop Cart */}
           <div className="hidden lg:block lg:w-[360px] xl:w-[400px] 2xl:w-[450px]">
-            <Card className="sticky top-8 h-[calc(100vh-8rem)] flex flex-col">
-              <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
+            <Card className="h-[calc(100vh-4rem)] flex flex-col">
+              <CardHeader className="flex-row items-center justify-between space-y-0 pb-3 px-4">
                 <CardTitle>Cart</CardTitle>
                 <Button
                   variant="ghost"
@@ -869,10 +872,10 @@ export default function POSPage() {
                   Clear Cart
                 </Button>
               </CardHeader>
-              <CardContent className="flex-1 flex flex-col p-6 min-h-0">
+              <CardContent className="flex-1 flex flex-col p-4 min-h-0">
                 <div className="flex-1 overflow-hidden flex flex-col min-h-0">
-                  <ScrollArea className="flex-1 -mx-4 px-4 h-[calc(100%-8rem)]">
-                    <div className="space-y-3 pb-2">
+                  <ScrollArea className="flex-1 -mx-4 px-4 h-[calc(100%-6rem)]">
+                    <div className="space-y-2 pb-2">
                       {cart.map((item) => (
                         <CartItem
                           key={item.uniqueId}
@@ -883,8 +886,8 @@ export default function POSPage() {
                       ))}
                     </div>
                   </ScrollArea>
-                  <div className="pt-6 mt-auto border-t">
-                    <div className="space-y-2 mb-4">
+                  <div className="pt-3 mt-auto border-t">
+                    <div className="space-y-1 mb-2">
                       <div className="flex justify-between text-[clamp(1rem,2.5vw,1.125rem)] font-semibold">
                         <span>Subtotal</span>
                         <span>OMR {subtotal.toFixed(2)}</span>
@@ -913,10 +916,10 @@ export default function POSPage() {
                       </div>
                     </div>
                     
-                    <div className="space-y-2">
+                    <div className="space-y-1">
                       <Button 
                         variant="outline"
-                        className="w-full flex items-center justify-center gap-2"
+                        className="w-full h-9 flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-800 mb-2"
                         onClick={() => setIsDiscountDialogOpen(true)}
                         disabled={cart.length === 0}
                       >
@@ -925,7 +928,7 @@ export default function POSPage() {
                       </Button>
                       
                       <Button 
-                        className="w-full h-[clamp(2.5rem,6vw,2.75rem)] text-[clamp(0.875rem,2vw,1rem)]" 
+                        className="w-full h-9" 
                         disabled={cart.length === 0}
                         onClick={handleCheckout}
                       >
@@ -971,7 +974,7 @@ export default function POSPage() {
                 </CardHeader>
                 <CardContent className="flex-1 flex flex-col p-4 overflow-hidden">
                   <ScrollArea className="flex-1 -mx-4 px-4 overflow-y-auto">
-                    <div className="space-y-3 pb-4">
+                    <div className="space-y-2 pb-2">
                       {cart.map((item) => (
                         <CartItem
                           key={item.uniqueId}
@@ -982,8 +985,8 @@ export default function POSPage() {
                       ))}
                     </div>
                   </ScrollArea>
-                  <div className="mt-2 space-y-3 border-t pt-4 sticky bottom-0 bg-background w-full">
-                    <div className="space-y-2">
+                  <div className="mt-2 space-y-2 border-t pt-3 sticky bottom-0 bg-background w-full">
+                    <div className="space-y-1">
                       <div className="flex justify-between text-[clamp(1rem,2.5vw,1.125rem)] font-semibold">
                         <span>Subtotal</span>
                         <span>OMR {subtotal.toFixed(2)}</span>
@@ -1012,10 +1015,10 @@ export default function POSPage() {
                       </div>
                     </div>
                     
-                    <div className="space-y-2">
+                    <div className="space-y-1">
                       <Button 
                         variant="outline"
-                        className="w-full flex items-center justify-center gap-2"
+                        className="w-full h-9 flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-800 mb-2"
                         onClick={() => setIsDiscountDialogOpen(true)}
                         disabled={cart.length === 0}
                       >
@@ -1024,7 +1027,7 @@ export default function POSPage() {
                       </Button>
                       
                       <Button 
-                        className="w-full h-[clamp(2.5rem,6vw,2.75rem)] text-[clamp(0.875rem,2vw,1rem)]" 
+                        className="w-full h-9" 
                         disabled={cart.length === 0}
                         onClick={handleCheckout}
                       >
@@ -1094,39 +1097,43 @@ export default function POSPage() {
                               index === selectedVolumes.length - 1 && "mb-2 sm:mb-4"
                             )}
                           >
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-1.5 sm:gap-3">
+                            <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-1">
                                 <Button
                                   variant="outline"
                                   size="icon"
-                                  className="h-7 w-7 sm:h-9 sm:w-9 shrink-0"
+                                  className="h-7 w-7 shrink-0"
                                   onClick={() => handleQuantityChange(volume.size, -1)}
                                 >
-                                  <Minus className="h-3 w-3 sm:h-4 sm:w-4" />
+                                  <Minus className="h-3 w-3" />
                                 </Button>
-                                <span className="w-5 sm:w-6 text-center text-sm sm:text-base">{volume.quantity}</span>
+                                <span className="w-5 text-center text-sm">{volume.quantity}</span>
                                 <Button
                                   variant="outline"
                                   size="icon"
-                                  className="h-7 w-7 sm:h-9 sm:w-9 shrink-0"
+                                  className="h-7 w-7 shrink-0"
                                   onClick={() => handleQuantityChange(volume.size, 1)}
                                 >
-                                  <Plus className="h-3 w-3 sm:h-4 sm:w-4" />
+                                  <Plus className="h-3 w-3" />
                                 </Button>
                               </div>
-                              <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0 px-2 sm:px-3">
-                                <span className="font-medium text-sm sm:text-base">{volume.size}</span>
-                                {volume.bottleType && (
-                                  <div className="flex items-center">
-                                    {volume.bottleType === 'closed' ? (
-                                      <ClosedBottleIcon className="h-4 w-4 mr-1 text-primary" />
+                              
+                              <div className="grid grid-cols-[60px_24px_1fr] items-center min-w-0 flex-1">
+                                <span className="font-medium text-sm">{volume.size}</span>
+                                
+                                <div className="flex items-center justify-center">
+                                  {volume.bottleType && (
+                                    volume.bottleType === 'closed' ? (
+                                      <ClosedBottleIcon className="h-4 w-4 text-primary flex-shrink-0" />
                                     ) : (
-                                      <OpenBottleIcon className="h-4 w-4 mr-1 text-primary" />
-                                    )}
-                                    <span className="text-xs text-muted-foreground capitalize">{volume.bottleType} bottle</span>
-                                  </div>
-                                )}
-                                <span className="font-medium text-sm sm:text-base whitespace-nowrap">OMR {(volume.price * volume.quantity).toFixed(2)}</span>
+                                      <OpenBottleIcon className="h-4 w-4 text-primary flex-shrink-0" />
+                                    )
+                                  )}
+                                </div>
+                                
+                                <span className="font-medium text-sm text-right w-full">
+                                  OMR {(volume.price * volume.quantity).toFixed(2)}
+                                </span>
                               </div>
                             </div>
                           </div>
@@ -1235,32 +1242,34 @@ export default function POSPage() {
                           <div
                             key={filter.id}
                             className={cn(
-                              "flex items-center justify-between py-1.5",
+                              "flex items-center py-1.5",
                               index === selectedFilters.length - 1 && "mb-2 sm:mb-4"
                             )}
                           >
-                            <div className="flex items-center gap-1.5 sm:gap-3">
+                            <div className="flex items-center gap-1">
                               <Button
                                 variant="outline"
                                 size="icon"
-                                className="h-7 w-7 sm:h-9 sm:w-9 shrink-0"
+                                className="h-7 w-7 shrink-0"
                                 onClick={() => handleFilterQuantityChange(filter.id, -1)}
                               >
-                                <Minus className="h-3 w-3 sm:h-4 sm:w-4" />
+                                <Minus className="h-3 w-3" />
                               </Button>
-                              <span className="w-5 sm:w-6 text-center text-sm sm:text-base">{filter.quantity}</span>
+                              <span className="w-5 text-center text-sm">{filter.quantity}</span>
                               <Button
                                 variant="outline"
                                 size="icon"
-                                className="h-7 w-7 sm:h-9 sm:w-9 shrink-0"
+                                className="h-7 w-7 shrink-0"
                                 onClick={() => handleFilterQuantityChange(filter.id, 1)}
                               >
-                                <Plus className="h-3 w-3 sm:h-4 sm:w-4" />
+                                <Plus className="h-3 w-3" />
                               </Button>
                             </div>
-                            <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0 px-2 sm:px-3">
-                              <span className="font-medium text-sm sm:text-base line-clamp-1">{filter.name}</span>
-                              <span className="font-medium text-sm sm:text-base whitespace-nowrap">OMR {(filter.price * filter.quantity).toFixed(2)}</span>
+                            <div className="grid grid-cols-[1fr_auto] items-center gap-2 min-w-0 flex-1 ml-2">
+                              <span className="font-medium text-sm line-clamp-1">{filter.name}</span>
+                              <span className="font-medium text-sm text-right">
+                                OMR {(filter.price * filter.quantity).toFixed(2)}
+                              </span>
                             </div>
                           </div>
                         ))}
