@@ -10,46 +10,12 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Plus, Edit, Trash2, Users, User, Mail, Lock, Shield } from "lucide-react"
+import { Plus, Edit, Trash2, Users, User, Mail, Lock, Shield, Loader2 } from "lucide-react"
 import { useUser } from "../../user-context"
 import { toast } from "@/components/ui/use-toast"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-
-// User type definition
-interface UserType {
-  id: string
-  name: string
-  email: string
-  role: "admin" | "manager" | "staff"
-  avatar?: string
-  lastActive?: string
-}
-
-// Mock user data
-const mockUsers: UserType[] = [
-  {
-    id: "1",
-    name: "Admin User",
-    email: "admin@example.com",
-    role: "admin",
-    lastActive: "2023-03-15T10:30:00Z"
-  },
-  {
-    id: "2",
-    name: "Store Manager",
-    email: "manager@example.com",
-    role: "manager",
-    lastActive: "2023-03-15T09:45:00Z"
-  },
-  {
-    id: "3",
-    name: "Staff Member",
-    email: "staff@example.com",
-    role: "staff",
-    lastActive: "2023-03-15T08:15:00Z"
-  }
-]
+import { useUsers, UserType } from "@/lib/client"
 
 function UserForm({ user, onSubmit, onCancel }: { 
   user?: UserType, 
@@ -58,7 +24,9 @@ function UserForm({ user, onSubmit, onCancel }: {
 }) {
   const [name, setName] = useState(user?.name || "")
   const [email, setEmail] = useState(user?.email || "")
-  const [role, setRole] = useState<"admin" | "manager" | "staff">(user?.role || "staff")
+  const [role, setRole] = useState(user?.role || "Staff")
+  const [phone, setPhone] = useState(user?.phone || "")
+  const [status, setStatus] = useState<"active" | "inactive">(user?.status || "active")
   const [password, setPassword] = useState("")
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -67,6 +35,8 @@ function UserForm({ user, onSubmit, onCancel }: {
       name,
       email,
       role,
+      phone,
+      status,
       avatar: user?.avatar
     })
   }
@@ -97,15 +67,39 @@ function UserForm({ user, onSubmit, onCancel }: {
       </div>
       
       <div className="space-y-2">
+        <Label htmlFor="phone">Phone</Label>
+        <Input 
+          id="phone" 
+          value={phone} 
+          onChange={(e) => setPhone(e.target.value)} 
+          placeholder="+968 9123 4567"
+        />
+      </div>
+      
+      <div className="space-y-2">
         <Label htmlFor="role">Role</Label>
-        <Select value={role} onValueChange={(value: "admin" | "manager" | "staff") => setRole(value)}>
+        <Select value={role} onValueChange={setRole}>
           <SelectTrigger id="role">
             <SelectValue placeholder="Select role" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="admin">Admin</SelectItem>
-            <SelectItem value="manager">Manager</SelectItem>
-            <SelectItem value="staff">Staff</SelectItem>
+            <SelectItem value="Manager">Manager</SelectItem>
+            <SelectItem value="Sales Associate">Sales Associate</SelectItem>
+            <SelectItem value="Accountant">Accountant</SelectItem>
+            <SelectItem value="Inventory Manager">Inventory Manager</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      
+      <div className="space-y-2">
+        <Label htmlFor="status">Status</Label>
+        <Select value={status} onValueChange={(value: "active" | "inactive") => setStatus(value)}>
+          <SelectTrigger id="status">
+            <SelectValue placeholder="Select status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="active">Active</SelectItem>
+            <SelectItem value="inactive">Inactive</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -138,12 +132,14 @@ function UserForm({ user, onSubmit, onCancel }: {
 
 function getRoleBadge(role: string) {
   switch (role) {
-    case "admin":
-      return <Badge className="bg-blue-500">Admin</Badge>
-    case "manager":
-      return <Badge className="bg-green-500">Manager</Badge>
-    case "staff":
-      return <Badge variant="outline">Staff</Badge>
+    case "Manager":
+      return <Badge className="bg-blue-500">Manager</Badge>
+    case "Sales Associate":
+      return <Badge className="bg-green-500">Sales</Badge>
+    case "Accountant":
+      return <Badge variant="outline" className="bg-purple-500">Accountant</Badge>
+    case "Inventory Manager":
+      return <Badge className="bg-amber-500">Inventory</Badge>
     default:
       return <Badge variant="outline">{role}</Badge>
   }
@@ -151,6 +147,8 @@ function getRoleBadge(role: string) {
 
 function formatDate(dateString?: string) {
   if (!dateString) return "Never"
+  if (dateString.includes("now") || dateString.includes("ago")) return dateString
+  
   const date = new Date(dateString)
   return new Intl.DateTimeFormat('en-US', {
     dateStyle: 'medium',
@@ -160,109 +158,150 @@ function formatDate(dateString?: string) {
 
 function UsersContent() {
   const { currentUser } = useUser()
-  const [users, setUsers] = useState<UserType[]>(mockUsers)
+  const { users, isLoading, error, addUser, updateUser, deleteUser } = useUsers()
+  
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [currentUser2, setCurrentUser2] = useState<UserType | null>(null)
 
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="ml-2">Loading users...</span>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-8 text-red-500">
+        Error loading users: {error.message}
+      </div>
+    )
+  }
+
   if (currentUser?.role !== "admin") {
     return <div className="text-center py-8">You don&apos;t have permission to access this page.</div>
   }
 
-  const handleAddUser = (user: Omit<UserType, "id" | "lastActive">) => {
-    const newUser: UserType = {
-      ...user,
-      id: Math.random().toString(36).substring(2, 9),
-      lastActive: new Date().toISOString()
+  const handleAddUser = async (userData: Omit<UserType, "id" | "lastActive">) => {
+    const result = await addUser(userData)
+    if (result) {
+      setIsAddDialogOpen(false)
+      toast({
+        title: "User added",
+        description: `${userData.name} has been added successfully.`
+      })
+    } else {
+      toast({
+        title: "Error",
+        description: "Failed to add user. Please try again.",
+        variant: "destructive"
+      })
     }
-    setUsers([...users, newUser])
-    setIsAddDialogOpen(false)
-    toast({
-      title: "User added",
-      description: `${user.name} has been added successfully.`
-    })
   }
 
-  const handleUpdateUser = (user: Omit<UserType, "id" | "lastActive">) => {
+  const handleUpdateUser = async (userData: Omit<UserType, "id" | "lastActive">) => {
     if (!currentUser2) return
     
-    const updatedUsers = users.map(u => 
-      u.id === currentUser2.id ? { ...u, ...user } : u
-    )
-    setUsers(updatedUsers)
-    setIsEditDialogOpen(false)
-    setCurrentUser2(null)
-    toast({
-      title: "User updated",
-      description: `${user.name} has been updated successfully.`
-    })
+    const updatedUser = {
+      ...currentUser2,
+      ...userData
+    }
+    
+    const success = await updateUser(updatedUser)
+    
+    if (success) {
+      setIsEditDialogOpen(false)
+      setCurrentUser2(null)
+      toast({
+        title: "User updated",
+        description: `${userData.name} has been updated successfully.`
+      })
+    } else {
+      toast({
+        title: "Error",
+        description: "Failed to update user. Please try again.",
+        variant: "destructive"
+      })
+    }
   }
 
-  const handleDeleteUser = () => {
+  const handleDeleteUser = async () => {
     if (!currentUser2) return
     
-    const updatedUsers = users.filter(u => u.id !== currentUser2.id)
-    setUsers(updatedUsers)
-    setIsDeleteDialogOpen(false)
-    setCurrentUser2(null)
-    toast({
-      title: "User deleted",
-      description: `${currentUser2.name} has been deleted successfully.`
-    })
+    const success = await deleteUser(currentUser2.id)
+    
+    if (success) {
+      setIsDeleteDialogOpen(false)
+      setCurrentUser2(null)
+      toast({
+        title: "User deleted",
+        description: `The user has been deleted successfully.`
+      })
+    } else {
+      toast({
+        title: "Error",
+        description: "Failed to delete user. Please try again.",
+        variant: "destructive"
+      })
+    }
   }
 
   return (
-    <div className="container py-6">
-      <PageHeader 
-        title="User Management" 
-        description="Manage user accounts and permissions"
-        icon={<Users className="h-6 w-6" />}
-      />
-      
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-xl font-semibold">Users</h2>
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold">Users</h2>
+        
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
+            <Button className="ml-auto">
+              <Plus className="mr-2 h-4 w-4" />
               Add User
             </Button>
           </DialogTrigger>
-          <DialogContent className="w-[90%] rounded-lg">
+          <DialogContent>
             <DialogHeader>
               <DialogTitle>Add New User</DialogTitle>
               <DialogDescription>
-                Fill in the details to add a new user.
+                Add a new user to the system and set their permissions.
               </DialogDescription>
             </DialogHeader>
-            <UserForm 
-              onSubmit={handleAddUser} 
-              onCancel={() => setIsAddDialogOpen(false)} 
-            />
+            <UserForm onSubmit={handleAddUser} onCancel={() => setIsAddDialogOpen(false)} />
           </DialogContent>
         </Dialog>
       </div>
       
       <Card>
-        <CardContent className="p-0">
+        <CardHeader>
+          <CardTitle>User Management</CardTitle>
+          <CardDescription>
+            Manage system users and their access permissions
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>User</TableHead>
                 <TableHead>Role</TableHead>
+                <TableHead>Status</TableHead>
                 <TableHead>Last Active</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {users.map(user => (
+              {users.map((user) => (
                 <TableRow key={user.id}>
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <Avatar>
                         <AvatarImage src={user.avatar} />
-                        <AvatarFallback>{user.name.substring(0, 2).toUpperCase()}</AvatarFallback>
+                        <AvatarFallback className="bg-primary text-primary-foreground">
+                          {user.name.split(' ').map(name => name[0]).join('')}
+                        </AvatarFallback>
                       </Avatar>
                       <div>
                         <div className="font-medium">{user.name}</div>
@@ -271,67 +310,38 @@ function UsersContent() {
                     </div>
                   </TableCell>
                   <TableCell>{getRoleBadge(user.role)}</TableCell>
+                  <TableCell>
+                    {user.status === "active" ? (
+                      <Badge className="bg-green-500">Active</Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-red-500 border-red-500">Inactive</Badge>
+                    )}
+                  </TableCell>
                   <TableCell>{formatDate(user.lastActive)}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
-                      <Dialog open={isEditDialogOpen && currentUser2?.id === user.id} onOpenChange={(open) => {
-                        setIsEditDialogOpen(open)
-                        if (!open) setCurrentUser2(null)
-                      }}>
-                        <DialogTrigger asChild>
-                          <Button variant="outline" size="icon" onClick={() => setCurrentUser2(user)}>
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="w-[90%] rounded-lg">
-                          <DialogHeader>
-                            <DialogTitle>Edit User</DialogTitle>
-                            <DialogDescription>
-                              Update the user information below.
-                            </DialogDescription>
-                          </DialogHeader>
-                          {currentUser2 && (
-                            <UserForm 
-                              user={currentUser2} 
-                              onSubmit={handleUpdateUser} 
-                              onCancel={() => {
-                                setIsEditDialogOpen(false)
-                                setCurrentUser2(null)
-                              }} 
-                            />
-                          )}
-                        </DialogContent>
-                      </Dialog>
-                      
-                      <Dialog open={isDeleteDialogOpen && currentUser2?.id === user.id} onOpenChange={(open) => {
-                        setIsDeleteDialogOpen(open)
-                        if (!open) setCurrentUser2(null)
-                      }}>
-                        <DialogTrigger asChild>
-                          <Button variant="outline" size="icon" onClick={() => setCurrentUser2(user)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="w-[90%] rounded-lg">
-                          <DialogHeader>
-                            <DialogTitle>Delete User</DialogTitle>
-                            <DialogDescription>
-                              Are you sure you want to delete this user? This action cannot be undone.
-                            </DialogDescription>
-                          </DialogHeader>
-                          <DialogFooter>
-                            <Button variant="outline" onClick={() => {
-                              setIsDeleteDialogOpen(false)
-                              setCurrentUser2(null)
-                            }}>
-                              Cancel
-                            </Button>
-                            <Button variant="destructive" onClick={handleDeleteUser}>
-                              Delete
-                            </Button>
-                          </DialogFooter>
-                        </DialogContent>
-                      </Dialog>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => {
+                          setCurrentUser2(user)
+                          setIsEditDialogOpen(true)
+                        }}
+                      >
+                        <Edit className="h-4 w-4" />
+                        <span className="sr-only">Edit</span>
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => {
+                          setCurrentUser2(user)
+                          setIsDeleteDialogOpen(true)
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        <span className="sr-only">Delete</span>
+                      </Button>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -340,6 +350,46 @@ function UsersContent() {
           </Table>
         </CardContent>
       </Card>
+      
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit User</DialogTitle>
+            <DialogDescription>
+              Update user details and permissions
+            </DialogDescription>
+          </DialogHeader>
+          {currentUser2 && (
+            <UserForm 
+              user={currentUser2} 
+              onSubmit={handleUpdateUser} 
+              onCancel={() => {
+                setIsEditDialogOpen(false)
+                setCurrentUser2(null)
+              }} 
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Deletion</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this user? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteUser}>
+              Delete User
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
@@ -347,6 +397,11 @@ function UsersContent() {
 export default function UsersPage() {
   return (
     <Layout>
+      <PageHeader 
+        title="User Management" 
+        description="Manage system users and permissions" 
+        icon={<Users className="h-6 w-6" />}
+      />
       <UsersContent />
     </Layout>
   )

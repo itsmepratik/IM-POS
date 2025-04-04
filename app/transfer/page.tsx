@@ -44,6 +44,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import Link from "next/link"
 import { useTransfer, InventoryItem } from "@/hooks/use-transfer"
+import { useTransferLocations } from "@/lib/hooks/data/useTransferLocations"
 
 // Define interfaces for our data
 interface Location {
@@ -73,22 +74,10 @@ interface ConvertedInventoryItem {
   price: number;
 }
 
-// Mock data for locations
-const locations: Location[] = [
-  { id: "loc1", name: "Main Warehouse" },
-  { id: "loc2", name: "Downtown Shop" },
-  { id: "loc3", name: "Westside Location" },
-  { id: "loc4", name: "Northside Branch" },
-  { id: "loc5", name: "East Warehouse" },
-  { id: "loc6", name: "South Distribution Center" },
-]
-
-// Categories for filtering
-const categories = ["All Categories", "Oil", "Filters", "Fluids", "Accessories"]
-
 export default function TransferPage() {
   const { toast } = useToast()
   const { items, refreshItems } = useTransfer() // Get items from the hook
+  const { locations, categories, isLoading: locationsLoading } = useTransferLocations()
   const [hasMounted, setHasMounted] = useState(false)
   
   // Use useEffect to refresh items when the component mounts

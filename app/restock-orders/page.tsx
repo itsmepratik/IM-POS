@@ -25,6 +25,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { useRestockOrders } from "@/lib/hooks/data/useRestockOrders"
 
 interface TransferOrder {
   id: string
@@ -116,8 +117,6 @@ export default function RestockOrdersPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [filterStatus, setFilterStatus] = useState("All...")
   const [expandedOrders, setExpandedOrders] = useState<string[]>([])
-  const [transfers, setTransfers] = useState<TransferOrder[]>([])
-  const [isLoading, setIsLoading] = useState(true)
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false)
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false)
   const [selectedTransferId, setSelectedTransferId] = useState<string | null>(null)
@@ -125,15 +124,8 @@ export default function RestockOrdersPage() {
   const [newStatus, setNewStatus] = useState<"pending" | "confirmed" | "rejected">("pending")
   const { toast } = useToast()
 
-  // Load mock data with a simulated API delay
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setTransfers(initialMockTransfers)
-      setIsLoading(false)
-    }, 800)
-    
-    return () => clearTimeout(timer)
-  }, [])
+  // Use the hook instead of direct mock data
+  const { transfers, isLoading, updateTransferStatus } = useRestockOrders()
 
   // Filter transfers based on search query and status
   const filteredTransfers = transfers.filter(transfer => {
@@ -313,13 +305,7 @@ export default function RestockOrdersPage() {
     if (!selectedTransferId) return
     
     // Update the transfer status in our state
-    setTransfers(prev => 
-      prev.map(transfer => 
-        transfer.id === selectedTransferId 
-          ? { ...transfer, status: "rejected" } 
-          : transfer
-      )
-    )
+    updateTransferStatus(selectedTransferId, "rejected")
     
     // Show success toast
     toast({
@@ -337,13 +323,7 @@ export default function RestockOrdersPage() {
     if (!selectedTransferId) return
     
     // Update the transfer status in our state
-    setTransfers(prev => 
-      prev.map(transfer => 
-        transfer.id === selectedTransferId 
-          ? { ...transfer, status: "confirmed" } 
-          : transfer
-      )
-    )
+    updateTransferStatus(selectedTransferId, "confirmed")
     
     // Show success toast
     toast({
@@ -361,13 +341,7 @@ export default function RestockOrdersPage() {
     if (!selectedTransferId || !newStatus) return
     
     // Update the transfer status in our state
-    setTransfers(prev => 
-      prev.map(transfer => 
-        transfer.id === selectedTransferId 
-          ? { ...transfer, status: newStatus } 
-          : transfer
-      )
-    )
+    updateTransferStatus(selectedTransferId, newStatus)
     
     // Show success toast
     toast({

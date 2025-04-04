@@ -23,7 +23,12 @@ import {
   Printer,
   Smartphone,
   Ticket,
-  RotateCcw
+  RotateCcw,
+  ExternalLink,
+  ChevronRight,
+  PercentIcon,
+  Scissors,
+  Calculator
 } from "lucide-react"
 import {
   Dialog,
@@ -44,11 +49,26 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 import { motion } from "framer-motion"
 import Image from "next/image"
 import { OpenBottleIcon, ClosedBottleIcon } from "@/components/ui/bottle-icons"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Label } from "@/components/ui/label"
+import { useToast } from "@/components/ui/use-toast"
+import { format } from "date-fns"
 
 // Import the RefundDialog component
 import { RefundDialog } from "./components/refund-dialog"
@@ -358,6 +378,12 @@ export default function POSPage() {
   const [showOtherOptions, setShowOtherOptions] = useState(false)
   const [isRefundDialogOpen, setIsRefundDialogOpen] = useState(false)
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false)
+  
+  // Add discount state
+  const [isDiscountDialogOpen, setIsDiscountDialogOpen] = useState(false)
+  const [discountType, setDiscountType] = useState<'percentage' | 'fixed'>('percentage')
+  const [discountValue, setDiscountValue] = useState<number>(0)
+  const [appliedDiscount, setAppliedDiscount] = useState<{type: 'percentage' | 'fixed', value: number} | null>(null)
 
   // Add a state to track if bottle type dialog is open
   const [showBottleTypeDialog, setShowBottleTypeDialog] = useState(false)
@@ -546,9 +572,25 @@ export default function POSPage() {
         }), [activeCategory, searchQuery]
   )
 
-  const total = useMemo(() => 
+  // Calculate total with discount
+  const subtotal = useMemo(() => 
     cart.reduce((sum, item) => sum + item.price * item.quantity, 0),
     [cart]
+  )
+  
+  const discountAmount = useMemo(() => {
+    if (!appliedDiscount) return 0
+    
+    if (appliedDiscount.type === 'percentage') {
+      return subtotal * (appliedDiscount.value / 100)
+    } else {
+      return Math.min(appliedDiscount.value, subtotal) // Don't allow discount larger than subtotal
+    }
+  }, [subtotal, appliedDiscount])
+  
+  const total = useMemo(() => 
+    subtotal - discountAmount,
+    [subtotal, discountAmount]
   )
 
   const handleFilterClick = (filter: Product) => {
@@ -616,8 +658,15 @@ export default function POSPage() {
 
   // Add this new function to handle final payment completion
   const handleFinalizePayment = () => {
+    // Make a copy of the appliedDiscount before resetting state
+    const discountForReceipt = appliedDiscount ? {...appliedDiscount} : null;
+    
     setIsCashierSelectOpen(false);
+    // Pass the receipt with the copied discount
     setShowSuccess(true);
+    
+    // We'll reset other states but keep the discount for the receipt
+    console.log("Finalizing payment with discount:", discountForReceipt);
   }
 
   // Replace the handleImportCustomers function definition with this one
@@ -640,6 +689,27 @@ export default function POSPage() {
       )
     })
   }
+
+  // Function to apply discount
+  const applyDiscount = () => {
+    console.log("Applying discount:", discountType, discountValue);
+    setAppliedDiscount({
+      type: discountType,
+      value: discountValue
+    })
+    setIsDiscountDialogOpen(false)
+  }
+
+  // Function to remove discount
+  const removeDiscount = () => {
+    setAppliedDiscount(null)
+    setDiscountValue(0)
+  }
+
+  // Debug discount state
+  useEffect(() => {
+    console.log("Main component discount state:", appliedDiscount);
+  }, [appliedDiscount]);
 
   return (
     <Layout>
@@ -785,15 +855,14 @@ export default function POSPage() {
             </Card>
           </div>
 
-          {/* Cart - Desktop and Tablet */}
-          <div className="w-full lg:w-[400px] hidden lg:flex flex-col min-h-0">
-            <Card className="flex-1 flex flex-col h-full">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 px-6 flex-shrink-0">
-                <CardTitle className="text-xl">Cart</CardTitle>
+          {/* Desktop Cart */}
+          <div className="hidden lg:block lg:w-[360px] xl:w-[400px] 2xl:w-[450px]">
+            <Card className="sticky top-8 h-[calc(100vh-8rem)] flex flex-col">
+              <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
+                <CardTitle>Cart</CardTitle>
                 <Button
                   variant="ghost"
-                  size="sm"
-                  className="text-[clamp(0.875rem,2vw,1rem)] text-muted-foreground hover:text-destructive"
+                  className="text-muted-foreground hover:text-destructive"
                   onClick={() => setShowClearCartDialog(true)}
                   disabled={cart.length === 0}
                 >
@@ -815,25 +884,61 @@ export default function POSPage() {
                     </div>
                   </ScrollArea>
                   <div className="pt-6 mt-auto border-t">
-                    <div className="flex justify-between text-[clamp(1rem,2.5vw,1.125rem)] font-semibold mb-4">
-                      <span>Total</span>
-                      <span>OMR {total.toFixed(2)}</span>
+                    <div className="space-y-2 mb-4">
+                      <div className="flex justify-between text-[clamp(1rem,2.5vw,1.125rem)] font-semibold">
+                        <span>Subtotal</span>
+                        <span>OMR {subtotal.toFixed(2)}</span>
+                      </div>
+                      
+                      {appliedDiscount && (
+                        <div className="flex justify-between text-[clamp(0.875rem,2vw,1rem)] text-muted-foreground">
+                          <div className="flex items-center gap-1">
+                            <span>Discount {appliedDiscount.type === 'percentage' ? `(${appliedDiscount.value}%)` : '(Fixed)'}</span>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-5 w-5"
+                              onClick={removeDiscount}
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </div>
+                          <span>- OMR {discountAmount.toFixed(2)}</span>
+                        </div>
+                      )}
+                      
+                      <div className="flex justify-between text-[clamp(1rem,2.5vw,1.125rem)] font-semibold">
+                        <span>Total</span>
+                        <span>OMR {total.toFixed(2)}</span>
+                      </div>
                     </div>
                     
-                    <Button 
-                      className="w-full h-[clamp(2.5rem,6vw,2.75rem)] text-[clamp(0.875rem,2vw,1rem)]" 
-                      disabled={cart.length === 0}
-                      onClick={handleCheckout}
-                    >
-                      Checkout
-                    </Button>
+                    <div className="space-y-2">
+                      <Button 
+                        variant="outline"
+                        className="w-full flex items-center justify-center gap-2"
+                        onClick={() => setIsDiscountDialogOpen(true)}
+                        disabled={cart.length === 0}
+                      >
+                        <Scissors className="h-4 w-4" />
+                        {appliedDiscount ? 'Edit Discount' : 'Add Discount'}
+                      </Button>
+                      
+                      <Button 
+                        className="w-full h-[clamp(2.5rem,6vw,2.75rem)] text-[clamp(0.875rem,2vw,1rem)]" 
+                        disabled={cart.length === 0}
+                        onClick={handleCheckout}
+                      >
+                        Checkout
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </CardContent>
             </Card>
           </div>
 
-          {/* Cart - Mobile */}
+          {/* Mobile Cart */}
           <div
             className={cn(
               "fixed inset-0 bg-background/80 backdrop-blur-sm z-50 lg:hidden transition-all duration-300",
@@ -878,18 +983,54 @@ export default function POSPage() {
                     </div>
                   </ScrollArea>
                   <div className="mt-2 space-y-3 border-t pt-4 sticky bottom-0 bg-background w-full">
-                    <div className="flex justify-between text-[clamp(1rem,2.5vw,1.125rem)] font-semibold">
-                      <span>Total</span>
-                      <span>OMR {total.toFixed(2)}</span>
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-[clamp(1rem,2.5vw,1.125rem)] font-semibold">
+                        <span>Subtotal</span>
+                        <span>OMR {subtotal.toFixed(2)}</span>
+                      </div>
+                      
+                      {appliedDiscount && (
+                        <div className="flex justify-between text-[clamp(0.875rem,2vw,1rem)] text-muted-foreground">
+                          <div className="flex items-center gap-1">
+                            <span>Discount {appliedDiscount.type === 'percentage' ? `(${appliedDiscount.value}%)` : '(Fixed)'}</span>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-5 w-5"
+                              onClick={removeDiscount}
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </div>
+                          <span>- OMR {discountAmount.toFixed(2)}</span>
+                        </div>
+                      )}
+                      
+                      <div className="flex justify-between text-[clamp(1rem,2.5vw,1.125rem)] font-semibold">
+                        <span>Total</span>
+                        <span>OMR {total.toFixed(2)}</span>
+                      </div>
                     </div>
                     
-                    <Button 
-                      className="w-full h-[clamp(2.5rem,6vw,2.75rem)] text-[clamp(0.875rem,2vw,1rem)]" 
-                      disabled={cart.length === 0}
-                      onClick={handleCheckout}
-                    >
-                      Checkout
-                    </Button>
+                    <div className="space-y-2">
+                      <Button 
+                        variant="outline"
+                        className="w-full flex items-center justify-center gap-2"
+                        onClick={() => setIsDiscountDialogOpen(true)}
+                        disabled={cart.length === 0}
+                      >
+                        <Scissors className="h-4 w-4" />
+                        {appliedDiscount ? 'Edit Discount' : 'Add Discount'}
+                      </Button>
+                      
+                      <Button 
+                        className="w-full h-[clamp(2.5rem,6vw,2.75rem)] text-[clamp(0.875rem,2vw,1rem)]" 
+                        disabled={cart.length === 0}
+                        onClick={handleCheckout}
+                      >
+                        Checkout
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -1439,10 +1580,14 @@ export default function POSPage() {
           open={showSuccess} 
           onOpenChange={(open) => {
             if (!open) {
+              console.log("Closing success dialog, current discount:", appliedDiscount);
               setShowSuccess(false);
               setShowCart(false);
               setCart([]);
               setSelectedPaymentMethod(null);
+              // Reset discount state AFTER showing receipt
+              setAppliedDiscount(null);
+              setDiscountValue(0);
             }
           }}
         >
@@ -1484,19 +1629,24 @@ export default function POSPage() {
               {/* Receipt will appear after 1 second */}
               <div className="w-full">
                 <ReceiptComponent 
-                  key={`receipt-${new Date().getTime()}`}
+                  key={`receipt-${new Date().getTime()}-${JSON.stringify(appliedDiscount)}`}
                   cart={cart} 
                   paymentMethod={selectedPaymentMethod || 'cash'} 
                   cashier={selectedCashier ?? undefined}
+                  discount={appliedDiscount}
                 />
                 
                 <Button 
                   variant="outline"
                   onClick={() => {
+                    console.log("Close button clicked, resetting state");
                     setShowSuccess(false);
                     setShowCart(false);
                     setCart([]);
                     setSelectedPaymentMethod(null);
+                    // Reset discount state explicitly here
+                    setAppliedDiscount(null);
+                    setDiscountValue(0);
                   }}
                   className="w-full mt-4"
                 >
@@ -1507,12 +1657,114 @@ export default function POSPage() {
           </DialogContentWithoutClose>
         </Dialog>
       )}
+
+      {/* Discount Dialog */}
+      <Dialog open={isDiscountDialogOpen} onOpenChange={setIsDiscountDialogOpen}>
+        <DialogContent className="w-[90%] max-w-[400px] p-6 rounded-lg">
+          <DialogHeader>
+            <DialogTitle className="text-center text-xl">Apply Discount</DialogTitle>
+            <DialogDescription className="text-center">
+              Select discount type and enter value
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-6 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <Button
+                variant={discountType === 'percentage' ? 'default' : 'outline'}
+                className={cn(
+                  "h-20 flex flex-col items-center justify-center gap-2",
+                  discountType === 'percentage' && "ring-2 ring-primary"
+                )}
+                onClick={() => setDiscountType('percentage')}
+              >
+                <PercentIcon className="w-6 h-6" />
+                <span>Percentage (%)</span>
+              </Button>
+              <Button
+                variant={discountType === 'fixed' ? 'default' : 'outline'}
+                className={cn(
+                  "h-20 flex flex-col items-center justify-center gap-2",
+                  discountType === 'fixed' && "ring-2 ring-primary"
+                )}
+                onClick={() => setDiscountType('fixed')}
+              >
+                <Calculator className="w-6 h-6" />
+                <span>Fixed (OMR)</span>
+              </Button>
+            </div>
+            
+            <div className="space-y-3">
+              <Label htmlFor="discount-value">
+                {discountType === 'percentage' ? 'Discount percentage' : 'Discount amount (OMR)'}
+              </Label>
+              <Input
+                id="discount-value"
+                type="number"
+                placeholder={discountType === 'percentage' ? "e.g. 10" : "e.g. 5.00"}
+                min="0"
+                step={discountType === 'percentage' ? "1" : "0.1"}
+                max={discountType === 'percentage' ? "100" : undefined}
+                value={discountValue === 0 ? '' : discountValue}
+                onChange={(e) => setDiscountValue(parseFloat(e.target.value) || 0)}
+                autoFocus
+              />
+              
+              <div className="text-sm text-muted-foreground">
+                {discountType === 'percentage' 
+                  ? `This will reduce the total by ${((subtotal * (discountValue / 100)) || 0).toFixed(2)} OMR` 
+                  : `This will reduce the total by ${Math.min(discountValue, subtotal).toFixed(2)} OMR`}
+              </div>
+            </div>
+          </div>
+          
+          <DialogFooter className="flex flex-col gap-2 sm:flex-row">
+            <Button 
+              variant="outline" 
+              className="flex-1"
+              onClick={() => setIsDiscountDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button 
+              className="flex-1"
+              onClick={applyDiscount}
+              disabled={discountValue <= 0}
+            >
+              Apply Discount
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Layout>
   )
 }
 
 // Add this component at the end of the file, before the final export default
-const ReceiptComponent = ({ cart, paymentMethod, cashier }: { cart: CartItem[], paymentMethod: string, cashier?: string }) => {
+const ReceiptComponent = ({ 
+  cart, 
+  paymentMethod, 
+  cashier,
+  discount
+}: { 
+  cart: CartItem[], 
+  paymentMethod: string, 
+  cashier?: string,
+  discount?: {type: 'percentage' | 'fixed', value: number} | null 
+}) => {
+  console.log("ReceiptComponent mounted with discount:", discount);
+  
+  // Save the discount value in component state to prevent it from being lost
+  const [localDiscount, setLocalDiscount] = useState(discount);
+  
+  // Update localDiscount when prop changes
+  useEffect(() => {
+    if (discount) {
+      console.log("Updating local discount from props:", discount);
+      setLocalDiscount(discount);
+    }
+  }, [discount]);
+  
   const [showReceipt, setShowReceipt] = useState(false);
   const receiptRef = useRef<HTMLDivElement>(null);
   
@@ -1547,10 +1799,26 @@ const ReceiptComponent = ({ cart, paymentMethod, cashier }: { cart: CartItem[], 
       setShowReceipt(true);
     }, 1000);
     
+    // Log discount information if present
+    const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    console.log("Receipt useEffect - discount value:", localDiscount);
+    console.log("Receipt subtotal:", subtotal);
+    if (localDiscount) {
+      console.log('Receipt displaying discount:', {
+        type: localDiscount.type, 
+        value: localDiscount.value,
+        calculatedAmount: localDiscount.type === 'percentage' ? 
+          subtotal * (localDiscount.value / 100) : 
+          Math.min(localDiscount.value, subtotal)
+      });
+    }
+    
     return () => clearTimeout(timer);
-  }, []);
+  }, [cart, localDiscount]);
   
   const handlePrint = useCallback(() => {
+    console.log("Print triggered with discount:", localDiscount);
+    
     const content = receiptRef.current;
     if (!content) return;
     
@@ -1562,9 +1830,16 @@ const ReceiptComponent = ({ cart, paymentMethod, cashier }: { cart: CartItem[], 
     
     // Calculate subtotal
     const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    
+    // Calculate discount if applicable
+    const discountAmount = localDiscount ? 
+      (localDiscount.type === 'percentage' ? subtotal * (localDiscount.value / 100) : Math.min(localDiscount.value, subtotal)) : 0;
+    
+    console.log("Print window calculations:", { subtotal, discountAmount, discount: localDiscount });
+    
     // No VAT in this example (0%)
     const vat = 0;
-    const total = subtotal;
+    const total = subtotal - discountAmount;
     
     const htmlContent = `
       <!DOCTYPE html>
@@ -1695,6 +1970,14 @@ const ReceiptComponent = ({ cart, paymentMethod, cashier }: { cart: CartItem[], 
                 size: 80mm auto;
               }
             }
+            .receipt-summary .discount-row {
+              color: #22c55e;
+              font-weight: bold;
+            }
+            .receipt-summary .discount-row td {
+              color: #22c55e;
+              font-weight: bold;
+            }
           </style>
         </head>
         <body>
@@ -1739,6 +2022,11 @@ const ReceiptComponent = ({ cart, paymentMethod, cashier }: { cart: CartItem[], 
                   <td>Total w/o VAT</td>
                   <td class="total-amount">OMR ${subtotal.toFixed(2)}</td>
                 </tr>
+                ${localDiscount ? `
+                <tr class="discount-row" style="color: #22c55e; font-weight: bold;">
+                  <td style="color: #22c55e; font-weight: bold;">Discount ${localDiscount.type === 'percentage' ? `(${localDiscount.value}%)` : '(Fixed)'}</td>
+                  <td class="total-amount" style="color: #22c55e; font-weight: bold;">- OMR ${discountAmount.toFixed(2)}</td>
+                </tr>` : '<!-- No discount applied -->'}
                 <tr>
                   <td>VAT</td>
                   <td class="total-amount">OMR ${vat.toFixed(2)}</td>
@@ -1788,14 +2076,19 @@ const ReceiptComponent = ({ cart, paymentMethod, cashier }: { cart: CartItem[], 
         printWindow.close();
       }
     }, 500);
-  }, [cart, paymentMethod, receiptData, cashier]);
+  }, [cart, paymentMethod, receiptData, cashier, localDiscount]);
   
   if (!showReceipt || !receiptData.receiptNumber) return null;
   
   // Calculate totals
   const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  
+  // Calculate discount amount if applicable
+  const discountAmount = localDiscount ? 
+    (localDiscount.type === 'percentage' ? subtotal * (localDiscount.value / 100) : Math.min(localDiscount.value, subtotal)) : 0;
+  
   const vat = 0; // No VAT in this example
-  const total = subtotal;
+  const total = subtotal - discountAmount;
   const itemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
   
   // Format payment method name for display
@@ -1860,6 +2153,12 @@ const ReceiptComponent = ({ cart, paymentMethod, cashier }: { cart: CartItem[], 
               <span>Total w/o VAT</span>
               <span>OMR {subtotal.toFixed(2)}</span>
             </div>
+            {localDiscount && (
+              <div className="flex justify-between text-xs font-semibold text-green-600">
+                <span>Discount {localDiscount.type === 'percentage' ? `(${localDiscount.value}%)` : '(Fixed)'}</span>
+                <span>- OMR {discountAmount.toFixed(2)}</span>
+              </div>
+            )}
             <div className="flex justify-between text-xs">
               <span>VAT</span>
               <span>OMR {vat.toFixed(2)}</span>
@@ -1873,6 +2172,7 @@ const ReceiptComponent = ({ cart, paymentMethod, cashier }: { cart: CartItem[], 
           <div className="text-center text-xs text-gray-600 border-t border-dashed pt-2">
             <p>Number of Items: {itemCount}</p>
             <p>Payment Method: {getFormattedPaymentMethod(paymentMethod)}</p>
+            {cashier && <p>Cashier: {cashier}</p>}
             <p>Keep this Invoice for your Exchanges</p>
             <p className="text-xs text-right text-gray-600">احتفظ بهذه الفاتورة للتبديل</p>
             <p>Exchange with in 15 Days</p>

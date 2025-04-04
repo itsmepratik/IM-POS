@@ -2,15 +2,7 @@
 
 import type React from "react"
 import { createContext, useContext, useState, useCallback, useEffect } from "react"
-
-export interface Branch {
-  id: string
-  name: string
-  location?: string
-  manager?: string
-  phone?: string
-  email?: string
-}
+import { useBranchData, Branch } from "@/lib/hooks/data/useBranchData"
 
 interface BranchContextType {
   branches: Branch[]
@@ -19,6 +11,7 @@ interface BranchContextType {
   addBranch: (branch: Branch) => void
   updateBranch: (branch: Branch) => void
   deleteBranch: (id: string) => void
+  isLoading: boolean
 }
 
 const BranchContext = createContext<BranchContextType | undefined>(undefined)
@@ -31,35 +24,31 @@ export const useBranch = () => {
   return context
 }
 
+export { type Branch }
+
 export const BranchProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Mock branch data
-  const initialBranches: Branch[] = [
-    { id: "main", name: "Main (Sanaya)", location: "Muscat", manager: "Ahmed Al-Balushi", phone: "+968 9123 4567", email: "main@hautomotives.com" },
-    { id: "branch1", name: "Hafith", location: "Saham", manager: "Mohammed Al-Farsi", phone: "+968 9234 5678", email: "saham@hautomotives.com" },
-    { id: "branch2", name: "Abu-Dhurus", location: "Sohar", manager: "Fatima Al-Zadjali", phone: "+968 9345 6789", email: "sohar@hautomotives.com" },
-  ]
+  const { branches, isLoading, addBranch: addBranchData, updateBranch: updateBranchData, deleteBranch: deleteBranchData } = useBranchData()
+  const [currentBranch, setCurrentBranchState] = useState<Branch | null>(null)
 
-  const [branches, setBranches] = useState<Branch[]>(initialBranches)
-  const [currentBranch, setCurrentBranchState] = useState<Branch | null>(initialBranches[0])
-
-  // Load branches from localStorage on mount
+  // Set current branch when branches load or change
   useEffect(() => {
-    const savedBranches = localStorage.getItem("branches")
-    const savedCurrentBranch = localStorage.getItem("currentBranch")
-    
-    if (savedBranches) {
-      setBranches(JSON.parse(savedBranches))
+    if (branches.length > 0 && !currentBranch) {
+      // Try to load from localStorage first
+      const savedCurrentBranch = localStorage.getItem("currentBranch")
+      
+      if (savedCurrentBranch) {
+        const parsedBranch = JSON.parse(savedCurrentBranch)
+        // Verify the branch still exists
+        if (branches.some(b => b.id === parsedBranch.id)) {
+          setCurrentBranchState(parsedBranch)
+          return
+        }
+      }
+      
+      // Default to first branch if none stored
+      setCurrentBranchState(branches[0])
     }
-    
-    if (savedCurrentBranch) {
-      setCurrentBranchState(JSON.parse(savedCurrentBranch))
-    }
-  }, [])
-
-  // Save branches to localStorage when they change
-  useEffect(() => {
-    localStorage.setItem("branches", JSON.stringify(branches))
-  }, [branches])
+  }, [branches, currentBranch])
 
   // Save current branch to localStorage when it changes
   useEffect(() => {
@@ -73,27 +62,23 @@ export const BranchProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, [])
 
   const addBranch = useCallback((branch: Branch) => {
-    setBranches(prev => [...prev, branch])
-  }, [])
+    addBranchData(branch)
+  }, [addBranchData])
 
   const updateBranch = useCallback((branch: Branch) => {
-    setBranches(prev => 
-      prev.map(b => 
-        b.id === branch.id ? branch : b
-      )
-    )
+    updateBranchData(branch)
     
     // Update current branch if it's the one being updated
     if (currentBranch && currentBranch.id === branch.id) {
       setCurrentBranchState(branch)
     }
-  }, [currentBranch])
+  }, [currentBranch, updateBranchData])
 
   const deleteBranch = useCallback((id: string) => {
     // Don't allow deleting the main branch
     if (id === "main") return
     
-    setBranches(prev => prev.filter(branch => branch.id !== id))
+    deleteBranchData(id)
     
     // Reset current branch to main if the deleted branch is the current one
     if (currentBranch && currentBranch.id === id) {
@@ -102,7 +87,7 @@ export const BranchProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         setCurrentBranchState(mainBranch)
       }
     }
-  }, [branches, currentBranch])
+  }, [branches, currentBranch, deleteBranchData])
 
   return (
     <BranchContext.Provider
@@ -113,6 +98,7 @@ export const BranchProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         addBranch,
         updateBranch,
         deleteBranch,
+        isLoading
       }}
     >
       {children}

@@ -22,8 +22,19 @@ import { format, addDays, subDays, startOfYear, isWithinInterval, startOfMonth, 
 import 'react-date-range/dist/styles.css'
 import 'react-date-range/dist/theme/default.css'
 import './Calendar.css'
+import { useTransactions, Transaction } from "@/lib/client"
 
 dayjs.extend(isBetween)
+
+type DayTime = 'morning' | 'evening' | 'full'
+
+interface TransactionDisplay extends Transaction {
+  type: 'sale' | 'refund'
+  items: string[] 
+  customerName?: string
+  reference: string
+  storeId: string
+}
 
 const timeOptions = [
   { value: "today", label: "Today" },
@@ -61,70 +72,13 @@ const stores = [
   { id: "store3", name: "Store 3" },
 ] as const
 
-interface Transaction {
-  id: number
-  type: 'sale' | 'refund'
-  amount: number
-  time?: string
-  date?: string
-  items: string[]
-  customerName: string
-  paymentMethod: string
-  reference: string
-  notes?: string
-  storeId: string
-}
-
-type DayTime = 'morning' | 'evening' | 'full'
-
-interface TodayTransactions {
-  morning: Transaction[]
-  evening: Transaction[]
-}
-
-interface AllTransactions {
-  today: TodayTransactions
-  weekly: Transaction[]
-  monthly: Transaction[]
-  yearly: Transaction[]
-}
-
-const mockTransactions: AllTransactions = {
-  today: {
-    morning: [
-      { id: 1, type: 'sale', amount: 45.99, time: '09:15 AM', items: ['Oil Filter', '5W-30 Oil'], customerName: 'John Smith', paymentMethod: 'Credit Card', reference: 'TXN-001', notes: 'Regular maintenance service', storeId: 'store1' },
-      { id: 2, type: 'sale', amount: 89.99, time: '10:30 AM', items: ['Brake Pads', 'Labor'], customerName: 'Sarah Johnson', paymentMethod: 'Cash', reference: 'TXN-002', notes: 'Front brake replacement', storeId: 'store2' },
-      { id: 3, type: 'refund', amount: -25.00, time: '11:45 AM', items: ['Air Filter'], customerName: 'Mike Brown', paymentMethod: 'Credit Card', reference: 'TXN-003', notes: 'Wrong part ordered', storeId: 'store1' }
-    ],
-    evening: [
-      { id: 4, type: 'sale', amount: 129.99, time: '4:15 PM', items: ['Full Service', 'Oil Change'], customerName: 'Emma Wilson', paymentMethod: 'Debit Card', reference: 'TXN-004', notes: 'Annual service', storeId: 'store3' },
-      { id: 5, type: 'sale', amount: 35.50, time: '5:30 PM', items: ['Windshield Wipers'], customerName: 'Tom Davis', paymentMethod: 'Cash', reference: 'TXN-005', storeId: 'store2' }
-    ]
-  },
-  weekly: [
-    { id: 6, type: 'sale', amount: 299.99, date: '2024-03-18', items: ['Timing Belt', 'Labor'], customerName: 'James Wilson', paymentMethod: 'Credit Card', reference: 'TXN-006', notes: 'Scheduled maintenance', storeId: 'store1' },
-    { id: 7, type: 'sale', amount: 149.99, date: '2024-03-17', items: ['Battery Replacement'], customerName: 'Lisa Anderson', paymentMethod: 'Debit Card', reference: 'TXN-007', storeId: 'store3' },
-    { id: 8, type: 'refund', amount: -45.99, date: '2024-03-16', items: ['Oil Filter Set'], customerName: 'David Miller', paymentMethod: 'Credit Card', reference: 'TXN-008', notes: 'Customer changed mind', storeId: 'store2' }
-  ],
-  monthly: [
-    { id: 9, type: 'sale', amount: 899.99, date: '2024-03-10', items: ['Engine Repair'], customerName: 'Robert Taylor', paymentMethod: 'Credit Card', reference: 'TXN-009', notes: 'Major engine work', storeId: 'store1' },
-    { id: 10, type: 'sale', amount: 459.99, date: '2024-03-05', items: ['Transmission Service'], customerName: 'Patricia White', paymentMethod: 'Debit Card', reference: 'TXN-010', storeId: 'store2' },
-    { id: 11, type: 'refund', amount: -129.99, date: '2024-03-02', items: ['Brake Service'], customerName: 'George Brown', paymentMethod: 'Credit Card', reference: 'TXN-011', notes: 'Service cancelled', storeId: 'store3' }
-  ],
-  yearly: [
-    { id: 12, type: 'sale', amount: 2499.99, date: '2024-02-15', items: ['Major Service'], customerName: 'Kevin Lee', paymentMethod: 'Credit Card', reference: 'TXN-012', notes: 'Complete vehicle overhaul', storeId: 'store1' },
-    { id: 13, type: 'sale', amount: 1899.99, date: '2024-01-20', items: ['Engine Overhaul'], customerName: 'Mary Johnson', paymentMethod: 'Bank Transfer', reference: 'TXN-013', notes: 'Engine rebuild', storeId: 'store2' },
-    { id: 14, type: 'refund', amount: -299.99, date: '2024-01-05', items: ['Parts Return'], customerName: 'Steve Martin', paymentMethod: 'Credit Card', reference: 'TXN-014', notes: 'Defective parts', storeId: 'store3' }
-  ]
-}
-
 // Memoize the transaction card component
 const TransactionCard = memo(({ 
   transaction, 
   isExpanded, 
   onToggle 
 }: {
-  transaction: Transaction
+  transaction: TransactionDisplay
   isExpanded: boolean
   onToggle: () => void
 }) => {
@@ -195,9 +149,11 @@ const TransactionCard = memo(({
 TransactionCard.displayName = 'TransactionCard'
 
 export default function TransactionsPage() {
-  const [selectedPeriod, setSelectedPeriod] = useState<keyof AllTransactions>("today")
+  const { transactions, isLoading } = useTransactions()
+  
+  const [selectedPeriod, setSelectedPeriod] = useState<keyof typeof timeOptions[number]>("today")
   const [timeOfDay, setTimeOfDay] = useState<DayTime>("morning")
-  const [expandedTransactions, setExpandedTransactions] = useState<number[]>([])
+  const [expandedTransactions, setExpandedTransactions] = useState<string[]>([])
   const [selectedStore, setSelectedStore] = useState("all-stores")
   const [dateRange, setDateRange] = useState<Range[]>([
     {
@@ -270,24 +226,81 @@ export default function TransactionsPage() {
     return `${format(startDate, 'MMM d')} - ${format(endDate, 'MMM d, yyyy')}`
   }, [dateRange])
 
-  const getTransactions = useCallback(() => {
-    let transactions = selectedPeriod === 'today'
-      ? (timeOfDay === 'full'
-        ? [...mockTransactions.today.morning, ...mockTransactions.today.evening]
-        : mockTransactions.today[timeOfDay])
-      : mockTransactions[selectedPeriod]
-
-    // Filter by store if a specific store is selected
-    if (selectedStore !== "all-stores") {
-      transactions = transactions.filter(t => t.storeId === selectedStore)
+  // Convert transactions from our data hook to the format expected by the UI
+  const getTransactions = useCallback((): TransactionDisplay[] => {
+    if (!transactions) return []
+    
+    let result: TransactionDisplay[] = []
+    
+    if (selectedPeriod === 'today') {
+      if (timeOfDay === 'full') {
+        result = [...transactions.today.morning, ...transactions.today.evening].map(t => ({
+          ...t,
+          type: t.status === 'refunded' ? 'refund' : 'sale',
+          items: [`${t.items} items`],
+          customerName: t.customer || 'Anonymous', 
+          reference: t.id,
+          storeId: 'store1',
+          notes: t.status === 'refunded' ? 'Item returned' : undefined
+        }))
+      } else {
+        result = transactions.today[timeOfDay].map(t => ({
+          ...t,
+          type: t.status === 'refunded' ? 'refund' : 'sale',
+          items: [`${t.items} items`],
+          customerName: t.customer || 'Anonymous',
+          reference: t.id,
+          storeId: 'store1',
+          notes: t.status === 'refunded' ? 'Item returned' : undefined
+        }))
+      }
+    } else if (selectedPeriod === 'weekly') {
+      result = transactions.thisWeek.map(t => ({
+        ...t,
+        type: t.status === 'refunded' ? 'refund' : 'sale',
+        items: [`${t.items} items`],
+        customerName: t.customer || 'Anonymous',
+        reference: t.id,
+        storeId: 'store1',
+        date: t.time,
+        notes: t.status === 'refunded' ? 'Item returned' : undefined
+      }))
+    } else if (selectedPeriod === 'monthly') {
+      result = transactions.thisMonth.map(t => ({
+        ...t,
+        type: t.status === 'refunded' ? 'refund' : 'sale',
+        items: [`${t.items} items`],
+        customerName: t.customer || 'Anonymous',
+        reference: t.id,
+        storeId: 'store1',
+        date: t.time,
+        notes: t.status === 'refunded' ? 'Item returned' : undefined
+      }))
+    } else if (selectedPeriod === 'yearly') {
+      // For yearly, we'll use thisMonth as a placeholder
+      result = transactions.thisMonth.map(t => ({
+        ...t,
+        type: t.status === 'refunded' ? 'refund' : 'sale',
+        items: [`${t.items} items`],
+        customerName: t.customer || 'Anonymous',
+        reference: t.id,
+        storeId: 'store1',
+        date: t.time,
+        notes: t.status === 'refunded' ? 'Item returned' : undefined
+      }))
     }
+    
+    // Filter by store if needed
+    if (selectedStore !== 'all-stores') {
+      result = result.filter(t => t.storeId === selectedStore)
+    }
+    
+    return result
+  }, [transactions, selectedPeriod, timeOfDay, selectedStore])
 
-    return transactions
-  }, [selectedPeriod, timeOfDay, selectedStore])
+  const displayTransactions = useMemo(() => getTransactions(), [getTransactions])
 
-  const transactions = useMemo(() => getTransactions(), [getTransactions])
-
-  const toggleTransaction = useCallback((id: number) => {
+  const toggleTransaction = useCallback((id: string) => {
     setExpandedTransactions(prev =>
       prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
     )
@@ -304,6 +317,26 @@ export default function TransactionsPage() {
       default:
         return 'left-1 right-[66.666%] bg-background'
     }
+  }
+  
+  // If not mounted yet or data is loading, show loading state
+  if (!hasMounted || isLoading) {
+    return (
+      <Layout>
+        <div className="space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <h1 className="text-2xl font-semibold">Transactions</h1>
+            <div className="w-[180px] h-10" /> {/* Placeholder to maintain layout */}
+          </div>
+          <div className="flex justify-center items-center h-[60vh]">
+            <div className="flex flex-col items-center justify-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
+              <p className="text-muted-foreground">Loading transactions...</p>
+            </div>
+          </div>
+        </div>
+      </Layout>
+    )
   }
 
   return (
@@ -328,11 +361,11 @@ export default function TransactionsPage() {
             <div className="w-[180px] h-10" /> /* Placeholder to maintain layout */
           )}
         </div>
-
+        
         <div className="flex flex-col gap-4">
           <div className="flex flex-wrap items-center gap-3">
             {hasMounted ? (
-              <Select value={selectedPeriod} onValueChange={(value: keyof AllTransactions) => {
+              <Select value={selectedPeriod} onValueChange={(value: any) => {
                 setSelectedPeriod(value)
               }}>
                 <SelectTrigger className="w-[140px]">
@@ -427,7 +460,7 @@ export default function TransactionsPage() {
               </Popover>
             )}
           </div>
-
+          
           {selectedPeriod === "today" && (
             <div className="inline-flex items-center rounded-full border p-1 w-fit bg-muted relative">
               <div
@@ -464,9 +497,9 @@ export default function TransactionsPage() {
           )}
         </div>
 
-        {transactions && transactions.length > 0 ? (
+        {displayTransactions && displayTransactions.length > 0 ? (
           <div className="grid gap-4">
-            {transactions.map((transaction) => (
+            {displayTransactions.map((transaction) => (
               <TransactionCard
                 key={transaction.id}
                 transaction={transaction}

@@ -7,6 +7,7 @@ import { useState, useEffect, useMemo, memo, useCallback } from "react"
 import { Layout } from "@/components/layout"
 import React from "react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useSalesInfo } from "@/lib/hooks/data/useSalesInfo"
 
 interface SaleItemVariant {
   size: string
@@ -24,61 +25,6 @@ interface SaleItem {
   variants?: SaleItemVariant[]
   storeId: string
 }
-
-const salesData: SaleItem[] = [
-  { 
-    name: "Shell Helix Oil",
-    category: "fluid",
-    quantity: 5,
-    unitPrice: 45.00,
-    totalSales: 225.00,
-    storeId: "store1",
-    variants: [
-      { size: "5L", quantity: 2, unitPrice: 55.00, totalSales: 110.00 },
-      { size: "2L", quantity: 3, unitPrice: 38.50, totalSales: 115.00 }
-    ]
-  },
-  { 
-    name: "Castrol Coolant",
-    category: "fluid",
-    quantity: 8,
-    unitPrice: 25.00,
-    totalSales: 200.00,
-    storeId: "store2",
-    variants: [
-      { size: "4L", quantity: 3, unitPrice: 32.00, totalSales: 96.00 },
-      { size: "1L", quantity: 5, unitPrice: 20.80, totalSales: 104.00 }
-    ]
-  },
-  { 
-    name: "Oil Filter",
-    category: "part",
-    quantity: 15,
-    unitPrice: 12.00,
-    totalSales: 180.00,
-    storeId: "store1"
-  },
-  { 
-    name: "Standard Oil Change",
-    category: "service",
-    quantity: 20,
-    unitPrice: 45.00,
-    totalSales: 900.00,
-    storeId: "store3"
-  },
-  { 
-    name: "Brake Fluid",
-    category: "fluid",
-    quantity: 6,
-    unitPrice: 15.00,
-    totalSales: 90.00,
-    storeId: "store2",
-    variants: [
-      { size: "500ml", quantity: 4, unitPrice: 12.50, totalSales: 50.00 },
-      { size: "1L", quantity: 2, unitPrice: 20.00, totalSales: 40.00 }
-    ]
-  },
-]
 
 const stores = [
   { id: "all-stores", name: "All Stores" },
@@ -258,10 +204,28 @@ const MobileView = memo(({
 })
 MobileView.displayName = 'MobileView'
 
-export default function SalesInfo() {
-  const [expandedItems, setExpandedItems] = useState<string[]>([])
-  const [isMobileView, setIsMobileView] = useState(false)
+export default function SalesInfoPage() {
   const [selectedStore, setSelectedStore] = useState("all-stores")
+  const [selectedCategory, setSelectedCategory] = useState("all")
+  const [searchQuery, setSearchQuery] = useState("")
+  const [expandedItems, setExpandedItems] = useState<string[]>([])
+  
+  const { items, stores, isLoading } = useSalesInfo()
+
+  // Filter items based on selected store, category, and search query
+  const filteredItems = items.filter(item => {
+    const matchesStore = selectedStore === "all-stores" || item.storeId === selectedStore
+    const matchesCategory = selectedCategory === "all" || item.category === selectedCategory
+    const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase())
+    return matchesStore && matchesCategory && matchesSearch
+  })
+
+  // Calculate totals
+  const totalSales = filteredItems.reduce((sum, item) => sum + item.totalSales, 0)
+  const totalQuantity = filteredItems.reduce((sum, item) => sum + item.quantity, 0)
+  const averagePrice = totalSales / totalQuantity
+
+  const [isMobileView, setIsMobileView] = useState(false)
   const [hasMounted, setHasMounted] = useState(false)
 
   useEffect(() => {
@@ -290,19 +254,12 @@ export default function SalesInfo() {
     )
   }, [])
 
-  const filteredSalesData = useMemo(() => 
-    selectedStore === "all-stores" 
-      ? salesData 
-      : salesData.filter(item => item.storeId === selectedStore),
-    [selectedStore]
-  )
-
   // Lazy load the view based on viewport
   const CurrentView = useMemo(() => {
     if (isMobileView) {
       return (
         <MobileView 
-          salesData={filteredSalesData}
+          salesData={filteredItems}
           expandedItems={expandedItems}
           toggleItem={toggleItem}
         />
@@ -310,12 +267,12 @@ export default function SalesInfo() {
     }
     return (
       <DesktopView 
-        salesData={filteredSalesData}
+        salesData={filteredItems}
         expandedItems={expandedItems}
         toggleItem={toggleItem}
       />
     )
-  }, [isMobileView, filteredSalesData, expandedItems, toggleItem])
+  }, [isMobileView, filteredItems, expandedItems, toggleItem])
 
   return (
     <Layout>
