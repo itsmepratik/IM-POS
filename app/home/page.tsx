@@ -125,7 +125,7 @@ function HomePageContent() {
               <MetricCard 
                 title="Net Profits" 
                 value={isLoading ? "Loading..." : `OMR ${profit.grossProfit.toFixed(2)}`}
-                comparison={isLoading ? "-" : `${profit.profitChangePercentage.toFixed(1)}% from last period`}
+                comparison={isLoading ? "-" : `${isNaN(profit.profitChangePercentage) ? '0' : profit.profitChangePercentage.toFixed(1)}% from last period`}
                 link="/sales-info" 
               />
             </div>
