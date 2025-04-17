@@ -661,25 +661,32 @@ export default function TransactionsPage() {
         )}
       </div>
 
-      {/* Fixed footer with overlay mask to cover peeking sidebar text */}
-      <div className="fixed bottom-0 right-0 left-0 md:left-8 lg:left-56 z-[40]">
-        {/* Inner container for padding */}
-        <div className="px-6 pb-5 pt-1 relative">
-          <div className="bg-transparent">
-            <Card
-              className="bg-[#E5F1FF]/90 backdrop-blur-xl shadow-lg border-0 p-4 rounded-xl"
-              style={{ backgroundColor: "rgba(229, 241, 255, 0.9)" }}
-            >
-              <div className="flex justify-between items-center">
+      {/* Remove the existing fixed footer and create a new one that properly adjusts with the sidebar */}
+      <div className="pb-20">{/* Create space for the fixed footer */}</div>
+
+      {/* New total credit card with proper responsive behavior */}
+      <div
+        className="fixed bottom-0 right-0 left-0 md:left-8 lg:left-56 z-[40] w-auto"
+        style={{
+          transition: "left 300ms ease-in-out",
+          willChange: "left",
+        }}
+      >
+        <div className="p-4 px-6 pb-6">
+          <Card className="p-4 bg-blue-50 border shadow-md">
+            <div className="flex items-center justify-between">
+              <div>
                 <span className="text-lg font-semibold text-blue-800">
                   Total credit:
                 </span>
-                <span className="text-xl font-bold min-w-[110px] text-right text-blue-800">
+              </div>
+              <div>
+                <span className="text-xl font-bold text-blue-800 min-w-[110px] text-right inline-block">
                   OMR {Math.abs(totalCredit).toFixed(2)}
                 </span>
               </div>
-            </Card>
-          </div>
+            </div>
+          </Card>
         </div>
       </div>
     </Layout>

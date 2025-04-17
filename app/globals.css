@@ -108,6 +108,16 @@
   .responsive-text {
     font-size: clamp(0.875rem, 2vw, 1rem);
   }
+
+  /* Hide scrollbar but keep functionality */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
 }
 
 /* Calendar styling for react-day-picker */
@@ -130,8 +140,8 @@
   background-color: transparent;
 }
 
-.rdp-day_selected, 
-.rdp-day_selected:focus-visible, 
+.rdp-day_selected,
+.rdp-day_selected:focus-visible,
 .rdp-day_selected:hover {
   background-color: hsl(var(--primary));
   color: hsl(var(--primary-foreground));
@@ -142,7 +152,7 @@
   color: hsl(var(--accent-foreground));
 }
 
-.rdp-button:hover:not([aria-disabled='true']) {
+.rdp-button:hover:not([aria-disabled="true"]) {
   background-color: hsl(var(--accent));
   color: hsl(var(--accent-foreground));
 }

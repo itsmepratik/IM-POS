@@ -1,35 +1,63 @@
-"use client"
+"use client";
 
-import { useState, useEffect, useMemo, useCallback, memo } from "react"
-import { Layout } from "@/components/layout"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useState, useEffect, useMemo, useCallback, memo } from "react";
+import { Layout } from "@/components/layout";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { MoreHorizontal, Plus, Search, ChevronRight, Menu, ImageIcon, MoreVertical, Store } from "lucide-react"
-import { ItemsProvider, useItems, type Item } from "../../inventory/items-context"
-import { ItemModal } from "../../inventory/item-modal"
-import { toast } from "@/components/ui/use-toast"
-import { CategoryModal } from "../../inventory/category-modal"
-import { useUser } from "../../user-context"
-import { cn } from "@/lib/utils"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { Card, CardContent } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
-import { PageHeader } from "@/components/page-title"
-import { BranchProvider, useBranch, type Branch } from "../../branch-context"
-import { useInventoryData } from "../hooks/useInventoryData"
-import { Label } from "@/components/ui/label"
-import { OpenBottleBadge, ClosedBottleBadge } from "@/components/ui/inventory-bottle-icons"
-import { OpenBottleIcon, ClosedBottleIcon } from "@/components/ui/bottle-icons"
+} from "@/components/ui/dropdown-menu";
+import {
+  MoreHorizontal,
+  Plus,
+  Search,
+  ChevronRight,
+  Menu,
+  ImageIcon,
+  MoreVertical,
+  Store,
+} from "lucide-react";
+import {
+  ItemsProvider,
+  useItems,
+  type Item,
+} from "../../inventory/items-context";
+import { ItemModal } from "../../inventory/item-modal";
+import { toast } from "@/components/ui/use-toast";
+import { CategoryModal } from "../../inventory/category-modal";
+import { useUser } from "../../user-context";
+import { cn } from "@/lib/utils";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import { PageHeader } from "@/components/page-title";
+import { BranchProvider, useBranch, type Branch } from "../../branch-context";
+import { useInventoryData } from "../hooks/useInventoryData";
+import { Label } from "@/components/ui/label";
+import {
+  OpenBottleBadge,
+  ClosedBottleBadge,
+} from "@/components/ui/inventory-bottle-icons";
+import { OpenBottleIcon, ClosedBottleIcon } from "@/components/ui/bottle-icons";
 
 // Define volume type
 interface Volume {
@@ -38,238 +66,276 @@ interface Volume {
 }
 
 // Memoize the mobile item card component
-const MobileItemCard = memo(({ item, onEdit, onDelete, onDuplicate }: {
-  item: Item
-  onEdit: (item: Item) => void
-  onDelete: (id: string) => void
-  onDuplicate: (id: string) => void
-}) => {
-  const [showDetails, setShowDetails] = useState(false)
-  const [imageError, setImageError] = useState(false)
+const MobileItemCard = memo(
+  ({
+    item,
+    onEdit,
+    onDelete,
+    onDuplicate,
+  }: {
+    item: Item;
+    onEdit: (item: Item) => void;
+    onDelete: (id: string) => void;
+    onDuplicate: (id: string) => void;
+  }) => {
+    const [showDetails, setShowDetails] = useState(false);
+    const [imageError, setImageError] = useState(false);
 
-  const handleImageError = useCallback(() => {
-    setImageError(true)
-  }, [])
+    const handleImageError = useCallback(() => {
+      setImageError(true);
+    }, []);
 
-  return (
-    <Card className="relative overflow-hidden">
-      <CardContent className="p-4">
-        <div className="flex items-start justify-between gap-4">
-          <div className="relative w-16 h-16 rounded-md border overflow-hidden bg-muted shrink-0">
-            {!imageError && item.image ? (
-              <img
-                src={item.image}
-                alt={item.name}
-                className="object-contain w-full h-full p-1"
-                onError={handleImageError}
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center">
-                <ImageIcon className="w-6 h-6 text-muted-foreground" />
+    return (
+      <Card className="relative overflow-hidden">
+        <CardContent className="p-4">
+          <div className="flex items-start justify-between gap-4">
+            <div className="relative w-16 h-16 rounded-md border overflow-hidden bg-muted shrink-0">
+              {!imageError && item.image ? (
+                <img
+                  src={item.image}
+                  alt={item.name}
+                  className="object-contain w-full h-full p-1"
+                  onError={handleImageError}
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                  <ImageIcon className="w-6 h-6 text-muted-foreground" />
+                </div>
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <h3 className="font-medium truncate">{item.name}</h3>
+                  {item.brand && (
+                    <p className="text-sm text-muted-foreground">
+                      {item.brand}
+                    </p>
+                  )}
+                  {item.isOil && item.bottleStates && (
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      {item.bottleStates.open > 0 && (
+                        <OpenBottleBadge count={item.bottleStates.open} />
+                      )}
+                      {item.bottleStates.closed > 0 && (
+                        <ClosedBottleBadge count={item.bottleStates.closed} />
+                      )}
+                    </div>
+                  )}
+                </div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="h-8 w-8 p-0">
+                      <MoreVertical className="h-4 w-4" />
+                      <span className="sr-only">Open menu</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => onEdit(item)}>
+                      Edit item
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => onDuplicate(item.id)}>
+                      Duplicate
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      className="text-destructive"
+                      onClick={() => onDelete(item.id)}
+                    >
+                      Delete item
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+              <div className="text-sm text-muted-foreground mt-1">
+                Category: {item.category}
+              </div>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <Badge variant="secondary">{item.category}</Badge>
+                {item.type && <Badge variant="outline">{item.type}</Badge>}
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-4 space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Stock:</span>
+                <span className="font-medium">{item.stock}</span>
+              </div>
+              <div className="text-base font-medium text-primary">
+                OMR {item.price.toFixed(2)}
+              </div>
+            </div>
+
+            {item.sku && (
+              <div className="text-sm text-muted-foreground">
+                SKU: {item.sku}
+              </div>
+            )}
+
+            <Button
+              variant="ghost"
+              className="w-full justify-start p-0 h-auto text-sm text-muted-foreground hover:text-foreground"
+              onClick={() => setShowDetails(!showDetails)}
+            >
+              {showDetails ? "Less details" : "More details"}
+            </Button>
+
+            {showDetails && (
+              <div className="pt-2 space-y-3">
+                {item.description && (
+                  <div className="text-sm">
+                    <span className="font-medium">Description:</span>
+                    <p className="text-muted-foreground mt-1">
+                      {item.description}
+                    </p>
+                  </div>
+                )}
+
+                {item.isOil && item.volumes && item.volumes.length > 0 && (
+                  <div className="space-y-2">
+                    <span className="text-sm font-medium">
+                      Available Volumes:
+                    </span>
+                    <div className="grid grid-cols-2 gap-2">
+                      {item.volumes.map((volume: Volume, index: number) => (
+                        <div
+                          key={index}
+                          className="flex items-center justify-between p-2 rounded-md border text-sm"
+                        >
+                          <span>{volume.size}</span>
+                          <span className="font-medium">
+                            OMR {volume.price.toFixed(2)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {item.isOil && item.bottleStates && (
+                  <div className="mt-2 border-t pt-2">
+                    <h4 className="text-sm font-medium mb-1">
+                      Bottle Inventory
+                    </h4>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="flex items-center justify-between p-2 rounded-md bg-red-50 border border-red-200">
+                        <span className="text-sm text-red-800 flex items-center gap-1">
+                          <OpenBottleIcon className="h-3 w-3" />
+                          Open Bottles:
+                        </span>
+                        <span className="font-medium text-red-800">
+                          {item.bottleStates.open}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between p-2 rounded-md bg-green-50 border border-green-200">
+                        <span className="text-sm font-medium text-green-800 flex items-center gap-1">
+                          <ClosedBottleIcon className="h-3 w-3" />
+                          Closed Bottles:
+                        </span>
+                        <span className="font-bold text-green-800">
+                          {item.bottleStates.closed}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <h3 className="font-medium truncate">{item.name}</h3>
-                {item.brand && (
-                  <p className="text-sm text-muted-foreground">{item.brand}</p>
-                )}
-                {item.isOil && item.bottleStates && (
-                  <div className="flex flex-wrap gap-2 mt-1">
-                    {item.bottleStates.open > 0 && (
-                      <OpenBottleBadge count={item.bottleStates.open} />
-                    )}
-                    {item.bottleStates.closed > 0 && (
-                      <ClosedBottleBadge count={item.bottleStates.closed} />
-                    )}
-                  </div>
-                )}
-              </div>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="h-8 w-8 p-0">
-                    <MoreVertical className="h-4 w-4" />
-                    <span className="sr-only">Open menu</span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => onEdit(item)}>Edit item</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => onDuplicate(item.id)}>Duplicate</DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem className="text-destructive" onClick={() => onDelete(item.id)}>
-                    Delete item
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-            <div className="text-sm text-muted-foreground mt-1">
-              Category: {item.category}
-            </div>
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              <Badge variant="secondary">{item.category}</Badge>
-              {item.type && (
-                <Badge variant="outline">{item.type}</Badge>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-4 space-y-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Stock:</span>
-              <span className="font-medium">{item.stock}</span>
-            </div>
-            <div className="text-base font-medium text-primary">
-              OMR {item.price.toFixed(2)}
-            </div>
-          </div>
-
-          {item.sku && (
-            <div className="text-sm text-muted-foreground">
-              SKU: {item.sku}
-            </div>
-          )}
-
-          <Button
-            variant="ghost"
-            className="w-full justify-start p-0 h-auto text-sm text-muted-foreground hover:text-foreground"
-            onClick={() => setShowDetails(!showDetails)}
-          >
-            {showDetails ? "Less details" : "More details"}
-          </Button>
-
-          {showDetails && (
-            <div className="pt-2 space-y-3">
-              {item.description && (
-                <div className="text-sm">
-                  <span className="font-medium">Description:</span>
-                  <p className="text-muted-foreground mt-1">{item.description}</p>
-                </div>
-              )}
-
-              {item.isOil && item.volumes && item.volumes.length > 0 && (
-                <div className="space-y-2">
-                  <span className="text-sm font-medium">Available Volumes:</span>
-                  <div className="grid grid-cols-2 gap-2">
-                    {item.volumes.map((volume: Volume, index: number) => (
-                      <div
-                        key={index}
-                        className="flex items-center justify-between p-2 rounded-md border text-sm"
-                      >
-                        <span>{volume.size}</span>
-                        <span className="font-medium">OMR {volume.price.toFixed(2)}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {item.isOil && item.bottleStates && (
-                <div className="mt-2 border-t pt-2">
-                  <h4 className="text-sm font-medium mb-1">Bottle Inventory</h4>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="flex items-center justify-between p-2 rounded-md bg-green-50 border border-green-200">
-                      <span className="text-sm text-green-800 flex items-center gap-1">
-                        <OpenBottleIcon className="h-3 w-3" />
-                        Open Bottles:
-                      </span>
-                      <span className="font-medium text-green-800">{item.bottleStates.open}</span>
-                    </div>
-                    <div className="flex items-center justify-between p-2 rounded-md bg-red-100 border border-red-300">
-                      <span className="text-sm font-medium text-red-900 flex items-center gap-1">
-                        <ClosedBottleIcon className="h-3 w-3" />
-                        Closed Bottles:
-                      </span>
-                      <span className="font-bold text-red-900">{item.bottleStates.closed}</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </CardContent>
-    </Card>
-  )
-})
-MobileItemCard.displayName = 'MobileItemCard'
+        </CardContent>
+      </Card>
+    );
+  }
+);
+MobileItemCard.displayName = "MobileItemCard";
 
 // Memoize the table row component
-const TableRow = memo(({ 
-  item, 
-  isSelected, 
-  onToggle,
-  onEdit,
-  onDelete,
-  onDuplicate 
-}: {
-  item: Item
-  isSelected: boolean
-  onToggle: (id: string) => void
-  onEdit: (item: Item) => void
-  onDelete: (id: string) => void
-  onDuplicate: (id: string) => void
-}) => (
-  <tr className="border-b">
-    <td className="p-4">
-      <Checkbox checked={isSelected} onCheckedChange={() => onToggle(item.id)} />
-    </td>
-    <td className="p-4">{item.name}</td>
-    <td className="p-4">{item.category}</td>
-    <td className="p-4">{item.stock}</td>
-    <td className="p-4">OMR {item.price.toFixed(2)}</td>
-    {item.isOil && (
+const TableRow = memo(
+  ({
+    item,
+    isSelected,
+    onToggle,
+    onEdit,
+    onDelete,
+    onDuplicate,
+  }: {
+    item: Item;
+    isSelected: boolean;
+    onToggle: (id: string) => void;
+    onEdit: (item: Item) => void;
+    onDelete: (id: string) => void;
+    onDuplicate: (id: string) => void;
+  }) => (
+    <tr className="border-b">
       <td className="p-4">
-        {item.bottleStates && (
-          <div className="flex flex-wrap gap-2 mt-1">
-            {item.bottleStates.open > 0 && (
-              <OpenBottleBadge count={item.bottleStates.open} />
-            )}
-            {item.bottleStates.closed > 0 && (
-              <ClosedBottleBadge count={item.bottleStates.closed} />
-            )}
-          </div>
-        )}
+        <Checkbox
+          checked={isSelected}
+          onCheckedChange={() => onToggle(item.id)}
+        />
       </td>
-    )}
-    {!item.isOil && <td className="p-4"></td>}
-    <td className="p-4">
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" className="h-8 w-8 p-0">
-            <MoreVertical className="h-4 w-4" />
-            <span className="sr-only">Open menu</span>
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={() => onEdit(item)}>Edit item</DropdownMenuItem>
-          <DropdownMenuItem onClick={() => onDuplicate(item.id)}>Duplicate</DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem className="text-destructive" onClick={() => onDelete(item.id)}>
-            Delete item
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </td>
-  </tr>
-))
-TableRow.displayName = 'TableRow'
+      <td className="p-4">{item.name}</td>
+      <td className="p-4">{item.category}</td>
+      <td className="p-4">{item.stock}</td>
+      <td className="p-4">OMR {item.price.toFixed(2)}</td>
+      {item.isOil && (
+        <td className="p-4">
+          {item.bottleStates && (
+            <div className="flex flex-wrap gap-2 mt-1">
+              {item.bottleStates.open > 0 && (
+                <OpenBottleBadge count={item.bottleStates.open} />
+              )}
+              {item.bottleStates.closed > 0 && (
+                <ClosedBottleBadge count={item.bottleStates.closed} />
+              )}
+            </div>
+          )}
+        </td>
+      )}
+      {!item.isOil && <td className="p-4"></td>}
+      <td className="p-4">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="h-8 w-8 p-0">
+              <MoreVertical className="h-4 w-4" />
+              <span className="sr-only">Open menu</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => onEdit(item)}>
+              Edit item
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onDuplicate(item.id)}>
+              Duplicate
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              className="text-destructive"
+              onClick={() => onDelete(item.id)}
+            >
+              Delete item
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </td>
+    </tr>
+  )
+);
+TableRow.displayName = "TableRow";
 
 function MobileView() {
   const {
     filteredItems,
     categories,
-    
+
     searchQuery,
     setSearchQuery,
     selectedCategory,
     setSelectedCategory,
     showLowStock,
     setShowLowStock,
-    
+
     isModalOpen,
     setIsModalOpen,
     isCategoryModalOpen,
@@ -278,38 +344,38 @@ function MobileView() {
     setIsFiltersOpen,
     editingItem,
     setEditingItem,
-    
+
     handleEdit,
     handleAddItem,
     handleDelete,
     handleDuplicate,
     resetFilters,
-    
+
     branches,
-    currentBranch
+    currentBranch,
   } = useInventoryData();
   const { setCurrentBranch } = useBranch();
   const [hasMounted, setHasMounted] = useState(false);
-  
+
   useEffect(() => {
     setHasMounted(true);
-    
+
     // Set default branch to Hafith if no branch is selected
     if (!currentBranch || currentBranch.id === "main") {
       const hafithBranch = branches.find((b: Branch) => b.id === "branch1");
       if (hafithBranch) setCurrentBranch(hafithBranch);
     }
   }, [branches, currentBranch, setCurrentBranch]);
-  
+
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2 mb-2">
         {hasMounted ? (
-          <Select 
-            value={currentBranch?.id || "branch1"} 
+          <Select
+            value={currentBranch?.id || "branch1"}
             onValueChange={(value) => {
-              const branch = branches.find((b: Branch) => b.id === value)
-              if (branch) setCurrentBranch(branch)
+              const branch = branches.find((b: Branch) => b.id === value);
+              if (branch) setCurrentBranch(branch);
             }}
           >
             <SelectTrigger className="flex-1">
@@ -322,15 +388,14 @@ function MobileView() {
                   <SelectItem key={branch.id} value={branch.id}>
                     {branch.name}
                   </SelectItem>
-                ))
-              }
+                ))}
             </SelectContent>
           </Select>
         ) : (
           <div className="flex-1 h-10" /> /* Placeholder to maintain layout */
         )}
       </div>
-      
+
       <div className="flex items-center gap-2">
         <div className="relative flex-1">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -347,10 +412,11 @@ function MobileView() {
           Add
         </Button>
       </div>
-      
+
       <div className="flex items-center justify-between">
         <div className="text-sm text-muted-foreground">
-          {filteredItems.length} {filteredItems.length === 1 ? 'item' : 'items'} found
+          {filteredItems.length} {filteredItems.length === 1 ? "item" : "items"}{" "}
+          found
         </div>
         <Sheet open={isFiltersOpen} onOpenChange={setIsFiltersOpen}>
           <SheetTrigger asChild>
@@ -366,14 +432,19 @@ function MobileView() {
               <div className="space-y-2">
                 <Label htmlFor="categoryFilter">Category</Label>
                 {hasMounted ? (
-                  <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                  <Select
+                    value={selectedCategory}
+                    onValueChange={setSelectedCategory}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="All Categories" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Categories</SelectItem>
                       {categories.map((category) => (
-                        <SelectItem key={category} value={category}>{category}</SelectItem>
+                        <SelectItem key={category} value={category}>
+                          {category}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -382,19 +453,28 @@ function MobileView() {
                 )}
               </div>
               <div className="flex items-center space-x-2">
-                <Checkbox 
-                  id="lowStock" 
-                  checked={showLowStock} 
-                  onCheckedChange={(checked) => setShowLowStock(!!checked)} 
+                <Checkbox
+                  id="lowStock"
+                  checked={showLowStock}
+                  onCheckedChange={(checked) => setShowLowStock(!!checked)}
                 />
                 <Label htmlFor="lowStock">Show low stock only</Label>
               </div>
               <div className="flex items-center justify-between mt-6">
-                <Button variant="outline" size="sm" onClick={resetFilters}>Reset</Button>
-                <Button size="sm" onClick={() => setIsFiltersOpen(false)}>Apply</Button>
+                <Button variant="outline" size="sm" onClick={resetFilters}>
+                  Reset
+                </Button>
+                <Button size="sm" onClick={() => setIsFiltersOpen(false)}>
+                  Apply
+                </Button>
               </div>
               <div className="border-t my-4 pt-4">
-                <Button variant="outline" size="sm" onClick={() => setIsCategoryModalOpen(true)} className="w-full">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsCategoryModalOpen(true)}
+                  className="w-full"
+                >
                   Manage Categories
                 </Button>
               </div>
@@ -402,7 +482,7 @@ function MobileView() {
           </SheetContent>
         </Sheet>
       </div>
-      
+
       <div className="space-y-2">
         {filteredItems.map((item) => (
           <MobileItemCard
@@ -419,25 +499,28 @@ function MobileView() {
           </div>
         )}
       </div>
-      
+
       <ItemModal
         isOpen={isModalOpen}
         onClose={() => {
-          setIsModalOpen(false)
-          setEditingItem(undefined)
+          setIsModalOpen(false);
+          setEditingItem(undefined);
         }}
         item={editingItem}
       />
-      <CategoryModal isOpen={isCategoryModalOpen} onClose={() => setIsCategoryModalOpen(false)} />
+      <CategoryModal
+        isOpen={isCategoryModalOpen}
+        onClose={() => setIsCategoryModalOpen(false)}
+      />
     </div>
-  )
+  );
 }
 
 function DesktopView() {
   const {
     filteredItems,
     categories,
-    
+
     searchQuery,
     setSearchQuery,
     selectedCategory,
@@ -446,14 +529,14 @@ function DesktopView() {
     setShowLowStock,
     selectedItems,
     setSelectedItems,
-    
+
     isModalOpen,
     setIsModalOpen,
     isCategoryModalOpen,
     setIsCategoryModalOpen,
     editingItem,
     setEditingItem,
-    
+
     toggleItem,
     toggleAll,
     handleEdit,
@@ -461,26 +544,26 @@ function DesktopView() {
     handleDelete,
     handleDuplicate,
     resetFilters,
-    
+
     branches,
-    currentBranch
+    currentBranch,
   } = useInventoryData();
   const { setCurrentBranch } = useBranch();
   const [hasMounted, setHasMounted] = useState(false);
-  
+
   useEffect(() => {
     setHasMounted(true);
   }, []);
-  
+
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-4 mb-4">
         {hasMounted ? (
-          <Select 
-            value={currentBranch?.id || "branch1"} 
+          <Select
+            value={currentBranch?.id || "branch1"}
             onValueChange={(value) => {
-              const branch = branches.find((b: Branch) => b.id === value)
-              if (branch) setCurrentBranch(branch)
+              const branch = branches.find((b: Branch) => b.id === value);
+              if (branch) setCurrentBranch(branch);
             }}
           >
             <SelectTrigger className="w-[180px]">
@@ -493,15 +576,14 @@ function DesktopView() {
                   <SelectItem key={branch.id} value={branch.id}>
                     {branch.name}
                   </SelectItem>
-                ))
-              }
+                ))}
             </SelectContent>
           </Select>
         ) : (
           <div className="w-[180px] h-10" /> /* Placeholder to maintain layout */
         )}
       </div>
-    
+
       <div className="flex items-center gap-4">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -521,7 +603,9 @@ function DesktopView() {
             <SelectContent>
               <SelectItem value="all">All Categories</SelectItem>
               {categories.map((category) => (
-                <SelectItem key={category} value={category}>{category}</SelectItem>
+                <SelectItem key={category} value={category}>
+                  {category}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -529,15 +613,18 @@ function DesktopView() {
           <div className="w-[180px] h-10" /> /* Placeholder to maintain layout */
         )}
         <div className="flex items-center space-x-2">
-          <Checkbox 
-            id="lowStockDesktop" 
-            checked={showLowStock} 
-            onCheckedChange={(checked) => setShowLowStock(!!checked)} 
+          <Checkbox
+            id="lowStockDesktop"
+            checked={showLowStock}
+            onCheckedChange={(checked) => setShowLowStock(!!checked)}
           />
           <Label htmlFor="lowStockDesktop">Show low stock only</Label>
         </div>
         <div className="flex-1 text-right space-x-2">
-          <Button variant="outline" onClick={() => setIsCategoryModalOpen(true)}>
+          <Button
+            variant="outline"
+            onClick={() => setIsCategoryModalOpen(true)}
+          >
             Categories
           </Button>
           <Button onClick={handleAddItem}>
@@ -546,20 +633,33 @@ function DesktopView() {
           </Button>
         </div>
       </div>
-      
+
       <div className="border rounded-lg">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="border-b">
                 <th className="h-12 px-4 text-left align-middle font-medium">
-                  <Checkbox checked={selectedItems.length === filteredItems.length} onCheckedChange={toggleAll} />
+                  <Checkbox
+                    checked={selectedItems.length === filteredItems.length}
+                    onCheckedChange={toggleAll}
+                  />
                 </th>
-                <th className="h-12 px-4 text-left align-middle font-medium">Item</th>
-                <th className="h-12 px-4 text-left align-middle font-medium">Category</th>
-                <th className="h-12 px-4 text-left align-middle font-medium">Stock</th>
-                <th className="h-12 px-4 text-left align-middle font-medium">Price</th>
-                <th className="h-12 px-4 text-left align-middle font-medium">Bottle Inventory</th>
+                <th className="h-12 px-4 text-left align-middle font-medium">
+                  Item
+                </th>
+                <th className="h-12 px-4 text-left align-middle font-medium">
+                  Category
+                </th>
+                <th className="h-12 px-4 text-left align-middle font-medium">
+                  Stock
+                </th>
+                <th className="h-12 px-4 text-left align-middle font-medium">
+                  Price
+                </th>
+                <th className="h-12 px-4 text-left align-middle font-medium">
+                  Bottle Inventory
+                </th>
                 <th className="h-12 w-[40px]"></th>
               </tr>
             </thead>
@@ -583,42 +683,49 @@ function DesktopView() {
       <ItemModal
         isOpen={isModalOpen}
         onClose={() => {
-          setIsModalOpen(false)
-          setEditingItem(undefined)
+          setIsModalOpen(false);
+          setEditingItem(undefined);
         }}
         item={editingItem}
       />
-      <CategoryModal isOpen={isCategoryModalOpen} onClose={() => setIsCategoryModalOpen(false)} />
+      <CategoryModal
+        isOpen={isCategoryModalOpen}
+        onClose={() => setIsCategoryModalOpen(false)}
+      />
     </div>
-  )
+  );
 }
 
 function ItemsPageContent() {
-  const { currentUser } = useUser()
-  const { currentBranch, branches } = useBranch()
-  const [isMobile, setIsMobile] = useState(false)
-  const [defaultBranch, setDefaultBranch] = useState<Branch | null>(null)
+  const { currentUser } = useUser();
+  const { currentBranch, branches } = useBranch();
+  const [isMobile, setIsMobile] = useState(false);
+  const [defaultBranch, setDefaultBranch] = useState<Branch | null>(null);
 
   // Check viewport on mount and resize
   const checkViewport = () => {
-    setIsMobile(window.innerWidth < 1024)
-  }
+    setIsMobile(window.innerWidth < 1024);
+  };
 
   useEffect(() => {
-    checkViewport()
-    window.addEventListener('resize', checkViewport)
-    
+    checkViewport();
+    window.addEventListener("resize", checkViewport);
+
     // Find Hafith branch to use as default
-    const hafithBranch = branches.find(branch => branch.id === "branch1")
+    const hafithBranch = branches.find((branch) => branch.id === "branch1");
     if (hafithBranch) {
-      setDefaultBranch(hafithBranch)
+      setDefaultBranch(hafithBranch);
     }
-    
-    return () => window.removeEventListener('resize', checkViewport)
-  }, [branches])
+
+    return () => window.removeEventListener("resize", checkViewport);
+  }, [branches]);
 
   if (currentUser?.role === "staff") {
-    return <div className="text-center py-8">You don&apos;t have permission to access this page.</div>
+    return (
+      <div className="text-center py-8">
+        You don&apos;t have permission to access this page.
+      </div>
+    );
   }
 
   return (
@@ -627,13 +734,14 @@ function ItemsPageContent() {
         <div className="flex flex-col gap-1">
           <h1 className="text-2xl font-bold tracking-tight">Inventory</h1>
           <p className="text-muted-foreground">
-            Manage inventory at {currentBranch?.name || defaultBranch?.name || 'Hafith'}
+            Manage inventory at{" "}
+            {currentBranch?.name || defaultBranch?.name || "Hafith"}
           </p>
         </div>
       </PageHeader>
       {isMobile ? <MobileView /> : <DesktopView />}
     </div>
-  )
+  );
 }
 
 export default function ItemsPage() {
@@ -643,26 +751,25 @@ export default function ItemsPage() {
         <BranchInitializer />
       </BranchProvider>
     </Layout>
-  )
+  );
 }
 
 // Component to handle branch initialization
 function BranchInitializer() {
-  const { branches, setCurrentBranch } = useBranch()
-  
+  const { branches, setCurrentBranch } = useBranch();
+
   // Set the default branch to Hafith on component mount
   useEffect(() => {
     // Find Hafith branch
-    const hafithBranch = branches.find(branch => branch.id === "branch1")
+    const hafithBranch = branches.find((branch) => branch.id === "branch1");
     if (hafithBranch) {
-      setCurrentBranch(hafithBranch)
+      setCurrentBranch(hafithBranch);
     }
-  }, [branches, setCurrentBranch])
-  
+  }, [branches, setCurrentBranch]);
+
   return (
     <ItemsProvider>
       <ItemsPageContent />
     </ItemsProvider>
-  )
+  );
 }
-

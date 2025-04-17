@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/utils";
 import {
   Home,
   Package,
@@ -15,98 +15,113 @@ import {
   LogOut,
   Users,
   ArrowLeftRight,
-} from "lucide-react"
-import { Button } from "@/components/ui/button"
-import Link from "next/link"
-import { useState, useEffect } from "react"
-import { useRouter, usePathname } from "next/navigation"
-import { MobileNav } from "./mobile-nav"
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import { useState, useEffect } from "react";
+import { useRouter, usePathname } from "next/navigation";
+import { MobileNav } from "./mobile-nav";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import type React from "react"
-import { useUser } from "@/app/user-context"
-import { CustomSidebar } from "./custom-sidebar"
-import { SidebarProvider } from "@/components/ui/sidebar"
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import type React from "react";
+import { useUser } from "@/app/user-context";
+import { Sidebar } from "./new-sidebar";
 
 interface LayoutProps {
-  children: React.ReactNode
-  pageTitle?: string
+  children: React.ReactNode;
+  pageTitle?: string;
 }
 
 export function Layout({ children, pageTitle }: LayoutProps) {
-  const { currentUser } = useUser()
-  const [mounted, setMounted] = useState(false)
-  const pathname = usePathname()
-  
+  const { currentUser } = useUser();
+  const [mounted, setMounted] = useState(false);
+  const pathname = usePathname();
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
   // Determine page title based on pathname if not provided
   const getPageTitle = () => {
-    if (pageTitle) return pageTitle
-    
-    if (pathname === "/") return "Dashboard"
-    if (pathname === "/pos") return "Point of Sale"
-    if (pathname === "/reports") return "Reports"
-    if (pathname === "/customers") return "Customers"
-    if (pathname === "/inventory") return "Inventory"
-    if (pathname === "/orders") return "Orders"
-    if (pathname === "/transfer") return "Transfer Stock"
-    if (pathname === "/restock") return "Restock Orders"
-    if (pathname === "/restock-orders") return "Restock Order History"
-    if (pathname === "/admins") return "Admin"
-    
+    if (pageTitle) return pageTitle;
+
+    if (pathname === "/") return "Dashboard";
+    if (pathname === "/pos") return "Point of Sale";
+    if (pathname === "/reports") return "Reports";
+    if (pathname === "/customers") return "Customers";
+    if (pathname === "/inventory") return "Inventory";
+    if (pathname === "/orders") return "Orders";
+    if (pathname === "/transfer") return "Transfer Stock";
+    if (pathname === "/restock") return "Restock Orders";
+    if (pathname === "/restock-orders") return "Restock Order History";
+    if (pathname === "/admins") return "Admin";
+
     // Extract the last part of the path and capitalize it
-    const parts = pathname.split("/").filter(Boolean)
+    const parts = pathname.split("/").filter(Boolean);
     if (parts.length > 0) {
-      const lastPart = parts[parts.length - 1]
-      return lastPart.charAt(0).toUpperCase() + lastPart.slice(1)
+      const lastPart = parts[parts.length - 1];
+      return lastPart.charAt(0).toUpperCase() + lastPart.slice(1);
     }
-    
-    return "H Automotives"
-  }
+
+    return "H Automotives";
+  };
 
   useEffect(() => {
-    setMounted(true)
-  }, [])
+    setMounted(true);
+  }, []);
+
+  // Handle sidebar collapse state changes
+  const handleSidebarCollapse = (collapsed: boolean) => {
+    setSidebarCollapsed(collapsed);
+  };
 
   return (
-    <SidebarProvider defaultOpen={true}>
-      <div className="flex min-h-screen w-full bg-background">
-        {/* Desktop Sidebar - only show on large screens */}
-        <CustomSidebar className="hidden lg:flex" />
+    <div className="flex min-h-screen w-full bg-background overflow-hidden">
+      {/* Desktop Sidebar - only show on tablets and above */}
+      <Sidebar
+        className="hidden md:flex"
+        onCollapsedChange={handleSidebarCollapse}
+      />
 
-        {/* Mobile header - show on screens below 1024px */}
-        <div className="lg:hidden fixed top-0 left-0 right-0 h-16 border-b bg-background z-50 flex items-center justify-between px-4">
-          <div className="flex items-center">
-            <MobileNav className="mr-2" />
-          </div>
-          <h1 className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-lg font-semibold truncate max-w-[60%] text-center">{getPageTitle()}</h1>
-          <div className="flex items-center">
-            {/* Placeholder for potential actions */}
-          </div>
+      {/* Mobile header - show on mobile screens only */}
+      <div className="md:hidden fixed top-0 left-0 right-0 h-16 border-b bg-background z-50 flex items-center justify-between px-4">
+        <div className="flex items-center">
+          <MobileNav className="mr-2" />
         </div>
-
-        {/* Main content */}
-        <div className="flex-1 w-full flex flex-col mt-16 lg:mt-0">
-          <main className="flex-1 w-full p-4 md:p-6 lg:p-8">
-            {children}
-          </main>
+        <h1 className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-lg font-semibold truncate max-w-[60%] text-center">
+          {getPageTitle()}
+        </h1>
+        <div className="flex items-center">
+          {/* Placeholder for potential actions */}
         </div>
       </div>
-    </SidebarProvider>
-  )
+
+      {/* Main content - push to the side based on sidebar state */}
+      <div
+        className={cn(
+          "flex-1 w-full flex flex-col mt-16 md:mt-0",
+          sidebarCollapsed ? "md:ml-14" : "md:ml-56"
+        )}
+        style={{
+          transition: "margin-left 300ms ease-in-out",
+          willChange: "margin-left",
+        }}
+      >
+        <main className="flex-1 w-full p-4 md:p-6 lg:p-8">{children}</main>
+      </div>
+    </div>
+  );
 }
 
 interface NavItemProps {
-  href: string
-  icon: React.ReactNode
-  children: React.ReactNode
-  collapsed?: boolean
-  className?: string
+  href: string;
+  icon: React.ReactNode;
+  children: React.ReactNode;
+  collapsed?: boolean;
+  className?: string;
 }
 
 function NavItem({ href, icon, children, collapsed, className }: NavItemProps) {
@@ -116,29 +131,29 @@ function NavItem({ href, icon, children, collapsed, className }: NavItemProps) {
       className={cn(
         "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
         collapsed && "justify-center px-2",
-        className,
+        className
       )}
       title={collapsed ? String(children) : undefined}
     >
       {icon}
       {!collapsed && children}
     </Link>
-  )
+  );
 }
 
 function ProfileMenu() {
-  const router = useRouter()
+  const router = useRouter();
 
   const handleSettingsClick = () => {
-    router.push("/settings")
-  }
+    router.push("/settings");
+  };
 
   const handleLogout = () => {
     // Here you would typically handle the logout process
     // For example, clearing the authentication token from storage
     // Then redirect to the auth page
-    router.push("/auth")
-  }
+    router.push("/auth");
+  };
 
   return (
     <DropdownMenu>
@@ -150,16 +165,19 @@ function ProfileMenu() {
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent 
-        className="w-56 max-sm:w-64 rounded-xl border-2 p-2" 
-        align="end" 
+      <DropdownMenuContent
+        className="w-56 max-sm:w-64 rounded-xl border-2 p-2"
+        align="end"
         forceMount
       >
         <DropdownMenuItem className="rounded-lg py-2">
           <User className="mr-2 h-5 w-5 stroke-[2]" />
           <span>Profile</span>
         </DropdownMenuItem>
-        <DropdownMenuItem className="rounded-lg py-2" onSelect={handleSettingsClick}>
+        <DropdownMenuItem
+          className="rounded-lg py-2"
+          onSelect={handleSettingsClick}
+        >
           <Settings className="mr-2 h-5 w-5 stroke-[2]" />
           <span>Settings</span>
         </DropdownMenuItem>
@@ -170,6 +188,5 @@ function ProfileMenu() {
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
-  )
+  );
 }
-
