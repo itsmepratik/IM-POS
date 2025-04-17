@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import * as React from "react"
+import * as React from "react";
 import {
   Home,
   Package,
@@ -19,13 +19,13 @@ import {
   Truck,
   User,
   LogOut,
-  Bell
-} from "lucide-react"
-import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { useUser } from "@/app/user-context"
-import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
+  Bell,
+} from "lucide-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useUser } from "@/app/user-context";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
 import {
   Sidebar,
   SidebarContent,
@@ -35,18 +35,18 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   useSidebar,
-} from "@/components/ui/sidebar"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+} from "@/components/ui/sidebar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { cn } from "@/lib/utils"
-import { Badge } from "@/components/ui/badge"
-import { useNotification } from "@/app/notification-context"
+} from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
+import { useNotification } from "@/app/notification-context";
 
 // Define the type for nav items
 type NavItem = {
@@ -55,33 +55,33 @@ type NavItem = {
   icon: React.ReactNode;
   isAdmin: boolean;
   hideMobile?: boolean;
-}
+};
 
 export function CustomSidebar({ className }: { className?: string }) {
-  const { currentUser } = useUser()
-  const { notifications } = useNotification()
-  const router = useRouter()
-  const pathname = usePathname()
-  const { open, setOpen } = useSidebar()
-  const [inventoryOpen, setInventoryOpen] = React.useState(false)
-  const [ordersOpen, setOrdersOpen] = React.useState(false)
-  const [isMobile, setIsMobile] = React.useState(false)
+  const { currentUser } = useUser();
+  const { notifications } = useNotification();
+  const router = useRouter();
+  const pathname = usePathname();
+  const { open, setOpen } = useSidebar();
+  const [inventoryOpen, setInventoryOpen] = React.useState(false);
+  const [ordersOpen, setOrdersOpen] = React.useState(false);
+  const [isMobile, setIsMobile] = React.useState(false);
 
   // Check if we're on mobile
   React.useEffect(() => {
     const checkMobile = () => {
-      setIsMobile(window.innerWidth < 1024)
-    }
-    
+      setIsMobile(window.innerWidth < 1024);
+    };
+
     // Initial check
-    checkMobile()
-    
+    checkMobile();
+
     // Add event listener for window resize
-    window.addEventListener('resize', checkMobile)
-    
+    window.addEventListener("resize", checkMobile);
+
     // Cleanup
-    return () => window.removeEventListener('resize', checkMobile)
-  }, [])
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   const navItems: NavItem[] = [
     {
@@ -113,14 +113,17 @@ export function CustomSidebar({ className }: { className?: string }) {
       href: "/transactions",
       icon: <RefreshCcw className="h-4 w-4" />,
       isAdmin: false,
-    }
-  ]
+    },
+  ];
 
   return (
-    <Sidebar 
-      variant="sidebar" 
-      collapsible="icon" 
-      className={cn("border-r rounded-tr-xl rounded-br-xl overflow-hidden", className)} 
+    <Sidebar
+      variant="sidebar"
+      collapsible="icon"
+      className={cn(
+        "border-r rounded-tr-xl rounded-br-xl overflow-hidden",
+        className
+      )}
       aria-label="Sidebar"
     >
       <style jsx global>{`
@@ -129,16 +132,16 @@ export function CustomSidebar({ className }: { className?: string }) {
           border-bottom-right-radius: 0.75rem;
         }
       `}</style>
-      <SidebarHeader className={cn("px-5 py-3", !open && "flex items-center justify-center")}>
+      <SidebarHeader
+        className={cn("px-5 py-3", !open && "flex items-center justify-center")}
+      >
         {open ? (
           <div className="flex items-center justify-between">
             <Link href="/" className="flex-1">
-              <span className="font-bold">
-                H Automotives
-              </span>
+              <span className="font-bold">H Automotives</span>
             </Link>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               size="icon"
               onClick={() => setOpen(false)}
               className="h-8 w-8 rounded-full border-muted-foreground/20 ml-2"
@@ -148,8 +151,8 @@ export function CustomSidebar({ className }: { className?: string }) {
           </div>
         ) : (
           <div className="flex items-center justify-center w-full">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               size="icon"
               onClick={() => setOpen(true)}
               className="h-8 w-8 rounded-full border-muted-foreground/20"
@@ -163,13 +166,16 @@ export function CustomSidebar({ className }: { className?: string }) {
         <SidebarMenu>
           {navItems.map((item) => {
             // Skip admin items for non-admin users
-            if (item.isAdmin && (!currentUser || currentUser.role !== "admin")) {
-              return null
+            if (
+              item.isAdmin &&
+              (!currentUser || currentUser.role !== "admin")
+            ) {
+              return null;
             }
 
             // Hide items marked with hideMobile on mobile devices
             if (item.hideMobile && isMobile) {
-              return null
+              return null;
             }
 
             // Special handling for Notifications item to show badge
@@ -181,23 +187,22 @@ export function CustomSidebar({ className }: { className?: string }) {
                     tooltip={item.title}
                     className={cn(
                       "w-full pl-2",
-                      pathname === item.href && "bg-accent text-accent-foreground"
+                      pathname === item.href &&
+                        "bg-accent text-accent-foreground"
                     )}
                   >
                     <Link href={item.href} className="relative">
                       <span className="mr-2 inline-flex">{item.icon}</span>
                       <span>{item.title}</span>
                       {notifications.length > 0 && (
-                        <Badge 
-                          className="absolute top-0 -right-1 h-4 min-w-4 px-1 flex items-center justify-center bg-blue-500 text-[10px]"
-                        >
+                        <Badge className="absolute top-0 -right-1 h-4 min-w-4 px-1 flex items-center justify-center bg-blue-500 text-[10px]">
                           {notifications.length}
                         </Badge>
                       )}
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
-              )
+              );
             }
 
             return (
@@ -216,9 +221,9 @@ export function CustomSidebar({ className }: { className?: string }) {
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-            )
+            );
           })}
-          
+
           {/* Orders Dropdown */}
           <SidebarMenuItem className="my-0.5">
             <div className="w-full">
@@ -226,41 +231,58 @@ export function CustomSidebar({ className }: { className?: string }) {
                 onClick={() => setOrdersOpen(!ordersOpen)}
                 className={cn(
                   "flex w-full items-center rounded-md px-2 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
-                  (pathname === "/orders" || pathname === "/transfer" || pathname === "/restock-orders") && "bg-accent text-accent-foreground"
+                  (pathname === "/orders" ||
+                    pathname === "/transfer" ||
+                    pathname === "/restock-orders") &&
+                    "bg-accent text-accent-foreground"
                 )}
               >
-                <span className="mr-2 inline-flex"><ClipboardList className="h-4 w-4" /></span>
-                <span className="flex-1 text-left">Orders</span>
-                {open && <ChevronDown className={cn("h-4 w-4 transition-transform", ordersOpen && "rotate-180")} />}
+                <span className="mr-2 inline-flex">
+                  <ClipboardList className="h-4 w-4" />
+                </span>
+                <span className={cn("flex-1 text-left", !open && "sr-only")}>
+                  Orders
+                </span>
+                {open && (
+                  <ChevronDown
+                    className={cn(
+                      "h-4 w-4 transition-transform",
+                      ordersOpen && "rotate-180"
+                    )}
+                  />
+                )}
               </button>
-              
+
               {ordersOpen && (
                 <div className="ml-6 mt-1 space-y-1">
-                  <Link 
-                    href="/orders" 
+                  <Link
+                    href="/orders"
                     className={cn(
                       "flex items-center rounded-md px-2 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
-                      pathname === "/orders" && "bg-accent text-accent-foreground"
+                      pathname === "/orders" &&
+                        "bg-accent text-accent-foreground"
                     )}
                   >
                     <ShoppingCart className="mr-2 h-4 w-4" />
                     <span>Online Orders</span>
                   </Link>
-                  <Link 
-                    href="/transfer" 
+                  <Link
+                    href="/transfer"
                     className={cn(
                       "flex items-center rounded-md px-2 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
-                      pathname === "/transfer" && "bg-accent text-accent-foreground"
+                      pathname === "/transfer" &&
+                        "bg-accent text-accent-foreground"
                     )}
                   >
                     <ArrowLeftRight className="mr-2 h-4 w-4" />
                     <span>Transfers</span>
                   </Link>
-                  <Link 
-                    href="/restock-orders" 
+                  <Link
+                    href="/restock-orders"
                     className={cn(
                       "flex items-center rounded-md px-2 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
-                      pathname === "/restock-orders" && "bg-accent text-accent-foreground"
+                      pathname === "/restock-orders" &&
+                        "bg-accent text-accent-foreground"
                     )}
                   >
                     <Truck className="mr-2 h-4 w-4" />
@@ -270,7 +292,7 @@ export function CustomSidebar({ className }: { className?: string }) {
               )}
             </div>
           </SidebarMenuItem>
-          
+
           {/* Inventory Dropdown */}
           <SidebarMenuItem className="my-0.5">
             <div className="w-full">
@@ -278,31 +300,46 @@ export function CustomSidebar({ className }: { className?: string }) {
                 onClick={() => setInventoryOpen(!inventoryOpen)}
                 className={cn(
                   "flex w-full items-center rounded-md px-2 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
-                  (pathname === "/inventory" || pathname === "/inventory/branch") && "bg-accent text-accent-foreground"
+                  (pathname === "/inventory" ||
+                    pathname === "/inventory/branch") &&
+                    "bg-accent text-accent-foreground"
                 )}
               >
-                <span className="mr-2 inline-flex"><Package className="h-4 w-4" /></span>
-                <span className="flex-1 text-left">Inventory</span>
-                <ChevronDown className={cn("h-4 w-4 transition-transform", inventoryOpen && "rotate-180")} />
+                <span className="mr-2 inline-flex">
+                  <Package className="h-4 w-4" />
+                </span>
+                <span className={cn("flex-1 text-left", !open && "sr-only")}>
+                  Inventory
+                </span>
+                {open && (
+                  <ChevronDown
+                    className={cn(
+                      "h-4 w-4 transition-transform",
+                      inventoryOpen && "rotate-180"
+                    )}
+                  />
+                )}
               </button>
-              
+
               {inventoryOpen && (
                 <div className="ml-6 mt-1 space-y-1">
-                  <Link 
-                    href="/inventory" 
+                  <Link
+                    href="/inventory"
                     className={cn(
                       "flex items-center rounded-md px-2 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
-                      pathname === "/inventory" && "bg-accent text-accent-foreground"
+                      pathname === "/inventory" &&
+                        "bg-accent text-accent-foreground"
                     )}
                   >
                     <Warehouse className="mr-2 h-4 w-4" />
                     <span>Main</span>
                   </Link>
-                  <Link 
-                    href="/inventory/branch" 
+                  <Link
+                    href="/inventory/branch"
                     className={cn(
                       "flex items-center rounded-md px-2 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
-                      pathname === "/inventory/branch" && "bg-accent text-accent-foreground"
+                      pathname === "/inventory/branch" &&
+                        "bg-accent text-accent-foreground"
                     )}
                   >
                     <Building className="mr-2 h-4 w-4" />
@@ -328,21 +365,27 @@ export function CustomSidebar({ className }: { className?: string }) {
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent 
-                className="w-[90%] sm:w-52 min-w-[13rem] rounded-xl border-2 p-2" 
-                align="end" 
+              <DropdownMenuContent
+                className="w-[90%] sm:w-52 min-w-[13rem] rounded-xl border-2 p-2"
+                align="end"
                 forceMount
               >
                 <DropdownMenuItem className="rounded-lg py-2">
                   <User className="mr-2 h-5 w-5 stroke-[2]" />
                   <span>Profile</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem className="rounded-lg py-2" onSelect={() => router.push("/settings")}>
+                <DropdownMenuItem
+                  className="rounded-lg py-2"
+                  onSelect={() => router.push("/settings")}
+                >
                   <Settings className="mr-2 h-5 w-5 stroke-[2]" />
                   <span>Settings</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator className="my-2" />
-                <DropdownMenuItem className="rounded-lg py-2" onSelect={() => router.push("/auth")}>
+                <DropdownMenuItem
+                  className="rounded-lg py-2"
+                  onSelect={() => router.push("/auth")}
+                >
                   <LogOut className="mr-2 h-5 w-5 stroke-[2]" />
                   <span>Log out</span>
                 </DropdownMenuItem>
@@ -352,20 +395,20 @@ export function CustomSidebar({ className }: { className?: string }) {
         )}
       </SidebarFooter>
     </Sidebar>
-  )
+  );
 }
 
 function ProfileMenu() {
-  const router = useRouter()
-  const { open } = useSidebar()
+  const router = useRouter();
+  const { open } = useSidebar();
 
   const handleSettingsClick = () => {
-    router.push("/settings")
-  }
+    router.push("/settings");
+  };
 
   const handleLogout = () => {
-    router.push("/auth")
-  }
+    router.push("/auth");
+  };
 
   if (!open) {
     return (
@@ -375,7 +418,7 @@ function ProfileMenu() {
           <AvatarFallback>SC</AvatarFallback>
         </Avatar>
       </div>
-    )
+    );
   }
 
   return (
@@ -394,16 +437,19 @@ function ProfileMenu() {
           </div>
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent 
-        className="w-[90%] sm:w-52 min-w-[13rem] rounded-xl border-2 p-2" 
-        align="end" 
+      <DropdownMenuContent
+        className="w-[90%] sm:w-52 min-w-[13rem] rounded-xl border-2 p-2"
+        align="end"
         forceMount
       >
         <DropdownMenuItem className="rounded-lg py-2">
           <User className="mr-2 h-5 w-5 stroke-[2]" />
           <span>Profile</span>
         </DropdownMenuItem>
-        <DropdownMenuItem className="rounded-lg py-2" onSelect={handleSettingsClick}>
+        <DropdownMenuItem
+          className="rounded-lg py-2"
+          onSelect={handleSettingsClick}
+        >
           <Settings className="mr-2 h-5 w-5 stroke-[2]" />
           <span>Settings</span>
         </DropdownMenuItem>
@@ -414,5 +460,5 @@ function ProfileMenu() {
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
-  )
-} 
+  );
+}

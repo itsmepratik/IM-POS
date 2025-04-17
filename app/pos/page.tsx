@@ -1,12 +1,12 @@
-"use client"
+"use client";
 
-import { useState, useMemo, useCallback, memo, useRef, useEffect } from "react"
-import { Layout } from "@/components/layout"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { useState, useMemo, useCallback, memo, useRef, useEffect } from "react";
+import { Layout } from "@/components/layout";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Plus,
   Minus,
@@ -28,8 +28,8 @@ import {
   ChevronRight,
   PercentIcon,
   Scissors,
-  Calculator
-} from "lucide-react"
+  Calculator,
+} from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -37,8 +37,8 @@ import {
   DialogTitle,
   DialogContentWithoutClose,
   DialogDescription,
-  DialogFooter
-} from "@/components/ui/dialog"
+  DialogFooter,
+} from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -48,66 +48,66 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
+} from "@/components/ui/alert-dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "@/components/ui/dropdown-menu";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip"
-import { cn } from "@/lib/utils"
-import { motion } from "framer-motion"
-import Image from "next/image"
-import { OpenBottleIcon, ClosedBottleIcon } from "@/components/ui/bottle-icons"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Label } from "@/components/ui/label"
-import { useToast } from "@/components/ui/use-toast"
-import { format } from "date-fns"
+} from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
+import { motion } from "framer-motion";
+import Image from "next/image";
+import { OpenBottleIcon, ClosedBottleIcon } from "@/components/ui/bottle-icons";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/components/ui/use-toast";
+import { format } from "date-fns";
 
 // Import the RefundDialog component
-import { RefundDialog } from "./components/refund-dialog"
-import { ImportDialog } from "./components/import-dialog"
+import { RefundDialog } from "./components/refund-dialog";
+import { ImportDialog } from "./components/import-dialog";
 
 interface OilProduct {
-  id: number
-  brand: string
-  name: string
-  basePrice: number
-  type: string
-  image?: string
+  id: number;
+  brand: string;
+  name: string;
+  basePrice: number;
+  type: string;
+  image?: string;
   volumes: {
-    size: string
-    price: number
-  }[]
+    size: string;
+    price: number;
+  }[];
 }
 
 interface Product {
-  id: number
-  name: string
-  price: number
-  category: 'Filters' | 'Parts' | 'Additives'
-  brand?: string
-  type?: string
+  id: number;
+  name: string;
+  price: number;
+  category: "Filters" | "Parts" | "Additives";
+  brand?: string;
+  type?: string;
 }
 
-interface CartItem extends Omit<Product, 'category'> {
-  quantity: number
-  details?: string
-  uniqueId: string
-  bottleType?: 'open' | 'closed'
+interface CartItem extends Omit<Product, "category"> {
+  quantity: number;
+  details?: string;
+  uniqueId: string;
+  bottleType?: "open" | "closed";
 }
 
 interface SelectedVolume {
-  size: string
-  quantity: number
-  price: number
-  bottleType?: 'open' | 'closed'
+  size: string;
+  quantity: number;
+  price: number;
+  bottleType?: "open" | "closed";
 }
 
 // Add these after the existing interface definitions near the top of the file
@@ -134,7 +134,7 @@ const oilProducts: OilProduct[] = [
       { size: "1L", price: 11.99 },
       { size: "500ml", price: 6.99 },
       { size: "250ml", price: 3.99 },
-    ]
+    ],
   },
   {
     id: 102,
@@ -149,7 +149,7 @@ const oilProducts: OilProduct[] = [
       { size: "1L", price: 11.99 },
       { size: "500ml", price: 6.99 },
       { size: "250ml", price: 3.99 },
-    ]
+    ],
   },
   {
     id: 103,
@@ -164,7 +164,7 @@ const oilProducts: OilProduct[] = [
       { size: "1L", price: 11.99 },
       { size: "500ml", price: 6.99 },
       { size: "250ml", price: 3.99 },
-    ]
+    ],
   },
   {
     id: 201,
@@ -179,7 +179,7 @@ const oilProducts: OilProduct[] = [
       { size: "1L", price: 13.99 },
       { size: "500ml", price: 7.99 },
       { size: "250ml", price: 4.99 },
-    ]
+    ],
   },
   {
     id: 202,
@@ -194,7 +194,7 @@ const oilProducts: OilProduct[] = [
       { size: "1L", price: 13.99 },
       { size: "500ml", price: 7.99 },
       { size: "250ml", price: 4.99 },
-    ]
+    ],
   },
   {
     id: 203,
@@ -209,7 +209,7 @@ const oilProducts: OilProduct[] = [
       { size: "1L", price: 11.99 },
       { size: "500ml", price: 6.99 },
       { size: "250ml", price: 3.99 },
-    ]
+    ],
   },
   {
     id: 301,
@@ -224,7 +224,7 @@ const oilProducts: OilProduct[] = [
       { size: "1L", price: 14.99 },
       { size: "500ml", price: 8.99 },
       { size: "250ml", price: 5.99 },
-    ]
+    ],
   },
   {
     id: 302,
@@ -239,281 +239,468 @@ const oilProducts: OilProduct[] = [
       { size: "1L", price: 14.99 },
       { size: "500ml", price: 8.99 },
       { size: "250ml", price: 5.99 },
-    ]
-  }
-]
+    ],
+  },
+];
 
 const products: Product[] = [
   // Toyota Filters
-  { id: 3, name: "Oil Filter - Standard", price: 12.99, category: "Filters", brand: "Toyota", type: "Oil Filter" },
-  { id: 4, name: "Air Filter - Standard", price: 15.99, category: "Filters", brand: "Toyota", type: "Air Filter" },
-  { id: 9, name: "Cabin Filter - Standard", price: 11.99, category: "Filters", brand: "Toyota", type: "Cabin Filter" },
-  { id: 10, name: "Oil Filter - Premium", price: 19.99, category: "Filters", brand: "Toyota", type: "Oil Filter" },
-  { id: 11, name: "Air Filter - Premium", price: 24.99, category: "Filters", brand: "Toyota", type: "Air Filter" },
-  { id: 12, name: "Cabin Filter - Premium", price: 21.99, category: "Filters", brand: "Toyota", type: "Cabin Filter" },
+  {
+    id: 3,
+    name: "Oil Filter - Standard",
+    price: 12.99,
+    category: "Filters",
+    brand: "Toyota",
+    type: "Oil Filter",
+  },
+  {
+    id: 4,
+    name: "Air Filter - Standard",
+    price: 15.99,
+    category: "Filters",
+    brand: "Toyota",
+    type: "Air Filter",
+  },
+  {
+    id: 9,
+    name: "Cabin Filter - Standard",
+    price: 11.99,
+    category: "Filters",
+    brand: "Toyota",
+    type: "Cabin Filter",
+  },
+  {
+    id: 10,
+    name: "Oil Filter - Premium",
+    price: 19.99,
+    category: "Filters",
+    brand: "Toyota",
+    type: "Oil Filter",
+  },
+  {
+    id: 11,
+    name: "Air Filter - Premium",
+    price: 24.99,
+    category: "Filters",
+    brand: "Toyota",
+    type: "Air Filter",
+  },
+  {
+    id: 12,
+    name: "Cabin Filter - Premium",
+    price: 21.99,
+    category: "Filters",
+    brand: "Toyota",
+    type: "Cabin Filter",
+  },
 
   // Honda Filters
-  { id: 31, name: "Oil Filter - Basic", price: 11.99, category: "Filters", brand: "Honda", type: "Oil Filter" },
-  { id: 32, name: "Air Filter - Basic", price: 14.99, category: "Filters", brand: "Honda", type: "Air Filter" },
-  { id: 35, name: "Cabin Filter - Basic", price: 12.99, category: "Filters", brand: "Honda", type: "Cabin Filter" },
-  { id: 37, name: "Oil Filter - Premium", price: 18.99, category: "Filters", brand: "Honda", type: "Oil Filter" },
-  { id: 38, name: "Air Filter - Premium", price: 22.99, category: "Filters", brand: "Honda", type: "Air Filter" },
-  { id: 39, name: "Cabin Filter - Premium", price: 20.99, category: "Filters", brand: "Honda", type: "Cabin Filter" },
+  {
+    id: 31,
+    name: "Oil Filter - Basic",
+    price: 11.99,
+    category: "Filters",
+    brand: "Honda",
+    type: "Oil Filter",
+  },
+  {
+    id: 32,
+    name: "Air Filter - Basic",
+    price: 14.99,
+    category: "Filters",
+    brand: "Honda",
+    type: "Air Filter",
+  },
+  {
+    id: 35,
+    name: "Cabin Filter - Basic",
+    price: 12.99,
+    category: "Filters",
+    brand: "Honda",
+    type: "Cabin Filter",
+  },
+  {
+    id: 37,
+    name: "Oil Filter - Premium",
+    price: 18.99,
+    category: "Filters",
+    brand: "Honda",
+    type: "Oil Filter",
+  },
+  {
+    id: 38,
+    name: "Air Filter - Premium",
+    price: 22.99,
+    category: "Filters",
+    brand: "Honda",
+    type: "Air Filter",
+  },
+  {
+    id: 39,
+    name: "Cabin Filter - Premium",
+    price: 20.99,
+    category: "Filters",
+    brand: "Honda",
+    type: "Cabin Filter",
+  },
 
   // Nissan Filters
-  { id: 33, name: "Oil Filter - Standard", price: 13.99, category: "Filters", brand: "Nissan", type: "Oil Filter" },
-  { id: 34, name: "Air Filter - Standard", price: 16.99, category: "Filters", brand: "Nissan", type: "Air Filter" },
-  { id: 36, name: "Cabin Filter - Standard", price: 13.99, category: "Filters", brand: "Nissan", type: "Cabin Filter" },
-  { id: 40, name: "Oil Filter - Premium", price: 20.99, category: "Filters", brand: "Nissan", type: "Oil Filter" },
-  { id: 41, name: "Air Filter - Premium", price: 25.99, category: "Filters", brand: "Nissan", type: "Air Filter" },
-  { id: 42, name: "Cabin Filter - Premium", price: 22.99, category: "Filters", brand: "Nissan", type: "Cabin Filter" },
+  {
+    id: 33,
+    name: "Oil Filter - Standard",
+    price: 13.99,
+    category: "Filters",
+    brand: "Nissan",
+    type: "Oil Filter",
+  },
+  {
+    id: 34,
+    name: "Air Filter - Standard",
+    price: 16.99,
+    category: "Filters",
+    brand: "Nissan",
+    type: "Air Filter",
+  },
+  {
+    id: 36,
+    name: "Cabin Filter - Standard",
+    price: 13.99,
+    category: "Filters",
+    brand: "Nissan",
+    type: "Cabin Filter",
+  },
+  {
+    id: 40,
+    name: "Oil Filter - Premium",
+    price: 20.99,
+    category: "Filters",
+    brand: "Nissan",
+    type: "Oil Filter",
+  },
+  {
+    id: 41,
+    name: "Air Filter - Premium",
+    price: 25.99,
+    category: "Filters",
+    brand: "Nissan",
+    type: "Air Filter",
+  },
+  {
+    id: 42,
+    name: "Cabin Filter - Premium",
+    price: 22.99,
+    category: "Filters",
+    brand: "Nissan",
+    type: "Cabin Filter",
+  },
 
   // Other Products
   { id: 5, name: "Brake Pads", price: 45.99, category: "Parts" },
   { id: 6, name: "Spark Plugs", price: 8.99, category: "Parts" },
   { id: 7, name: "Fuel System Cleaner", price: 14.99, category: "Additives" },
   { id: 8, name: "Oil Treatment", price: 11.99, category: "Additives" },
-]
+];
 
 // Memoize the cart item component
-const CartItem = memo(({ 
-  item, 
-  updateQuantity, 
-  removeFromCart 
-}: { 
-  item: CartItem
-  updateQuantity: (id: number, quantity: number) => void
-  removeFromCart: (id: number) => void 
-}) => (
-  <div className="grid grid-cols-[1fr_auto] gap-3 py-3 first:pt-0 items-start border-b last:border-b-0">
-    {/* Item details */}
-    <div className="min-w-0">
-      <div className="font-medium text-[clamp(0.875rem,2vw,1rem)] mb-1">{item.name}</div>
-      {item.bottleType && (
-        <div className="flex items-center gap-1 mb-1">
-          {item.bottleType === 'closed' ? (
-            <ClosedBottleIcon className="h-4 w-4 text-primary" />
-          ) : (
-            <OpenBottleIcon className="h-4 w-4 text-primary" />
-          )}
-          <span className="text-xs text-muted-foreground capitalize">{item.bottleType} bottle</span>
+const CartItem = memo(
+  ({
+    item,
+    updateQuantity,
+    removeFromCart,
+  }: {
+    item: CartItem;
+    updateQuantity: (id: number, quantity: number) => void;
+    removeFromCart: (id: number) => void;
+  }) => (
+    <div className="grid grid-cols-[1fr_auto] gap-3 py-3 first:pt-0 items-start border-b last:border-b-0">
+      {/* Item details */}
+      <div className="min-w-0">
+        <div className="font-medium text-[clamp(0.875rem,2vw,1rem)] mb-1">
+          {item.name}
         </div>
-      )}
-      <div className="text-[clamp(0.75rem,1.5vw,0.875rem)] text-muted-foreground">
-        OMR {item.price.toFixed(2)} each
+        {item.bottleType && (
+          <div className="flex items-center gap-1 mb-1">
+            {item.bottleType === "closed" ? (
+              <ClosedBottleIcon className="h-4 w-4 text-primary" />
+            ) : (
+              <OpenBottleIcon className="h-4 w-4 text-primary" />
+            )}
+            <span className="text-xs text-muted-foreground capitalize">
+              {item.bottleType} bottle
+            </span>
+          </div>
+        )}
+        <div className="text-[clamp(0.75rem,1.5vw,0.875rem)] text-muted-foreground">
+          OMR {item.price.toFixed(2)} each
+        </div>
+        <div className="font-medium text-[clamp(0.875rem,2vw,1rem)] mt-1">
+          OMR {(item.price * item.quantity).toFixed(2)}
+        </div>
       </div>
-      <div className="font-medium text-[clamp(0.875rem,2vw,1rem)] mt-1">
-        OMR {(item.price * item.quantity).toFixed(2)}
+
+      {/* Right side controls: quantity and delete */}
+      <div className="flex flex-col gap-2 items-end">
+        {/* Delete button */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6 flex-shrink-0"
+          onClick={() => removeFromCart(item.id)}
+          aria-label="Remove item"
+        >
+          <X className="h-3 w-3" />
+        </Button>
+
+        {/* Quantity controls - horizontal */}
+        <div className="flex items-center gap-1 mt-1">
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-6 w-6"
+            onClick={() =>
+              updateQuantity(item.id, Math.max(1, item.quantity - 1))
+            }
+          >
+            <Minus className="h-3 w-3" />
+          </Button>
+          <span className="w-5 text-center font-medium text-xs">
+            {item.quantity}
+          </span>
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-6 w-6"
+            onClick={() => updateQuantity(item.id, item.quantity + 1)}
+          >
+            <Plus className="h-3 w-3" />
+          </Button>
+        </div>
       </div>
     </div>
-    
-    {/* Right side controls: quantity and delete */}
-    <div className="flex flex-col gap-2 items-end">
-      {/* Delete button */}
-      <Button 
-        variant="ghost" 
-        size="icon" 
-        className="h-6 w-6 flex-shrink-0" 
-        onClick={() => removeFromCart(item.id)}
-        aria-label="Remove item"
-      >
-        <X className="h-3 w-3" />
-      </Button>
-      
-      {/* Quantity controls - horizontal */}
-      <div className="flex items-center gap-1 mt-1">
-        <Button
-          variant="outline"
-          size="icon"
-          className="h-6 w-6"
-          onClick={() => updateQuantity(item.id, Math.max(1, item.quantity - 1))}
-        >
-          <Minus className="h-3 w-3" />
-        </Button>
-        <span className="w-5 text-center font-medium text-xs">{item.quantity}</span>
-        <Button
-          variant="outline"
-          size="icon"
-          className="h-6 w-6"
-          onClick={() => updateQuantity(item.id, item.quantity + 1)}
-        >
-          <Plus className="h-3 w-3" />
-        </Button>
-      </div>
-    </div>
-  </div>
-))
-CartItem.displayName = 'CartItem'
+  )
+);
+CartItem.displayName = "CartItem";
 
 // Memoize the product button component
-const ProductButton = memo(({ product, addToCart }: { product: Product, addToCart: (product: Product) => void }) => (
-  <Button
-    key={product.id}
-    variant="outline"
-    className="h-auto py-6 flex flex-col items-center justify-center text-center p-4 hover:shadow-md transition-all"
-    onClick={() => addToCart(product)}
-  >
-    <div className="font-semibold text-base mb-2">{product.name}</div>
-    <div className="text-lg font-medium text-primary">OMR {product.price.toFixed(2)}</div>
-  </Button>
-))
-ProductButton.displayName = 'ProductButton'
+const ProductButton = memo(
+  ({
+    product,
+    addToCart,
+  }: {
+    product: Product;
+    addToCart: (product: Product) => void;
+  }) => (
+    <Button
+      key={product.id}
+      variant="outline"
+      className="h-auto py-6 flex flex-col items-center justify-center text-center p-4 hover:shadow-md transition-all"
+      onClick={() => addToCart(product)}
+    >
+      <div className="font-semibold text-base mb-2">{product.name}</div>
+      <div className="text-lg font-medium text-primary">
+        OMR {product.price.toFixed(2)}
+      </div>
+    </Button>
+  )
+);
+ProductButton.displayName = "ProductButton";
 
 export default function POSPage() {
-  const [cart, setCart] = useState<CartItem[]>([])
-  const [activeCategory, setActiveCategory] = useState<string>("Oil")
-  const [searchQuery, setSearchQuery] = useState("")
-  const [showCart, setShowCart] = useState(false)
-  const [showClearCartDialog, setShowClearCartDialog] = useState(false)
-  const [expandedBrand, setExpandedBrand] = useState<string | null>(null)
-  const [selectedOil, setSelectedOil] = useState<OilProduct | null>(null)
-  const [isVolumeModalOpen, setIsVolumeModalOpen] = useState(false)
-  const [selectedVolumes, setSelectedVolumes] = useState<SelectedVolume[]>([])
-  const [selectedFilterBrand, setSelectedFilterBrand] = useState<string | null>(null)
-  const [selectedFilterType, setSelectedFilterType] = useState<string | null>(null)
-  const [isFilterBrandModalOpen, setIsFilterBrandModalOpen] = useState(false)
-  const [selectedFilters, setSelectedFilters] = useState<Array<{ id: number; name: string; price: number; quantity: number }>>([])
-  const [filterImageError, setFilterImageError] = useState(false)
-  const [oilImageError, setOilImageError] = useState(false)
-  const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false)
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'card' | 'cash' | 'mobile' | 'voucher' | null>(null)
-  const [showSuccess, setShowSuccess] = useState(false)
-  const [showOtherOptions, setShowOtherOptions] = useState(false)
-  const [isRefundDialogOpen, setIsRefundDialogOpen] = useState(false)
-  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false)
-  
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [activeCategory, setActiveCategory] = useState<string>("Oil");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showCart, setShowCart] = useState(false);
+  const [showClearCartDialog, setShowClearCartDialog] = useState(false);
+  const [expandedBrand, setExpandedBrand] = useState<string | null>(null);
+  const [selectedOil, setSelectedOil] = useState<OilProduct | null>(null);
+  const [isVolumeModalOpen, setIsVolumeModalOpen] = useState(false);
+  const [selectedVolumes, setSelectedVolumes] = useState<SelectedVolume[]>([]);
+  const [selectedFilterBrand, setSelectedFilterBrand] = useState<string | null>(
+    null
+  );
+  const [selectedFilterType, setSelectedFilterType] = useState<string | null>(
+    null
+  );
+  const [isFilterBrandModalOpen, setIsFilterBrandModalOpen] = useState(false);
+  const [selectedFilters, setSelectedFilters] = useState<
+    Array<{ id: number; name: string; price: number; quantity: number }>
+  >([]);
+  const [filterImageError, setFilterImageError] = useState(false);
+  const [oilImageError, setOilImageError] = useState(false);
+  const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<
+    "card" | "cash" | "mobile" | "voucher" | null
+  >(null);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [showOtherOptions, setShowOtherOptions] = useState(false);
+  const [isRefundDialogOpen, setIsRefundDialogOpen] = useState(false);
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+
   // Add discount state
-  const [isDiscountDialogOpen, setIsDiscountDialogOpen] = useState(false)
-  const [discountType, setDiscountType] = useState<'percentage' | 'amount'>('amount')
-  const [discountValue, setDiscountValue] = useState<number>(0)
-  const [appliedDiscount, setAppliedDiscount] = useState<{type: 'percentage' | 'amount', value: number} | null>(null)
+  const [isDiscountDialogOpen, setIsDiscountDialogOpen] = useState(false);
+  const [discountType, setDiscountType] = useState<"percentage" | "amount">(
+    "amount"
+  );
+  const [discountValue, setDiscountValue] = useState<number>(0);
+  const [appliedDiscount, setAppliedDiscount] = useState<{
+    type: "percentage" | "amount";
+    value: number;
+  } | null>(null);
 
   // Add a state to track if bottle type dialog is open
-  const [showBottleTypeDialog, setShowBottleTypeDialog] = useState(false)
-  const [currentBottleVolumeSize, setCurrentBottleVolumeSize] = useState<string | null>(null)
+  const [showBottleTypeDialog, setShowBottleTypeDialog] = useState(false);
+  const [currentBottleVolumeSize, setCurrentBottleVolumeSize] = useState<
+    string | null
+  >(null);
 
   // New state for cashiers with proper type
-  const [isCashierSelectOpen, setIsCashierSelectOpen] = useState(false)
-  const [selectedCashier, setSelectedCashier] = useState<string | null>(null)
-  
+  const [isCashierSelectOpen, setIsCashierSelectOpen] = useState(false);
+  const [selectedCashier, setSelectedCashier] = useState<string | null>(null);
+
   // Mock cashier data
   const cashiers = [
     { id: 1, name: "Hossain (Owner)" },
     { id: 2, name: "Adnan Hossain" },
     { id: 3, name: "Fatima Al-Zadjali" },
     { id: 4, name: "Sara Al-Kindi" },
-    { id: 5, name: "Khalid Al-Habsi" }
-  ]
+    { id: 5, name: "Khalid Al-Habsi" },
+  ];
   // Memoize handlers
   const removeFromCart = useCallback((productId: number) => {
-    setCart((prevCart) => prevCart.filter((item) => item.id !== productId))
-  }, [])
+    setCart((prevCart) => prevCart.filter((item) => item.id !== productId));
+  }, []);
 
-  const updateQuantity = useCallback((productId: number, newQuantity: number) => {
-    if (newQuantity < 1) {
-      removeFromCart(productId)
-    } else {
-      setCart((prevCart) => prevCart.map((item) => 
-        item.id === productId ? { ...item, quantity: newQuantity } : item
-      ))
-    }
-  }, [removeFromCart])
-
-  const addToCart = useCallback((product: { id: number; name: string; price: number }, details?: string, quantity: number = 1) => {
-    const uniqueId = `${product.id}-${details || ''}`
-    setCart((prevCart) => {
-      const existingItem = prevCart.find(
-        (item) => item.uniqueId === uniqueId
-      )
-      if (existingItem) {
-        return prevCart.map((item) =>
-          item.uniqueId === uniqueId
-            ? { ...item, quantity: item.quantity + quantity }
-            : item
-        )
+  const updateQuantity = useCallback(
+    (productId: number, newQuantity: number) => {
+      if (newQuantity < 1) {
+        removeFromCart(productId);
+      } else {
+        setCart((prevCart) =>
+          prevCart.map((item) =>
+            item.id === productId ? { ...item, quantity: newQuantity } : item
+          )
+        );
       }
-      
-      // Find the original product to get the brand if it exists
-      const originalProduct = products.find(p => p.id === product.id) || 
-                             oilProducts.find(p => p.id === product.id)
-      
-      const brand = originalProduct && 'brand' in originalProduct ? originalProduct.brand : undefined
-      const fullName = brand ? `${brand} ${product.name}` : product.name
-      
-      return [...prevCart, { 
-        ...product, 
-        name: fullName,
-        quantity, 
-        details, 
-        uniqueId 
-      }]
-    })
-  }, [])
+    },
+    [removeFromCart]
+  );
+
+  const addToCart = useCallback(
+    (
+      product: { id: number; name: string; price: number },
+      details?: string,
+      quantity: number = 1
+    ) => {
+      const uniqueId = `${product.id}-${details || ""}`;
+      setCart((prevCart) => {
+        const existingItem = prevCart.find(
+          (item) => item.uniqueId === uniqueId
+        );
+        if (existingItem) {
+          return prevCart.map((item) =>
+            item.uniqueId === uniqueId
+              ? { ...item, quantity: item.quantity + quantity }
+              : item
+          );
+        }
+
+        // Find the original product to get the brand if it exists
+        const originalProduct =
+          products.find((p) => p.id === product.id) ||
+          oilProducts.find((p) => p.id === product.id);
+
+        const brand =
+          originalProduct && "brand" in originalProduct
+            ? originalProduct.brand
+            : undefined;
+        const fullName = brand ? `${brand} ${product.name}` : product.name;
+
+        return [
+          ...prevCart,
+          {
+            ...product,
+            name: fullName,
+            quantity,
+            details,
+            uniqueId,
+          },
+        ];
+      });
+    },
+    []
+  );
 
   const handleOilSelect = useCallback((oil: OilProduct) => {
-    setSelectedOil(oil)
-    setSelectedVolumes([])
-    setIsVolumeModalOpen(true)
-  }, [])
+    setSelectedOil(oil);
+    setSelectedVolumes([]);
+    setIsVolumeModalOpen(true);
+  }, []);
 
   // Function to handle volume selection with bottle type prompt for smaller volumes
   const handleVolumeClick = (volume: { size: string; price: number }) => {
     // For 4L and 5L, add directly without bottle type
-    if (volume.size === '4L' || volume.size === '5L') {
-      setSelectedVolumes(prev => {
-        const existing = prev.find(v => v.size === volume.size)
+    if (volume.size === "4L" || volume.size === "5L") {
+      setSelectedVolumes((prev) => {
+        const existing = prev.find((v) => v.size === volume.size);
         if (existing) {
-          return prev.map(v =>
-            v.size === volume.size
-              ? { ...v, quantity: v.quantity + 1 }
-              : v
-          )
+          return prev.map((v) =>
+            v.size === volume.size ? { ...v, quantity: v.quantity + 1 } : v
+          );
         }
-        return [...prev, { ...volume, quantity: 1 }]
-      })
-      return
+        return [...prev, { ...volume, quantity: 1 }];
+      });
+      return;
     }
-    
+
     // For other volumes, show the bottle type dialog
-    setCurrentBottleVolumeSize(volume.size)
-    setShowBottleTypeDialog(true)
-  }
-  
+    setCurrentBottleVolumeSize(volume.size);
+    setShowBottleTypeDialog(true);
+  };
+
   // Function to add volume with selected bottle type
-  const addVolumeWithBottleType = (size: string, bottleType: 'open' | 'closed') => {
-    const volumeDetails = selectedOil?.volumes.find(v => v.size === size)
+  const addVolumeWithBottleType = (
+    size: string,
+    bottleType: "open" | "closed"
+  ) => {
+    const volumeDetails = selectedOil?.volumes.find((v) => v.size === size);
     if (volumeDetails) {
-      setSelectedVolumes(prev => {
-        const existing = prev.find(v => v.size === size && v.bottleType === bottleType)
+      setSelectedVolumes((prev) => {
+        const existing = prev.find(
+          (v) => v.size === size && v.bottleType === bottleType
+        );
         if (existing) {
-          return prev.map(v =>
+          return prev.map((v) =>
             v.size === size && v.bottleType === bottleType
               ? { ...v, quantity: v.quantity + 1 }
               : v
-          )
+          );
         }
-        return [...prev, { ...volumeDetails, quantity: 1, bottleType }]
-      })
+        return [...prev, { ...volumeDetails, quantity: 1, bottleType }];
+      });
     }
-    setShowBottleTypeDialog(false)
-    setCurrentBottleVolumeSize(null)
-  }
+    setShowBottleTypeDialog(false);
+    setCurrentBottleVolumeSize(null);
+  };
 
   const handleQuantityChange = (size: string, change: number) => {
-    setSelectedVolumes(prev => {
-      const updated = prev.map(v =>
-        v.size === size
-          ? { ...v, quantity: Math.max(0, v.quantity + change) }
-          : v
-      ).filter(v => v.quantity > 0)
-      return updated
-    })
-  }
+    setSelectedVolumes((prev) => {
+      const updated = prev
+        .map((v) =>
+          v.size === size
+            ? { ...v, quantity: Math.max(0, v.quantity + change) }
+            : v
+        )
+        .filter((v) => v.quantity > 0);
+      return updated;
+    });
+  };
 
   const handleAddSelectedToCart = () => {
-    selectedVolumes.forEach(volume => {
+    selectedVolumes.forEach((volume) => {
       if (selectedOil) {
-        const details = volume.size + (volume.bottleType ? ` (${volume.bottleType} bottle)` : '')
+        const details =
+          volume.size +
+          (volume.bottleType ? ` (${volume.bottleType} bottle)` : "");
         addToCart(
           {
             id: selectedOil.id,
@@ -522,107 +709,116 @@ export default function POSPage() {
           },
           details,
           volume.quantity
-        )
+        );
       }
-    })
-    setIsVolumeModalOpen(false)
-    setSelectedOil(null)
-    setSelectedVolumes([])
-  }
+    });
+    setIsVolumeModalOpen(false);
+    setSelectedOil(null);
+    setSelectedVolumes([]);
+  };
 
   const handleNextItem = () => {
     // Add current selection to cart
-    handleAddSelectedToCart()
+    handleAddSelectedToCart();
 
     // Navigate to Filters section and close modal
-    setActiveCategory("Filters")
-    setIsVolumeModalOpen(false)
-    setSelectedOil(null)
-    setSelectedVolumes([])
-    setSearchQuery("") // Clear search when changing categories
-  }
+    setActiveCategory("Filters");
+    setIsVolumeModalOpen(false);
+    setSelectedOil(null);
+    setSelectedVolumes([]);
+    setSearchQuery(""); // Clear search when changing categories
+  };
 
-  const oilBrands = Array.from(new Set(oilProducts.map(oil => oil.brand)))
+  const oilBrands = Array.from(new Set(oilProducts.map((oil) => oil.brand)));
 
   const filterBrands = Array.from(
-    new Set(products.filter(p => p.category === "Filters").map(p => p.brand!))
-  )
+    new Set(
+      products.filter((p) => p.category === "Filters").map((p) => p.brand!)
+    )
+  );
 
   const filterTypes = Array.from(
-    new Set(products.filter(p => p.category === "Filters").map(p => p.type!))
-  )
+    new Set(
+      products.filter((p) => p.category === "Filters").map((p) => p.type!)
+    )
+  );
 
   const getFiltersByType = (type: string) =>
-    products.filter(product =>
-      product.category === "Filters" &&
-      product.type === type
-    )
+    products.filter(
+      (product) => product.category === "Filters" && product.type === type
+    );
 
   // Memoize filtered data
-  const filteredOilBrands = useMemo(() => 
-    oilBrands.filter(brand => 
-      brand.toLowerCase().includes(searchQuery.toLowerCase())
-    ), [searchQuery, oilBrands]
-  )
+  const filteredOilBrands = useMemo(
+    () =>
+      oilBrands.filter((brand) =>
+        brand.toLowerCase().includes(searchQuery.toLowerCase())
+      ),
+    [searchQuery, oilBrands]
+  );
 
-  const filteredProducts = useMemo(() => 
-    activeCategory === "Oil"
-      ? []
-      : products.filter((product) => {
-          const matchesCategory = product.category === activeCategory
-          const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase())
-          return matchesCategory && matchesSearch
-        }), [activeCategory, searchQuery]
-  )
+  const filteredProducts = useMemo(
+    () =>
+      activeCategory === "Oil"
+        ? []
+        : products.filter((product) => {
+            const matchesCategory = product.category === activeCategory;
+            const matchesSearch = product.name
+              .toLowerCase()
+              .includes(searchQuery.toLowerCase());
+            return matchesCategory && matchesSearch;
+          }),
+    [activeCategory, searchQuery]
+  );
 
   // Calculate total with discount
-  const subtotal = useMemo(() => 
-    cart.reduce((sum, item) => sum + item.price * item.quantity, 0),
+  const subtotal = useMemo(
+    () => cart.reduce((sum, item) => sum + item.price * item.quantity, 0),
     [cart]
-  )
-  
+  );
+
   const discountAmount = useMemo(() => {
-    if (!appliedDiscount) return 0
-    
-    if (appliedDiscount.type === 'percentage') {
-      return subtotal * (appliedDiscount.value / 100)
+    if (!appliedDiscount) return 0;
+
+    if (appliedDiscount.type === "percentage") {
+      return subtotal * (appliedDiscount.value / 100);
     } else {
-      return Math.min(appliedDiscount.value, subtotal) // Don't allow discount larger than subtotal
+      return Math.min(appliedDiscount.value, subtotal); // Don't allow discount larger than subtotal
     }
-  }, [subtotal, appliedDiscount])
-  
-  const total = useMemo(() => 
-    subtotal - discountAmount,
+  }, [subtotal, appliedDiscount]);
+
+  const total = useMemo(
+    () => subtotal - discountAmount,
     [subtotal, discountAmount]
-  )
+  );
 
   const handleFilterClick = (filter: Product) => {
-    setSelectedFilters(prev => {
-      const existing = prev.find(f => f.id === filter.id)
+    setSelectedFilters((prev) => {
+      const existing = prev.find((f) => f.id === filter.id);
       if (existing) {
-        return prev.map(f =>
-          f.id === filter.id
-            ? { ...f, quantity: f.quantity + 1 }
-            : f
-        )
+        return prev.map((f) =>
+          f.id === filter.id ? { ...f, quantity: f.quantity + 1 } : f
+        );
       }
-      return [...prev, { ...filter, quantity: 1 }]
-    })
-  }
+      return [...prev, { ...filter, quantity: 1 }];
+    });
+  };
 
   const handleFilterQuantityChange = (filterId: number, change: number) => {
-    setSelectedFilters(prev => {
-      const updated = prev.map(f =>
-        f.id === filterId
-          ? { ...f, quantity: Math.max(0, f.quantity + change) }
-          : f
-      ).filter(f => f.quantity > 0)
-      return updated
-    })
-  }
+    setSelectedFilters((prev) => {
+      const updated = prev
+        .map((f) =>
+          f.id === filterId
+            ? { ...f, quantity: Math.max(0, f.quantity + change) }
+            : f
+        )
+        .filter((f) => f.quantity > 0);
+      return updated;
+    });
+  };
 
   const handleAddSelectedFiltersToCart = () => {
-    selectedFilters.forEach(filter => {
+    selectedFilters.forEach((filter) => {
       addToCart(
         {
           id: filter.id,
@@ -631,83 +827,83 @@ export default function POSPage() {
         },
         undefined,
         filter.quantity
-      )
-    })
-    setIsFilterBrandModalOpen(false)
-    setSelectedFilters([])
-    setSelectedFilterType(null)
-  }
+      );
+    });
+    setIsFilterBrandModalOpen(false);
+    setSelectedFilters([]);
+    setSelectedFilterType(null);
+  };
 
   const handleNextFilterItem = () => {
-    handleAddSelectedFiltersToCart()
-    setActiveCategory("Parts")
-    setSearchQuery("")
-  }
+    handleAddSelectedFiltersToCart();
+    setActiveCategory("Parts");
+    setSearchQuery("");
+  };
 
   const clearCart = () => {
-    setCart([])
-    setShowClearCartDialog(false)
-  }
+    setCart([]);
+    setShowClearCartDialog(false);
+  };
 
   const handleCheckout = () => {
-    setIsCheckoutModalOpen(true)
-  }
+    setIsCheckoutModalOpen(true);
+  };
 
   const handlePaymentComplete = () => {
     // Instead of showing success immediately, show cashier selection dialog
     setIsCheckoutModalOpen(false);
     setIsCashierSelectOpen(true);
-  }
+  };
 
   // Add this new function to handle final payment completion
   const handleFinalizePayment = () => {
     // Make a copy of the appliedDiscount before resetting state
-    const discountForReceipt = appliedDiscount ? {...appliedDiscount} : null;
-    
+    const discountForReceipt = appliedDiscount ? { ...appliedDiscount } : null;
+
     setIsCashierSelectOpen(false);
     // Pass the receipt with the copied discount
     setShowSuccess(true);
-    
+
     // We'll reset other states but keep the discount for the receipt
     console.log("Finalizing payment with discount:", discountForReceipt);
-  }
+  };
 
   // Replace the handleImportCustomers function definition with this one
   const handleImportCustomers = (importedCustomers: ImportedCustomer[]) => {
     // In a real implementation, this would add the imported customers to the database
-    console.log('Imported customers:', importedCustomers)
-    setIsImportDialogOpen(false)
-  }
+    console.log("Imported customers:", importedCustomers);
+    setIsImportDialogOpen(false);
+  };
 
   // Function to toggle between open and closed bottle types
   const toggleBottleType = (size: string) => {
-    setSelectedVolumes(prev => {
-      return prev.map(v =>
+    setSelectedVolumes((prev) => {
+      return prev.map((v) =>
         v.size === size
-          ? { 
-              ...v, 
-              bottleType: v.bottleType === 'open' ? 'closed' : 'open' 
+          ? {
+              ...v,
+              bottleType: v.bottleType === "open" ? "closed" : "open",
             }
           : v
-      )
-    })
-  }
+      );
+    });
+  };
 
   // Function to apply discount
   const applyDiscount = () => {
     console.log("Applying discount:", discountType, discountValue);
     setAppliedDiscount({
       type: discountType,
-      value: discountValue
-    })
-    setIsDiscountDialogOpen(false)
-  }
+      value: discountValue,
+    });
+    setIsDiscountDialogOpen(false);
+  };
 
   // Function to remove discount
   const removeDiscount = () => {
-    setAppliedDiscount(null)
-    setDiscountValue(0)
-  }
+    setAppliedDiscount(null);
+    setDiscountValue(0);
+  };
 
   // Debug discount state
   useEffect(() => {
@@ -716,7 +912,10 @@ export default function POSPage() {
 
   return (
     <Layout>
-      <div className="h-[calc(100vh-4rem)] flex flex-col pb-0" suppressHydrationWarning>
+      <div
+        className="h-[calc(100vh-4rem)] flex flex-col pb-0"
+        suppressHydrationWarning
+      >
         <div className="flex-1 flex flex-col lg:flex-row gap-4 min-h-0">
           {/* Product Grid */}
           <div className="flex-1 overflow-hidden flex flex-col min-h-0">
@@ -733,8 +932,13 @@ export default function POSPage() {
                     <RotateCcw className="h-4 w-4" />
                     <span className="font-medium">Refund</span>
                   </Button>
-                  
-                  <Button variant="outline" size="icon" className="lg:hidden h-10 w-10 relative" onClick={() => setShowCart(true)}>
+
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="lg:hidden h-10 w-10 relative"
+                    onClick={() => setShowCart(true)}
+                  >
                     <ShoppingCart className="h-5 w-5" />
                     {cart.length > 0 && (
                       <span className="absolute -top-2 -right-2 bg-primary text-primary-foreground text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center">
@@ -745,7 +949,11 @@ export default function POSPage() {
                 </div>
               </CardHeader>
               <CardContent className="flex-1 overflow-hidden flex flex-col p-4 min-h-0">
-                <Tabs value={activeCategory} className="flex-1 flex flex-col min-h-0" onValueChange={setActiveCategory}>
+                <Tabs
+                  value={activeCategory}
+                  className="flex-1 flex flex-col min-h-0"
+                  onValueChange={setActiveCategory}
+                >
                   <div className="space-y-4 flex-shrink-0">
                     <div className="relative">
                       <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
@@ -769,13 +977,22 @@ export default function POSPage() {
                       {activeCategory === "Oil" ? (
                         // Show oil brands with dropdown
                         filteredOilBrands.map((brand) => (
-                          <div key={brand} className="border rounded-lg overflow-hidden">
+                          <div
+                            key={brand}
+                            className="border rounded-lg overflow-hidden"
+                          >
                             <Button
                               variant="ghost"
                               className="w-full p-4 flex items-center justify-between hover:bg-accent"
-                              onClick={() => setExpandedBrand(expandedBrand === brand ? null : brand)}
+                              onClick={() =>
+                                setExpandedBrand(
+                                  expandedBrand === brand ? null : brand
+                                )
+                              }
                             >
-                              <span className="font-semibold text-lg">{brand}</span>
+                              <span className="font-semibold text-lg">
+                                {brand}
+                              </span>
                               {expandedBrand === brand ? (
                                 <ChevronUp className="h-5 w-5" />
                               ) : (
@@ -783,18 +1000,39 @@ export default function POSPage() {
                               )}
                             </Button>
                             {expandedBrand === brand && (
-                              <div className="p-4 bg-muted/50 space-y-2">
-                                {oilProducts.filter(oil => oil.brand === brand).map((oil) => (
-                                  <Button
-                                    key={oil.id}
-                                    variant="outline"
-                                    className="w-full justify-between py-3 px-4"
-                                    onClick={() => handleOilSelect(oil)}
-                                  >
-                                    <span>{oil.type}</span>
-                                    <span className="text-primary">OMR {oil.basePrice.toFixed(2)}</span>
-                                  </Button>
-                                ))}
+                              <div className="p-4 bg-muted/50 grid grid-cols-2 sm:grid-cols-3 gap-4">
+                                {oilProducts
+                                  .filter((oil) => oil.brand === brand)
+                                  .map((oil) => (
+                                    <Button
+                                      key={oil.id}
+                                      variant="outline"
+                                      className="flex flex-col items-center justify-between p-3 sm:p-4 h-[140px] sm:h-[180px]"
+                                      onClick={() => handleOilSelect(oil)}
+                                    >
+                                      <div className="relative w-16 h-20 sm:w-28 sm:h-36 mt-1 sm:mt-2">
+                                        {oil.image && !oilImageError ? (
+                                          <Image
+                                            src={oil.image}
+                                            alt={`${oil.brand} ${oil.type}`}
+                                            className="object-contain"
+                                            fill
+                                            sizes="(max-width: 768px) 64px, 112px"
+                                            onError={() =>
+                                              setOilImageError(true)
+                                            }
+                                          />
+                                        ) : (
+                                          <div className="w-full h-full flex items-center justify-center bg-muted rounded-md">
+                                            <ImageIcon className="h-8 w-8 sm:h-10 sm:w-10 text-muted-foreground" />
+                                          </div>
+                                        )}
+                                      </div>
+                                      <span className="text-center font-medium text-sm sm:text-lg w-full px-1 mb-1 sm:mb-2">
+                                        {oil.type}
+                                      </span>
+                                    </Button>
+                                  ))}
                               </div>
                             )}
                           </div>
@@ -803,15 +1041,28 @@ export default function POSPage() {
                         // Show filter types with dropdown
                         <div className="grid grid-cols-1 gap-4">
                           {filterTypes
-                            .filter(type => type.toLowerCase().includes(searchQuery.toLowerCase()))
+                            .filter((type) =>
+                              type
+                                .toLowerCase()
+                                .includes(searchQuery.toLowerCase())
+                            )
                             .map((type) => (
-                              <div key={type} className="border rounded-lg overflow-hidden">
+                              <div
+                                key={type}
+                                className="border rounded-lg overflow-hidden"
+                              >
                                 <Button
                                   variant="ghost"
                                   className="w-full p-4 flex items-center justify-between hover:bg-accent"
-                                  onClick={() => setSelectedFilterType(selectedFilterType === type ? null : type)}
+                                  onClick={() =>
+                                    setSelectedFilterType(
+                                      selectedFilterType === type ? null : type
+                                    )
+                                  }
                                 >
-                                  <span className="font-semibold text-lg">{type}</span>
+                                  <span className="font-semibold text-lg">
+                                    {type}
+                                  </span>
                                   {selectedFilterType === type ? (
                                     <ChevronUp className="h-5 w-5" />
                                   ) : (
@@ -826,9 +1077,9 @@ export default function POSPage() {
                                         variant="outline"
                                         className="w-full justify-between py-3 px-4"
                                         onClick={() => {
-                                          setSelectedFilterBrand(brand)
-                                          setSelectedFilters([])
-                                          setIsFilterBrandModalOpen(true)
+                                          setSelectedFilterBrand(brand);
+                                          setSelectedFilters([]);
+                                          setIsFilterBrandModalOpen(true);
                                         }}
                                       >
                                         <span>{brand}</span>
@@ -892,11 +1143,16 @@ export default function POSPage() {
                         <span>Subtotal</span>
                         <span>OMR {subtotal.toFixed(2)}</span>
                       </div>
-                      
+
                       {appliedDiscount && (
                         <div className="flex justify-between text-[clamp(0.875rem,2vw,1rem)] text-muted-foreground">
                           <div className="flex justify-between items-center">
-                            <span>Discount {appliedDiscount.type === 'percentage' ? `(${appliedDiscount.value}%)` : '(Amount)'}</span>
+                            <span>
+                              Discount{" "}
+                              {appliedDiscount.type === "percentage"
+                                ? `(${appliedDiscount.value}%)`
+                                : "(Amount)"}
+                            </span>
                             <Button
                               size="icon"
                               variant="ghost"
@@ -909,26 +1165,26 @@ export default function POSPage() {
                           <span>- OMR {discountAmount.toFixed(2)}</span>
                         </div>
                       )}
-                      
+
                       <div className="flex justify-between text-[clamp(1rem,2.5vw,1.125rem)] font-semibold">
                         <span>Total</span>
                         <span>OMR {total.toFixed(2)}</span>
                       </div>
                     </div>
-                    
+
                     <div className="space-y-1">
-                      <Button 
+                      <Button
                         variant="outline"
                         className="w-full h-9 flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-800 mb-2"
                         onClick={() => setIsDiscountDialogOpen(true)}
                         disabled={cart.length === 0}
                       >
                         <Scissors className="h-4 w-4" />
-                        {appliedDiscount ? 'Edit Discount' : 'Add Discount'}
+                        {appliedDiscount ? "Edit Discount" : "Add Discount"}
                       </Button>
-                      
-                      <Button 
-                        className="w-full h-9" 
+
+                      <Button
+                        className="w-full h-9"
                         disabled={cart.length === 0}
                         onClick={handleCheckout}
                       >
@@ -956,7 +1212,9 @@ export default function POSPage() {
             >
               <Card className="h-full flex flex-col border-0">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 px-4">
-                  <CardTitle className="text-[clamp(1.125rem,3vw,1.25rem)]">Cart</CardTitle>
+                  <CardTitle className="text-[clamp(1.125rem,3vw,1.25rem)]">
+                    Cart
+                  </CardTitle>
                   <div className="flex items-center gap-2">
                     <Button
                       variant="ghost"
@@ -967,7 +1225,12 @@ export default function POSPage() {
                     >
                       Clear Cart
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setShowCart(false)}>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-9 w-9"
+                      onClick={() => setShowCart(false)}
+                    >
                       <X className="h-4 w-4" />
                     </Button>
                   </div>
@@ -991,11 +1254,16 @@ export default function POSPage() {
                         <span>Subtotal</span>
                         <span>OMR {subtotal.toFixed(2)}</span>
                       </div>
-                      
+
                       {appliedDiscount && (
                         <div className="flex justify-between text-[clamp(0.875rem,2vw,1rem)] text-muted-foreground">
                           <div className="flex justify-between items-center">
-                            <span>Discount {appliedDiscount.type === 'percentage' ? `(${appliedDiscount.value}%)` : '(Amount)'}</span>
+                            <span>
+                              Discount{" "}
+                              {appliedDiscount.type === "percentage"
+                                ? `(${appliedDiscount.value}%)`
+                                : "(Amount)"}
+                            </span>
                             <Button
                               size="icon"
                               variant="ghost"
@@ -1008,26 +1276,26 @@ export default function POSPage() {
                           <span>- OMR {discountAmount.toFixed(2)}</span>
                         </div>
                       )}
-                      
+
                       <div className="flex justify-between text-[clamp(1rem,2.5vw,1.125rem)] font-semibold">
                         <span>Total</span>
                         <span>OMR {total.toFixed(2)}</span>
                       </div>
                     </div>
-                    
+
                     <div className="space-y-1">
-                      <Button 
+                      <Button
                         variant="outline"
                         className="w-full h-9 flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-800 mb-2"
                         onClick={() => setIsDiscountDialogOpen(true)}
                         disabled={cart.length === 0}
                       >
                         <Scissors className="h-4 w-4" />
-                        {appliedDiscount ? 'Edit Discount' : 'Add Discount'}
+                        {appliedDiscount ? "Edit Discount" : "Add Discount"}
                       </Button>
-                      
-                      <Button 
-                        className="w-full h-9" 
+
+                      <Button
+                        className="w-full h-9"
                         disabled={cart.length === 0}
                         onClick={handleCheckout}
                       >
@@ -1078,8 +1346,12 @@ export default function POSPage() {
                       className="h-auto py-2 sm:py-3 px-2 sm:px-4 flex flex-col items-center gap-1"
                       onClick={() => handleVolumeClick(volume)}
                     >
-                      <div className="text-sm sm:text-base font-medium">{volume.size}</div>
-                      <div className="text-xs sm:text-sm text-muted-foreground">OMR {volume.price.toFixed(2)}</div>
+                      <div className="text-sm sm:text-base font-medium">
+                        {volume.size}
+                      </div>
+                      <div className="text-xs sm:text-sm text-muted-foreground">
+                        OMR {volume.price.toFixed(2)}
+                      </div>
                     </Button>
                   ))}
                 </div>
@@ -1091,10 +1363,13 @@ export default function POSPage() {
                       <div className="px-2 sm:px-3 py-2">
                         {selectedVolumes.map((volume, index) => (
                           <div
-                            key={`${volume.size}-${volume.bottleType || 'default'}`}
+                            key={`${volume.size}-${
+                              volume.bottleType || "default"
+                            }`}
                             className={cn(
                               "flex flex-col py-1.5",
-                              index === selectedVolumes.length - 1 && "mb-2 sm:mb-4"
+                              index === selectedVolumes.length - 1 &&
+                                "mb-2 sm:mb-4"
                             )}
                           >
                             <div className="flex items-center gap-2">
@@ -1103,36 +1378,44 @@ export default function POSPage() {
                                   variant="outline"
                                   size="icon"
                                   className="h-7 w-7 shrink-0"
-                                  onClick={() => handleQuantityChange(volume.size, -1)}
+                                  onClick={() =>
+                                    handleQuantityChange(volume.size, -1)
+                                  }
                                 >
                                   <Minus className="h-3 w-3" />
                                 </Button>
-                                <span className="w-5 text-center text-sm">{volume.quantity}</span>
+                                <span className="w-5 text-center text-sm">
+                                  {volume.quantity}
+                                </span>
                                 <Button
                                   variant="outline"
                                   size="icon"
                                   className="h-7 w-7 shrink-0"
-                                  onClick={() => handleQuantityChange(volume.size, 1)}
+                                  onClick={() =>
+                                    handleQuantityChange(volume.size, 1)
+                                  }
                                 >
                                   <Plus className="h-3 w-3" />
                                 </Button>
                               </div>
-                              
+
                               <div className="grid grid-cols-[60px_24px_1fr] items-center min-w-0 flex-1">
-                                <span className="font-medium text-sm">{volume.size}</span>
-                                
+                                <span className="font-medium text-sm">
+                                  {volume.size}
+                                </span>
+
                                 <div className="flex items-center justify-center">
-                                  {volume.bottleType && (
-                                    volume.bottleType === 'closed' ? (
+                                  {volume.bottleType &&
+                                    (volume.bottleType === "closed" ? (
                                       <ClosedBottleIcon className="h-4 w-4 text-primary flex-shrink-0" />
                                     ) : (
                                       <OpenBottleIcon className="h-4 w-4 text-primary flex-shrink-0" />
-                                    )
-                                  )}
+                                    ))}
                                 </div>
-                                
+
                                 <span className="font-medium text-sm text-right w-full">
-                                  OMR {(volume.price * volume.quantity).toFixed(2)}
+                                  OMR{" "}
+                                  {(volume.price * volume.quantity).toFixed(2)}
                                 </span>
                               </div>
                             </div>
@@ -1148,8 +1431,8 @@ export default function POSPage() {
                     variant="outline"
                     className="px-2 sm:px-6 text-sm sm:text-base"
                     onClick={() => {
-                      setIsVolumeModalOpen(false)
-                      setSelectedVolumes([])
+                      setIsVolumeModalOpen(false);
+                      setSelectedVolumes([]);
                     }}
                   >
                     Cancel
@@ -1181,11 +1464,11 @@ export default function POSPage() {
           <Dialog
             open={isFilterBrandModalOpen}
             onOpenChange={(open) => {
-              setIsFilterBrandModalOpen(open)
+              setIsFilterBrandModalOpen(open);
               if (!open) {
-                setSelectedFilters([])
-                setSelectedFilterType(null)
-                setFilterImageError(false)
+                setSelectedFilters([]);
+                setSelectedFilterType(null);
+                setFilterImageError(false);
               }
             }}
           >
@@ -1200,7 +1483,9 @@ export default function POSPage() {
                 <div className="relative w-[120px] h-[120px] sm:w-[160px] sm:h-[160px] border-2 border-border rounded-lg overflow-hidden bg-muted">
                   {!filterImageError ? (
                     <Image
-                      src={`/filters/${selectedFilterBrand?.toLowerCase()}-${selectedFilterType?.toLowerCase().replace(' ', '-')}.jpg`}
+                      src={`/filters/${selectedFilterBrand?.toLowerCase()}-${selectedFilterType
+                        ?.toLowerCase()
+                        .replace(" ", "-")}.jpg`}
                       alt={`${selectedFilterBrand} ${selectedFilterType}`}
                       className="object-contain p-2"
                       fill
@@ -1219,7 +1504,7 @@ export default function POSPage() {
                 {/* Filter options grid */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
                   {getFiltersByType(selectedFilterType || "")
-                    .filter(filter => filter.brand === selectedFilterBrand)
+                    .filter((filter) => filter.brand === selectedFilterBrand)
                     .map((filter) => (
                       <Button
                         key={filter.id}
@@ -1227,8 +1512,12 @@ export default function POSPage() {
                         className="h-auto py-2 sm:py-3 px-2 sm:px-4 flex flex-col items-center gap-1"
                         onClick={() => handleFilterClick(filter)}
                       >
-                        <div className="text-sm sm:text-base font-medium text-center line-clamp-2">{filter.name}</div>
-                        <div className="text-xs sm:text-sm text-muted-foreground">OMR {filter.price.toFixed(2)}</div>
+                        <div className="text-sm sm:text-base font-medium text-center line-clamp-2">
+                          {filter.name}
+                        </div>
+                        <div className="text-xs sm:text-sm text-muted-foreground">
+                          OMR {filter.price.toFixed(2)}
+                        </div>
                       </Button>
                     ))}
                 </div>
@@ -1243,7 +1532,8 @@ export default function POSPage() {
                             key={filter.id}
                             className={cn(
                               "flex items-center py-1.5",
-                              index === selectedFilters.length - 1 && "mb-2 sm:mb-4"
+                              index === selectedFilters.length - 1 &&
+                                "mb-2 sm:mb-4"
                             )}
                           >
                             <div className="flex items-center gap-1">
@@ -1251,24 +1541,33 @@ export default function POSPage() {
                                 variant="outline"
                                 size="icon"
                                 className="h-7 w-7 shrink-0"
-                                onClick={() => handleFilterQuantityChange(filter.id, -1)}
+                                onClick={() =>
+                                  handleFilterQuantityChange(filter.id, -1)
+                                }
                               >
                                 <Minus className="h-3 w-3" />
                               </Button>
-                              <span className="w-5 text-center text-sm">{filter.quantity}</span>
+                              <span className="w-5 text-center text-sm">
+                                {filter.quantity}
+                              </span>
                               <Button
                                 variant="outline"
                                 size="icon"
                                 className="h-7 w-7 shrink-0"
-                                onClick={() => handleFilterQuantityChange(filter.id, 1)}
+                                onClick={() =>
+                                  handleFilterQuantityChange(filter.id, 1)
+                                }
                               >
                                 <Plus className="h-3 w-3" />
                               </Button>
                             </div>
                             <div className="grid grid-cols-[1fr_auto] items-center gap-2 min-w-0 flex-1 ml-2">
-                              <span className="font-medium text-sm line-clamp-1">{filter.name}</span>
+                              <span className="font-medium text-sm line-clamp-1">
+                                {filter.name}
+                              </span>
                               <span className="font-medium text-sm text-right">
-                                OMR {(filter.price * filter.quantity).toFixed(2)}
+                                OMR{" "}
+                                {(filter.price * filter.quantity).toFixed(2)}
                               </span>
                             </div>
                           </div>
@@ -1283,9 +1582,9 @@ export default function POSPage() {
                     variant="outline"
                     className="px-2 sm:px-6 text-sm sm:text-base"
                     onClick={() => {
-                      setIsFilterBrandModalOpen(false)
-                      setSelectedFilters([])
-                      setSelectedFilterType(null)
+                      setIsFilterBrandModalOpen(false);
+                      setSelectedFilters([]);
+                      setSelectedFilterType(null);
                     }}
                   >
                     Cancel
@@ -1314,12 +1613,16 @@ export default function POSPage() {
           </Dialog>
 
           {/* Clear Cart Confirmation Dialog */}
-          <AlertDialog open={showClearCartDialog} onOpenChange={setShowClearCartDialog}>
+          <AlertDialog
+            open={showClearCartDialog}
+            onOpenChange={setShowClearCartDialog}
+          >
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>Clear Cart</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Are you sure you want to clear your cart? This action cannot be undone.
+                  Are you sure you want to clear your cart? This action cannot
+                  be undone.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -1335,19 +1638,19 @@ export default function POSPage() {
           </AlertDialog>
 
           {/* Checkout Modal */}
-          <Dialog 
-            open={isCheckoutModalOpen} 
+          <Dialog
+            open={isCheckoutModalOpen}
             onOpenChange={(open) => {
               // Only allow closing via X button when not in success state
               if (!showSuccess) {
-                setIsCheckoutModalOpen(open)
+                setIsCheckoutModalOpen(open);
                 if (!open) {
-                  setShowOtherOptions(false) // Reset other options when closing modal
+                  setShowOtherOptions(false); // Reset other options when closing modal
                 }
               }
             }}
           >
-            <DialogContent 
+            <DialogContent
               className="w-[90%] max-w-[500px] p-6 rounded-lg max-h-[90vh] overflow-auto"
               onPointerDownOutside={(e) => e.preventDefault()}
               onEscapeKeyDown={(e) => e.preventDefault()}
@@ -1359,48 +1662,56 @@ export default function POSPage() {
               </DialogHeader>
 
               <div className="space-y-6">
-                <div className={cn(
-                  "grid gap-4",
-                  showOtherOptions ? "grid-cols-2" : "grid-cols-3"
-                )}>
+                <div
+                  className={cn(
+                    "grid gap-4",
+                    showOtherOptions ? "grid-cols-2" : "grid-cols-3"
+                  )}
+                >
                   <Button
-                    variant={selectedPaymentMethod === 'card' ? 'default' : 'outline'}
+                    variant={
+                      selectedPaymentMethod === "card" ? "default" : "outline"
+                    }
                     className={cn(
                       "h-24 flex flex-col items-center justify-center gap-2",
-                      selectedPaymentMethod === 'card' && "ring-2 ring-primary"
+                      selectedPaymentMethod === "card" && "ring-2 ring-primary"
                     )}
                     onClick={() => {
-                      setSelectedPaymentMethod('card')
-                      setShowOtherOptions(false)
+                      setSelectedPaymentMethod("card");
+                      setShowOtherOptions(false);
                     }}
                   >
                     <CreditCard className="w-6 h-6" />
                     <span>Card</span>
                   </Button>
                   <Button
-                    variant={selectedPaymentMethod === 'cash' ? 'default' : 'outline'}
+                    variant={
+                      selectedPaymentMethod === "cash" ? "default" : "outline"
+                    }
                     className={cn(
                       "h-24 flex flex-col items-center justify-center gap-2",
-                      selectedPaymentMethod === 'cash' && "ring-2 ring-primary"
+                      selectedPaymentMethod === "cash" && "ring-2 ring-primary"
                     )}
                     onClick={() => {
-                      setSelectedPaymentMethod('cash')
-                      setShowOtherOptions(false)
+                      setSelectedPaymentMethod("cash");
+                      setShowOtherOptions(false);
                     }}
                   >
                     <Banknote className="w-6 h-6" />
                     <span>Cash</span>
                   </Button>
                   <Button
-                    variant={showOtherOptions ? 'default' : 'outline'}
+                    variant={showOtherOptions ? "default" : "outline"}
                     className={cn(
                       "h-24 flex flex-col items-center justify-center gap-2",
-                      (selectedPaymentMethod === 'mobile' || selectedPaymentMethod === 'voucher') && "ring-2 ring-primary"
+                      (selectedPaymentMethod === "mobile" ||
+                        selectedPaymentMethod === "voucher") &&
+                        "ring-2 ring-primary"
                     )}
                     onClick={() => {
-                      setShowOtherOptions(!showOtherOptions)
+                      setShowOtherOptions(!showOtherOptions);
                       if (!showOtherOptions) {
-                        setSelectedPaymentMethod(null)
+                        setSelectedPaymentMethod(null);
                       }
                     }}
                   >
@@ -1410,30 +1721,40 @@ export default function POSPage() {
                 </div>
 
                 {showOtherOptions && (
-                  <motion.div 
+                  <motion.div
                     initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
+                    animate={{ opacity: 1, height: "auto" }}
                     exit={{ opacity: 0, height: 0 }}
                     className="grid grid-cols-2 gap-4"
                   >
                     <Button
-                      variant={selectedPaymentMethod === 'mobile' ? 'default' : 'outline'}
+                      variant={
+                        selectedPaymentMethod === "mobile"
+                          ? "default"
+                          : "outline"
+                      }
                       className={cn(
                         "h-24 flex flex-col items-center justify-center gap-2",
-                        selectedPaymentMethod === 'mobile' && "ring-2 ring-primary"
+                        selectedPaymentMethod === "mobile" &&
+                          "ring-2 ring-primary"
                       )}
-                      onClick={() => setSelectedPaymentMethod('mobile')}
+                      onClick={() => setSelectedPaymentMethod("mobile")}
                     >
                       <Smartphone className="w-6 h-6" />
                       <span>Mobile Pay</span>
                     </Button>
                     <Button
-                      variant={selectedPaymentMethod === 'voucher' ? 'default' : 'outline'}
+                      variant={
+                        selectedPaymentMethod === "voucher"
+                          ? "default"
+                          : "outline"
+                      }
                       className={cn(
                         "h-24 flex flex-col items-center justify-center gap-2",
-                        selectedPaymentMethod === 'voucher' && "ring-2 ring-primary"
+                        selectedPaymentMethod === "voucher" &&
+                          "ring-2 ring-primary"
                       )}
-                      onClick={() => setSelectedPaymentMethod('voucher')}
+                      onClick={() => setSelectedPaymentMethod("voucher")}
                     >
                       <Ticket className="w-6 h-6" />
                       <span>Voucher</span>
@@ -1446,7 +1767,7 @@ export default function POSPage() {
                     <span>Total Amount</span>
                     <span>OMR {total.toFixed(2)}</span>
                   </div>
-                  <Button 
+                  <Button
                     className="w-full h-12 text-base"
                     disabled={!selectedPaymentMethod}
                     onClick={handlePaymentComplete}
@@ -1462,63 +1783,77 @@ export default function POSPage() {
 
       {/* Import Dialog */}
       {isImportDialogOpen && (
-        <ImportDialog 
+        <ImportDialog
           isOpen={isImportDialogOpen}
           onClose={() => setIsImportDialogOpen(false)}
           onImport={handleImportCustomers}
         />
       )}
-      
+
       {/* Refund Dialog */}
       <RefundDialog
         isOpen={isRefundDialogOpen}
         onClose={() => setIsRefundDialogOpen(false)}
       />
-      
+
       {/* Bottle Type Selection Dialog */}
-      <Dialog 
-        open={showBottleTypeDialog} 
+      <Dialog
+        open={showBottleTypeDialog}
         onOpenChange={(open) => {
           if (!open) {
-            setShowBottleTypeDialog(false)
-            setCurrentBottleVolumeSize(null)
+            setShowBottleTypeDialog(false);
+            setCurrentBottleVolumeSize(null);
           }
         }}
       >
         <DialogContent className="sm:max-w-[400px] p-0 overflow-hidden">
           <DialogHeader className="bg-primary text-primary-foreground px-6 py-4">
-            <DialogTitle className="text-center text-xl">Select Bottle Type</DialogTitle>
+            <DialogTitle className="text-center text-xl">
+              Select Bottle Type
+            </DialogTitle>
           </DialogHeader>
-          
+
           <div className="p-6">
             <div className="text-center mb-4">
-              <div className="text-muted-foreground">For {currentBottleVolumeSize} volume</div>
-              <div className="font-semibold text-lg mt-1">{selectedOil?.brand} {selectedOil?.type}</div>
+              <div className="text-muted-foreground">
+                For {currentBottleVolumeSize} volume
+              </div>
+              <div className="font-semibold text-lg mt-1">
+                {selectedOil?.brand} {selectedOil?.type}
+              </div>
             </div>
-            
+
             <div className="grid grid-cols-2 gap-6">
-              <Button 
+              <Button
                 variant="outline"
                 className="h-40 flex flex-col items-center justify-center gap-3 hover:bg-accent rounded-xl border-2 hover:border-primary"
-                onClick={() => addVolumeWithBottleType(currentBottleVolumeSize!, 'closed')}
+                onClick={() =>
+                  addVolumeWithBottleType(currentBottleVolumeSize!, "closed")
+                }
               >
                 <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
                   <ClosedBottleIcon className="h-10 w-10 text-primary" />
                 </div>
                 <span className="font-medium text-base">Closed Bottle</span>
-                <span className="text-xs text-muted-foreground">Factory sealed</span>
+                <span className="text-xs text-muted-foreground">
+                  Factory sealed
+                </span>
               </Button>
-              
-              <Button 
+
+              <Button
                 variant="outline"
                 className="h-40 flex flex-col items-center justify-center gap-3 hover:bg-accent rounded-xl border-2 hover:border-primary"
-                onClick={() => addVolumeWithBottleType(currentBottleVolumeSize!, 'open')}
+                onClick={() =>
+                  addVolumeWithBottleType(currentBottleVolumeSize!, "open")
+                }
               >
                 <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
                   <OpenBottleIcon className="h-10 w-10 text-primary" />
                 </div>
                 <span className="font-medium text-base">Open Bottle</span>
-                <span className="text-xs text-muted-foreground">For immediate use</span>
+                <span className="text-xs text-muted-foreground">
+                  For immediate use
+                </span>
               </Button>
             </div>
           </div>
@@ -1526,8 +1861,8 @@ export default function POSPage() {
       </Dialog>
 
       {/* Cashier Selection Dialog */}
-      <Dialog 
-        open={isCashierSelectOpen} 
+      <Dialog
+        open={isCashierSelectOpen}
         onOpenChange={(open) => {
           setIsCashierSelectOpen(open);
           if (!open) {
@@ -1538,7 +1873,7 @@ export default function POSPage() {
           }
         }}
       >
-        <DialogContent 
+        <DialogContent
           className="w-[90%] max-w-[500px] p-6 rounded-lg"
           onPointerDownOutside={(e) => e.preventDefault()}
           onEscapeKeyDown={(e) => e.preventDefault()}
@@ -1551,12 +1886,14 @@ export default function POSPage() {
               Who is collecting the payment?
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="grid gap-4 py-4">
             {cashiers.map((cashier) => (
               <Button
                 key={cashier.id}
-                variant={selectedCashier === cashier.name ? 'default' : 'outline'}
+                variant={
+                  selectedCashier === cashier.name ? "default" : "outline"
+                }
                 className={cn(
                   "h-16 justify-start text-left px-4",
                   selectedCashier === cashier.name && "ring-2 ring-primary"
@@ -1570,9 +1907,9 @@ export default function POSPage() {
               </Button>
             ))}
           </div>
-          
+
           <DialogFooter className="pt-4">
-            <Button 
+            <Button
               className="w-full h-12 text-base"
               disabled={!selectedCashier}
               onClick={handleFinalizePayment}
@@ -1582,14 +1919,17 @@ export default function POSPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      
+
       {/* Success dialog shown after cashier selection */}
       {showSuccess && (
-        <Dialog 
-          open={showSuccess} 
+        <Dialog
+          open={showSuccess}
           onOpenChange={(open) => {
             if (!open) {
-              console.log("Closing success dialog, current discount:", appliedDiscount);
+              console.log(
+                "Closing success dialog, current discount:",
+                appliedDiscount
+              );
               setShowSuccess(false);
               setShowCart(false);
               setCart([]);
@@ -1600,7 +1940,7 @@ export default function POSPage() {
             }
           }}
         >
-          <DialogContentWithoutClose 
+          <DialogContentWithoutClose
             className="w-[90%] max-w-[500px] p-6 rounded-lg max-h-[90vh] overflow-auto"
             onPointerDownOutside={(e) => e.preventDefault()}
             onEscapeKeyDown={(e) => e.preventDefault()}
@@ -1634,18 +1974,20 @@ export default function POSPage() {
               >
                 Payment Successful!
               </motion.p>
-              
+
               {/* Receipt will appear after 1 second */}
               <div className="w-full">
-                <ReceiptComponent 
-                  key={`receipt-${new Date().getTime()}-${JSON.stringify(appliedDiscount)}`}
-                  cart={cart} 
-                  paymentMethod={selectedPaymentMethod || 'cash'} 
+                <ReceiptComponent
+                  key={`receipt-${new Date().getTime()}-${JSON.stringify(
+                    appliedDiscount
+                  )}`}
+                  cart={cart}
+                  paymentMethod={selectedPaymentMethod || "cash"}
                   cashier={selectedCashier ?? undefined}
                   discount={appliedDiscount}
                 />
-                
-                <Button 
+
+                <Button
                   variant="outline"
                   onClick={() => {
                     console.log("Close button clicked, resetting state");
@@ -1668,74 +2010,90 @@ export default function POSPage() {
       )}
 
       {/* Discount Dialog */}
-      <Dialog open={isDiscountDialogOpen} onOpenChange={setIsDiscountDialogOpen}>
+      <Dialog
+        open={isDiscountDialogOpen}
+        onOpenChange={setIsDiscountDialogOpen}
+      >
         <DialogContent className="w-[90%] max-w-[400px] p-6 rounded-lg">
           <DialogHeader>
-            <DialogTitle className="text-center text-xl">Apply Discount</DialogTitle>
+            <DialogTitle className="text-center text-xl">
+              Apply Discount
+            </DialogTitle>
             <DialogDescription className="text-center">
               Select discount type and enter value
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-6 py-4">
             <div className="grid grid-cols-2 gap-4">
               <Button
-                variant={discountType === 'percentage' ? 'default' : 'outline'}
+                variant={discountType === "percentage" ? "default" : "outline"}
                 className={cn(
                   "h-20 flex flex-col items-center justify-center gap-2",
-                  discountType === 'percentage' && "ring-2 ring-primary"
+                  discountType === "percentage" && "ring-2 ring-primary"
                 )}
-                onClick={() => setDiscountType('percentage')}
+                onClick={() => setDiscountType("percentage")}
               >
                 <PercentIcon className="w-6 h-6" />
                 <span>Percentage (%)</span>
               </Button>
               <Button
-                variant={discountType === 'amount' ? 'default' : 'outline'}
+                variant={discountType === "amount" ? "default" : "outline"}
                 className={cn(
                   "h-20 flex flex-col items-center justify-center gap-2",
-                  discountType === 'amount' && "ring-2 ring-primary"
+                  discountType === "amount" && "ring-2 ring-primary"
                 )}
-                onClick={() => setDiscountType('amount')}
+                onClick={() => setDiscountType("amount")}
               >
                 <Calculator className="w-6 h-6" />
                 <span>Amount (OMR)</span>
               </Button>
             </div>
-            
+
             <div className="space-y-3">
               <Label htmlFor="discount-value">
-                {discountType === 'percentage' ? 'Discount percentage' : 'Discount amount (OMR)'}
+                {discountType === "percentage"
+                  ? "Discount percentage"
+                  : "Discount amount (OMR)"}
               </Label>
               <Input
                 id="discount-value"
                 type="number"
-                placeholder={discountType === 'percentage' ? "e.g. 10" : "e.g. 5.00"}
+                placeholder={
+                  discountType === "percentage" ? "e.g. 10" : "e.g. 5.00"
+                }
                 min="0"
-                step={discountType === 'percentage' ? "1" : "0.1"}
-                max={discountType === 'percentage' ? "100" : undefined}
-                value={discountValue === 0 ? '' : discountValue}
-                onChange={(e) => setDiscountValue(parseFloat(e.target.value) || 0)}
+                step={discountType === "percentage" ? "1" : "0.1"}
+                max={discountType === "percentage" ? "100" : undefined}
+                value={discountValue === 0 ? "" : discountValue}
+                onChange={(e) =>
+                  setDiscountValue(parseFloat(e.target.value) || 0)
+                }
                 autoFocus
               />
-              
+
               <div className="text-sm text-muted-foreground">
-                {discountType === 'percentage' 
-                  ? `This will reduce the total by ${((subtotal * (discountValue / 100)) || 0).toFixed(2)} OMR` 
-                  : `This will reduce the total by ${Math.min(discountValue, subtotal).toFixed(2)} OMR`}
+                {discountType === "percentage"
+                  ? `This will reduce the total by ${(
+                      subtotal * (discountValue / 100) || 0
+                    ).toFixed(2)} OMR`
+                  : `This will reduce the total by ${Math.min(
+                      discountValue,
+                      subtotal
+                    ).toFixed(2)} OMR`}
               </div>
             </div>
           </div>
-          
+
           <DialogFooter className="flex flex-col gap-2 sm:flex-row">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               className="flex-1"
               onClick={() => setIsDiscountDialogOpen(false)}
             >
               Cancel
             </Button>
-            <Button 
+            <Button
               className="flex-1"
               onClick={applyDiscount}
               disabled={discountValue <= 0}
@@ -1746,26 +2104,26 @@ export default function POSPage() {
         </DialogContent>
       </Dialog>
     </Layout>
-  )
+  );
 }
 
 // Add this component at the end of the file, before the final export default
-const ReceiptComponent = ({ 
-  cart, 
-  paymentMethod, 
+const ReceiptComponent = ({
+  cart,
+  paymentMethod,
   cashier,
-  discount
-}: { 
-  cart: CartItem[], 
-  paymentMethod: string, 
-  cashier?: string,
-  discount?: {type: 'percentage' | 'amount', value: number} | null 
+  discount,
+}: {
+  cart: CartItem[];
+  paymentMethod: string;
+  cashier?: string;
+  discount?: { type: "percentage" | "amount"; value: number } | null;
 }) => {
   console.log("ReceiptComponent mounted with discount:", discount);
-  
+
   // Save the discount value in component state to prevent it from being lost
   const [localDiscount, setLocalDiscount] = useState(discount);
-  
+
   // Update localDiscount when prop changes
   useEffect(() => {
     if (discount) {
@@ -1773,83 +2131,99 @@ const ReceiptComponent = ({
       setLocalDiscount(discount);
     }
   }, [discount]);
-  
+
   const [showReceipt, setShowReceipt] = useState(false);
   const receiptRef = useRef<HTMLDivElement>(null);
-  
+
   // Client-side state for random values and dates
   const [receiptData, setReceiptData] = useState({
-    receiptNumber: '',
-    currentDate: '',
-    currentTime: ''
+    receiptNumber: "",
+    currentDate: "",
+    currentTime: "",
   });
-  
+
   // Generate values only on client-side after component mounts
   useEffect(() => {
     // Generate a random receipt number
-    const receiptNumber = `A${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
-    
+    const receiptNumber = `A${Math.floor(Math.random() * 10000)
+      .toString()
+      .padStart(4, "0")}`;
+
     // Generate current date and time
-    const currentDate = new Date().toLocaleDateString('en-GB');
-    const currentTime = new Date().toLocaleTimeString('en-GB', { 
-      hour: '2-digit', 
-      minute: '2-digit', 
-      second: '2-digit' 
+    const currentDate = new Date().toLocaleDateString("en-GB");
+    const currentTime = new Date().toLocaleTimeString("en-GB", {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
     });
-    
+
     setReceiptData({
       receiptNumber,
       currentDate,
-      currentTime
+      currentTime,
     });
-    
+
     // Show receipt after 1 second
     const timer = setTimeout(() => {
       setShowReceipt(true);
     }, 1000);
-    
+
     // Log discount information if present
-    const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const subtotal = cart.reduce(
+      (sum, item) => sum + item.price * item.quantity,
+      0
+    );
     console.log("Receipt useEffect - discount value:", localDiscount);
     console.log("Receipt subtotal:", subtotal);
     if (localDiscount) {
-      console.log('Receipt displaying discount:', {
-        type: localDiscount.type, 
+      console.log("Receipt displaying discount:", {
+        type: localDiscount.type,
         value: localDiscount.value,
-        calculatedAmount: localDiscount.type === 'percentage' ? 
-          subtotal * (localDiscount.value / 100) : 
-          Math.min(localDiscount.value, subtotal)
+        calculatedAmount:
+          localDiscount.type === "percentage"
+            ? subtotal * (localDiscount.value / 100)
+            : Math.min(localDiscount.value, subtotal),
       });
     }
-    
+
     return () => clearTimeout(timer);
   }, [cart, localDiscount]);
-  
+
   const handlePrint = useCallback(() => {
     console.log("Print triggered with discount:", localDiscount);
-    
+
     const content = receiptRef.current;
     if (!content) return;
-    
-    const printWindow = window.open('', '_blank');
+
+    const printWindow = window.open("", "_blank");
     if (!printWindow) {
-      alert('Please allow popups to print receipt');
+      alert("Please allow popups to print receipt");
       return;
     }
-    
+
     // Calculate subtotal
-    const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    
+    const subtotal = cart.reduce(
+      (sum, item) => sum + item.price * item.quantity,
+      0
+    );
+
     // Calculate discount if applicable
-    const discountAmount = localDiscount ? 
-      (localDiscount.type === 'percentage' ? subtotal * (localDiscount.value / 100) : Math.min(localDiscount.value, subtotal)) : 0;
-    
-    console.log("Print window calculations:", { subtotal, discountAmount, discount: localDiscount });
-    
+    const discountAmount = localDiscount
+      ? localDiscount.type === "percentage"
+        ? subtotal * (localDiscount.value / 100)
+        : Math.min(localDiscount.value, subtotal)
+      : 0;
+
+    console.log("Print window calculations:", {
+      subtotal,
+      discountAmount,
+      discount: localDiscount,
+    });
+
     // No VAT in this example (0%)
     const vat = 0;
     const total = subtotal - discountAmount;
-    
+
     const htmlContent = `
       <!DOCTYPE html>
       <html>
@@ -2001,7 +2375,9 @@ const ReceiptComponent = ({
             <div class="receipt-info">
               <p>INVOICE</p>
               <p>Date: ${receiptData.currentDate}</p>
-              <p>Time: ${receiptData.currentTime}    POS ID: ${receiptData.receiptNumber}</p>
+              <p>Time: ${receiptData.currentTime}    POS ID: ${
+      receiptData.receiptNumber
+    }</p>
             </div>
             
             <table class="receipt-table">
@@ -2014,14 +2390,22 @@ const ReceiptComponent = ({
                 </tr>
               </thead>
               <tbody>
-                ${cart.map((item, _index) => `
+                ${cart
+                  .map(
+                    (item, _index) => `
                   <tr>
                     <td class="qty">${item.quantity}</td>
-                    <td class="description">${item.name}${item.details ? ` (${item.details})` : ''}</td>
+                    <td class="description">${item.name}${
+                      item.details ? ` (${item.details})` : ""
+                    }</td>
                     <td class="price">${item.price.toFixed(2)}</td>
-                    <td class="amount">${(item.price * item.quantity).toFixed(2)}</td>
+                    <td class="amount">${(item.price * item.quantity).toFixed(
+                      2
+                    )}</td>
                   </tr>
-                `).join('')}
+                `
+                  )
+                  .join("")}
               </tbody>
             </table>
             
@@ -2031,11 +2415,21 @@ const ReceiptComponent = ({
                   <td>Total w/o VAT</td>
                   <td class="total-amount">OMR ${subtotal.toFixed(2)}</td>
                 </tr>
-                ${localDiscount ? `
+                ${
+                  localDiscount
+                    ? `
                 <tr class="discount-row" style="color: #22c55e; font-weight: bold;">
-                  <td style="color: #22c55e; font-weight: bold;">Discount ${localDiscount.type === 'percentage' ? `(${localDiscount.value}%)` : '(Amount)'}</td>
-                  <td class="total-amount" style="color: #22c55e; font-weight: bold;">- OMR ${discountAmount.toFixed(2)}</td>
-                </tr>` : '<!-- No discount applied -->'}
+                  <td style="color: #22c55e; font-weight: bold;">Discount ${
+                    localDiscount.type === "percentage"
+                      ? `(${localDiscount.value}%)`
+                      : "(Amount)"
+                  }</td>
+                  <td class="total-amount" style="color: #22c55e; font-weight: bold;">- OMR ${discountAmount.toFixed(
+                    2
+                  )}</td>
+                </tr>`
+                    : "<!-- No discount applied -->"
+                }
                 <tr>
                   <td>VAT</td>
                   <td class="total-amount">OMR ${vat.toFixed(2)}</td>
@@ -2048,9 +2442,14 @@ const ReceiptComponent = ({
             </div>
             
             <div class="receipt-footer">
-              <p>Number of Items: ${cart.reduce((sum, item) => sum + item.quantity, 0)}</p>
-              <p>Payment Method: ${paymentMethod.charAt(0).toUpperCase() + paymentMethod.slice(1)}</p>
-              ${cashier ? `<p>Cashier: ${cashier}</p>` : ''}
+              <p>Number of Items: ${cart.reduce(
+                (sum, item) => sum + item.quantity,
+                0
+              )}</p>
+              <p>Payment Method: ${
+                paymentMethod.charAt(0).toUpperCase() + paymentMethod.slice(1)
+              }</p>
+              ${cashier ? `<p>Cashier: ${cashier}</p>` : ""}
               <p>Keep this Invoice for your Exchanges</p>
               <p class="arabic">احتفظ بهذه الفاتورة للتبديل</p>
               <p>Exchange with in 15 Days</p>
@@ -2071,46 +2470,61 @@ const ReceiptComponent = ({
         </body>
       </html>
     `;
-    
+
     printWindow.document.open();
     printWindow.document.write(htmlContent);
     printWindow.document.close();
-    
+
     // On mobile, we need a slight delay before printing
     setTimeout(() => {
       printWindow.print();
       // Close the window after print on desktop, but keep it open on mobile
       // as mobile browsers handle print differently
-      if (!(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent))) {
+      if (
+        !/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+          navigator.userAgent
+        )
+      ) {
         printWindow.close();
       }
     }, 500);
   }, [cart, paymentMethod, receiptData, cashier, localDiscount]);
-  
+
   if (!showReceipt || !receiptData.receiptNumber) return null;
-  
+
   // Calculate totals
-  const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  
+  const subtotal = cart.reduce(
+    (sum, item) => sum + item.price * item.quantity,
+    0
+  );
+
   // Calculate discount amount if applicable
-  const discountAmount = localDiscount ? 
-    (localDiscount.type === 'percentage' ? subtotal * (localDiscount.value / 100) : Math.min(localDiscount.value, subtotal)) : 0;
-  
+  const discountAmount = localDiscount
+    ? localDiscount.type === "percentage"
+      ? subtotal * (localDiscount.value / 100)
+      : Math.min(localDiscount.value, subtotal)
+    : 0;
+
   const vat = 0; // No VAT in this example
   const total = subtotal - discountAmount;
   const itemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
-  
+
   // Format payment method name for display
   const getFormattedPaymentMethod = (method: string) => {
-    switch(method) {
-      case 'card': return 'Card';
-      case 'cash': return 'Cash';
-      case 'mobile': return 'Mobile Pay';
-      case 'voucher': return 'Voucher';
-      default: return method.charAt(0).toUpperCase() + method.slice(1);
+    switch (method) {
+      case "card":
+        return "Card";
+      case "cash":
+        return "Cash";
+      case "mobile":
+        return "Mobile Pay";
+      case "voucher":
+        return "Voucher";
+      default:
+        return method.charAt(0).toUpperCase() + method.slice(1);
     }
   };
-  
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -2119,7 +2533,10 @@ const ReceiptComponent = ({
       className="w-full"
     >
       <div className="max-h-[40vh] overflow-auto mb-4">
-        <div className="bg-white border rounded-lg p-4 w-full max-w-[300px] mx-auto" ref={receiptRef}>
+        <div
+          className="bg-white border rounded-lg p-4 w-full max-w-[300px] mx-auto"
+          ref={receiptRef}
+        >
           {/* Receipt Preview */}
           <div className="text-center mb-2">
             <h3 className="font-bold text-lg">H Automotives</h3>
@@ -2127,7 +2544,7 @@ const ReceiptComponent = ({
             <p className="text-xs text-gray-500">Ph: 92510750 | 26856848</p>
             <p className="text-xs text-gray-500">VATIN: OM1100006980</p>
           </div>
-          
+
           <div className="border-t border-b border-dashed py-1 mb-3">
             <p className="text-xs font-medium text-center">INVOICE</p>
             <div className="flex justify-between text-xs">
@@ -2138,7 +2555,7 @@ const ReceiptComponent = ({
               <span>POS ID: {receiptData.receiptNumber}</span>
             </div>
           </div>
-          
+
           <div className="text-xs mb-3">
             <div className="grid grid-cols-12 gap-1 font-medium mb-1">
               <span className="col-span-1">Qty.</span>
@@ -2146,17 +2563,24 @@ const ReceiptComponent = ({
               <span className="col-span-2 text-right">Price</span>
               <span className="col-span-2 text-right">Amount</span>
             </div>
-            
+
             {cart.map((item) => (
               <div key={item.uniqueId} className="grid grid-cols-12 gap-1 mb-1">
                 <span className="col-span-1">{item.quantity}</span>
-                <span className="col-span-7 break-words">{item.name}{item.details ? ` (${item.details})` : ''}</span>
-                <span className="col-span-2 text-right">{item.price.toFixed(2)}</span>
-                <span className="col-span-2 text-right">{(item.price * item.quantity).toFixed(2)}</span>
+                <span className="col-span-7 break-words">
+                  {item.name}
+                  {item.details ? ` (${item.details})` : ""}
+                </span>
+                <span className="col-span-2 text-right">
+                  {item.price.toFixed(2)}
+                </span>
+                <span className="col-span-2 text-right">
+                  {(item.price * item.quantity).toFixed(2)}
+                </span>
               </div>
             ))}
           </div>
-          
+
           <div className="border-t border-dashed pt-2 mb-3">
             <div className="flex justify-between text-xs">
               <span>Total w/o VAT</span>
@@ -2164,7 +2588,12 @@ const ReceiptComponent = ({
             </div>
             {localDiscount && (
               <div className="flex justify-between items-center border-t pt-2">
-                <span>Discount {localDiscount.type === 'percentage' ? `(${localDiscount.value}%)` : '(Amount)'}</span>
+                <span>
+                  Discount{" "}
+                  {localDiscount.type === "percentage"
+                    ? `(${localDiscount.value}%)`
+                    : "(Amount)"}
+                </span>
                 <span>- OMR {discountAmount.toFixed(2)}</span>
               </div>
             )}
@@ -2177,24 +2606,32 @@ const ReceiptComponent = ({
               <span>OMR {total.toFixed(2)}</span>
             </div>
           </div>
-          
+
           <div className="text-center text-xs text-gray-600 border-t border-dashed pt-2">
             <p>Number of Items: {itemCount}</p>
             <p>Payment Method: {getFormattedPaymentMethod(paymentMethod)}</p>
             {cashier && <p>Cashier: {cashier}</p>}
             <p>Keep this Invoice for your Exchanges</p>
-            <p className="text-xs text-right text-gray-600">احتفظ بهذه الفاتورة للتبديل</p>
+            <p className="text-xs text-right text-gray-600">
+              احتفظ بهذه الفاتورة للتبديل
+            </p>
             <p>Exchange with in 15 Days</p>
-            <p className="text-xs text-right text-gray-600">التبديل خلال 15 يوم</p>
+            <p className="text-xs text-right text-gray-600">
+              التبديل خلال 15 يوم
+            </p>
             <p>Thank you for shopping with us.</p>
-            <p className="text-xs text-right text-gray-600">شكراً للتسوق معنا</p>
-            <p className="font-medium mt-2">WhatsApp 72702537 for latest offers</p>
+            <p className="text-xs text-right text-gray-600">
+              شكراً للتسوق معنا
+            </p>
+            <p className="font-medium mt-2">
+              WhatsApp 72702537 for latest offers
+            </p>
             <p className="font-mono">{receiptData.receiptNumber}</p>
           </div>
         </div>
       </div>
-      
-      <Button 
+
+      <Button
         onClick={handlePrint}
         className="w-full flex items-center justify-center gap-2 mt-2"
       >
@@ -2204,4 +2641,3 @@ const ReceiptComponent = ({
     </motion.div>
   );
 };
-
