@@ -238,7 +238,7 @@ export function CustomSidebar({ className }: { className?: string }) {
                 )}
               >
                 <span className="mr-2 inline-flex">
-                  <ClipboardList className="h-4 w-4" />
+                  <ShoppingCart className="h-4 w-4" />
                 </span>
                 <span className={cn("flex-1 text-left", !open && "sr-only")}>
                   Orders
@@ -366,7 +366,7 @@ export function CustomSidebar({ className }: { className?: string }) {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent
-                className="w-[90%] sm:w-52 min-w-[13rem] rounded-xl border-2 p-2"
+                className="w-[12.5rem] rounded-xl border-2 p-2"
                 align="end"
                 forceMount
               >
@@ -424,7 +424,7 @@ function ProfileMenu() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm transition-colors hover:bg-accent">
+        <button className="flex w-full items-center gap-3 rounded-md px-4 py-3 text-sm transition-colors hover:bg-accent">
           <Avatar className="h-9 w-9">
             <AvatarImage src="/avatars/01.png" alt="@username" />
             <AvatarFallback>SC</AvatarFallback>
@@ -438,7 +438,7 @@ function ProfileMenu() {
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
-        className="w-[90%] sm:w-52 min-w-[13rem] rounded-xl border-2 p-2"
+        className="w-[12.5rem] rounded-xl border-2 p-2"
         align="end"
         forceMount
       >

@@ -8,7 +8,6 @@ import { cn } from "@/lib/utils";
 import { useUser } from "@/app/user-context";
 import {
   Home,
-  Package,
   ClipboardList,
   RefreshCcw,
   Settings,
@@ -120,7 +119,7 @@ export function Sidebar({
     {
       title: "Main",
       href: "/inventory",
-      icon: <Package className="h-4 w-4" />,
+      icon: <Warehouse className="h-4 w-4" />,
     },
     {
       title: "Branch",
@@ -131,9 +130,9 @@ export function Sidebar({
 
   const orderItems = [
     {
-      title: "Purchase Orders",
+      title: "Online Orders",
       href: "/orders",
-      icon: <ClipboardList className="h-4 w-4" />,
+      icon: <ShoppingCart className="h-4 w-4" />,
     },
     {
       title: "Transfer Stock",
@@ -141,7 +140,7 @@ export function Sidebar({
       icon: <ArrowLeftRight className="h-4 w-4" />,
     },
     {
-      title: "Order History",
+      title: "Restock Orders",
       href: "/restock-orders",
       icon: <Truck className="h-4 w-4" />,
     },
@@ -231,7 +230,7 @@ export function Sidebar({
                 <AccordionTrigger className="flex items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground hover:no-underline">
                   <div className="flex items-center gap-3 w-full">
                     <span className="flex-shrink-0">
-                      <Package className="h-4 w-4" />
+                      <Warehouse className="h-4 w-4" />
                     </span>
                     <span className="truncate">Inventory</span>
                   </div>
@@ -270,7 +269,7 @@ export function Sidebar({
                   )}
                   title="Inventory"
                 >
-                  <Package className="h-4 w-4" />
+                  <Warehouse className="h-4 w-4" />
                 </Link>
               </div>
             )}
@@ -285,7 +284,7 @@ export function Sidebar({
                 <AccordionTrigger className="flex items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground hover:no-underline">
                   <div className="flex items-center gap-3 w-full">
                     <span className="flex-shrink-0">
-                      <ClipboardList className="h-4 w-4" />
+                      <ShoppingCart className="h-4 w-4" />
                     </span>
                     <span className="truncate">Orders</span>
                   </div>
@@ -325,7 +324,7 @@ export function Sidebar({
                   )}
                   title="Orders"
                 >
-                  <ClipboardList className="h-4 w-4" />
+                  <ShoppingCart className="h-4 w-4" />
                 </Link>
               </div>
             )}
@@ -371,7 +370,7 @@ function ProfileMenu({ isCollapsed }: { isCollapsed: boolean }) {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent
-            className="w-56 rounded-xl border p-2"
+            className="w-[12.5rem] rounded-xl border p-2"
             align="end"
             side="right"
             forceMount
@@ -402,31 +401,31 @@ function ProfileMenu({ isCollapsed }: { isCollapsed: boolean }) {
   }
 
   return (
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-2">
-        <Avatar className="h-7 w-7 flex-shrink-0">
-          <AvatarImage src="/avatars/01.png" alt="@username" />
-          <AvatarFallback>
-            {currentUser?.name ? currentUser.name.charAt(0) : "U"}
-          </AvatarFallback>
-        </Avatar>
-        <div className="grid">
-          <span className="text-xs font-medium truncate max-w-[130px]">
-            {currentUser?.name || "User"}
-          </span>
-          <span className="text-[10px] text-muted-foreground truncate">
-            {currentUser?.role || "User"}
-          </span>
-        </div>
-      </div>
+    <div className="flex items-center">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full">
-            <Settings className="h-4 w-4" />
+          <Button
+            variant="ghost"
+            className="p-2 h-auto w-full flex items-center gap-2 justify-start rounded-md hover:bg-accent transition-colors duration-200"
+          >
+            <Avatar className="h-7 w-7 flex-shrink-0">
+              <AvatarImage src="/avatars/01.png" alt="@username" />
+              <AvatarFallback>
+                {currentUser?.name ? currentUser.name.charAt(0) : "U"}
+              </AvatarFallback>
+            </Avatar>
+            <div className="grid text-left">
+              <span className="text-xs font-medium truncate max-w-[130px]">
+                {currentUser?.name || "User"}
+              </span>
+              <span className="text-[10px] text-muted-foreground truncate">
+                {currentUser?.role || "User"}
+              </span>
+            </div>
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent
-          className="w-56 rounded-xl border p-2"
+          className="w-[12.5rem] rounded-xl border p-2"
           align="end"
           side="top"
           forceMount

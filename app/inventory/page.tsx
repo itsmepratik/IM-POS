@@ -1006,12 +1006,7 @@ function ItemsPageContent() {
 
   return (
     <div className="w-full space-y-6">
-      <PageHeader
-        title="Main Inventory"
-        description={`Manage inventory at ${
-          currentBranch?.name || "Main (Sanaya)"
-        }`}
-      />
+      <PageHeader>Main Inventory</PageHeader>
       <div className="hidden md:block">
         <DesktopView />
       </div>

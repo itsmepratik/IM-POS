@@ -1,54 +1,59 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Layout } from "@/components/layout"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Progress } from "@/components/ui/progress"
+import { useState, useEffect } from "react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Layout } from "@/components/layout";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
-  
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from "@/components/ui/table"
-import { CreditCard, Banknote, Wallet, ArrowUpRight } from "lucide-react"
-import { useDashboardData } from "./hooks/useDashboardData"
-import { usePaymentTypes } from "./hooks/usePaymentTypes"
-import { format } from "date-fns"
-import { BranchProvider } from "@/app/branch-context"
-import { motion } from "framer-motion"
+} from "@/components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { CreditCard, Banknote, Wallet, ArrowUpRight } from "lucide-react";
+import { useDashboardData } from "./hooks/useDashboardData";
+import { usePaymentTypes } from "./hooks/usePaymentTypes";
+import { format } from "date-fns";
+import { BranchProvider } from "@/app/branch-context";
+import { motion } from "framer-motion";
 
 export default function HomePage() {
   return (
     <BranchProvider>
       <HomePageContent />
     </BranchProvider>
-  )
+  );
 }
 
 function HomePageContent() {
   // Use null as initial state to avoid hydration mismatch
-  const [branchSelection, setBranchSelection] = useState<string | null>(null)
-  const [hasMounted, setHasMounted] = useState(false)
-  
+  const [branchSelection, setBranchSelection] = useState<string | null>(null);
+  const [hasMounted, setHasMounted] = useState(false);
+
   // Set initial state after component mounts
   useEffect(() => {
-    setBranchSelection("all")
-    setHasMounted(true)
-  }, [])
-  
+    setBranchSelection("all");
+    setHasMounted(true);
+  }, []);
+
   const {
     sales,
     profit,
@@ -56,10 +61,10 @@ function HomePageContent() {
     customers,
     payments,
     lastUpdated,
-    isLoading
-  } = useDashboardData()
-  
-  const { paymentDetailsData } = usePaymentTypes()
+    isLoading,
+  } = useDashboardData();
+
+  const { paymentDetailsData } = usePaymentTypes();
 
   return (
     <Layout>
@@ -68,7 +73,10 @@ function HomePageContent() {
           <div className="space-y-1.5">
             <div className="flex flex-wrap items-center gap-2">
               {hasMounted ? (
-                <Select value={branchSelection || undefined} onValueChange={setBranchSelection}>
+                <Select
+                  value={branchSelection || undefined}
+                  onValueChange={setBranchSelection}
+                >
                   <SelectTrigger className="h-8 w-[150px]">
                     <SelectValue placeholder="All branches" />
                   </SelectTrigger>
@@ -83,16 +91,18 @@ function HomePageContent() {
                 <div className="h-8 w-[150px] rounded-md border bg-transparent px-3 py-2 text-sm animate-pulse" />
               )}
               <span className="text-xs text-muted-foreground">
-                {lastUpdated ? `Date: ${format(lastUpdated, 'dd MMM yyyy')}` : 'Loading...'}
+                {lastUpdated
+                  ? `Date: ${format(lastUpdated, "dd MMM yyyy")}`
+                  : "Loading..."}
               </span>
             </div>
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, y: 5 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
               className="flex items-baseline gap-2"
             >
-              <motion.h1 
+              <motion.h1
                 className="text-2xl font-semibold"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -100,13 +110,13 @@ function HomePageContent() {
               >
                 Welcome back,
               </motion.h1>
-              <motion.span 
+              <motion.span
                 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-cyan-500 text-transparent bg-clip-text"
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.4, duration: 0.5 }}
               >
-                Pratik.
+                Adnan.
               </motion.span>
             </motion.div>
           </div>
@@ -116,17 +126,37 @@ function HomePageContent() {
           <section>
             <h2 className="text-lg font-semibold mb-3">Key metrics</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <MetricCard 
+              <MetricCard
                 title="Total Revenue"
-                value={isLoading ? "Loading..." : `OMR ${sales.totalSales.toFixed(2)}`}
-                comparison={isLoading ? "-" : `${sales.changePercentage.toFixed(1)}% from last period`}
-                link="/sales-info" 
+                value={
+                  isLoading
+                    ? "Loading..."
+                    : `OMR ${sales.totalSales.toFixed(2)}`
+                }
+                comparison={
+                  isLoading
+                    ? "-"
+                    : `${sales.changePercentage.toFixed(1)}% from last period`
+                }
+                link="/sales-info"
               />
-              <MetricCard 
-                title="Net Profits" 
-                value={isLoading ? "Loading..." : `OMR ${profit.grossProfit.toFixed(2)}`}
-                comparison={isLoading ? "-" : `${isNaN(profit.profitChangePercentage) ? '0' : profit.profitChangePercentage.toFixed(1)}% from last period`}
-                link="/sales-info" 
+              <MetricCard
+                title="Net Profits"
+                value={
+                  isLoading
+                    ? "Loading..."
+                    : `OMR ${profit.grossProfit.toFixed(2)}`
+                }
+                comparison={
+                  isLoading
+                    ? "-"
+                    : `${
+                        isNaN(profit.profitChangePercentage)
+                          ? "0"
+                          : profit.profitChangePercentage.toFixed(1)
+                      }% from last period`
+                }
+                link="/sales-info"
               />
             </div>
           </section>
@@ -145,15 +175,23 @@ function HomePageContent() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {payments.byPaymentMethod.slice(0, 3).map((payment, index) => (
-                      <PaymentType 
-                        key={payment.method}
-                        label={payment.method} 
-                        amount={`OMR ${payment.amount.toFixed(2)}`} 
-                        percentage={payment.percentage} 
-                        color={index === 0 ? "bg-blue-500" : index === 1 ? "bg-green-500" : "bg-yellow-500"} 
-                      />
-                    ))}
+                    {payments.byPaymentMethod
+                      .slice(0, 3)
+                      .map((payment, index) => (
+                        <PaymentType
+                          key={payment.method}
+                          label={payment.method}
+                          amount={`OMR ${payment.amount.toFixed(2)}`}
+                          percentage={payment.percentage}
+                          color={
+                            index === 0
+                              ? "bg-blue-500"
+                              : index === 1
+                              ? "bg-green-500"
+                              : "bg-yellow-500"
+                          }
+                        />
+                      ))}
                   </div>
                 )}
               </CardContent>
@@ -175,10 +213,17 @@ function HomePageContent() {
                 ) : (
                   <div className="space-y-3">
                     {sales.topProducts.slice(0, 5).map((product, index) => (
-                      <div key={index} className="flex justify-between items-center w-full">
+                      <div
+                        key={index}
+                        className="flex justify-between items-center w-full"
+                      >
                         <span className="truncate w-[45%]">{product.name}</span>
-                        <span className="text-xs text-muted-foreground text-center">{product.units} sales</span>
-                        <span className="text-sm whitespace-nowrap text-right">OMR {product.revenue.toFixed(2)}</span>
+                        <span className="text-xs text-muted-foreground text-center">
+                          {product.units} sales
+                        </span>
+                        <span className="text-sm whitespace-nowrap text-right">
+                          OMR {product.revenue.toFixed(2)}
+                        </span>
                       </div>
                     ))}
                   </div>
@@ -189,14 +234,14 @@ function HomePageContent() {
         </div>
       </div>
     </Layout>
-  )
+  );
 }
 
 interface MetricCardProps {
-  title: string
-  value: string
-  comparison: string
-  link?: string
+  title: string;
+  value: string;
+  comparison: string;
+  link?: string;
 }
 
 function MetricCard({ title, value, comparison, link }: MetricCardProps) {
@@ -208,29 +253,35 @@ function MetricCard({ title, value, comparison, link }: MetricCardProps) {
       <CardContent className="space-y-2">
         <div className="text-2xl font-bold truncate">{value}</div>
         <div className="flex justify-between items-center">
-          <div className="text-xs text-muted-foreground truncate max-w-[60%]">{comparison}</div>
+          <div className="text-xs text-muted-foreground truncate max-w-[60%]">
+            {comparison}
+          </div>
           {link && (
-            <a href={link} className="text-xs text-blue-500 hover:text-blue-700 hover:underline">
+            <a
+              href={link}
+              className="text-xs text-blue-500 hover:text-blue-700 hover:underline"
+            >
               More details
             </a>
           )}
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }
 
 interface PaymentTypeProps {
-  label: string
-  amount: string
-  percentage: number
-  color: string
+  label: string;
+  amount: string;
+  percentage: number;
+  color: string;
 }
 
 function PaymentType({ label, amount, percentage, color }: PaymentTypeProps) {
-  const { paymentDetailsData } = usePaymentTypes()
-  const paymentDetails = paymentDetailsData[label as keyof typeof paymentDetailsData]
-  const Icon = paymentDetails?.icon || Wallet
+  const { paymentDetailsData } = usePaymentTypes();
+  const paymentDetails =
+    paymentDetailsData[label as keyof typeof paymentDetailsData];
+  const Icon = paymentDetails?.icon || Wallet;
 
   return (
     <div className="space-y-2">
@@ -241,10 +292,14 @@ function PaymentType({ label, amount, percentage, color }: PaymentTypeProps) {
       <Progress value={percentage} className={color} />
       <div className="flex justify-between items-center">
         <div className="text-xs text-muted-foreground">{percentage}%</div>
-        
+
         <Dialog>
           <DialogTrigger asChild>
-            <Button variant="ghost" size="sm" className="h-7 px-2 text-xs text-blue-500 hover:text-blue-700">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2 text-xs text-blue-500 hover:text-blue-700"
+            >
               <span className="mr-1">Details</span>
               <ArrowUpRight className="h-3 w-3" />
             </Button>
@@ -259,16 +314,22 @@ function PaymentType({ label, amount, percentage, color }: PaymentTypeProps) {
                 {paymentDetails?.description}
               </DialogDescription>
             </DialogHeader>
-            
+
             <div className="rounded-xl border overflow-hidden">
               <div className="overflow-x-auto rounded-xl">
                 <div className="max-h-[300px] overflow-y-auto">
                   <Table className="rounded-xl overflow-hidden">
                     <TableHeader className="sticky top-0 z-10 bg-background">
                       <TableRow className="bg-muted/50">
-                        <TableHead className="whitespace-nowrap rounded-tl-xl">Date</TableHead>
-                        <TableHead className="whitespace-nowrap">Amount</TableHead>
-                        <TableHead className="whitespace-nowrap rounded-tr-xl">Method</TableHead>
+                        <TableHead className="whitespace-nowrap rounded-tl-xl">
+                          Date
+                        </TableHead>
+                        <TableHead className="whitespace-nowrap">
+                          Amount
+                        </TableHead>
+                        <TableHead className="whitespace-nowrap rounded-tr-xl">
+                          Method
+                        </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -288,5 +349,5 @@ function PaymentType({ label, amount, percentage, color }: PaymentTypeProps) {
         </Dialog>
       </div>
     </div>
-  )
-} 
+  );
+}

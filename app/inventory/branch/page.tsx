@@ -730,15 +730,7 @@ function ItemsPageContent() {
 
   return (
     <div className="w-full space-y-6">
-      <PageHeader>
-        <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-bold tracking-tight">Inventory</h1>
-          <p className="text-muted-foreground">
-            Manage inventory at{" "}
-            {currentBranch?.name || defaultBranch?.name || "Hafith"}
-          </p>
-        </div>
-      </PageHeader>
+      <PageHeader>Inventory</PageHeader>
       {isMobile ? <MobileView /> : <DesktopView />}
     </div>
   );
