@@ -4,11 +4,11 @@ globs:
 alwaysApply: true
 ---
 ---
-description: 
-globs: 
+description: This is an absolute project rule file.
+globs: project_rule
 ---
 
 # Your rule content
 
-- I am using bun for this entire project so only give me bun or bun compatible commands.
-- DO NOT GIVE ME 'bun run dev' ON EVERY REQUEST
+- <project_rule> Use all bun commands (e.g., "bun install") instead of npm or npx</project_rule>
+    <project_rule>Don't always give me command to run 'bun run dev' as the development server is always on, instead focus more on code and performance. </project_rule>

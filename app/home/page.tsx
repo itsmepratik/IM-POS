@@ -28,12 +28,22 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { CreditCard, Banknote, Wallet, ArrowUpRight } from "lucide-react";
+import { Wallet, ArrowUpRight } from "lucide-react";
 import { useDashboardData } from "./hooks/useDashboardData";
 import { usePaymentTypes } from "./hooks/usePaymentTypes";
 import { format } from "date-fns";
 import { BranchProvider } from "@/app/branch-context";
 import { motion } from "framer-motion";
+import Link from "next/link";
+
+interface Product {
+  id: number;
+  name: string;
+  price: number;
+  category: "Filters" | "Parts" | "Additives";
+  brand?: string; // Optional
+  type?: string; // Optional
+}
 
 export default function HomePage() {
   return (
@@ -54,17 +64,10 @@ function HomePageContent() {
     setHasMounted(true);
   }, []);
 
-  const {
-    sales,
-    profit,
-    inventory,
-    customers,
-    payments,
-    lastUpdated,
-    isLoading,
-  } = useDashboardData();
+  const { sales, profit, payments, lastUpdated, isLoading } =
+    useDashboardData();
 
-  const { paymentDetailsData } = usePaymentTypes();
+  usePaymentTypes();
 
   return (
     <Layout>
@@ -248,23 +251,23 @@ function MetricCard({ title, value, comparison, link }: MetricCardProps) {
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium">{title}</CardTitle>
+        <CardTitle className="text-base font-medium">{title}</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-2">
-        <div className="text-2xl font-bold truncate">{value}</div>
-        <div className="flex justify-between items-center">
-          <div className="text-xs text-muted-foreground truncate max-w-[60%]">
-            {comparison}
+      <CardContent>
+        <div className="text-2xl font-bold">{value}</div>
+        <p className="text-xs text-muted-foreground mt-1">{comparison}</p>
+        {link && (
+          <div className="mt-3">
+            <Button variant="ghost" className="h-8 px-2 text-xs" asChild>
+              <Link href={link}>
+                <span className="flex items-center">
+                  View details
+                  <ArrowUpRight className="ml-1 h-3 w-3" />
+                </span>
+              </Link>
+            </Button>
           </div>
-          {link && (
-            <a
-              href={link}
-              className="text-xs text-blue-500 hover:text-blue-700 hover:underline"
-            >
-              More details
-            </a>
-          )}
-        </div>
+        )}
       </CardContent>
     </Card>
   );
@@ -284,70 +287,12 @@ function PaymentType({ label, amount, percentage, color }: PaymentTypeProps) {
   const Icon = paymentDetails?.icon || Wallet;
 
   return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <span className="truncate max-w-[50%]">{label}</span>
-        <span className="text-sm whitespace-nowrap">{amount}</span>
+    <div className="space-y-1">
+      <div className="flex justify-between text-sm">
+        <span>{label}</span>
+        <span>{amount}</span>
       </div>
-      <Progress value={percentage} className={color} />
-      <div className="flex justify-between items-center">
-        <div className="text-xs text-muted-foreground">{percentage}%</div>
-
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 px-2 text-xs text-blue-500 hover:text-blue-700"
-            >
-              <span className="mr-1">Details</span>
-              <ArrowUpRight className="h-3 w-3" />
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-[95%] sm:max-w-[625px] rounded-2xl overflow-hidden">
-            <DialogHeader className="mb-3">
-              <DialogTitle className="flex items-center gap-2">
-                <Icon className="h-5 w-5" />
-                {paymentDetails?.title}
-              </DialogTitle>
-              <DialogDescription>
-                {paymentDetails?.description}
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="rounded-xl border overflow-hidden">
-              <div className="overflow-x-auto rounded-xl">
-                <div className="max-h-[300px] overflow-y-auto">
-                  <Table className="rounded-xl overflow-hidden">
-                    <TableHeader className="sticky top-0 z-10 bg-background">
-                      <TableRow className="bg-muted/50">
-                        <TableHead className="whitespace-nowrap rounded-tl-xl">
-                          Date
-                        </TableHead>
-                        <TableHead className="whitespace-nowrap">
-                          Amount
-                        </TableHead>
-                        <TableHead className="whitespace-nowrap rounded-tr-xl">
-                          Method
-                        </TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {paymentDetails?.transactions.map((transaction) => (
-                        <TableRow key={transaction.id}>
-                          <TableCell>{transaction.date}</TableCell>
-                          <TableCell>{transaction.amount}</TableCell>
-                          <TableCell>{transaction.method}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-      </div>
+      <Progress value={percentage} className={`h-2 [&>div]:${color}`} />
     </div>
   );
 }

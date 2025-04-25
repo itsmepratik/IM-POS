@@ -82,12 +82,12 @@ export function Layout({ children, pageTitle }: LayoutProps) {
     <div className="flex min-h-screen w-full bg-background overflow-hidden">
       {/* Desktop Sidebar - only show on tablets and above */}
       <Sidebar
-        className="hidden md:flex"
+        className="hidden lg:flex"
         onCollapsedChange={handleSidebarCollapse}
       />
 
       {/* Mobile header - show on mobile screens only */}
-      <div className="md:hidden fixed top-0 left-0 right-0 h-16 border-b bg-background z-50 flex items-center justify-between px-4">
+      <div className="lg:hidden fixed top-0 left-0 right-0 h-16 border-b bg-background z-50 flex items-center justify-between px-4">
         <div className="flex items-center">
           <MobileNav className="mr-2" />
         </div>
@@ -102,8 +102,8 @@ export function Layout({ children, pageTitle }: LayoutProps) {
       {/* Main content - push to the side based on sidebar state */}
       <div
         className={cn(
-          "flex-1 w-full flex flex-col mt-16 md:mt-0",
-          sidebarCollapsed ? "md:ml-14" : "md:ml-56"
+          "flex-1 w-full flex flex-col mt-16 lg:mt-0",
+          sidebarCollapsed ? "lg:ml-14" : "lg:ml-56"
         )}
         style={{
           transition: "margin-left 300ms ease-in-out",

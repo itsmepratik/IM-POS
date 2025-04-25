@@ -29,6 +29,8 @@ import {
   PercentIcon,
   Scissors,
   Calculator,
+  Droplet,
+  Package,
 } from "lucide-react";
 import {
   Dialog,
@@ -91,7 +93,7 @@ interface Product {
   id: number;
   name: string;
   price: number;
-  category: "Filters" | "Parts" | "Additives";
+  category: "Filters" | "Parts" | "Additives & Fluids";
   brand?: string;
   type?: string;
 }
@@ -397,8 +399,92 @@ const products: Product[] = [
   // Other Products
   { id: 5, name: "Brake Pads", price: 45.99, category: "Parts" },
   { id: 6, name: "Spark Plugs", price: 8.99, category: "Parts" },
-  { id: 7, name: "Fuel System Cleaner", price: 14.99, category: "Additives" },
-  { id: 8, name: "Oil Treatment", price: 11.99, category: "Additives" },
+
+  // Additives with brand information
+  {
+    id: 7,
+    name: "Fuel System Cleaner",
+    price: 14.99,
+    category: "Additives & Fluids",
+    brand: "Shell",
+  },
+  {
+    id: 8,
+    name: "Oil Treatment",
+    price: 11.99,
+    category: "Additives & Fluids",
+    brand: "Shell",
+  },
+  {
+    id: 9001,
+    name: "Diesel Additive",
+    price: 16.99,
+    category: "Additives & Fluids",
+    brand: "Shell",
+  },
+  {
+    id: 9002,
+    name: "Engine Flush",
+    price: 19.99,
+    category: "Additives & Fluids",
+    brand: "Toyota",
+  },
+  {
+    id: 9003,
+    name: "Radiator Coolant",
+    price: 12.99,
+    category: "Additives & Fluids",
+    brand: "Toyota",
+  },
+  {
+    id: 9004,
+    name: "Fuel Injector Cleaner",
+    price: 15.99,
+    category: "Additives & Fluids",
+    brand: "Toyota",
+  },
+  {
+    id: 9005,
+    name: "Octane Booster",
+    price: 9.99,
+    category: "Additives & Fluids",
+    brand: "Lexus",
+  },
+  {
+    id: 9006,
+    name: "Transmission Fluid",
+    price: 22.99,
+    category: "Additives & Fluids",
+    brand: "Lexus",
+  },
+  {
+    id: 9007,
+    name: "Power Steering Fluid",
+    price: 13.99,
+    category: "Additives & Fluids",
+    brand: "Lexus",
+  },
+  {
+    id: 9008,
+    name: "Brake Fluid",
+    price: 8.99,
+    category: "Additives & Fluids",
+    brand: "Castrol",
+  },
+  {
+    id: 9009,
+    name: "Engine Stop Leak",
+    price: 17.99,
+    category: "Additives & Fluids",
+    brand: "Castrol",
+  },
+  {
+    id: 9010,
+    name: "Oil Stabilizer",
+    price: 14.99,
+    category: "Additives & Fluids",
+    brand: "Castrol",
+  },
 ];
 
 // Memoize the cart item component
@@ -493,12 +579,24 @@ const ProductButton = memo(
     <Button
       key={product.id}
       variant="outline"
-      className="h-auto py-6 flex flex-col items-center justify-center text-center p-4 hover:shadow-md transition-all"
+      className="h-[160px] sm:h-[180px] flex flex-col items-center justify-between text-center p-4 hover:shadow-md transition-all overflow-hidden"
       onClick={() => addToCart(product)}
     >
-      <div className="font-semibold text-base mb-2">{product.name}</div>
-      <div className="text-lg font-medium text-primary">
-        OMR {product.price.toFixed(2)}
+      <div className="flex items-center justify-center h-10 w-10 mb-2">
+        <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+          <Package className="h-4 w-4 text-primary opacity-70" />
+        </div>
+      </div>
+      <div className="text-center flex-1 flex flex-col justify-between">
+        <span
+          className="font-medium text-xs sm:text-sm word-wrap whitespace-normal leading-tight hyphens-auto"
+          style={{ lineHeight: 1.1 }}
+        >
+          {product.name}
+        </span>
+        <span className="block text-sm text-primary mt-2">
+          OMR {product.price.toFixed(2)}
+        </span>
       </div>
     </Button>
   )
@@ -969,7 +1067,9 @@ export default function POSPage() {
                       <TabsTrigger value="Oil">Oil</TabsTrigger>
                       <TabsTrigger value="Filters">Filters</TabsTrigger>
                       <TabsTrigger value="Parts">Parts</TabsTrigger>
-                      <TabsTrigger value="Additives">Additives</TabsTrigger>
+                      <TabsTrigger value="Additives & Fluids">
+                        Additives & Fluids
+                      </TabsTrigger>
                     </TabsList>
                   </div>
                   <ScrollArea className="flex-1 mt-4 -mx-2 px-2">
@@ -1007,30 +1107,38 @@ export default function POSPage() {
                                     <Button
                                       key={oil.id}
                                       variant="outline"
-                                      className="flex flex-col items-center justify-between p-3 sm:p-4 h-[140px] sm:h-[180px]"
+                                      className="flex flex-col items-center justify-between p-3 sm:p-4 h-[160px] sm:h-[180px] md:h-[200px] overflow-hidden"
                                       onClick={() => handleOilSelect(oil)}
                                     >
-                                      <div className="relative w-16 h-20 sm:w-28 sm:h-36 mt-1 sm:mt-2">
+                                      <div className="relative w-16 h-16 sm:w-24 sm:h-24 mt-1 mb-1">
                                         {oil.image && !oilImageError ? (
                                           <Image
                                             src={oil.image}
                                             alt={`${oil.brand} ${oil.type}`}
                                             className="object-contain"
                                             fill
-                                            sizes="(max-width: 768px) 64px, 112px"
+                                            sizes="(max-width: 768px) 64px, 96px"
                                             onError={() =>
                                               setOilImageError(true)
                                             }
                                           />
                                         ) : (
                                           <div className="w-full h-full flex items-center justify-center bg-muted rounded-md">
-                                            <ImageIcon className="h-8 w-8 sm:h-10 sm:w-10 text-muted-foreground" />
+                                            <ImageIcon className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground" />
                                           </div>
                                         )}
                                       </div>
-                                      <span className="text-center font-medium text-sm sm:text-lg w-full px-1 mb-1 sm:mb-2">
-                                        {oil.type}
-                                      </span>
+                                      <div className="text-center flex-1 flex flex-col justify-between">
+                                        <span
+                                          className="text-center font-medium text-xs sm:text-sm w-full px-1 word-wrap whitespace-normal leading-tight hyphens-auto"
+                                          style={{ lineHeight: 1.1 }}
+                                        >
+                                          {oil.type}
+                                        </span>
+                                        <span className="block text-sm text-primary mt-2">
+                                          OMR {oil.basePrice.toFixed(2)}
+                                        </span>
+                                      </div>
                                     </Button>
                                   ))}
                               </div>
@@ -1090,6 +1198,93 @@ export default function POSPage() {
                               </div>
                             ))}
                         </div>
+                      ) : activeCategory === "Additives & Fluids" ? (
+                        // Show additives brands with dropdown (similar to Oil)
+                        Array.from(
+                          new Set(
+                            products
+                              .filter(
+                                (p) => p.category === "Additives & Fluids"
+                              )
+                              .map((p) => p.brand || "Other") // Use "Other" for undefined brands
+                          )
+                        )
+                          .filter((brand) =>
+                            brand
+                              .toLowerCase()
+                              .includes(searchQuery.toLowerCase())
+                          )
+                          .map((brand) => (
+                            <div
+                              key={brand}
+                              className="border rounded-lg overflow-hidden"
+                            >
+                              <Button
+                                variant="ghost"
+                                className="w-full p-4 flex items-center justify-between hover:bg-accent"
+                                onClick={() =>
+                                  setExpandedBrand(
+                                    expandedBrand === brand ? null : brand
+                                  )
+                                }
+                              >
+                                <span className="font-semibold text-lg">
+                                  {brand}
+                                </span>
+                                {expandedBrand === brand ? (
+                                  <ChevronUp className="h-5 w-5" />
+                                ) : (
+                                  <ChevronDown className="h-5 w-5" />
+                                )}
+                              </Button>
+                              {expandedBrand === brand && (
+                                <div className="p-4 bg-muted/50 grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                                  {products
+                                    .filter(
+                                      (p) =>
+                                        p.category === "Additives & Fluids" &&
+                                        (p.brand || "Other") === brand // Handle null/undefined brands
+                                    )
+                                    .map((product) => (
+                                      <Button
+                                        key={product.id}
+                                        variant="outline"
+                                        className="flex flex-col items-center justify-between p-3 sm:p-4 h-[160px] sm:h-[180px] md:h-[200px] overflow-hidden"
+                                        onClick={() => {
+                                          // Create a branded product name for additives, just like oil products
+                                          const brandedName = product.brand
+                                            ? `${product.brand} ${product.name}`
+                                            : product.name;
+
+                                          addToCart({
+                                            id: product.id,
+                                            name: brandedName,
+                                            price: product.price,
+                                          });
+                                        }}
+                                      >
+                                        <div className="flex items-center justify-center h-14 w-14 mb-1">
+                                          <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+                                            <Droplet className="h-6 w-6 text-primary opacity-70" />
+                                          </div>
+                                        </div>
+                                        <div className="text-center flex-1 flex flex-col justify-between">
+                                          <span
+                                            className="text-center font-medium text-xs sm:text-sm w-full px-1 word-wrap whitespace-normal leading-tight hyphens-auto"
+                                            style={{ lineHeight: 1.1 }}
+                                          >
+                                            {product.name}
+                                          </span>
+                                          <span className="block text-sm text-primary mt-2">
+                                            OMR {product.price.toFixed(2)}
+                                          </span>
+                                        </div>
+                                      </Button>
+                                    ))}
+                                </div>
+                              )}
+                            </div>
+                          ))
                       ) : (
                         // Show other category products
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3 gap-4">

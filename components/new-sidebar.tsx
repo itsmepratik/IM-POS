@@ -24,6 +24,7 @@ import {
   User,
   LogOut,
   Bell,
+  Inbox,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -331,8 +332,31 @@ export function Sidebar({
           </div>
         </div>
 
-        {/* Footer / Profile Menu */}
-        <div className="mt-auto border-t p-3">
+        {/* Bottom actions section */}
+        <div className="mt-auto border-t p-2">
+          {/* Notifications Inbox Link */}
+          <Link
+            href="/notifications"
+            className={cn(
+              "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground whitespace-nowrap mb-2",
+              pathname === "/notifications" &&
+                "bg-accent text-accent-foreground",
+              isCollapsed && "justify-center px-2"
+            )}
+            title={isCollapsed ? "Notifications" : undefined}
+          >
+            <span className="flex-shrink-0 relative">
+              <Inbox className="h-4 w-4" />
+              {notifications.length > 0 && (
+                <Badge className="absolute -top-2 -right-2 h-4 min-w-4 px-1 flex items-center justify-center bg-blue-500 text-[10px]">
+                  {notifications.length}
+                </Badge>
+              )}
+            </span>
+            {!isCollapsed && <span className="truncate">Notifications</span>}
+          </Link>
+
+          {/* Profile Menu */}
           <ProfileMenu isCollapsed={isCollapsed} />
         </div>
       </div>

@@ -22,10 +22,12 @@ import {
   Building,
   Warehouse,
   Truck,
+  Inbox,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useUser } from "@/app/user-context";
+import { useNotification } from "@/app/notification-context";
 import { useRouter } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -35,12 +37,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Badge } from "@/components/ui/badge";
 
 export function MobileNav({ className }: { className?: string }) {
   const [open, setOpen] = React.useState(false);
   const [inventoryOpen, setInventoryOpen] = React.useState(false);
   const [ordersOpen, setOrdersOpen] = React.useState(false);
   const { currentUser } = useUser();
+  const { notifications } = useNotification();
   const router = useRouter();
   const pathname = usePathname();
 
@@ -267,6 +271,29 @@ export function MobileNav({ className }: { className?: string }) {
             </nav>
           </div>
           <div className="border-t p-4">
+            {/* Notifications Inbox */}
+            <Link
+              href="/notifications"
+              onClick={() => setOpen(false)}
+              className={cn(
+                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground mb-2",
+                mounted && pathname === "/notifications"
+                  ? "bg-accent text-accent-foreground"
+                  : "transparent"
+              )}
+            >
+              <span className="relative">
+                <Inbox className="h-4 w-4" />
+                {notifications.length > 0 && (
+                  <Badge className="absolute -top-2 -right-2 h-4 min-w-4 px-1 flex items-center justify-center bg-blue-500 text-[10px]">
+                    {notifications.length}
+                  </Badge>
+                )}
+              </span>
+              <span>Notifications</span>
+            </Link>
+
+            {/* Profile Menu */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
