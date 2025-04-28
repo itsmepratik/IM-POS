@@ -1,397 +1,578 @@
-"use client"
+"use client";
 
-import type React from "react"
-import { createContext, useContext, useState, useCallback, useEffect } from "react"
-import { v4 as uuidv4 } from "uuid"
-
-export interface Volume {
-  size: string
-  price: number
-}
-
-export interface BottleStates {
-  open: number
-  closed: number
-}
-
-// Define a new Batch interface
-export interface Batch {
-  id: string
-  purchaseDate: string
-  costPrice: number
-  quantity: number
-  supplier?: string
-  expirationDate?: string
-}
-
-export interface Item {
-  id: string
-  name: string
-  category: string
-  stock: number
-  price: number // Selling price (customer-facing)
-  brand?: string
-  type?: string
-  image?: string
-  volumes?: Volume[]
-  basePrice?: number // For compatibility with existing code
-  sku?: string
-  description?: string
-  isOil?: boolean
-  bottleStates?: BottleStates
-  batches?: Batch[] // Array of batches with different cost prices
-}
+import type React from "react";
+import { createContext, useContext, useState, useEffect } from "react";
+import {
+  Item,
+  Batch,
+  Volume,
+  BottleStates,
+  fetchItems,
+  fetchItem,
+  createItem,
+  updateItem as updateItemService,
+  deleteItem as deleteItemService,
+  addBatch as addBatchService,
+  updateBatch as updateBatchService,
+  deleteBatch as deleteBatchService,
+  fetchCategories,
+  fetchBrands,
+  fetchBranches,
+  fetchSuppliers,
+  addCategory as addCategoryService,
+  updateCategory,
+  deleteCategory,
+  addBrand as addBrandService,
+  updateBrand,
+  deleteBrand,
+  Brand,
+  Category,
+  Supplier,
+} from "@/lib/services/inventoryService";
+import { useBranch } from "../branch-context";
 
 interface ItemsContextType {
-  items: Item[]
-  categories: string[]
-  brands: string[]
-  addItem: (item: Omit<Item, "id">) => void
-  updateItem: (id: string, updatedItem: Omit<Item, "id">) => void
-  deleteItem: (id: string) => void
-  duplicateItem: (id: string) => void
-  addCategory: (category: string) => void
-  updateCategory: (oldCategory: string, newCategory: string) => void
-  deleteCategory: (category: string) => void
-  addBrand: (brand: string) => void
-  updateBrand: (oldBrand: string, newBrand: string) => void
-  deleteBrand: (brand: string) => void
-  addBatch: (itemId: string, batchData: Omit<Batch, "id">) => void
-  updateBatch: (itemId: string, batchId: string, batchData: Omit<Batch, "id">) => void
-  deleteBatch: (itemId: string, batchId: string) => void
-  calculateAverageCost: (itemId: string) => number
+  items: Item[];
+  categories: string[];
+  brands: string[];
+  suppliers: Supplier[];
+  addItem: (item: Omit<Item, "id">) => Promise<Item | null>;
+  updateItem: (
+    id: string,
+    updatedItem: Omit<Item, "id">
+  ) => Promise<Item | null>;
+  deleteItem: (id: string) => Promise<boolean>;
+  duplicateItem: (id: string) => Promise<Item | null>;
+  addCategory: (category: string) => Promise<string | null>;
+  updateCategory: (
+    oldCategory: string,
+    newCategory: string
+  ) => Promise<boolean>;
+  deleteCategory: (category: string) => Promise<boolean>;
+  addBrand: (brand: string) => Promise<string | null>;
+  updateBrand: (oldBrand: string, newBrand: string) => Promise<boolean>;
+  deleteBrand: (brand: string) => Promise<boolean>;
+  addBatch: (
+    itemId: string,
+    batchData: Pick<
+      Batch,
+      | "purchase_date"
+      | "cost_price"
+      | "initial_quantity"
+      | "current_quantity"
+      | "supplier_id"
+      | "expiration_date"
+    >
+  ) => Promise<boolean>;
+  updateBatch: (
+    itemId: string,
+    batchId: string,
+    batchData: Partial<Omit<Batch, "id" | "item_id">>
+  ) => Promise<boolean>;
+  deleteBatch: (itemId: string, batchId: string) => Promise<boolean>;
+  calculateAverageCost: (itemId: string) => number;
+  isLoading: boolean;
+  refetchItems: () => Promise<void>;
 }
 
-const ItemsContext = createContext<ItemsContextType | undefined>(undefined)
+const ItemsContext = createContext<ItemsContextType>({
+  items: [],
+  categories: [],
+  brands: [],
+  suppliers: [],
+  addItem: async () => null,
+  updateItem: async () => null,
+  deleteItem: async () => false,
+  duplicateItem: async () => null,
+  addCategory: async () => null,
+  updateCategory: async () => false,
+  deleteCategory: async () => false,
+  addBrand: async () => null,
+  updateBrand: async () => false,
+  deleteBrand: async () => false,
+  addBatch: async () => false,
+  updateBatch: async () => false,
+  deleteBatch: async () => false,
+  calculateAverageCost: () => 0,
+  isLoading: true,
+  refetchItems: async () => {},
+});
 
 export const useItems = () => {
-  const context = useContext(ItemsContext)
+  const context = useContext(ItemsContext);
   if (!context) {
-    throw new Error("useItems must be used within an ItemsProvider")
+    throw new Error("useItems must be used within an ItemsProvider");
   }
-  return context
-}
+  return context;
+};
+
+export { type Item, type Batch, type Volume, type BottleStates };
 
 export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
-  const [isMounted, setIsMounted] = useState(false);
-  
+  const { currentBranch } = useBranch();
+  const [items, setItems] = useState<Item[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [brands, setBrands] = useState<string[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [categoryMap, setCategoryMap] = useState<Map<string, string>>(
+    new Map()
+  ); // id -> name
+  const [brandMap, setBrandMap] = useState<Map<string, string>>(new Map()); // id -> name
+
+  // Fetch items when the current branch changes
   useEffect(() => {
-    setIsMounted(true);
-  }, []);
-  
-  // Use a stable ID generator that works on both server and client
-  const generateId = useCallback(() => {
-    // On server or during initial render, use a simple deterministic ID
-    if (!isMounted) return `temp-id-${Math.floor(Math.random() * 1000)}`;
-    // Only use uuidv4 on client after hydration
-    return uuidv4();
-  }, [isMounted]);
-  
-  const [items, setItems] = useState<Item[]>([
-    // Oil Products
-    {
-      id: "oil-1",
-      name: "0W-20",
-      brand: "Toyota",
-      type: "0W-20",
-      category: "Oil",
-      basePrice: 39.99,
-      price: 39.99, // Selling price
-      stock: 100,
-      image: "/oils/toyota-0w20.jpg",
-      isOil: true,
-      bottleStates: { open: 5, closed: 5 },
-      volumes: [
-        { size: "5L", price: 39.99 },
-        { size: "4L", price: 34.99 },
-        { size: "1L", price: 11.99 },
-        { size: "500ml", price: 6.99 },
-      ],
-      sku: "TOY-OIL-0W20",
-      description: "Genuine Toyota 0W-20 Synthetic Oil",
-      batches: [
-        {
-          id: "batch-1",
-          purchaseDate: "2023-10-15",
-          costPrice: 29.99,
-          quantity: 50,
-          supplier: "Toyota Parts Distributor",
-          expirationDate: "2025-10-15"
-        },
-        {
-          id: "batch-2",
-          purchaseDate: "2024-01-20",
-          costPrice: 32.99,
-          quantity: 50,
-          supplier: "Toyota Parts Distributor",
-          expirationDate: "2026-01-20"
-        }
-      ]
-    },
-    {
-      id: "oil-2",
-      name: "5W-30",
-      brand: "Shell",
-      type: "5W-30",
-      category: "Oil",
-      basePrice: 45.99,
-      price: 45.99,
-      stock: 150,
-      image: "/oils/shell-5w30.jpg",
-      isOil: true,
-      bottleStates: { open: 5, closed: 5 },
-      volumes: [
-        { size: "5L", price: 45.99 },
-        { size: "4L", price: 39.99 },
-        { size: "1L", price: 13.99 },
-        { size: "500ml", price: 7.99 },
-      ],
-      sku: "SHL-OIL-5W30",
-      description: "Shell Helix 5W-30 Synthetic Oil",
-      batches: [
-        {
-          id: "batch-1",
-          purchaseDate: "2023-11-10",
-          costPrice: 35.99,
-          quantity: 75,
-          supplier: "Shell Distributors",
-          expirationDate: "2025-11-10"
-        },
-        {
-          id: "batch-2",
-          purchaseDate: "2024-02-05",
-          costPrice: 38.99,
-          quantity: 75,
-          supplier: "Shell Distributors",
-          expirationDate: "2026-02-05"
-        }
-      ]
-    },
-    // Filters
-    {
-      id: "filter-1",
-      name: "Oil Filter - Premium",
-      brand: "Toyota",
-      type: "Oil Filter",
-      category: "Filters",
-      price: 19.99,
-      stock: 75,
-      image: "/filters/toyota-oil-filter.jpg",
-      sku: "TOY-FLT-OIL-P",
-      description: "Premium Toyota Oil Filter"
-    },
-    {
-      id: "filter-2",
-      name: "Air Filter - Standard",
-      brand: "Honda",
-      type: "Air Filter",
-      category: "Filters",
-      price: 14.99,
-      stock: 50,
-      image: "/filters/honda-air-filter.jpg",
-      sku: "HON-FLT-AIR-S",
-      description: "Standard Honda Air Filter"
-    },
-    // Parts
-    {
-      id: "part-1",
-      name: "Brake Pads",
-      category: "Parts",
-      price: 45.99,
-      stock: 30,
-      sku: "BRK-PAD-001",
-      description: "High-performance brake pads"
-    },
-    // Additives
-    {
-      id: "add-1",
-      name: "Fuel System Cleaner",
-      category: "Additives",
-      price: 14.99,
-      stock: 60,
-      sku: "ADD-FSC-001",
-      description: "Professional fuel system cleaning solution"
+    if (currentBranch) {
+      loadItems();
     }
-  ])
+  }, [currentBranch]);
 
-  const [categories, setCategories] = useState<string[]>([
-    "Oil",
-    "Filters",
-    "Parts",
-    "Additives"
-  ])
+  // Fetch categories, brands, and suppliers on initial load
+  useEffect(() => {
+    const loadMetadata = async () => {
+      try {
+        const [categoriesData, brandsData, suppliersData, branchesData] =
+          await Promise.all([
+            fetchCategories(),
+            fetchBrands(),
+            fetchSuppliers(),
+            fetchBranches(),
+          ]);
 
-  const [brands, setBrands] = useState<string[]>([
-    "Toyota",
-    "Shell",
-    "Castrol",
-    "Mobil",
-    "Valvoline",
-    "Honda"
-  ])
+        // Setting category data
+        setCategories(categoriesData.map((cat) => cat.name));
+        const catMap = new Map<string, string>();
+        categoriesData.forEach((cat: Category) => catMap.set(cat.id, cat.name));
+        setCategoryMap(catMap);
 
-  const addItem = (item: Omit<Item, "id">) => {
-    const newItem: Item = {
-      ...item,
-      id: generateId(),
-    }
-    setItems((prev) => [...prev, newItem])
-  }
+        // Setting brand data
+        setBrands(brandsData.map((brand) => brand.name));
+        const brandMap = new Map<string, string>();
+        brandsData.forEach((brand: Brand) =>
+          brandMap.set(brand.id, brand.name)
+        );
+        setBrandMap(brandMap);
 
-  const updateItem = (id: string, updatedItem: Omit<Item, "id">) => {
-    setItems((prev) =>
-      prev.map((item) => (item.id === id ? { ...updatedItem, id } : item))
-    )
-  }
-
-  const deleteItem = (id: string) => {
-    setItems((prev) => prev.filter((item) => item.id !== id))
-  }
-
-  const duplicateItem = (id: string) => {
-    const itemToDuplicate = items.find((item) => item.id === id)
-    if (itemToDuplicate) {
-      const duplicatedItem: Item = {
-        ...itemToDuplicate,
-        id: generateId(),
-        name: `${itemToDuplicate.name} (Copy)`,
+        // Setting supplier data
+        setSuppliers(suppliersData);
+      } catch (error) {
+        console.error("Error loading metadata:", error);
       }
-      setItems((prev) => [...prev, duplicatedItem])
+    };
+
+    loadMetadata();
+  }, []);
+
+  const loadItems = async () => {
+    if (!currentBranch) return;
+
+    try {
+      setIsLoading(true);
+      const itemsData = await fetchItems(currentBranch.id);
+      setItems(itemsData);
+    } catch (error) {
+      console.error("Error loading items:", error);
+    } finally {
+      setIsLoading(false);
     }
-  }
-
-  const addCategory = (category: string) => {
-    if (!categories.includes(category)) {
-      setCategories((prev) => [...prev, category])
-    }
-  }
-
-  const updateCategory = (oldCategory: string, newCategory: string) => {
-    if (!categories.includes(newCategory)) {
-      setCategories((prev) => prev.map((cat) => (cat === oldCategory ? newCategory : cat)))
-      setItems((prev) =>
-        prev.map((item) => (item.category === oldCategory ? { ...item, category: newCategory } : item))
-      )
-    }
-  }
-
-  const deleteCategory = (category: string) => {
-    setCategories((prev) => prev.filter((cat) => cat !== category))
-    setItems((prev) => prev.map((item) => (item.category === category ? { ...item, category: "" } : item)))
-  }
-
-  const addBrand = (brand: string) => {
-    if (!brands.includes(brand)) {
-      setBrands((prev) => [...prev, brand])
-    }
-  }
-
-  const updateBrand = (oldBrand: string, newBrand: string) => {
-    if (!brands.includes(newBrand)) {
-      setBrands((prev) => prev.map((brand) => (brand === oldBrand ? newBrand : brand)))
-      setItems((prev) =>
-        prev.map((item) => (item.brand === oldBrand ? { ...item, brand: newBrand } : item))
-      )
-    }
-  }
-
-  const deleteBrand = (brand: string) => {
-    setBrands((prev) => prev.filter((b) => b !== brand))
-    setItems((prev) => prev.map((item) => (item.brand === brand ? { ...item, brand: undefined } : item)))
-  }
-
-  // Batch management functions
-  const addBatch = (itemId: string, batchData: Omit<Batch, "id">) => {
-    setItems((prevItems) => {
-      return prevItems.map((item) => {
-        if (item.id === itemId) {
-          const newBatch = {
-            id: generateId(),
-            ...batchData
-          };
-          
-          // Sort batches by purchase date (oldest first) to maintain FIFO order
-          const newBatches = [...item.batches, newBatch].sort((a, b) => 
-            new Date(a.purchaseDate).getTime() - new Date(b.purchaseDate).getTime()
-          );
-          
-          // Calculate new stock based on batches
-          const newStock = newBatches.reduce((sum, batch) => sum + batch.quantity, 0);
-          
-          return {
-            ...item,
-            batches: newBatches,
-            stock: newStock // Always update stock to be the sum of all batch quantities
-          };
-        }
-        return item;
-      });
-    });
   };
 
-  const updateBatch = (itemId: string, batchId: string, batchData: Omit<Batch, "id">) => {
-    setItems((prevItems) => {
-      return prevItems.map((item) => {
-        if (item.id === itemId) {
-          const updatedBatches = item.batches.map((batch) => 
-            batch.id === batchId ? { ...batch, ...batchData } : batch
-          );
-          
-          // Re-sort batches by purchase date to maintain FIFO order
-          const sortedBatches = updatedBatches.sort((a, b) => 
-            new Date(a.purchaseDate).getTime() - new Date(b.purchaseDate).getTime()
-          );
-          
-          // Recalculate total stock from all batches
-          const newStock = sortedBatches.reduce((sum, batch) => sum + batch.quantity, 0);
-          
-          return {
-            ...item,
-            batches: sortedBatches,
-            stock: newStock // Always update stock to be the sum of all batch quantities
-          };
-        }
-        return item;
-      });
-    });
+  const refetchItems = async () => {
+    await loadItems();
   };
 
-  const deleteBatch = (itemId: string, batchId: string) => {
-    setItems((prevItems) => {
-      return prevItems.map((item) => {
-        if (item.id === itemId) {
-          const remainingBatches = item.batches.filter((batch) => batch.id !== batchId);
-          
-          // Recalculate total stock from remaining batches
-          const newStock = remainingBatches.reduce((sum, batch) => sum + batch.quantity, 0);
-          
-          return {
-            ...item,
-            batches: remainingBatches,
-            stock: newStock // Always update stock to be the sum of all batch quantities
-          };
-        }
-        return item;
-      });
-    });
-  };
-  
-  const calculateAverageCost = (itemId: string) => {
-    const item = items.find((i) => i.id === itemId);
-    if (!item || !item.batches || item.batches.length === 0) {
-      return 0;
+  const addItem = async (item: Omit<Item, "id">): Promise<Item | null> => {
+    if (!currentBranch) {
+      console.error("Cannot add item: No current branch selected");
+      return null;
     }
-    
-    // Calculate weighted average cost
-    const totalQuantity = item.batches.reduce((sum, batch) => sum + batch.quantity, 0);
-    if (totalQuantity === 0) return 0;
-    
-    const totalCost = item.batches.reduce(
-      (sum, batch) => sum + (batch.costPrice * batch.quantity), 
-      0
-    );
-    
-    return totalCost / totalQuantity;
+
+    console.log("Adding item with current branch:", currentBranch);
+    console.log("Item data:", item);
+
+    try {
+      const newItem = await createItem(item, currentBranch.id);
+
+      if (newItem) {
+        console.log("Item added successfully:", newItem.id);
+        setItems((prev) => [...prev, newItem]);
+        return newItem;
+      } else {
+        console.error("Failed to add item: createItem returned null");
+        return null;
+      }
+    } catch (error) {
+      console.error("Error adding item:", error);
+      return null;
+    }
+  };
+
+  const updateItem = async (
+    id: string,
+    updatedItem: Omit<Item, "id">
+  ): Promise<Item | null> => {
+    if (!currentBranch) {
+      console.error("Cannot update item: No current branch selected");
+      return null;
+    }
+
+    console.log("Updating item:", id);
+    console.log("Updated data:", updatedItem);
+    console.log("Current branch:", currentBranch);
+
+    try {
+      const updated = await updateItemService(
+        id,
+        updatedItem,
+        currentBranch.id
+      );
+
+      if (updated) {
+        console.log("Item updated successfully:", updated);
+        // Force a complete refresh of items to ensure UI updates
+        await loadItems();
+        return updated;
+      } else {
+        console.error("Failed to update item: updateItemService returned null");
+        return null;
+      }
+    } catch (error) {
+      console.error("Error updating item:", error);
+      return null;
+    }
+  };
+
+  const deleteItem = async (id: string): Promise<boolean> => {
+    try {
+      const success = await deleteItemService(id);
+      if (success) {
+        setItems((prev) => prev.filter((item) => item.id !== id));
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error("Error deleting item:", error);
+      return false;
+    }
+  };
+
+  const duplicateItem = async (id: string): Promise<Item | null> => {
+    if (!currentBranch) return null;
+
+    try {
+      // Find the original item
+      const original = items.find((item) => item.id === id);
+      if (!original) return null;
+
+      // Create a copy with a new name
+      const copy = { ...original, name: `${original.name} (Copy)` };
+
+      // Remove ID to force creation of a new item
+      const copyWithoutId = Object.fromEntries(
+        Object.entries(copy).filter(([key]) => key !== "id")
+      ) as Omit<Item, "id">;
+
+      // Add the copy as a new item
+      return await addItem(copyWithoutId);
+    } catch (error) {
+      console.error("Error duplicating item:", error);
+      return null;
+    }
+  };
+
+  const addCategory = async (category: string): Promise<string | null> => {
+    try {
+      const newCategory = await addCategoryService(category);
+      if (newCategory) {
+        setCategories((prev) => [...prev, newCategory.name]);
+        categoryMap.set(newCategory.id, newCategory.name);
+        setCategoryMap(new Map(categoryMap));
+        return newCategory.id;
+      }
+      return null;
+    } catch (error) {
+      console.error("Error adding category:", error);
+      return null;
+    }
+  };
+
+  const updateCategory = async (
+    oldCategory: string,
+    newCategory: string
+  ): Promise<boolean> => {
+    try {
+      // Find category ID by name
+      let categoryId: string | undefined;
+      for (const [id, name] of categoryMap.entries()) {
+        if (name === oldCategory) {
+          categoryId = id;
+          break;
+        }
+      }
+
+      if (!categoryId) return false;
+
+      const success = await updateCategory(categoryId, newCategory);
+      if (success) {
+        setCategories((prev) =>
+          prev.map((cat) => (cat === oldCategory ? newCategory : cat))
+        );
+        categoryMap.set(categoryId, newCategory);
+        setCategoryMap(new Map(categoryMap));
+
+        // Update all items with this category
+        setItems((prev) =>
+          prev.map((item) =>
+            item.category === oldCategory
+              ? { ...item, category: newCategory }
+              : item
+          )
+        );
+
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error("Error updating category:", error);
+      return false;
+    }
+  };
+
+  const deleteCategory = async (category: string): Promise<boolean> => {
+    try {
+      // Find category ID by name
+      let categoryId: string | undefined;
+      for (const [id, name] of categoryMap.entries()) {
+        if (name === category) {
+          categoryId = id;
+          break;
+        }
+      }
+
+      if (!categoryId) return false;
+
+      const success = await deleteCategory(categoryId);
+      if (success) {
+        setCategories((prev) => prev.filter((cat) => cat !== category));
+        categoryMap.delete(categoryId);
+        setCategoryMap(new Map(categoryMap));
+
+        // Update all items with this category
+        setItems((prev) =>
+          prev.map((item) =>
+            item.category === category
+              ? { ...item, category: "", category_id: null }
+              : item
+          )
+        );
+
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error("Error deleting category:", error);
+      return false;
+    }
+  };
+
+  const addBrand = async (brand: string): Promise<string | null> => {
+    try {
+      const newBrand = await addBrandService(brand);
+      if (newBrand) {
+        setBrands((prev) => [...prev, newBrand.name]);
+        brandMap.set(newBrand.id, newBrand.name);
+        setBrandMap(new Map(brandMap));
+        return newBrand.id;
+      }
+      return null;
+    } catch (error) {
+      console.error("Error adding brand:", error);
+      return null;
+    }
+  };
+
+  const updateBrand = async (
+    oldBrand: string,
+    newBrand: string
+  ): Promise<boolean> => {
+    try {
+      // Find brand ID by name
+      let brandId: string | undefined;
+      for (const [id, name] of brandMap.entries()) {
+        if (name === oldBrand) {
+          brandId = id;
+          break;
+        }
+      }
+
+      if (!brandId) return false;
+
+      const success = await updateBrand(brandId, newBrand);
+      if (success) {
+        setBrands((prev) =>
+          prev.map((brand) => (brand === oldBrand ? newBrand : brand))
+        );
+        brandMap.set(brandId, newBrand);
+        setBrandMap(new Map(brandMap));
+
+        // Update all items with this brand
+        setItems((prev) =>
+          prev.map((item) =>
+            item.brand === oldBrand ? { ...item, brand: newBrand } : item
+          )
+        );
+
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error("Error updating brand:", error);
+      return false;
+    }
+  };
+
+  const deleteBrand = async (brand: string): Promise<boolean> => {
+    try {
+      // Find brand ID by name
+      let brandId: string | undefined;
+      for (const [id, name] of brandMap.entries()) {
+        if (name === brand) {
+          brandId = id;
+          break;
+        }
+      }
+
+      if (!brandId) return false;
+
+      const success = await deleteBrand(brandId);
+      if (success) {
+        setBrands((prev) => prev.filter((b) => b !== brand));
+        brandMap.delete(brandId);
+        setBrandMap(new Map(brandMap));
+
+        // Update all items with this brand
+        setItems((prev) =>
+          prev.map((item) =>
+            item.brand === brand
+              ? { ...item, brand: undefined, brand_id: null }
+              : item
+          )
+        );
+
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error("Error deleting brand:", error);
+      return false;
+    }
+  };
+
+  const addBatchImpl = async (
+    itemId: string,
+    batchData: Pick<
+      Batch,
+      | "purchase_date"
+      | "cost_price"
+      | "initial_quantity"
+      | "current_quantity"
+      | "supplier_id"
+      | "expiration_date"
+    >
+  ): Promise<boolean> => {
+    if (!currentBranch) return false;
+
+    try {
+      console.log("Adding batch with data:", batchData);
+      const success = await addBatchService(
+        itemId,
+        {
+          purchase_date: batchData.purchase_date,
+          cost_price: batchData.cost_price,
+          initial_quantity: batchData.initial_quantity,
+          current_quantity: batchData.current_quantity,
+          supplier_id: batchData.supplier_id,
+          expiration_date: batchData.expiration_date,
+        },
+        currentBranch.id
+      );
+
+      if (success) {
+        // Reload the items to get the updated batch information
+        await loadItems();
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error("Error adding batch:", error);
+      return false;
+    }
+  };
+
+  const updateBatchImpl = async (
+    itemId: string,
+    batchId: string,
+    batchData: Partial<Omit<Batch, "id" | "item_id">>
+  ): Promise<boolean> => {
+    if (!currentBranch) return false;
+
+    try {
+      console.log("Updating batch with data:", batchData);
+      const success = await updateBatchService(
+        itemId,
+        batchId,
+        batchData,
+        currentBranch.id
+      );
+      if (success) {
+        // Reload the items to get the updated batch information
+        await loadItems();
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error("Error updating batch:", error);
+      return false;
+    }
+  };
+
+  const deleteBatchImpl = async (
+    itemId: string,
+    batchId: string
+  ): Promise<boolean> => {
+    if (!currentBranch) return false;
+
+    try {
+      const success = await deleteBatchService(
+        itemId,
+        batchId,
+        currentBranch.id
+      );
+      if (success) {
+        // Reload the items to get the updated batch information
+        await loadItems();
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error("Error deleting batch:", error);
+      return false;
+    }
+  };
+
+  const calculateAverageCost = (itemId: string): number => {
+    const item = items.find((item) => item.id === itemId);
+    if (!item || !item.batches || item.batches.length === 0) return 0;
+
+    let totalCost = 0;
+    let totalQuantity = 0;
+
+    for (const batch of item.batches) {
+      totalCost += batch.cost_price * batch.current_quantity;
+      totalQuantity += batch.current_quantity;
+    }
+
+    return totalQuantity > 0 ? totalCost / totalQuantity : 0;
   };
 
   return (
@@ -400,6 +581,7 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
         items,
         categories,
         brands,
+        suppliers,
         addItem,
         updateItem,
         deleteItem,
@@ -410,14 +592,15 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
         addBrand,
         updateBrand,
         deleteBrand,
-        addBatch,
-        updateBatch,
-        deleteBatch,
-        calculateAverageCost
+        addBatch: addBatchImpl,
+        updateBatch: updateBatchImpl,
+        deleteBatch: deleteBatchImpl,
+        calculateAverageCost,
+        isLoading,
+        refetchItems,
       }}
     >
       {children}
     </ItemsContext.Provider>
-  )
-}
-
+  );
+};

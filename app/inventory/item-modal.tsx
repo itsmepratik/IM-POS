@@ -1043,7 +1043,10 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
                                             Cost Price
                                           </div>
                                           <div className="text-sm">
-                                            ${batch.costPrice.toFixed(2)}
+                                            $
+                                            {typeof batch.costPrice === "number"
+                                              ? batch.costPrice.toFixed(2)
+                                              : "0.00"}
                                           </div>
                                         </div>
                                         <div>

@@ -75,6 +75,7 @@ import { format } from "date-fns";
 // Import the RefundDialog component
 import { RefundDialog } from "./components/refund-dialog";
 import { ImportDialog } from "./components/import-dialog";
+import { FilterModal } from "./components/filter-modal";
 
 interface OilProduct {
   id: number;
@@ -264,7 +265,15 @@ const products: Product[] = [
     type: "Air Filter",
   },
   {
-    id: 9,
+    id: 5,
+    name: "Air Filter - Medium",
+    price: 17.99,
+    category: "Filters",
+    brand: "Toyota",
+    type: "Air Filter",
+  },
+  {
+    id: 6,
     name: "Cabin Filter - Standard",
     price: 11.99,
     category: "Filters",
@@ -272,7 +281,15 @@ const products: Product[] = [
     type: "Cabin Filter",
   },
   {
-    id: 10,
+    id: 7,
+    name: "Cabin Filter - Deluxe",
+    price: 25.99,
+    category: "Filters",
+    brand: "Toyota",
+    type: "Cabin Filter",
+  },
+  {
+    id: 8,
     name: "Oil Filter - Premium",
     price: 19.99,
     category: "Filters",
@@ -280,22 +297,13 @@ const products: Product[] = [
     type: "Oil Filter",
   },
   {
-    id: 11,
-    name: "Air Filter - Premium",
-    price: 24.99,
+    id: 9,
+    name: "Oil Filter - Economy",
+    price: 9.99,
     category: "Filters",
     brand: "Toyota",
-    type: "Air Filter",
+    type: "Oil Filter",
   },
-  {
-    id: 12,
-    name: "Cabin Filter - Premium",
-    price: 21.99,
-    category: "Filters",
-    brand: "Toyota",
-    type: "Cabin Filter",
-  },
-
   // Honda Filters
   {
     id: 31,
@@ -314,7 +322,15 @@ const products: Product[] = [
     type: "Air Filter",
   },
   {
-    id: 35,
+    id: 33,
+    name: "Air Filter - Medium",
+    price: 16.99,
+    category: "Filters",
+    brand: "Honda",
+    type: "Air Filter",
+  },
+  {
+    id: 34,
     name: "Cabin Filter - Basic",
     price: 12.99,
     category: "Filters",
@@ -322,7 +338,15 @@ const products: Product[] = [
     type: "Cabin Filter",
   },
   {
-    id: 37,
+    id: 35,
+    name: "Cabin Filter - Deluxe",
+    price: 23.99,
+    category: "Filters",
+    brand: "Honda",
+    type: "Cabin Filter",
+  },
+  {
+    id: 36,
     name: "Oil Filter - Premium",
     price: 18.99,
     category: "Filters",
@@ -330,25 +354,16 @@ const products: Product[] = [
     type: "Oil Filter",
   },
   {
-    id: 38,
-    name: "Air Filter - Premium",
-    price: 22.99,
+    id: 37,
+    name: "Oil Filter - Economy",
+    price: 8.99,
     category: "Filters",
     brand: "Honda",
-    type: "Air Filter",
+    type: "Oil Filter",
   },
-  {
-    id: 39,
-    name: "Cabin Filter - Premium",
-    price: 20.99,
-    category: "Filters",
-    brand: "Honda",
-    type: "Cabin Filter",
-  },
-
   // Nissan Filters
   {
-    id: 33,
+    id: 41,
     name: "Oil Filter - Standard",
     price: 13.99,
     category: "Filters",
@@ -356,7 +371,7 @@ const products: Product[] = [
     type: "Oil Filter",
   },
   {
-    id: 34,
+    id: 42,
     name: "Air Filter - Standard",
     price: 16.99,
     category: "Filters",
@@ -364,7 +379,15 @@ const products: Product[] = [
     type: "Air Filter",
   },
   {
-    id: 36,
+    id: 43,
+    name: "Air Filter - Medium",
+    price: 18.99,
+    category: "Filters",
+    brand: "Nissan",
+    type: "Air Filter",
+  },
+  {
+    id: 44,
     name: "Cabin Filter - Standard",
     price: 13.99,
     category: "Filters",
@@ -372,7 +395,15 @@ const products: Product[] = [
     type: "Cabin Filter",
   },
   {
-    id: 40,
+    id: 45,
+    name: "Cabin Filter - Deluxe",
+    price: 26.99,
+    category: "Filters",
+    brand: "Nissan",
+    type: "Cabin Filter",
+  },
+  {
+    id: 46,
     name: "Oil Filter - Premium",
     price: 20.99,
     category: "Filters",
@@ -380,22 +411,13 @@ const products: Product[] = [
     type: "Oil Filter",
   },
   {
-    id: 41,
-    name: "Air Filter - Premium",
-    price: 25.99,
+    id: 47,
+    name: "Oil Filter - Economy",
+    price: 10.99,
     category: "Filters",
     brand: "Nissan",
-    type: "Air Filter",
+    type: "Oil Filter",
   },
-  {
-    id: 42,
-    name: "Cabin Filter - Premium",
-    price: 22.99,
-    category: "Filters",
-    brand: "Nissan",
-    type: "Cabin Filter",
-  },
-
   // Other Products
   { id: 5, name: "Brake Pads", price: 45.99, category: "Parts" },
   { id: 6, name: "Spark Plugs", price: 8.99, category: "Parts" },
@@ -602,6 +624,38 @@ const ProductButton = memo(
   )
 );
 ProductButton.displayName = "ProductButton";
+
+// Place this helper component after imports, before export default function POSPage
+import React from "react";
+function BrandLogo({ brand }: { brand: string }) {
+  const [imgSrc, setImgSrc] = React.useState(
+    `/images/${brand.toLowerCase()}.svg`
+  );
+  const [errorCount, setErrorCount] = React.useState(0);
+
+  if (errorCount >= 2) {
+    // Both SVG and PNG failed
+    return (
+      <div className="w-full h-full flex items-center justify-center bg-muted rounded-md">
+        <ImageIcon className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground" />
+      </div>
+    );
+  }
+
+  return (
+    <Image
+      src={imgSrc}
+      alt={`${brand} logo`}
+      className="object-contain rounded-md bg-white"
+      fill
+      sizes="(max-width: 768px) 48px, 64px"
+      onError={() => {
+        setErrorCount((c) => c + 1);
+        setImgSrc(`/images/${brand.toLowerCase()}.png`);
+      }}
+    />
+  );
+}
 
 export default function POSPage() {
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -1178,20 +1232,34 @@ export default function POSPage() {
                                   )}
                                 </Button>
                                 {selectedFilterType === type && (
-                                  <div className="p-4 bg-muted/50 space-y-2">
+                                  <div
+                                    className="p-4 bg-muted/50 grid gap-4"
+                                    style={{
+                                      gridTemplateColumns:
+                                        "repeat(auto-fit, minmax(120px, 1fr))",
+                                    }}
+                                  >
                                     {filterBrands.map((brand) => (
-                                      <Button
+                                      <button
                                         key={brand}
-                                        variant="outline"
-                                        className="w-full justify-between py-3 px-4"
+                                        className="flex flex-col items-center justify-center rounded-lg border bg-background shadow-sm p-3 sm:p-4 h-[120px] sm:h-[140px] md:h-[160px] transition hover:bg-accent focus:outline-none focus:ring-2 focus:ring-primary/50"
                                         onClick={() => {
                                           setSelectedFilterBrand(brand);
                                           setSelectedFilters([]);
                                           setIsFilterBrandModalOpen(true);
                                         }}
+                                        type="button"
                                       >
-                                        <span>{brand}</span>
-                                      </Button>
+                                        <div className="relative w-12 h-12 sm:w-16 sm:h-16 mb-2 flex items-center justify-center">
+                                          <BrandLogo brand={brand} />
+                                        </div>
+                                        <span
+                                          className="text-center font-medium text-xs sm:text-sm w-full px-1 whitespace-normal break-words line-clamp-2"
+                                          style={{ lineHeight: 1 }}
+                                        >
+                                          {brand}
+                                        </span>
+                                      </button>
                                     ))}
                                   </div>
                                 )}
@@ -1249,7 +1317,7 @@ export default function POSPage() {
                                       <Button
                                         key={product.id}
                                         variant="outline"
-                                        className="flex flex-col items-center justify-between p-3 sm:p-4 h-[160px] sm:h-[180px] md:h-[200px] overflow-hidden"
+                                        className="flex flex-col items-center justify-between p-3 sm:p-4 h-[200px] sm:h-[220px] md:h-[240px] overflow-hidden"
                                         onClick={() => {
                                           // Create a branded product name for additives, just like oil products
                                           const brandedName = product.brand
@@ -1270,7 +1338,7 @@ export default function POSPage() {
                                         </div>
                                         <div className="text-center flex-1 flex flex-col justify-between">
                                           <span
-                                            className="text-center font-medium text-xs sm:text-sm w-full px-1 word-wrap whitespace-normal leading-tight hyphens-auto"
+                                            className="text-center font-medium text-xs sm:text-sm w-full px-1 break-words break-all whitespace-normal leading-tight hyphens-auto overflow-hidden"
                                             style={{ lineHeight: 1.1 }}
                                           >
                                             {product.name}
@@ -1656,8 +1724,8 @@ export default function POSPage() {
           </Dialog>
 
           {/* Filter Selection Modal */}
-          <Dialog
-            open={isFilterBrandModalOpen}
+          <FilterModal
+            isOpen={isFilterBrandModalOpen}
             onOpenChange={(open) => {
               setIsFilterBrandModalOpen(open);
               if (!open) {
@@ -1666,146 +1734,23 @@ export default function POSPage() {
                 setFilterImageError(false);
               }
             }}
-          >
-            <DialogContent className="w-[90%] max-w-[500px] p-4 sm:p-6 rounded-lg">
-              <DialogHeader className="pb-3 sm:pb-4">
-                <DialogTitle className="text-base sm:text-xl font-semibold">
-                  {selectedFilterBrand} - {selectedFilterType}
-                </DialogTitle>
-              </DialogHeader>
-
-              <div className="flex justify-center mb-4 sm:mb-6">
-                <div className="relative w-[120px] h-[120px] sm:w-[160px] sm:h-[160px] border-2 border-border rounded-lg overflow-hidden bg-muted">
-                  {!filterImageError ? (
-                    <Image
-                      src={`/filters/${selectedFilterBrand?.toLowerCase()}-${selectedFilterType
-                        ?.toLowerCase()
-                        .replace(" ", "-")}.jpg`}
-                      alt={`${selectedFilterBrand} ${selectedFilterType}`}
-                      className="object-contain p-2"
-                      fill
-                      sizes="(max-width: 768px) 120px, 160px"
-                      onError={() => setFilterImageError(true)}
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <ImageIcon className="w-12 h-12 text-muted-foreground" />
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="space-y-4 sm:space-y-6">
-                {/* Filter options grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
-                  {getFiltersByType(selectedFilterType || "")
-                    .filter((filter) => filter.brand === selectedFilterBrand)
-                    .map((filter) => (
-                      <Button
-                        key={filter.id}
-                        variant="outline"
-                        className="h-auto py-2 sm:py-3 px-2 sm:px-4 flex flex-col items-center gap-1"
-                        onClick={() => handleFilterClick(filter)}
-                      >
-                        <div className="text-sm sm:text-base font-medium text-center line-clamp-2">
-                          {filter.name}
-                        </div>
-                        <div className="text-xs sm:text-sm text-muted-foreground">
-                          OMR {filter.price.toFixed(2)}
-                        </div>
-                      </Button>
-                    ))}
-                </div>
-
-                {/* Selected filters list */}
-                {selectedFilters.length > 0 && (
-                  <div className="border rounded-lg">
-                    <div className="h-[120px] sm:h-[160px] overflow-y-auto scrollbar-none">
-                      <div className="px-2 sm:px-3 py-2">
-                        {selectedFilters.map((filter, index) => (
-                          <div
-                            key={filter.id}
-                            className={cn(
-                              "flex items-center py-1.5",
-                              index === selectedFilters.length - 1 &&
-                                "mb-2 sm:mb-4"
-                            )}
-                          >
-                            <div className="flex items-center gap-1">
-                              <Button
-                                variant="outline"
-                                size="icon"
-                                className="h-7 w-7 shrink-0"
-                                onClick={() =>
-                                  handleFilterQuantityChange(filter.id, -1)
-                                }
-                              >
-                                <Minus className="h-3 w-3" />
-                              </Button>
-                              <span className="w-5 text-center text-sm">
-                                {filter.quantity}
-                              </span>
-                              <Button
-                                variant="outline"
-                                size="icon"
-                                className="h-7 w-7 shrink-0"
-                                onClick={() =>
-                                  handleFilterQuantityChange(filter.id, 1)
-                                }
-                              >
-                                <Plus className="h-3 w-3" />
-                              </Button>
-                            </div>
-                            <div className="grid grid-cols-[1fr_auto] items-center gap-2 min-w-0 flex-1 ml-2">
-                              <span className="font-medium text-sm line-clamp-1">
-                                {filter.name}
-                              </span>
-                              <span className="font-medium text-sm text-right">
-                                OMR{" "}
-                                {(filter.price * filter.quantity).toFixed(2)}
-                              </span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex justify-between gap-2 sm:gap-3 pt-2">
-                  <Button
-                    variant="outline"
-                    className="px-2 sm:px-6 text-sm sm:text-base"
-                    onClick={() => {
-                      setIsFilterBrandModalOpen(false);
-                      setSelectedFilters([]);
-                      setSelectedFilterType(null);
-                    }}
-                  >
-                    Cancel
-                  </Button>
-                  <div className="flex gap-2">
-                    <Button
-                      className="px-2 sm:px-6 text-sm sm:text-base"
-                      onClick={handleAddSelectedFiltersToCart}
-                      disabled={selectedFilters.length === 0}
-                    >
-                      Add to Cart
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="h-9 w-9 sm:h-10 sm:w-10"
-                      onClick={handleNextFilterItem}
-                      disabled={selectedFilters.length === 0}
-                    >
-                      <ArrowRight className="h-4 w-4 sm:h-5 sm:w-5" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
+            selectedFilterBrand={selectedFilterBrand}
+            selectedFilterType={selectedFilterType}
+            filters={getFiltersByType(selectedFilterType || "")
+              .filter((filter) => filter.brand === selectedFilterBrand)
+              .map(({ id, name, price }) => ({ id, name, price }))}
+            selectedFilters={selectedFilters}
+            onFilterClick={({ id, name, price }) => {
+              // Find the full product to pass to handleFilterClick
+              const product = getFiltersByType(selectedFilterType || "").find(
+                (f) => f.id === id
+              );
+              if (product) handleFilterClick(product);
+            }}
+            onQuantityChange={handleFilterQuantityChange}
+            onAddToCart={handleAddSelectedFiltersToCart}
+            onNext={handleNextFilterItem}
+          />
 
           {/* Clear Cart Confirmation Dialog */}
           <AlertDialog
@@ -2021,7 +1966,7 @@ export default function POSPage() {
             <div className="grid grid-cols-2 gap-6">
               <Button
                 variant="outline"
-                className="h-40 flex flex-col items-center justify-center gap-3 hover:bg-accent rounded-xl border-2 hover:border-primary"
+                className="h-40 flex flex-col items-center justify-center gap-2 px-2 hover:bg-accent rounded-xl border-2 hover:border-primary min-w-[120px] max-w-[180px]"
                 onClick={() =>
                   addVolumeWithBottleType(currentBottleVolumeSize!, "closed")
                 }
@@ -2029,15 +1974,23 @@ export default function POSPage() {
                 <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
                   <ClosedBottleIcon className="h-10 w-10 text-primary" />
                 </div>
-                <span className="font-medium text-base">Closed Bottle</span>
-                <span className="text-xs text-muted-foreground">
+                <span
+                  className="font-medium text-base text-center whitespace-normal break-words w-full"
+                  style={{ lineHeight: 1 }}
+                >
+                  Closed Bottle
+                </span>
+                <span
+                  className="text-xs text-muted-foreground text-center whitespace-normal break-words w-full"
+                  style={{ lineHeight: 1 }}
+                >
                   Factory sealed
                 </span>
               </Button>
 
               <Button
                 variant="outline"
-                className="h-40 flex flex-col items-center justify-center gap-3 hover:bg-accent rounded-xl border-2 hover:border-primary"
+                className="h-40 flex flex-col items-center justify-center gap-2 px-2 hover:bg-accent rounded-xl border-2 hover:border-primary min-w-[120px] max-w-[180px]"
                 onClick={() =>
                   addVolumeWithBottleType(currentBottleVolumeSize!, "open")
                 }
@@ -2045,8 +1998,16 @@ export default function POSPage() {
                 <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
                   <OpenBottleIcon className="h-10 w-10 text-primary" />
                 </div>
-                <span className="font-medium text-base">Open Bottle</span>
-                <span className="text-xs text-muted-foreground">
+                <span
+                  className="font-medium text-base text-center whitespace-normal break-words w-full"
+                  style={{ lineHeight: 1 }}
+                >
+                  Open Bottle
+                </span>
+                <span
+                  className="text-xs text-muted-foreground text-center whitespace-normal break-words w-full"
+                  style={{ lineHeight: 1 }}
+                >
                   For immediate use
                 </span>
               </Button>

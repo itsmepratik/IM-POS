@@ -354,7 +354,7 @@ function MobileView() {
     branches,
     currentBranch,
   } = useInventoryData();
-  const { setCurrentBranch } = useBranch();
+  const { selectBranch } = useBranch();
   const [hasMounted, setHasMounted] = useState(false);
 
   useEffect(() => {
@@ -363,9 +363,9 @@ function MobileView() {
     // Set default branch to Hafith if no branch is selected
     if (!currentBranch || currentBranch.id === "main") {
       const hafithBranch = branches.find((b: Branch) => b.id === "branch1");
-      if (hafithBranch) setCurrentBranch(hafithBranch);
+      if (hafithBranch) selectBranch(hafithBranch.id);
     }
-  }, [branches, currentBranch, setCurrentBranch]);
+  }, [branches, currentBranch, selectBranch]);
 
   return (
     <div className="space-y-4">
@@ -375,7 +375,7 @@ function MobileView() {
             value={currentBranch?.id || "branch1"}
             onValueChange={(value) => {
               const branch = branches.find((b: Branch) => b.id === value);
-              if (branch) setCurrentBranch(branch);
+              if (branch) selectBranch(branch.id);
             }}
           >
             <SelectTrigger className="flex-1">
@@ -548,7 +548,7 @@ function DesktopView() {
     branches,
     currentBranch,
   } = useInventoryData();
-  const { setCurrentBranch } = useBranch();
+  const { selectBranch } = useBranch();
   const [hasMounted, setHasMounted] = useState(false);
 
   useEffect(() => {
@@ -563,7 +563,7 @@ function DesktopView() {
             value={currentBranch?.id || "branch1"}
             onValueChange={(value) => {
               const branch = branches.find((b: Branch) => b.id === value);
-              if (branch) setCurrentBranch(branch);
+              if (branch) selectBranch(branch.id);
             }}
           >
             <SelectTrigger className="w-[180px]">
@@ -748,16 +748,16 @@ export default function ItemsPage() {
 
 // Component to handle branch initialization
 function BranchInitializer() {
-  const { branches, setCurrentBranch } = useBranch();
+  const { branches, selectBranch } = useBranch();
 
   // Set the default branch to Hafith on component mount
   useEffect(() => {
     // Find Hafith branch
     const hafithBranch = branches.find((branch) => branch.id === "branch1");
     if (hafithBranch) {
-      setCurrentBranch(hafithBranch);
+      selectBranch(hafithBranch.id);
     }
-  }, [branches, setCurrentBranch]);
+  }, [branches, selectBranch]);
 
   return (
     <ItemsProvider>

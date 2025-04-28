@@ -1,84 +1,106 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { useItems } from "./items-context"
-import { toast } from "@/components/ui/use-toast"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { format } from "date-fns"
-import { Calendar } from "@/components/ui/calendar"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { CalendarIcon } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useItems } from "./items-context";
+import { toast } from "@/components/ui/use-toast";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { format } from "date-fns";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { CalendarIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface ReceiveModalProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }
 
-export default function ReceiveModal({ open, onOpenChange }: ReceiveModalProps) {
-  const { items, addBatch } = useItems()
+export default function ReceiveModal({
+  open,
+  onOpenChange,
+}: ReceiveModalProps) {
+  const { items, addBatch, suppliers } = useItems();
   const [formData, setFormData] = useState({
     itemId: "",
     quantity: "1",
     costPrice: "",
-    supplier: "",
+    supplierId: "",
     purchaseDate: new Date(),
-    expirationDate: undefined as Date | undefined
-  })
-  const [formError, setFormError] = useState("")
+    expirationDate: undefined as Date | undefined,
+  });
+  const [formError, setFormError] = useState("");
 
-  const filteredItems = items.filter(item => item.name)
+  const filteredItems = items.filter((item) => item.name);
 
   const handleReceive = () => {
     if (!formData.itemId) {
-      setFormError("Please select an item")
-      return
+      setFormError("Please select an item");
+      return;
     }
 
     if (!formData.quantity || parseInt(formData.quantity) <= 0) {
-      setFormError("Please enter a valid quantity")
-      return
+      setFormError("Please enter a valid quantity");
+      return;
     }
 
     if (!formData.costPrice || parseFloat(formData.costPrice) <= 0) {
-      setFormError("Please enter a valid cost price")
-      return
+      setFormError("Please enter a valid cost price");
+      return;
     }
 
     // Add batch to the selected item
     addBatch(formData.itemId, {
-      purchaseDate: format(formData.purchaseDate, "yyyy-MM-dd"),
-      costPrice: parseFloat(formData.costPrice),
-      quantity: parseInt(formData.quantity),
-      supplier: formData.supplier || undefined,
-      expirationDate: formData.expirationDate ? format(formData.expirationDate, "yyyy-MM-dd") : undefined
-    })
+      purchase_date: format(formData.purchaseDate, "yyyy-MM-dd"),
+      cost_price: parseFloat(formData.costPrice),
+      initial_quantity: parseInt(formData.quantity),
+      current_quantity: parseInt(formData.quantity),
+      supplier_id: formData.supplierId || null,
+      expiration_date: formData.expirationDate
+        ? format(formData.expirationDate, "yyyy-MM-dd")
+        : null,
+    });
 
     // Show success message
-    const itemName = items.find(item => item.id === formData.itemId)?.name
+    const itemName = items.find((item) => item.id === formData.itemId)?.name;
     toast({
       title: "Inventory received",
-      description: `${formData.quantity} units of ${itemName} have been added to inventory.`
-    })
+      description: `${formData.quantity} units of ${itemName} have been added to inventory.`,
+    });
 
     // Reset form
     setFormData({
       itemId: "",
       quantity: "1",
       costPrice: "",
-      supplier: "",
+      supplierId: "",
       purchaseDate: new Date(),
-      expirationDate: undefined
-    })
-    setFormError("")
-    
+      expirationDate: undefined,
+    });
+    setFormError("");
+
     // Close modal
-    onOpenChange(false)
-  }
+    onOpenChange(false);
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -89,9 +111,11 @@ export default function ReceiveModal({ open, onOpenChange }: ReceiveModalProps) 
         <div className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="item">Item</Label>
-            <Select 
-              value={formData.itemId} 
-              onValueChange={(value) => setFormData({ ...formData, itemId: value })}
+            <Select
+              value={formData.itemId}
+              onValueChange={(value) =>
+                setFormData({ ...formData, itemId: value })
+              }
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select an item" />
@@ -114,7 +138,9 @@ export default function ReceiveModal({ open, onOpenChange }: ReceiveModalProps) 
                 type="number"
                 min="1"
                 value={formData.quantity}
-                onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, quantity: e.target.value })
+                }
               />
             </div>
             <div className="space-y-2">
@@ -125,19 +151,33 @@ export default function ReceiveModal({ open, onOpenChange }: ReceiveModalProps) 
                 step="0.01"
                 min="0.01"
                 value={formData.costPrice}
-                onChange={(e) => setFormData({ ...formData, costPrice: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, costPrice: e.target.value })
+                }
               />
             </div>
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="supplier">Supplier (optional)</Label>
-            <Input
-              id="supplier"
-              value={formData.supplier}
-              onChange={(e) => setFormData({ ...formData, supplier: e.target.value })}
-              placeholder="Supplier name"
-            />
+            <Select
+              value={formData.supplierId}
+              onValueChange={(value) =>
+                setFormData({ ...formData, supplierId: value })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select a supplier" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">None</SelectItem>
+                {suppliers.map((supplier) => (
+                  <SelectItem key={supplier.id} value={supplier.id}>
+                    {supplier.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -164,13 +204,18 @@ export default function ReceiveModal({ open, onOpenChange }: ReceiveModalProps) 
                   <Calendar
                     mode="single"
                     selected={formData.purchaseDate}
-                    onSelect={(date) => setFormData({ ...formData, purchaseDate: date || new Date() })}
+                    onSelect={(date) =>
+                      setFormData({
+                        ...formData,
+                        purchaseDate: date || new Date(),
+                      })
+                    }
                     initialFocus
                   />
                 </PopoverContent>
               </Popover>
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="expirationDate">Expiration Date (optional)</Label>
               <Popover>
@@ -194,7 +239,9 @@ export default function ReceiveModal({ open, onOpenChange }: ReceiveModalProps) 
                   <Calendar
                     mode="single"
                     selected={formData.expirationDate}
-                    onSelect={(date) => setFormData({ ...formData, expirationDate: date })}
+                    onSelect={(date) =>
+                      setFormData({ ...formData, expirationDate: date })
+                    }
                     initialFocus
                     disabled={(date) => date < new Date()}
                   />
@@ -206,10 +253,12 @@ export default function ReceiveModal({ open, onOpenChange }: ReceiveModalProps) 
           {formError && <p className="text-sm text-red-500">{formError}</p>}
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
           <Button onClick={handleReceive}>Receive</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
-} 
+  );
+}
