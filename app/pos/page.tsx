@@ -76,6 +76,9 @@ import { format } from "date-fns";
 import { RefundDialog } from "./components/refund-dialog";
 import { ImportDialog } from "./components/import-dialog";
 import { FilterModal } from "./components/filter-modal";
+import { PartsModal } from "./components/parts-modal";
+import { BrandCard } from "./components/brand-card";
+import { BrandLogo } from "./components/brand-logo";
 
 interface OilProduct {
   id: number;
@@ -419,8 +422,22 @@ const products: Product[] = [
     type: "Oil Filter",
   },
   // Other Products
-  { id: 5, name: "Brake Pads", price: 45.99, category: "Parts" },
-  { id: 6, name: "Spark Plugs", price: 8.99, category: "Parts" },
+  {
+    id: 5,
+    name: "Brake Pads",
+    price: 45.99,
+    category: "Parts",
+    brand: "Generic",
+    type: "Miscellaneous Parts",
+  },
+  {
+    id: 6,
+    name: "Spark Plugs",
+    price: 8.99,
+    category: "Parts",
+    brand: "Generic",
+    type: "Miscellaneous Parts",
+  },
 
   // Additives with brand information
   {
@@ -506,6 +523,222 @@ const products: Product[] = [
     price: 14.99,
     category: "Additives & Fluids",
     brand: "Castrol",
+  },
+
+  // Parts with brands and types
+  {
+    id: 1001,
+    name: "Brake Pads - Front",
+    price: 45.99,
+    category: "Parts",
+    brand: "Toyota",
+    type: "Brake Parts",
+  },
+  {
+    id: 1002,
+    name: "Brake Pads - Rear",
+    price: 39.99,
+    category: "Parts",
+    brand: "Toyota",
+    type: "Brake Parts",
+  },
+  {
+    id: 1003,
+    name: "Brake Rotor - Front",
+    price: 79.99,
+    category: "Parts",
+    brand: "Toyota",
+    type: "Brake Parts",
+  },
+  {
+    id: 1004,
+    name: "Brake Rotor - Rear",
+    price: 69.99,
+    category: "Parts",
+    brand: "Toyota",
+    type: "Brake Parts",
+  },
+  {
+    id: 1005,
+    name: "Spark Plugs - Standard",
+    price: 8.99,
+    category: "Parts",
+    brand: "Toyota",
+    type: "Engine Parts",
+  },
+  {
+    id: 1006,
+    name: "Spark Plugs - Iridium",
+    price: 18.99,
+    category: "Parts",
+    brand: "Toyota",
+    type: "Engine Parts",
+  },
+  {
+    id: 1007,
+    name: "Ignition Coil",
+    price: 45.99,
+    category: "Parts",
+    brand: "Toyota",
+    type: "Engine Parts",
+  },
+  {
+    id: 1008,
+    name: "Water Pump",
+    price: 89.99,
+    category: "Parts",
+    brand: "Toyota",
+    type: "Cooling System",
+  },
+  {
+    id: 1009,
+    name: "Thermostat",
+    price: 22.99,
+    category: "Parts",
+    brand: "Toyota",
+    type: "Cooling System",
+  },
+  {
+    id: 1010,
+    name: "Radiator",
+    price: 159.99,
+    category: "Parts",
+    brand: "Toyota",
+    type: "Cooling System",
+  },
+
+  // Lexus Parts
+  {
+    id: 1011,
+    name: "Brake Pads - Front",
+    price: 65.99,
+    category: "Parts",
+    brand: "Lexus",
+    type: "Brake Parts",
+  },
+  {
+    id: 1012,
+    name: "Brake Pads - Rear",
+    price: 59.99,
+    category: "Parts",
+    brand: "Lexus",
+    type: "Brake Parts",
+  },
+  {
+    id: 1013,
+    name: "Brake Rotor - Front",
+    price: 99.99,
+    category: "Parts",
+    brand: "Lexus",
+    type: "Brake Parts",
+  },
+  {
+    id: 1014,
+    name: "Brake Rotor - Rear",
+    price: 89.99,
+    category: "Parts",
+    brand: "Lexus",
+    type: "Brake Parts",
+  },
+  {
+    id: 1015,
+    name: "Spark Plugs - Iridium",
+    price: 22.99,
+    category: "Parts",
+    brand: "Lexus",
+    type: "Engine Parts",
+  },
+  {
+    id: 1016,
+    name: "Ignition Coil",
+    price: 55.99,
+    category: "Parts",
+    brand: "Lexus",
+    type: "Engine Parts",
+  },
+
+  // Honda Parts
+  {
+    id: 1017,
+    name: "Brake Pads - Front",
+    price: 42.99,
+    category: "Parts",
+    brand: "Honda",
+    type: "Brake Parts",
+  },
+  {
+    id: 1018,
+    name: "Brake Pads - Rear",
+    price: 38.99,
+    category: "Parts",
+    brand: "Honda",
+    type: "Brake Parts",
+  },
+  {
+    id: 1019,
+    name: "Brake Rotor - Front",
+    price: 69.99,
+    category: "Parts",
+    brand: "Honda",
+    type: "Brake Parts",
+  },
+  {
+    id: 1020,
+    name: "Alternator",
+    price: 129.99,
+    category: "Parts",
+    brand: "Honda",
+    type: "Electrical",
+  },
+  {
+    id: 1021,
+    name: "Starter Motor",
+    price: 139.99,
+    category: "Parts",
+    brand: "Honda",
+    type: "Electrical",
+  },
+
+  // Nissan Parts
+  {
+    id: 1022,
+    name: "Brake Pads - Front",
+    price: 39.99,
+    category: "Parts",
+    brand: "Nissan",
+    type: "Brake Parts",
+  },
+  {
+    id: 1023,
+    name: "Brake Pads - Rear",
+    price: 36.99,
+    category: "Parts",
+    brand: "Nissan",
+    type: "Brake Parts",
+  },
+  {
+    id: 1024,
+    name: "Oxygen Sensor",
+    price: 49.99,
+    category: "Parts",
+    brand: "Nissan",
+    type: "Sensors",
+  },
+  {
+    id: 1025,
+    name: "Mass Air Flow Sensor",
+    price: 89.99,
+    category: "Parts",
+    brand: "Nissan",
+    type: "Sensors",
+  },
+  {
+    id: 1026,
+    name: "Camshaft Position Sensor",
+    price: 45.99,
+    category: "Parts",
+    brand: "Nissan",
+    type: "Sensors",
   },
 ];
 
@@ -625,35 +858,92 @@ const ProductButton = memo(
 );
 ProductButton.displayName = "ProductButton";
 
-// Place this helper component after imports, before export default function POSPage
-import React from "react";
-function BrandLogo({ brand }: { brand: string }) {
-  const [imgSrc, setImgSrc] = React.useState(
-    `/images/${brand.toLowerCase()}.svg`
-  );
-  const [errorCount, setErrorCount] = React.useState(0);
+// Numpad component for cashier ID entry
+function Numpad({
+  value,
+  onChange,
+  onBackspace,
+  onSubmit,
+  disabled,
+}: {
+  value: string;
+  onChange: (val: string) => void;
+  onBackspace: () => void;
+  onSubmit: () => void;
+  disabled?: boolean;
+}) {
+  const touchHandled = useRef(false);
 
-  if (errorCount >= 2) {
-    // Both SVG and PNG failed
-    return (
-      <div className="w-full h-full flex items-center justify-center bg-muted rounded-md">
-        <ImageIcon className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground" />
-      </div>
-    );
-  }
+  const handleClick = (num: string) => {
+    if (value.length < 6) onChange(value + num);
+  };
+
+  const handleTouchStart = (num: string) => {
+    touchHandled.current = true;
+    handleClick(num);
+    setTimeout(() => {
+      touchHandled.current = false;
+    }, 100);
+  };
 
   return (
-    <Image
-      src={imgSrc}
-      alt={`${brand} logo`}
-      className="object-contain rounded-md bg-white"
-      fill
-      sizes="(max-width: 768px) 48px, 64px"
-      onError={() => {
-        setErrorCount((c) => c + 1);
-        setImgSrc(`/images/${brand.toLowerCase()}.png`);
-      }}
-    />
+    <div className="grid grid-cols-3 gap-2 w-48 mx-auto my-4">
+      {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
+        <button
+          key={n}
+          className="bg-muted rounded-lg p-4 text-xl font-bold hover:bg-accent"
+          onClick={() => {
+            if (!touchHandled.current) handleClick(n.toString());
+          }}
+          onTouchStart={() => handleTouchStart(n.toString())}
+          disabled={disabled}
+        >
+          {n}
+        </button>
+      ))}
+      <button
+        className="bg-muted rounded-lg p-4 text-xl font-bold hover:bg-accent"
+        onClick={() => {
+          if (!touchHandled.current) onBackspace();
+        }}
+        onTouchStart={() => {
+          touchHandled.current = true;
+          onBackspace();
+          setTimeout(() => {
+            touchHandled.current = false;
+          }, 100);
+        }}
+        disabled={disabled}
+      >
+        ⌫
+      </button>
+      <button
+        className="bg-muted rounded-lg p-4 text-xl font-bold hover:bg-accent"
+        onClick={() => {
+          if (!touchHandled.current) handleClick("0");
+        }}
+        onTouchStart={() => handleTouchStart("0")}
+        disabled={disabled}
+      >
+        0
+      </button>
+      <button
+        className="bg-primary text-primary-foreground rounded-lg p-4 text-xl font-bold hover:bg-primary/90"
+        onClick={() => {
+          if (!touchHandled.current) onSubmit();
+        }}
+        onTouchStart={() => {
+          touchHandled.current = true;
+          onSubmit();
+          setTimeout(() => {
+            touchHandled.current = false;
+          }, 100);
+        }}
+        disabled={disabled || value.length === 0}
+      >
+        OK
+      </button>
+    </div>
   );
 }
 
@@ -708,6 +998,23 @@ export default function POSPage() {
   // New state for cashiers with proper type
   const [isCashierSelectOpen, setIsCashierSelectOpen] = useState(false);
   const [selectedCashier, setSelectedCashier] = useState<string | null>(null);
+  // Add cashier ID entry state
+  const [enteredCashierId, setEnteredCashierId] = useState<string>("");
+  const [fetchedCashier, setFetchedCashier] = useState<{
+    id: number;
+    name: string;
+  } | null>(null);
+  const [cashierIdError, setCashierIdError] = useState<string | null>(null);
+
+  // Add new state variables for parts
+  const [isPartBrandModalOpen, setIsPartBrandModalOpen] = useState(false);
+  const [selectedPartBrand, setSelectedPartBrand] = useState<string | null>(
+    null
+  );
+  const [selectedPartType, setSelectedPartType] = useState<string | null>(null);
+  const [selectedParts, setSelectedParts] = useState<
+    Array<{ id: number; name: string; price: number; quantity: number }>
+  >([]);
 
   // Mock cashier data
   const cashiers = [
@@ -716,6 +1023,8 @@ export default function POSPage() {
     { id: 3, name: "Fatima Al-Zadjali" },
     { id: 4, name: "Sara Al-Kindi" },
     { id: 5, name: "Khalid Al-Habsi" },
+    { id: 101, name: "Test Cashier 101" },
+    { id: 111, name: "Test Cashier 111" },
   ];
   // Memoize handlers
   const removeFromCart = useCallback((productId: number) => {
@@ -1062,6 +1371,93 @@ export default function POSPage() {
     console.log("Main component discount state:", appliedDiscount);
   }, [appliedDiscount]);
 
+  // Mobile Cart Animation State
+  const [cartVisible, setCartVisible] = useState(false);
+  useEffect(() => {
+    if (showCart) {
+      setCartVisible(true);
+    } else {
+      // Wait for the slide-out transition before hiding overlay
+      const timeout = setTimeout(() => setCartVisible(false), 300);
+      return () => clearTimeout(timeout);
+    }
+  }, [showCart]);
+
+  // Parts handlers
+  const handlePartClick = (part: {
+    id: number;
+    name: string;
+    price: number;
+  }) => {
+    setSelectedParts((prev) => {
+      const existing = prev.find((p) => p.id === part.id);
+      if (existing) {
+        return prev.map((p) =>
+          p.id === part.id ? { ...p, quantity: p.quantity + 1 } : p
+        );
+      }
+      return [...prev, { ...part, quantity: 1 }];
+    });
+  };
+
+  const handlePartQuantityChange = (partId: number, change: number) => {
+    setSelectedParts((prev) => {
+      const updated = prev
+        .map((p) =>
+          p.id === partId
+            ? { ...p, quantity: Math.max(0, p.quantity + change) }
+            : p
+        )
+        .filter((p) => p.quantity > 0);
+      return updated;
+    });
+  };
+
+  const handleAddSelectedPartsToCart = () => {
+    selectedParts.forEach((part) => {
+      addToCart(
+        {
+          id: part.id,
+          name: part.name,
+          price: part.price,
+        },
+        undefined,
+        part.quantity
+      );
+    });
+    setIsPartBrandModalOpen(false);
+    setSelectedParts([]);
+    setSelectedPartType(null);
+  };
+
+  const handleNextPartItem = () => {
+    handleAddSelectedPartsToCart();
+    setActiveCategory("Additives & Fluids");
+    setSearchQuery("");
+  };
+
+  // Get part brands and types - ensure we don't include undefined values
+  const partBrands = Array.from(
+    new Set(
+      products
+        .filter((p) => p.category === "Parts" && p.brand) // Only include products with brand
+        .map((p) => p.brand!)
+    )
+  );
+
+  const partTypes = Array.from(
+    new Set(
+      products
+        .filter((p) => p.category === "Parts" && p.type) // Only include products with type
+        .map((p) => p.type!)
+    )
+  );
+
+  const getPartsByType = (type: string) =>
+    products.filter(
+      (product) => product.category === "Parts" && product.type === type
+    );
+
   return (
     <Layout>
       <div
@@ -1240,26 +1636,71 @@ export default function POSPage() {
                                     }}
                                   >
                                     {filterBrands.map((brand) => (
-                                      <button
+                                      <BrandCard
                                         key={brand}
-                                        className="flex flex-col items-center justify-center rounded-lg border bg-background shadow-sm p-3 sm:p-4 h-[120px] sm:h-[140px] md:h-[160px] transition hover:bg-accent focus:outline-none focus:ring-2 focus:ring-primary/50"
+                                        brand={brand}
                                         onClick={() => {
                                           setSelectedFilterBrand(brand);
                                           setSelectedFilters([]);
                                           setIsFilterBrandModalOpen(true);
                                         }}
-                                        type="button"
-                                      >
-                                        <div className="relative w-12 h-12 sm:w-16 sm:h-16 mb-2 flex items-center justify-center">
-                                          <BrandLogo brand={brand} />
-                                        </div>
-                                        <span
-                                          className="text-center font-medium text-xs sm:text-sm w-full px-1 whitespace-normal break-words line-clamp-2"
-                                          style={{ lineHeight: 1 }}
-                                        >
-                                          {brand}
-                                        </span>
-                                      </button>
+                                      />
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                        </div>
+                      ) : activeCategory === "Parts" ? (
+                        // Show part types with dropdown (similar to Filters)
+                        <div className="grid grid-cols-1 gap-4">
+                          {partTypes
+                            .filter((type) =>
+                              type
+                                .toLowerCase()
+                                .includes(searchQuery.toLowerCase())
+                            )
+                            .map((type) => (
+                              <div
+                                key={type}
+                                className="border rounded-lg overflow-hidden"
+                              >
+                                <Button
+                                  variant="ghost"
+                                  className="w-full p-4 flex items-center justify-between hover:bg-accent"
+                                  onClick={() =>
+                                    setSelectedPartType(
+                                      selectedPartType === type ? null : type
+                                    )
+                                  }
+                                >
+                                  <span className="font-semibold text-lg">
+                                    {type}
+                                  </span>
+                                  {selectedPartType === type ? (
+                                    <ChevronUp className="h-5 w-5" />
+                                  ) : (
+                                    <ChevronDown className="h-5 w-5" />
+                                  )}
+                                </Button>
+                                {selectedPartType === type && (
+                                  <div
+                                    className="p-4 bg-muted/50 grid gap-4"
+                                    style={{
+                                      gridTemplateColumns:
+                                        "repeat(auto-fit, minmax(120px, 1fr))",
+                                    }}
+                                  >
+                                    {partBrands.map((brand) => (
+                                      <BrandCard
+                                        key={brand}
+                                        brand={brand}
+                                        onClick={() => {
+                                          setSelectedPartBrand(brand);
+                                          setSelectedParts([]);
+                                          setIsPartBrandModalOpen(true);
+                                        }}
+                                      />
                                     ))}
                                   </div>
                                 )}
@@ -1464,7 +1905,8 @@ export default function POSPage() {
           <div
             className={cn(
               "fixed inset-0 bg-background/80 backdrop-blur-sm z-50 lg:hidden transition-all duration-300",
-              showCart ? "opacity-100" : "opacity-0 pointer-events-none"
+              showCart ? "opacity-100 pointer-events-auto" : "opacity-0",
+              !cartVisible && "pointer-events-none"
             )}
           >
             <div
@@ -1706,7 +2148,7 @@ export default function POSPage() {
                       onClick={handleAddSelectedToCart}
                       disabled={selectedVolumes.length === 0}
                     >
-                      Add to Cart
+                      Go to Cart
                     </Button>
                     <Button
                       variant="outline"
@@ -2022,57 +2464,85 @@ export default function POSPage() {
         onOpenChange={(open) => {
           setIsCashierSelectOpen(open);
           if (!open) {
-            // If dialog is closed without selection, go back to payment method
-            if (!selectedCashier) {
-              setIsCheckoutModalOpen(true);
-            }
+            setEnteredCashierId("");
+            setFetchedCashier(null);
+            setCashierIdError(null);
+            if (!selectedCashier) setIsCheckoutModalOpen(true);
           }
         }}
       >
         <DialogContent
-          className="w-[90%] max-w-[500px] p-6 rounded-lg"
+          className="w-[90%] max-w-[400px] p-6 rounded-lg"
           onPointerDownOutside={(e) => e.preventDefault()}
           onEscapeKeyDown={(e) => e.preventDefault()}
         >
           <DialogHeader className="pb-4">
             <DialogTitle className="text-xl font-semibold text-center">
-              Select Cashier
+              Enter Cashier ID
             </DialogTitle>
             <DialogDescription className="text-center">
-              Who is collecting the payment?
+              Please enter your cashier ID to proceed.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="grid gap-4 py-4">
-            {cashiers.map((cashier) => (
-              <Button
-                key={cashier.id}
-                variant={
-                  selectedCashier === cashier.name ? "default" : "outline"
-                }
-                className={cn(
-                  "h-16 justify-start text-left px-4",
-                  selectedCashier === cashier.name && "ring-2 ring-primary"
+          {!fetchedCashier ? (
+            <>
+              <div className="flex flex-col items-center">
+                <Input
+                  className="text-center text-2xl w-32 mb-2"
+                  value={enteredCashierId}
+                  readOnly
+                  inputMode="none"
+                  maxLength={6}
+                  placeholder="ID"
+                />
+                <Numpad
+                  value={enteredCashierId}
+                  onChange={setEnteredCashierId}
+                  onBackspace={() =>
+                    setEnteredCashierId(enteredCashierId.slice(0, -1))
+                  }
+                  onSubmit={() => {
+                    const found = cashiers.find(
+                      (c) => c.id.toString() === enteredCashierId
+                    );
+                    if (found) {
+                      setFetchedCashier(found);
+                      setSelectedCashier(found.name);
+                      setCashierIdError(null);
+                    } else {
+                      setCashierIdError(
+                        "Invalid cashier ID. Please try again."
+                      );
+                    }
+                  }}
+                  disabled={enteredCashierId.length === 0}
+                />
+                {cashierIdError && (
+                  <div className="text-destructive text-sm mt-2">
+                    {cashierIdError}
+                  </div>
                 )}
-                onClick={() => setSelectedCashier(cashier.name)}
-              >
-                <Avatar className="h-8 w-8 mr-2">
-                  <AvatarFallback>{cashier.name.charAt(0)}</AvatarFallback>
-                </Avatar>
-                <span>{cashier.name}</span>
-              </Button>
-            ))}
-          </div>
-
-          <DialogFooter className="pt-4">
-            <Button
-              className="w-full h-12 text-base"
-              disabled={!selectedCashier}
-              onClick={handleFinalizePayment}
-            >
-              Confirm Payment
-            </Button>
-          </DialogFooter>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="flex flex-col items-center my-4">
+                <div className="text-lg font-semibold mb-2">
+                  Welcome, {fetchedCashier.name}!
+                </div>
+                <div className="text-muted-foreground mb-4">
+                  ID: {fetchedCashier.id}
+                </div>
+                <Button
+                  className="w-full h-12 text-base"
+                  onClick={handleFinalizePayment}
+                >
+                  Confirm Payment
+                </Button>
+              </div>
+            </>
+          )}
         </DialogContent>
       </Dialog>
 
@@ -2259,6 +2729,29 @@ export default function POSPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Parts Modal */}
+      <PartsModal
+        isOpen={isPartBrandModalOpen}
+        onOpenChange={setIsPartBrandModalOpen}
+        selectedPartBrand={selectedPartBrand}
+        selectedPartType={selectedPartType}
+        parts={
+          selectedPartBrand && selectedPartType
+            ? products.filter(
+                (p) =>
+                  p.category === "Parts" &&
+                  p.brand === selectedPartBrand &&
+                  p.type === selectedPartType
+              )
+            : []
+        }
+        selectedParts={selectedParts}
+        onPartClick={handlePartClick}
+        onQuantityChange={handlePartQuantityChange}
+        onAddToCart={handleAddSelectedPartsToCart}
+        onNext={handleNextPartItem}
+      />
     </Layout>
   );
 }

@@ -1,24 +1,30 @@
-import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Minus, Plus, X } from "lucide-react"
-import { useState, useEffect } from "react"
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Minus, Plus, X } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Input } from "@/components/ui/input";
 
 // Common type for all product variants
 interface ProductVariant {
-  id: number
-  name: string
-  price: number
-  quantity: number
-  isOpenBottle?: boolean
+  id: number;
+  name: string;
+  price: number;
+  quantity: number;
+  isOpenBottle?: boolean;
 }
 
 interface ProductModalProps {
-  isOpen: boolean
-  onOpenChange: (open: boolean) => void
-  productName: string
-  productType: string
-  variants: Array<{ id: number; name: string; price: number }>
-  onAddToCart: (selectedVariants: ProductVariant[]) => void
+  isOpen: boolean;
+  onOpenChange: (open: boolean) => void;
+  productName: string;
+  productType: string;
+  variants: Array<{ id: number; name: string; price: number }>;
+  onAddToCart: (selectedVariants: ProductVariant[]) => void;
 }
 
 export function ProductModal({
@@ -29,7 +35,11 @@ export function ProductModal({
   variants,
   onAddToCart,
 }: ProductModalProps) {
-  const [selectedVariants, setSelectedVariants] = useState<ProductVariant[]>([])
+  const [selectedVariants, setSelectedVariants] = useState<ProductVariant[]>(
+    []
+  );
+  const [enteredCashierId, setEnteredCashierId] = useState("");
+  const [cashierIdError, setCashierIdError] = useState<string | null>(null);
 
   // Reset selections when modal opens/closes or product changes
   useEffect(() => {
@@ -38,10 +48,16 @@ export function ProductModal({
     }
   }, [isOpen, productName, productType]);
 
-  const handleVariantClick = (variant: { id: number; name: string; price: number }) => {
+  const handleVariantClick = (variant: {
+    id: number;
+    name: string;
+    price: number;
+  }) => {
     // Check if this variant already exists in selectedVariants
-    const existingVariantIndex = selectedVariants.findIndex(v => v.id === variant.id);
-    
+    const existingVariantIndex = selectedVariants.findIndex(
+      (v) => v.id === variant.id
+    );
+
     if (existingVariantIndex >= 0) {
       // Remove it if already selected
       const newSelectedVariants = [...selectedVariants];
@@ -49,28 +65,33 @@ export function ProductModal({
       setSelectedVariants(newSelectedVariants);
     } else {
       // Add to selected variants with quantity 1
-      setSelectedVariants(prev => [...prev, {
-        ...variant,
-        quantity: 1
-      }]);
+      setSelectedVariants((prev) => [
+        ...prev,
+        {
+          ...variant,
+          quantity: 1,
+        },
+      ]);
     }
   };
-  
+
   const handleQuantityChange = (variantId: number, change: number) => {
-    setSelectedVariants(prev => {
-      return prev.map(variant => {
-        if (variant.id === variantId) {
-          const newQuantity = Math.max(0, variant.quantity + change);
-          return { ...variant, quantity: newQuantity };
-        }
-        return variant;
-      }).filter(variant => variant.quantity > 0);
+    setSelectedVariants((prev) => {
+      return prev
+        .map((variant) => {
+          if (variant.id === variantId) {
+            const newQuantity = Math.max(0, variant.quantity + change);
+            return { ...variant, quantity: newQuantity };
+          }
+          return variant;
+        })
+        .filter((variant) => variant.quantity > 0);
     });
   };
-  
+
   const toggleOpenBottle = (variantId: number) => {
-    setSelectedVariants(prev => {
-      return prev.map(variant => {
+    setSelectedVariants((prev) => {
+      return prev.map((variant) => {
         if (variant.id === variantId) {
           return { ...variant, isOpenBottle: !variant.isOpenBottle };
         }
@@ -84,18 +105,21 @@ export function ProductModal({
     onOpenChange(false);
   };
 
-  const isOil = productType.toLowerCase().includes("0w-20") || 
-                productType.toLowerCase().includes("5w-30") || 
-                productType.toLowerCase().includes("engine oil");
-  
+  const isOil =
+    productType.toLowerCase().includes("0w-20") ||
+    productType.toLowerCase().includes("5w-30") ||
+    productType.toLowerCase().includes("engine oil");
+
   // Get image path based on product type
   const getImagePath = () => {
     const basePath = isOil ? "/oils/" : "/filters/";
     const defaultImage = isOil ? "default-oil.jpg" : "default-filter.jpg";
-    
+
     try {
       // Format: brand-type.jpg (lowercase, spaces replaced with hyphens)
-      return `${basePath}${productName.toLowerCase()}-${productType.toLowerCase().replace(/ /g, '-')}.jpg`;
+      return `${basePath}${productName.toLowerCase()}-${productType
+        .toLowerCase()
+        .replace(/ /g, "-")}.jpg`;
     } catch (error) {
       return `${basePath}${defaultImage}`;
     }
@@ -109,9 +133,9 @@ export function ProductModal({
             <DialogTitle className="text-[clamp(1.125rem,3vw,1.25rem)] font-semibold mx-auto">
               {productName} - {productType}
             </DialogTitle>
-            <Button 
-              variant="ghost" 
-              size="icon" 
+            <Button
+              variant="ghost"
+              size="icon"
               className="absolute right-4 top-4"
               onClick={() => onOpenChange(false)}
             >
@@ -127,7 +151,9 @@ export function ProductModal({
               alt={`${productName} ${productType}`}
               className="object-contain w-full h-full p-2"
               onError={(e) => {
-                e.currentTarget.src = isOil ? "/oils/default-oil.jpg" : "/filters/default-filter.jpg";
+                e.currentTarget.src = isOil
+                  ? "/oils/default-oil.jpg"
+                  : "/filters/default-filter.jpg";
               }}
             />
           </div>
@@ -136,7 +162,9 @@ export function ProductModal({
         {/* Variant selection grid */}
         <div className="grid grid-cols-2 gap-3 mb-6">
           {variants.map((variant) => {
-            const isSelected = selectedVariants.some(v => v.id === variant.id);
+            const isSelected = selectedVariants.some(
+              (v) => v.id === variant.id
+            );
             return (
               <Button
                 key={variant.id}
@@ -187,22 +215,24 @@ export function ProductModal({
                           <Plus className="h-4 w-4" />
                         </Button>
                       </div>
-                      
+
                       {/* Middle: variant name */}
                       <div className="flex-1 px-3">
                         <span className="font-medium text-[clamp(0.875rem,2vw,1rem)]">
                           {variant.name}
                         </span>
-                        {isOil && (variant.name === "1L" || variant.name === "500ml") && (
-                          <div 
-                            className="text-sm cursor-pointer text-blue-500"
-                            onClick={() => toggleOpenBottle(variant.id)}
-                          >
-                            Open Bottle
-                          </div>
-                        )}
+                        {isOil &&
+                          (variant.name === "1L" ||
+                            variant.name === "500ml") && (
+                            <div
+                              className="text-sm cursor-pointer text-blue-500"
+                              onClick={() => toggleOpenBottle(variant.id)}
+                            >
+                              Open Bottle
+                            </div>
+                          )}
                       </div>
-                      
+
                       {/* Right: price */}
                       <div className="text-right">
                         <span className="font-medium text-[clamp(0.875rem,2vw,1rem)] whitespace-nowrap">
@@ -228,12 +258,30 @@ export function ProductModal({
           <Button
             className="w-2/3 px-4 text-[clamp(0.875rem,2vw,1rem)]"
             onClick={handleAddToCart}
-            disabled={selectedVariants.length === 0 || selectedVariants.every(v => v.quantity === 0)}
+            disabled={
+              selectedVariants.length === 0 ||
+              selectedVariants.every((v) => v.quantity === 0)
+            }
           >
-            Add to Cart
+            Go to Cart
           </Button>
         </div>
+
+        <Input
+          className="text-center text-2xl w-32 mb-2"
+          value={enteredCashierId}
+          onChange={(e) => {
+            setEnteredCashierId(e.target.value.replace(/\\D/g, ""));
+            setCashierIdError(null);
+          }}
+          maxLength={6}
+          inputMode="numeric"
+          type="tel"
+          pattern="[0-9]*"
+          autoFocus
+          placeholder="ID"
+        />
       </DialogContent>
     </Dialog>
   );
-} 
+}

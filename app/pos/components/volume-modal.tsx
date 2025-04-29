@@ -1,26 +1,31 @@
-import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { ArrowRight, Minus, Plus } from "lucide-react"
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { ArrowRight, Minus, Plus } from "lucide-react";
 
 interface Volume {
-  id: number
-  name: string
-  price: number
-  quantity: number
+  id: number;
+  name: string;
+  price: number;
+  quantity: number;
 }
 
 interface VolumeModalProps {
-  isOpen: boolean
-  onOpenChange: (open: boolean) => void
-  selectedOilBrand: string | null
-  selectedOilType: string | null
-  volumes: Array<{ id: number; name: string; price: number }>
-  selectedVolumes: Volume[]
-  onVolumeClick: (volume: { id: number; name: string; price: number }) => void
-  onQuantityChange: (volumeId: number, change: number) => void
-  onAddToCart: () => void
-  onNext: () => void
+  isOpen: boolean;
+  onOpenChange: (open: boolean) => void;
+  selectedOilBrand: string | null;
+  selectedOilType: string | null;
+  volumes: Array<{ id: number; name: string; price: number }>;
+  selectedVolumes: Volume[];
+  onVolumeClick: (volume: { id: number; name: string; price: number }) => void;
+  onQuantityChange: (volumeId: number, change: number) => void;
+  onAddToCart: () => void;
+  onNext: () => void;
 }
 
 export function VolumeModal({
@@ -39,7 +44,7 @@ export function VolumeModal({
     <Dialog
       open={isOpen}
       onOpenChange={(open) => {
-        onOpenChange(open)
+        onOpenChange(open);
       }}
     >
       <DialogContent className="w-[90%] max-w-[500px] p-6 rounded-lg">
@@ -52,11 +57,13 @@ export function VolumeModal({
         <div className="flex justify-center mb-6">
           <div className="relative w-[140px] h-[140px] sm:w-[160px] sm:h-[160px] border-2 border-border rounded-lg overflow-hidden bg-muted">
             <img
-              src={`/oils/${selectedOilBrand?.toLowerCase()}-${selectedOilType?.toLowerCase().replace(' ', '-')}.jpg`}
+              src={`/oils/${selectedOilBrand?.toLowerCase()}-${selectedOilType
+                ?.toLowerCase()
+                .replace(" ", "-")}.jpg`}
               alt={`${selectedOilBrand} ${selectedOilType}`}
               className="object-contain w-full h-full p-2"
               onError={(e) => {
-                e.currentTarget.src = "/oils/default-oil.jpg"
+                e.currentTarget.src = "/oils/default-oil.jpg";
               }}
             />
           </div>
@@ -88,7 +95,10 @@ export function VolumeModal({
               <ScrollArea className="h-[140px] sm:h-[160px] px-3 py-2">
                 <div className="space-y-3">
                   {selectedVolumes.map((volume) => (
-                    <div key={volume.id} className="flex items-center justify-between">
+                    <div
+                      key={volume.id}
+                      className="flex items-center justify-between"
+                    >
                       <div className="flex items-center gap-2 sm:gap-3">
                         <Button
                           variant="outline"
@@ -139,7 +149,7 @@ export function VolumeModal({
                 onClick={onAddToCart}
                 disabled={selectedVolumes.length === 0}
               >
-                Add to Cart
+                Go to Cart
               </Button>
               <Button
                 variant="outline"
@@ -155,5 +165,5 @@ export function VolumeModal({
         </div>
       </DialogContent>
     </Dialog>
-  )
-} 
+  );
+}
