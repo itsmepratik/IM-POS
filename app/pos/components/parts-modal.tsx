@@ -191,7 +191,7 @@ export function PartsModal({
                 onClick={onAddToCart}
                 disabled={selectedParts.length === 0}
               >
-                Add to Cart
+                Go to Cart
               </Button>
               <Button
                 variant="outline"

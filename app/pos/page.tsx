@@ -2494,18 +2494,20 @@ export default function POSPage() {
                 <Input
                   className="text-center text-2xl w-32 mb-2"
                   value={enteredCashierId}
-                  readOnly
-                  inputMode="none"
+                  onChange={(e) => {
+                    setEnteredCashierId(e.target.value.replace(/\D/g, ""));
+                    setCashierIdError(null);
+                  }}
                   maxLength={6}
+                  inputMode="numeric"
+                  type="tel"
+                  pattern="[0-9]*"
+                  autoFocus
                   placeholder="ID"
                 />
-                <Numpad
-                  value={enteredCashierId}
-                  onChange={setEnteredCashierId}
-                  onBackspace={() =>
-                    setEnteredCashierId(enteredCashierId.slice(0, -1))
-                  }
-                  onSubmit={() => {
+                <Button
+                  className="w-full mt-4"
+                  onClick={() => {
                     const found = cashiers.find(
                       (c) => c.id.toString() === enteredCashierId
                     );
@@ -2520,7 +2522,9 @@ export default function POSPage() {
                     }
                   }}
                   disabled={enteredCashierId.length === 0}
-                />
+                >
+                  Proceed
+                </Button>
                 {cashierIdError && (
                   <div className="text-destructive text-sm mt-2">
                     {cashierIdError}

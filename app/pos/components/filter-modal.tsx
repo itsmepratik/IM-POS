@@ -185,7 +185,7 @@ export function FilterModal({
                 onClick={onAddToCart}
                 disabled={selectedFilters.length === 0}
               >
-                Add to Cart
+                Go to Cart
               </Button>
               <Button
                 variant="outline"
