@@ -31,6 +31,7 @@ import {
   Calculator,
   Droplet,
   Package,
+  Trash2,
 } from "lucide-react";
 import {
   Dialog,
@@ -1819,11 +1820,12 @@ export default function POSPage() {
               <CardHeader className="flex-row items-center justify-between space-y-0 pb-3 px-4">
                 <CardTitle>Cart</CardTitle>
                 <Button
-                  variant="ghost"
-                  className="text-muted-foreground hover:text-destructive"
+                  variant="destructive"
+                  className="flex items-center gap-2"
                   onClick={() => setShowClearCartDialog(true)}
                   disabled={cart.length === 0}
                 >
+                  <Trash2 className="h-4 w-4" />
                   Clear Cart
                 </Button>
               </CardHeader>
@@ -1922,18 +1924,19 @@ export default function POSPage() {
                   </CardTitle>
                   <div className="flex items-center gap-2">
                     <Button
-                      variant="ghost"
+                      variant="destructive"
                       size="sm"
-                      className="text-[clamp(0.875rem,2vw,1rem)] text-muted-foreground hover:text-destructive"
+                      className="flex items-center gap-2 text-[clamp(0.875rem,2vw,1rem)]"
                       onClick={() => setShowClearCartDialog(true)}
                       disabled={cart.length === 0}
                     >
+                      <Trash2 className="h-4 w-4" />
                       Clear Cart
                     </Button>
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-9 w-9"
+                      className="h-9 w-9 bg-blue-100/70 hover:bg-blue-200/80 text-blue-700 border border-blue-200 shadow-sm rounded-lg transition-colors"
                       onClick={() => setShowCart(false)}
                     >
                       <X className="h-4 w-4" />
