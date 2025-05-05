@@ -98,7 +98,7 @@ Tracks individual purchase batches for cost price and quantity.
 - `updated_at`: `timestamp with time zone` (default `now()`)
 - _RLS:_ Allow specific roles (e.g., inventory managers) to read/modify.
 
-### `branch_inventory` Table
+### `location_stock` Table
 
 Associates items/batches with specific branches and tracks stock per branch.
 
@@ -116,7 +116,7 @@ Associates items/batches with specific branches and tracks stock per branch.
 
 ### Database Functions/Views (Recommended)
 
-- `get_item_stock(p_item_id uuid, p_branch_id uuid)`: Function/View to calculate total stock for an item in a specific branch by summing relevant `branch_inventory.quantity`.
+- `get_item_stock(p_item_id uuid, p_branch_id uuid)`: Function/View to calculate total stock for an item in a specific branch by summing relevant `location_stock.quantity`.
 - `get_average_cost(p_item_id uuid)`: Function/View to calculate the weighted average cost price across all batches for an item.
 
 ## 3. Integrate Supabase Client
@@ -138,13 +138,13 @@ Associates items/batches with specific branches and tracks stock per branch.
   - Consider using Supabase Realtime subscriptions for live updates to the UI, updating the local state based on database events.
 - **Hooks (`useInventoryData`):**
   - Update the hook to consume data fetched from Supabase via the refactored contexts.
-  - Adjust filtering and memoization logic as needed. Ensure branch filtering utilizes the `branch_inventory` table.
+  - Adjust filtering and memoization logic as needed. Ensure branch filtering utilizes the `location_stock` table.
 - **Components (Modals, Pages):**
   - Update forms and display logic to work with the Supabase schema (e.g., use foreign keys like `category_id`, `brand_id`).
   - Ensure components call the refactored context functions for data manipulation.
 - **Branch-Specific Logic:**
-  - All inventory reads and writes must be scoped to the `currentBranch`. This involves filtering queries by `branch_id` in the `branch_inventory` table.
-  - Stock adjustments (sales, receiving inventory, oil bottle state changes) must update the correct rows in `branch_inventory`.
+  - All inventory reads and writes must be scoped to the `currentBranch`. This involves filtering queries by `branch_id` in the `location_stock` table.
+  - Stock adjustments (sales, receiving inventory, oil bottle state changes) must update the correct rows in `location_stock`.
 
 ## 5. Authentication (If Applicable)
 
@@ -157,7 +157,7 @@ Associates items/batches with specific branches and tracks stock per branch.
 - Create a script (e.g., `scripts/migrate-initial-data.ts`) using the Supabase client.
 - This script should:
   - Read the initial mock data from `items-context.tsx` and `branch-context.tsx`.
-  - Insert corresponding records into the `branches`, `categories`, `brands`, `items`, `item_volumes`, `batches`, and `branch_inventory` tables in Supabase. Ensure relationships (foreign keys) are correctly established.
+  - Insert corresponding records into the `branches`, `categories`, `brands`, `items`, `item_volumes`, `batches`, and `location_stock` tables in Supabase. Ensure relationships (foreign keys) are correctly established.
 
 ## 7. Environment Variables
 

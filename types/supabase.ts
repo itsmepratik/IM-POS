@@ -70,7 +70,7 @@ export type Database = {
           },
         ]
       }
-      branch_inventory: {
+      location_stock: {
         Row: {
           batch_id: string | null
           branch_id: string
@@ -106,35 +106,35 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "branch_inventory_batch_id_fkey"
+            foreignKeyName: "location_stock_batch_id_fkey"
             columns: ["batch_id"]
             isOneToOne: false
             referencedRelation: "batches"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "branch_inventory_branch_id_fkey"
+            foreignKeyName: "location_stock_branch_id_fkey"
             columns: ["branch_id"]
             isOneToOne: false
             referencedRelation: "branches"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "branch_inventory_branch_id_fkey"
+            foreignKeyName: "location_stock_branch_id_fkey"
             columns: ["branch_id"]
             isOneToOne: false
             referencedRelation: "inventory_view"
             referencedColumns: ["branch_id"]
           },
           {
-            foreignKeyName: "branch_inventory_item_id_fkey"
+            foreignKeyName: "location_stock_item_id_fkey"
             columns: ["item_id"]
             isOneToOne: false
             referencedRelation: "inventory_view"
             referencedColumns: ["item_id"]
           },
           {
-            foreignKeyName: "branch_inventory_item_id_fkey"
+            foreignKeyName: "location_stock_item_id_fkey"
             columns: ["item_id"]
             isOneToOne: false
             referencedRelation: "items"

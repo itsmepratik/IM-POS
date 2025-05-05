@@ -2491,23 +2491,10 @@ export default function POSPage() {
           {!fetchedCashier ? (
             <>
               <div className="flex flex-col items-center">
-                <Input
-                  className="text-center text-2xl w-32 mb-2"
-                  value={enteredCashierId}
-                  onChange={(e) => {
-                    setEnteredCashierId(e.target.value.replace(/\D/g, ""));
-                    setCashierIdError(null);
-                  }}
-                  maxLength={6}
-                  inputMode="numeric"
-                  type="tel"
-                  pattern="[0-9]*"
-                  autoFocus
-                  placeholder="ID"
-                />
-                <Button
-                  className="w-full mt-4"
-                  onClick={() => {
+                <form
+                  className="flex flex-col items-center w-full"
+                  onSubmit={(e) => {
+                    e.preventDefault();
                     const found = cashiers.find(
                       (c) => c.id.toString() === enteredCashierId
                     );
@@ -2521,10 +2508,29 @@ export default function POSPage() {
                       );
                     }
                   }}
-                  disabled={enteredCashierId.length === 0}
                 >
-                  Proceed
-                </Button>
+                  <Input
+                    className="text-center text-2xl w-32 mb-2"
+                    value={enteredCashierId}
+                    onChange={(e) => {
+                      setEnteredCashierId(e.target.value.replace(/\D/g, ""));
+                      setCashierIdError(null);
+                    }}
+                    maxLength={6}
+                    inputMode="numeric"
+                    type="tel"
+                    pattern="[0-9]*"
+                    autoFocus
+                    placeholder="ID"
+                  />
+                  <Button
+                    className="w-full mt-4"
+                    type="submit"
+                    disabled={enteredCashierId.length === 0}
+                  >
+                    Proceed
+                  </Button>
+                </form>
                 {cashierIdError && (
                   <div className="text-destructive text-sm mt-2">
                     {cashierIdError}

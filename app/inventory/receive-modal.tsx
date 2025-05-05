@@ -52,7 +52,7 @@ export default function ReceiveModal({
 
   const filteredItems = items.filter((item) => item.name);
 
-  const handleReceive = () => {
+  const handleReceive = async () => {
     if (!formData.itemId) {
       setFormError("Please select an item");
       return;
@@ -68,38 +68,54 @@ export default function ReceiveModal({
       return;
     }
 
-    // Add batch to the selected item
-    addBatch(formData.itemId, {
-      purchase_date: format(formData.purchaseDate, "yyyy-MM-dd"),
-      cost_price: parseFloat(formData.costPrice),
-      initial_quantity: parseInt(formData.quantity),
-      current_quantity: parseInt(formData.quantity),
-      supplier_id: formData.supplierId || null,
-      expiration_date: formData.expirationDate
-        ? format(formData.expirationDate, "yyyy-MM-dd")
-        : null,
-    });
+    try {
+      // Add batch to the selected item
+      const success = await addBatch(formData.itemId, {
+        purchase_date: format(formData.purchaseDate, "yyyy-MM-dd"),
+        cost_price: parseFloat(formData.costPrice),
+        initial_quantity: parseInt(formData.quantity),
+        current_quantity: parseInt(formData.quantity),
+        supplier_id: formData.supplierId || null,
+        expiration_date: formData.expirationDate
+          ? format(formData.expirationDate, "yyyy-MM-dd")
+          : null,
+      });
 
-    // Show success message
-    const itemName = items.find((item) => item.id === formData.itemId)?.name;
-    toast({
-      title: "Inventory received",
-      description: `${formData.quantity} units of ${itemName} have been added to inventory.`,
-    });
+      if (success) {
+        // Show success message
+        const itemName = items.find(
+          (item) => item.id === formData.itemId
+        )?.name;
+        toast({
+          title: "Inventory received",
+          description: `${formData.quantity} units of ${itemName} have been added to inventory.`,
+        });
 
-    // Reset form
-    setFormData({
-      itemId: "",
-      quantity: "1",
-      costPrice: "",
-      supplierId: "",
-      purchaseDate: new Date(),
-      expirationDate: undefined,
-    });
-    setFormError("");
+        // Reset form
+        setFormData({
+          itemId: "",
+          quantity: "1",
+          costPrice: "",
+          supplierId: "",
+          purchaseDate: new Date(),
+          expirationDate: undefined,
+        });
+        setFormError("");
 
-    // Close modal
-    onOpenChange(false);
+        // Close modal
+        onOpenChange(false);
+      }
+    } catch (error) {
+      console.error("Error receiving inventory:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      setFormError(`Failed to receive inventory: ${errorMessage}`);
+      toast({
+        title: "Error receiving inventory",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    }
   };
 
   return (

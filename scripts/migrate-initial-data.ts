@@ -334,7 +334,7 @@ async function migrateData() {
           
           // Add branch inventory record for this batch
           const { error: invError } = await supabase
-            .from('branch_inventory')
+            .from('location_stock')
             .insert({
               branch_id: branchId,
               item_id: newItem.id,
@@ -371,7 +371,7 @@ async function migrateData() {
       }
       
       const { error: biError } = await supabase
-        .from('branch_inventory')
+        .from('location_stock')
         .insert(branchInventoryData)
       
       if (biError) {

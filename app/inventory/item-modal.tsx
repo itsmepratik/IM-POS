@@ -53,12 +53,14 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { v4 as uuidv4 } from "uuid";
+import { toast } from "@/components/ui/use-toast";
 
 // Extended Item interface to include additional properties needed in the modal
-interface ExtendedItem extends Item {
-  imageUrl?: string;
+interface ExtendedItem extends Omit<Item, "is_oil" | "image_url"> {
+  isOil: boolean; // UI version of is_oil
+  imageUrl?: string; // UI version of image_url
   imageBlob?: string;
-  notes?: string;
+  notes?: string; // UI version of description
   lowStockAlert?: number;
   cost?: number;
   batches: Batch[]; // Make batches always required and non-optional
@@ -83,6 +85,8 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
     calculateAverageCost,
     categories,
     brands,
+    categoryMap,
+    brandMap,
   } = useItems();
   const [imageError, setImageError] = useState(false);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
@@ -100,7 +104,7 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
     imageBlob: "",
     notes: "",
     lowStockAlert: 10,
-    isOil: item?.isOil || false,
+    isOil: item?.is_oil || false,
     bottleStates: item?.bottleStates || { open: 0, closed: 0 },
     volumes: item?.volumes || [],
     batches: item?.batches || [],
@@ -143,29 +147,57 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
       // Make sure batches are sorted by date (FIFO order)
       const sortedBatches = [...(item.batches || [])].sort(
         (a, b) =>
-          new Date(a.purchaseDate).getTime() -
-          new Date(b.purchaseDate).getTime()
+          new Date(a.purchase_date || "").getTime() -
+          new Date(b.purchase_date || "").getTime()
       );
 
-      setFormData({
+      // Log the item data to help debug
+      console.log("Raw item data from database:", item);
+
+      // Map backend field names to frontend field names
+      const formDataObj = {
         id: item.id,
-        name: item.name,
-        category: item.category,
-        stock: item.stock,
-        price: item.price,
+        name: item.name || "",
+        category: item.category || "",
+        stock: item.stock || 0,
+        price: item.price || 0,
         cost: 0, // Default value
         brand: item.brand || "",
         type: item.type || "",
-        imageUrl: item.image || "",
+        imageUrl: item.image_url || item.imageUrl || "",
         imageBlob: "",
-        notes: item.description || "",
+        notes: item.description || item.notes || "",
         lowStockAlert: 10, // Default value
-        isOil: item.isOil || false,
+        isOil: item.is_oil || item.isOil || false,
         bottleStates: item.bottleStates || { open: 0, closed: 0 },
         volumes: item.volumes || [],
-        batches: sortedBatches,
+        batches: sortedBatches || [],
+        category_id: item.category_id || null,
+        brand_id: item.brand_id || null,
+        created_at: item.created_at || null,
+        updated_at: item.updated_at || null,
+        description: item.description || item.notes || null,
+        image_url: item.image_url || item.imageUrl || null,
+        sku: item.sku || null,
+        is_oil: item.is_oil || item.isOil || false,
+      };
+
+      console.log("Transformed form data:", {
+        ...formDataObj,
+        isOil: formDataObj.isOil,
+        is_oil: formDataObj.is_oil,
+        bottleStates: formDataObj.bottleStates,
+        stock: formDataObj.stock,
       });
+
+      setFormData(formDataObj as ExtendedItem);
+
+      // Initialize other state
+      if (item.image_url || item.imageUrl) {
+        setImageUrl(item.image_url || item.imageUrl || null);
+      }
     } else {
+      // Default values for a new item
       setFormData({
         id: "",
         name: "",
@@ -183,7 +215,15 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
         bottleStates: { open: 0, closed: 0 },
         volumes: [],
         batches: [],
-      });
+        category_id: null,
+        brand_id: null,
+        created_at: null,
+        updated_at: null,
+        description: null,
+        image_url: null,
+        sku: null,
+        is_oil: false,
+      } as ExtendedItem);
     }
     setActiveTab("general");
   }, [item]);
@@ -253,15 +293,28 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Log the current form data to help with debugging
+    console.log("Form data before submission:", formData);
+
     // For oil products, update the stock to be the sum of open and closed bottles
     const updatedFormData = { ...formData };
     if (updatedFormData.isOil && updatedFormData.bottleStates) {
-      updatedFormData.stock =
-        updatedFormData.bottleStates.open + updatedFormData.bottleStates.closed;
+      // Ensure both UI and backend fields are set
+      updatedFormData.is_oil = true;
+      const openBottles = updatedFormData.bottleStates.open || 0;
+      const closedBottles = updatedFormData.bottleStates.closed || 0;
+      updatedFormData.stock = openBottles + closedBottles;
+
+      console.log("Processing oil product:", {
+        openBottles,
+        closedBottles,
+        totalStock: updatedFormData.stock,
+        bottleStates: updatedFormData.bottleStates,
+      });
     } else if (updatedFormData.batches && updatedFormData.batches.length > 0) {
       // For items with batches, update the stock to be the sum of batch quantities
       updatedFormData.stock = updatedFormData.batches.reduce(
-        (sum, batch) => sum + batch.quantity,
+        (sum, batch) => sum + (batch.current_quantity || 0), // Use current_quantity from Batch type
         0
       );
     }
@@ -270,33 +323,67 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
     if (updatedFormData.batches && updatedFormData.batches.length > 0) {
       updatedFormData.batches = [...updatedFormData.batches].sort(
         (a, b) =>
-          new Date(a.purchaseDate).getTime() -
-          new Date(b.purchaseDate).getTime()
+          new Date(a.purchase_date || "").getTime() - // Use purchase_date from Batch type
+          new Date(b.purchase_date || "").getTime()
       );
     }
 
     // Convert ExtendedItem back to standard Item interface for the context
-    const itemToSave: Omit<Item, "id"> = {
+    // Ensure correct field names mapping between UI and backend
+    const itemToSave = {
+      id: updatedFormData.id,
       name: updatedFormData.name,
       category: updatedFormData.category,
       stock: updatedFormData.stock,
       price: updatedFormData.price,
       brand: updatedFormData.brand,
-      type: updatedFormData.type,
-      image: updatedFormData.imageUrl,
-      description: updatedFormData.notes,
-      isOil: updatedFormData.isOil,
-      bottleStates: updatedFormData.bottleStates,
-      volumes: updatedFormData.volumes,
+      type: updatedFormData.type || null,
+      image_url: updatedFormData.imageUrl || null, // Map to backend field name
+      description: updatedFormData.notes || null, // Use notes for description
+      is_oil: updatedFormData.isOil, // Map to backend field name
+      // Explicitly include bottle states for oil products
+      bottleStates:
+        updatedFormData.isOil && updatedFormData.bottleStates
+          ? {
+              open: updatedFormData.bottleStates.open || 0,
+              closed: updatedFormData.bottleStates.closed || 0,
+            }
+          : undefined,
+      volumes: updatedFormData.isOil ? updatedFormData.volumes : [],
       batches: updatedFormData.batches,
+      // Add other fields that might be needed by the backend
+      sku: updatedFormData.sku || null,
+      category_id: updatedFormData.category_id,
+      brand_id: updatedFormData.brand_id,
+      // Required fields for a valid Item
+      created_at: updatedFormData.created_at || null,
+      updated_at: updatedFormData.updated_at || null,
+      notes: updatedFormData.notes || null, // Make sure notes is explicitly included
     };
 
-    if (item) {
-      updateItem(item.id, itemToSave);
-    } else {
-      addItem(itemToSave);
+    console.log("Saving item data:", JSON.stringify(itemToSave, null, 2));
+
+    try {
+      if (item) {
+        // When updating, explicitly log key oil-related fields to help debug
+        console.log("Updating existing item:", {
+          id: item.id,
+          isOil: itemToSave.is_oil,
+          bottleStates: itemToSave.bottleStates,
+          stock: itemToSave.stock,
+          description: itemToSave.description,
+          sku: itemToSave.sku,
+          category_id: itemToSave.category_id,
+          brand_id: itemToSave.brand_id,
+        });
+        updateItem(item.id, itemToSave);
+      } else {
+        addItem(itemToSave);
+      }
+      onOpenChange(false);
+    } catch (error) {
+      console.error("Error saving item:", error);
     }
-    onOpenChange(false);
   };
 
   const addVolume = () => {
@@ -329,42 +416,68 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
     setImageError(true);
   };
 
-  const handleAddBatch = () => {
+  const handleAddBatch = async () => {
     if (!item) return;
 
-    addBatch(item.id, newBatch);
+    try {
+      // Call the addBatch function and await the result
+      const success = await addBatch(item.id, newBatch);
 
-    // Update local formData state to reflect the new batch
-    const newBatchWithId = {
-      id: uuidv4(), // Generate a temporary ID for UI purposes
-      ...newBatch,
-    };
+      if (success) {
+        // Update local formData state to reflect the new batch
+        const newBatchWithId = {
+          id: uuidv4(), // Generate a temporary ID for UI purposes
+          ...newBatch,
+        };
 
-    // Sort batches by purchase date (oldest first) to maintain FIFO order
-    const updatedBatches = [...(formData.batches || []), newBatchWithId].sort(
-      (a, b) =>
-        new Date(a.purchaseDate).getTime() - new Date(b.purchaseDate).getTime()
-    );
+        // Sort batches by purchase date (oldest first) to maintain FIFO order
+        const updatedBatches = [
+          ...(formData.batches || []),
+          newBatchWithId,
+        ].sort(
+          (a, b) =>
+            new Date(a.purchaseDate).getTime() -
+            new Date(b.purchaseDate).getTime()
+        );
 
-    setFormData((prev) => ({
-      ...prev,
-      batches: updatedBatches,
-      stock: updatedBatches.reduce((sum, batch) => sum + batch.quantity, 0),
-    }));
+        setFormData((prev) => ({
+          ...prev,
+          batches: updatedBatches,
+          stock: updatedBatches.reduce((sum, batch) => sum + batch.quantity, 0),
+        }));
 
-    setNewBatch({
-      purchaseDate: "",
-      costPrice: 0,
-      quantity: 0,
-      supplier: "",
-      expirationDate: "",
-    });
-    setTimeout(() => {
-      setNewBatch((prev) => ({
-        ...prev,
-        purchaseDate: format(new Date(), "yyyy-MM-dd"),
-      }));
-    }, 0);
+        // Reset the form after successful addition
+        setNewBatch({
+          purchaseDate: "",
+          costPrice: 0,
+          quantity: 0,
+          supplier: "",
+          expirationDate: "",
+        });
+
+        setTimeout(() => {
+          setNewBatch((prev) => ({
+            ...prev,
+            purchaseDate: format(new Date(), "yyyy-MM-dd"),
+          }));
+        }, 0);
+
+        toast({
+          title: "Batch added",
+          description: "The batch has been added successfully.",
+        });
+      }
+    } catch (error) {
+      console.error("Error adding batch:", error);
+      toast({
+        title: "Error adding batch",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to add batch. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleUpdateBatch = () => {
@@ -406,22 +519,51 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
     }, 0);
   };
 
-  const handleDeleteBatch = (batchId: string) => {
+  const handleDeleteBatch = async (batchId: string) => {
     if (!item) return;
 
-    deleteBatch(item.id, batchId);
+    // Show confirmation dialog before deletion
+    if (
+      !window.confirm(
+        "Are you sure you want to delete this batch? This action cannot be undone."
+      )
+    ) {
+      return;
+    }
 
-    // Update local formData state to reflect the deleted batch
-    const currentBatches = formData.batches || [];
-    const remainingBatches = currentBatches.filter(
-      (batch) => batch.id !== batchId
-    );
+    try {
+      console.log(
+        `Attempting to delete batch ${batchId} for item ${item.id}...`
+      );
+      const success = await deleteBatch(item.id, batchId);
 
-    setFormData((prev) => ({
-      ...prev,
-      batches: remainingBatches,
-      stock: remainingBatches.reduce((sum, batch) => sum + batch.quantity, 0),
-    }));
+      if (success) {
+        console.log(`Successfully deleted batch ${batchId}`);
+
+        // Update local formData state to reflect the deleted batch
+        const currentBatches = formData.batches || [];
+        const remainingBatches = currentBatches.filter(
+          (batch) => batch.id !== batchId
+        );
+
+        setFormData((prev) => ({
+          ...prev,
+          batches: remainingBatches,
+          stock: remainingBatches.reduce(
+            (sum, batch) => sum + batch.quantity,
+            0
+          ),
+        }));
+      } else {
+        console.error(`Failed to delete batch ${batchId}`);
+        window.alert(
+          "Failed to delete batch. There might be related records or a server issue."
+        );
+      }
+    } catch (error) {
+      console.error("Error deleting batch:", error);
+      window.alert("An error occurred while deleting the batch.");
+    }
   };
 
   const handleEditBatch = (batch: Batch) => {
@@ -579,12 +721,31 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
                                 <Label htmlFor="category">Category</Label>
                                 <Select
                                   value={formData.category}
-                                  onValueChange={(value) =>
+                                  onValueChange={(value) => {
+                                    // Find the category ID that corresponds to this category name
+                                    let categoryId = null;
+                                    if (value) {
+                                      // Search through the categoryMap for the ID
+                                      for (const [id, name] of Object.entries(
+                                        categoryMap
+                                      )) {
+                                        if (name === value) {
+                                          categoryId = id;
+                                          break;
+                                        }
+                                      }
+                                    }
+
+                                    console.log(
+                                      `Selected category: ${value}, ID: ${categoryId}`
+                                    );
+
                                     setFormData({
                                       ...formData,
                                       category: value,
-                                    })
-                                  }
+                                      category_id: categoryId,
+                                    });
+                                  }}
                                 >
                                   <SelectTrigger>
                                     <SelectValue placeholder="Select a category" />
@@ -605,13 +766,32 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
                                 <Label htmlFor="brand">Brand</Label>
                                 <Select
                                   value={formData.brand || ""}
-                                  onValueChange={(value) =>
+                                  onValueChange={(value) => {
+                                    // Find the brand ID that corresponds to this brand name
+                                    let brandId = null;
+                                    if (value && value !== "none") {
+                                      // Search through the brandMap for the ID
+                                      for (const [id, name] of Object.entries(
+                                        brandMap
+                                      )) {
+                                        if (name === value) {
+                                          brandId = id;
+                                          break;
+                                        }
+                                      }
+                                    }
+
+                                    console.log(
+                                      `Selected brand: ${value}, ID: ${brandId}`
+                                    );
+
                                     setFormData({
                                       ...formData,
                                       brand:
                                         value === "none" ? undefined : value,
-                                    })
-                                  }
+                                      brand_id: brandId,
+                                    });
+                                  }}
                                 >
                                   <SelectTrigger>
                                     <SelectValue placeholder="Select a brand" />
@@ -651,7 +831,7 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
                                   id="stock"
                                   type="number"
                                   min="0"
-                                  value={formData.stock}
+                                  value={formData.stock || 0}
                                   onChange={(e) =>
                                     setFormData({
                                       ...formData,
@@ -660,8 +840,9 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
                                   }
                                   required
                                   disabled={
-                                    formData.batches &&
-                                    formData.batches.length > 0
+                                    (formData.batches &&
+                                      formData.batches.length > 0) ||
+                                    formData.isOil // Disable for oil products
                                   }
                                 />
                                 {formData.batches &&
@@ -670,18 +851,28 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
                                       Stock is automatically calculated from
                                       batch quantities:{" "}
                                       {formData.batches.reduce(
-                                        (sum, batch) => sum + batch.quantity,
+                                        (sum, batch) =>
+                                          sum + (batch.current_quantity || 0),
                                         0
                                       )}{" "}
                                       units
                                     </p>
                                   )}
+                                {formData.isOil && (
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    Stock is automatically calculated from open
+                                    and closed bottles:{" "}
+                                    {(formData.bottleStates?.open || 0) +
+                                      (formData.bottleStates?.closed || 0)}{" "}
+                                    units
+                                  </p>
+                                )}
                               </div>
                               <div>
                                 <Label htmlFor="type">Type</Label>
                                 <Input
                                   id="type"
-                                  value={formData.type}
+                                  value={formData.type || ""}
                                   onChange={(e) =>
                                     setFormData({
                                       ...formData,
@@ -712,29 +903,45 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
                             <Label htmlFor="sku">SKU</Label>
                             <Input
                               id="sku"
-                              value={formData.sku}
-                              onChange={(e) =>
+                              value={formData.sku || ""}
+                              onChange={(e) => {
+                                console.log("SKU changed:", e.target.value);
                                 setFormData({
                                   ...formData,
                                   sku: e.target.value,
-                                })
-                              }
+                                });
+                              }}
                             />
+                            <div className="text-xs text-muted-foreground mt-1">
+                              {formData.sku
+                                ? `SKU: ${formData.sku}`
+                                : "No SKU entered yet"}
+                            </div>
                           </div>
 
                           <div>
                             <Label htmlFor="description">Description</Label>
                             <Textarea
                               id="description"
-                              value={formData.notes}
-                              onChange={(e) =>
+                              value={formData.notes || ""}
+                              onChange={(e) => {
+                                console.log(
+                                  "Description changed:",
+                                  e.target.value
+                                );
                                 setFormData({
                                   ...formData,
                                   notes: e.target.value,
-                                })
-                              }
+                                  description: e.target.value, // Update backend field too
+                                });
+                              }}
                               rows={3}
                             />
+                            <div className="text-xs text-muted-foreground mt-1">
+                              {formData.notes && formData.notes.length > 0
+                                ? `Description has ${formData.notes.length} characters`
+                                : "No description entered yet"}
+                            </div>
                           </div>
 
                           <div className="flex items-center space-x-2">
@@ -742,12 +949,43 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
                               id="isOil"
                               checked={formData.isOil}
                               onCheckedChange={(checked) => {
+                                // Log the current state
+                                console.log("Oil checkbox change:", {
+                                  before: formData.isOil,
+                                  after: checked,
+                                  formDataBefore: formData,
+                                });
+
+                                const isOilChecked = Boolean(checked);
+
+                                // Update both UI and backend fields
                                 setFormData({
                                   ...formData,
-                                  isOil: checked as boolean,
-                                  volumes: checked
-                                    ? [{ size: "", price: 0 }]
+                                  isOil: isOilChecked,
+                                  is_oil: isOilChecked, // Update backend field too
+
+                                  // Initialize bottle states if checked
+                                  bottleStates: isOilChecked
+                                    ? formData.bottleStates || {
+                                        open: 0,
+                                        closed: 0,
+                                      }
+                                    : undefined,
+
+                                  // Initialize volumes if checked
+                                  volumes: isOilChecked
+                                    ? formData.volumes &&
+                                      formData.volumes.length > 0
+                                      ? formData.volumes
+                                      : [{ size: "", price: 0 }]
                                     : [],
+
+                                  // If oil is checked, stock is calculated from bottle states
+                                  stock:
+                                    isOilChecked && formData.bottleStates
+                                      ? formData.bottleStates.open +
+                                        formData.bottleStates.closed
+                                      : formData.stock,
                                 });
 
                                 // If unchecking and on volumes tab, switch to general
@@ -778,18 +1016,39 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
                                     type="number"
                                     min="0"
                                     value={formData.bottleStates?.open ?? 0}
-                                    onChange={(e) =>
-                                      setFormData({
-                                        ...formData,
-                                        bottleStates: {
-                                          ...(formData.bottleStates || {
-                                            open: 0,
-                                            closed: 0,
-                                          }),
-                                          open: parseInt(e.target.value) || 0,
-                                        },
-                                      })
-                                    }
+                                    onChange={(e) => {
+                                      const openValue =
+                                        parseInt(e.target.value) || 0;
+                                      const closedValue =
+                                        formData.bottleStates?.closed ?? 0;
+                                      const newBottleStates = {
+                                        open: openValue,
+                                        closed: closedValue,
+                                      };
+
+                                      console.log("Updating open bottles:", {
+                                        old: formData.bottleStates?.open,
+                                        new: openValue,
+                                        newBottleStates,
+                                        stock: openValue + closedValue,
+                                      });
+
+                                      // Update both bottle states and stock
+                                      setFormData((prev) => {
+                                        const updated = {
+                                          ...prev,
+                                          bottleStates: newBottleStates,
+                                          stock: openValue + closedValue, // Auto-update stock
+                                          // Ensure backend fields are also updated for is_oil items
+                                          is_oil: prev.isOil, // Keep backend field synced
+                                        };
+                                        console.log(
+                                          "Updated form data:",
+                                          updated
+                                        );
+                                        return updated;
+                                      });
+                                    }}
                                   />
                                 </div>
                                 <div>
@@ -801,18 +1060,39 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
                                     type="number"
                                     min="0"
                                     value={formData.bottleStates?.closed ?? 0}
-                                    onChange={(e) =>
-                                      setFormData({
-                                        ...formData,
-                                        bottleStates: {
-                                          ...(formData.bottleStates || {
-                                            open: 0,
-                                            closed: 0,
-                                          }),
-                                          closed: parseInt(e.target.value) || 0,
-                                        },
-                                      })
-                                    }
+                                    onChange={(e) => {
+                                      const closedValue =
+                                        parseInt(e.target.value) || 0;
+                                      const openValue =
+                                        formData.bottleStates?.open ?? 0;
+                                      const newBottleStates = {
+                                        open: openValue,
+                                        closed: closedValue,
+                                      };
+
+                                      console.log("Updating closed bottles:", {
+                                        old: formData.bottleStates?.closed,
+                                        new: closedValue,
+                                        newBottleStates,
+                                        stock: openValue + closedValue,
+                                      });
+
+                                      // Update both bottle states and stock
+                                      setFormData((prev) => {
+                                        const updated = {
+                                          ...prev,
+                                          bottleStates: newBottleStates,
+                                          stock: openValue + closedValue, // Auto-update stock
+                                          // Ensure backend fields are also updated for is_oil items
+                                          is_oil: prev.isOil, // Keep backend field synced
+                                        };
+                                        console.log(
+                                          "Updated form data:",
+                                          updated
+                                        );
+                                        return updated;
+                                      });
+                                    }}
                                   />
                                 </div>
                               </div>

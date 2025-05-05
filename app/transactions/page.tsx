@@ -208,6 +208,45 @@ const TransactionCard = memo(
 );
 TransactionCard.displayName = "TransactionCard";
 
+// Add a fixed sales summary card at the bottom of the page
+function FixedSalesCard({
+  transaction,
+}: {
+  transaction: TransactionDisplay | null;
+}) {
+  if (!transaction) return null;
+  return (
+    <div
+      className="fixed bottom-6 left-0 right-0 z-50 flex justify-center pointer-events-none"
+      style={{ pointerEvents: "none" }}
+    >
+      <div className="w-full max-w-2xl px-4 pointer-events-auto">
+        <Card className="p-4 shadow-lg border-2 border-green-200 bg-white">
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-green-500">Sale</span>
+                <span className="text-sm text-muted-foreground">
+                  {transaction.time || transaction.date}
+                </span>
+                <span className="text-sm text-muted-foreground">
+                  • Cashier: {transaction.cashier}
+                </span>
+              </div>
+              <div className="text-sm text-muted-foreground">
+                {transaction.items.join(", ")}
+              </div>
+            </div>
+            <div className="text-lg font-semibold text-green-500 min-w-[80px] text-right">
+              OMR {Math.abs(transaction.amount).toFixed(2)}
+            </div>
+          </div>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
 export default function TransactionsPage() {
   const { transactions, isLoading } = useTransactions();
 
@@ -435,8 +474,12 @@ export default function TransactionsPage() {
     );
   }
 
+  // Find the first sale transaction
+  const firstSale = displayTransactions.find((t) => t.type === "sale") || null;
+
   return (
     <Layout>
+      {/* Section 1: Main content */}
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <h1 className="text-2xl font-semibold">Transactions</h1>
@@ -455,7 +498,7 @@ export default function TransactionsPage() {
                 </SelectContent>
               </Select>
             ) : (
-              <div className="w-[180px] h-10" /> /* Placeholder to maintain layout */
+              <div className="w-[180px] h-10" />
             )}
 
             {hasMounted ? (
@@ -475,7 +518,7 @@ export default function TransactionsPage() {
                 </SelectContent>
               </Select>
             ) : (
-              <div className="w-[180px] h-10" /> /* Placeholder to maintain layout */
+              <div className="w-[180px] h-10" />
             )}
           </div>
         </div>
@@ -501,7 +544,7 @@ export default function TransactionsPage() {
                 </SelectContent>
               </Select>
             ) : (
-              <div className="w-[140px] h-10" /> /* Placeholder to maintain layout */
+              <div className="w-[140px] h-10" />
             )}
 
             {selectedPeriod !== "today" && (
@@ -661,18 +704,12 @@ export default function TransactionsPage() {
         )}
       </div>
 
-      {/* Remove the existing fixed footer and create a new one that properly adjusts with the sidebar */}
-      <div className="pb-20">{/* Create space for the fixed footer */}</div>
-
-      {/* New total credit card with proper responsive behavior */}
+      {/* Section 2: Fixed total credit card at the bottom, responsive to sidebar */}
       <div
-        className="fixed bottom-0 right-0 left-0 md:left-8 lg:left-56 z-[40] w-auto"
-        style={{
-          transition: "left 300ms ease-in-out",
-          willChange: "left",
-        }}
+        className="fixed bottom-0 right-0 left-0 md:left-8 lg:left-56 z-50 w-auto flex justify-center"
+        style={{ transition: "left 300ms ease-in-out", willChange: "left" }}
       >
-        <div className="p-4 px-6 pb-6">
+        <div className="p-4 px-6 pb-6 w-full max-w-2xl">
           <Card className="p-4 bg-blue-50 border shadow-md">
             <div className="flex items-center justify-between">
               <div>

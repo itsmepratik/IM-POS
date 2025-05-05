@@ -34,6 +34,8 @@ import {
   Pencil,
   Copy,
   Trash2,
+  FolderGit2,
+  AlertCircle,
 } from "lucide-react";
 import { ItemsProvider, useItems, type Item } from "./items-context";
 import { ItemModal } from "./item-modal";
@@ -63,6 +65,7 @@ import { OpenBottleIcon, ClosedBottleIcon } from "@/components/ui/bottle-icons";
 import ReceiveModal from "./receive-modal";
 import BrandModal from "./brand-modal";
 import ExportButton from "./export-button";
+import Link from "next/link";
 
 // Client-side only component wrapper to prevent hydration mismatch
 const ClientOnly = ({ children }: { children: React.ReactNode }) => {
@@ -574,8 +577,6 @@ function MobileView() {
     setSelectedBrand,
     showInStock,
     setShowInStock,
-    isFiltersOpen,
-    setIsFiltersOpen,
 
     editingItem,
     setEditingItem,
@@ -584,13 +585,11 @@ function MobileView() {
     handleAddItem,
     handleDelete,
     handleDuplicate,
-    resetFilters,
   } = useInventoryData();
 
   const [itemModalOpen, setItemModalOpen] = useState(false);
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
   const [brandModalOpen, setBrandModalOpen] = useState(false);
-  const [receiveModalOpen, setReceiveModalOpen] = useState(false);
   const [navigationOpen, setNavigationOpen] = useState(false);
 
   // Open item modal for adding new item
@@ -615,123 +614,157 @@ function MobileView() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <ClientOnly>
-            <Input
-              type="search"
-              placeholder="Search items..."
-              className="pl-9"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </ClientOnly>
-        </div>
-        <Button
-          variant="default"
-          size="icon"
-          className="bg-blue-600 hover:bg-blue-700"
-          onClick={openAddItemModal}
-        >
-          <Plus className="h-5 w-5" />
-        </Button>
-      </div>
-
-      <div className="flex items-center justify-between">
-        <div className="text-sm text-muted-foreground">
-          {filteredItems.length} {filteredItems.length === 1 ? "item" : "items"}{" "}
-          found
-        </div>
-        <Sheet open={isFiltersOpen} onOpenChange={setIsFiltersOpen}>
-          <SheetTrigger asChild>
-            <Button variant="outline" size="sm">
-              Filters
+      <div className="mb-4 flex flex-col gap-4">
+        <div className="flex items-center justify-between">
+          <div className="flex flex-grow items-center gap-2">
+            <Sheet open={navigationOpen} onOpenChange={setNavigationOpen}>
+              <SheetTrigger asChild>
+                <Button variant="outline" size="icon" className="md:hidden">
+                  <Menu className="h-4 w-4" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="p-0 pt-10">
+                <nav className="grid gap-2 p-4">
+                  <Link
+                    href="/inventory"
+                    className="text-lg font-semibold text-primary"
+                  >
+                    Inventory
+                  </Link>
+                  <Link
+                    href="/pos"
+                    className="text-lg font-medium text-muted-foreground"
+                  >
+                    POS
+                  </Link>
+                  <Link
+                    href="/reports"
+                    className="text-lg font-medium text-muted-foreground"
+                  >
+                    Reports
+                  </Link>
+                </nav>
+              </SheetContent>
+            </Sheet>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button onClick={openAddItemModal} size="sm">
+              <Plus className="h-4 w-4 mr-1" />
+              Add
             </Button>
-          </SheetTrigger>
-          <SheetContent side="right" className="w-[280px] sm:w-[350px]">
-            <SheetHeader className="text-left mb-5">
-              <SheetTitle>Filters</SheetTitle>
-            </SheetHeader>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="categoryFilter">Category</Label>
-                <Select
-                  value={selectedCategory}
-                  onValueChange={setSelectedCategory}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="All Categories" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Categories</SelectItem>
-                    {categories.map((category) => (
-                      <SelectItem key={category} value={category}>
-                        {category}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="brandFilter">Brand</Label>
-                <Select value={selectedBrand} onValueChange={setSelectedBrand}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="All Brands" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Brands</SelectItem>
-                    <SelectItem value="none">No Brand</SelectItem>
-                    {brands &&
-                      brands.map((brand) => (
-                        <SelectItem key={brand} value={brand}>
-                          {brand}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex items-center space-x-2">
-                <ClientOnly>
-                  <Checkbox
-                    id="inStock"
-                    checked={showInStock}
-                    onCheckedChange={(checked) => setShowInStock(!!checked)}
-                  />
-                </ClientOnly>
-                <Label htmlFor="inStock">Show in-stock only</Label>
-              </div>
-              <div className="flex items-center justify-between mt-6">
-                <Button variant="outline" size="sm" onClick={resetFilters}>
-                  Reset
-                </Button>
-                <Button size="sm" onClick={() => setIsFiltersOpen(false)}>
-                  Apply
-                </Button>
-              </div>
-              <div className="border-t my-4 pt-4">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCategoryModalOpen(true)}
-                  className="w-full"
-                >
-                  Manage Categories
-                </Button>
-              </div>
-              <div className="mt-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setBrandModalOpen(true)}
-                  className="w-full"
-                >
-                  Manage Brands
-                </Button>
-              </div>
+          </div>
+        </div>
+
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full">
+            <div className="flex-1 relative w-full min-w-[200px]">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="search"
+                placeholder="Search items..."
+                className="w-full pl-9"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
             </div>
-          </SheetContent>
-        </Sheet>
+
+            <div className="flex items-center gap-2">
+              <ExportButton
+                className="sm:hidden"
+                data={filteredItems.map((item) => ({
+                  ...item,
+                  category: item.category || "Uncategorized",
+                  brand: item.brand || "No Brand",
+                }))}
+                filename="inventory_export.csv"
+              />
+            </div>
+          </div>
+
+          <div className="sm:flex-1 flex items-center justify-between gap-4 mt-4 sm:mt-0">
+            <div className="flex-1 flex justify-end gap-2">
+              <ExportButton
+                className="hidden sm:flex"
+                data={filteredItems.map((item) => ({
+                  ...item,
+                  category: item.category || "Uncategorized",
+                  brand: item.brand || "No Brand",
+                }))}
+                filename="inventory_export.csv"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="flex gap-2 justify-between">
+          <div className="grid grid-cols-2 gap-2 flex-grow">
+            <ClientOnly>
+              <Select
+                value={selectedCategory}
+                onValueChange={setSelectedCategory}
+              >
+                <SelectTrigger className="text-sm">
+                  <SelectValue placeholder="All Categories" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Categories</SelectItem>
+                  {categories.map((category) => (
+                    <SelectItem key={category} value={category}>
+                      {category}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </ClientOnly>
+            <ClientOnly>
+              <Select value={selectedBrand} onValueChange={setSelectedBrand}>
+                <SelectTrigger className="text-sm">
+                  <SelectValue placeholder="All Brands" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Brands</SelectItem>
+                  <SelectItem value="none">No Brand</SelectItem>
+                  {brands.map((brand) => (
+                    <SelectItem key={brand} value={brand}>
+                      {brand}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </ClientOnly>
+          </div>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCategoryModalOpen(true)}
+            className="whitespace-nowrap"
+          >
+            Manage Categories
+          </Button>
+        </div>
+
+        <div className="flex justify-between items-center">
+          <div className="flex gap-2 items-center">
+            <label htmlFor="mobileShowInStock" className="text-sm font-medium">
+              In-stock only
+            </label>
+            <ClientOnly>
+              <Checkbox
+                id="mobileShowInStock"
+                checked={showInStock}
+                onCheckedChange={(checked) => setShowInStock(!!checked)}
+              />
+            </ClientOnly>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setBrandModalOpen(true)}
+          >
+            Manage Brands
+          </Button>
+        </div>
       </div>
 
       <div className="space-y-2">
@@ -1012,6 +1045,24 @@ function ItemsPageContent() {
       </div>
       <div className="block md:hidden">
         <MobileView />
+      </div>
+      <div className="flex items-center space-x-2">
+        <Link href="/inventory/branch">
+          <Button variant="outline" size="sm">
+            <FolderGit2 className="h-4 w-4 mr-1" />
+            Branch Inventory
+          </Button>
+        </Link>
+        <Link href="/inventory/debug-oil">
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-amber-500 border-amber-500 hover:bg-amber-50"
+          >
+            <AlertCircle className="h-4 w-4 mr-1" />
+            Debug Oil Products
+          </Button>
+        </Link>
       </div>
     </div>
   );

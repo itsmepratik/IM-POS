@@ -13,7 +13,7 @@ Quantities and totals
 Refund tracking
 Additional support tables that link to your existing tables:
 items (existing)
-branch_inventory (existing/planned)
+location_stock (existing/planned)
 customers (existing)
 employees
 Key Metrics Calculations

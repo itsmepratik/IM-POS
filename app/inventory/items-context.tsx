@@ -20,22 +20,25 @@ import {
   fetchBranches,
   fetchSuppliers,
   addCategory as addCategoryService,
-  updateCategory,
-  deleteCategory,
+  updateCategory as updateCategoryService,
+  deleteCategory as deleteCategoryService,
   addBrand as addBrandService,
-  updateBrand,
-  deleteBrand,
+  updateBrand as updateBrandService,
+  deleteBrand as deleteBrandService,
   Brand,
   Category,
   Supplier,
 } from "@/lib/services/inventoryService";
 import { useBranch } from "../branch-context";
+import { toast } from "@/components/ui/use-toast";
 
 interface ItemsContextType {
   items: Item[];
   categories: string[];
   brands: string[];
   suppliers: Supplier[];
+  categoryMap: Record<string, string>;
+  brandMap: Record<string, string>;
   addItem: (item: Omit<Item, "id">) => Promise<Item | null>;
   updateItem: (
     id: string,
@@ -80,6 +83,8 @@ const ItemsContext = createContext<ItemsContextType>({
   categories: [],
   brands: [],
   suppliers: [],
+  categoryMap: {},
+  brandMap: {},
   addItem: async () => null,
   updateItem: async () => null,
   deleteItem: async () => false,
@@ -119,6 +124,15 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
     new Map()
   ); // id -> name
   const [brandMap, setBrandMap] = useState<Map<string, string>>(new Map()); // id -> name
+
+  // Helper function to convert Map to Record
+  const mapToRecord = (map: Map<string, string>): Record<string, string> => {
+    const record: Record<string, string> = {};
+    map.forEach((value, key) => {
+      record[key] = value;
+    });
+    return record;
+  };
 
   // Fetch items when the current branch changes
   useEffect(() => {
@@ -211,47 +225,148 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
     id: string,
     updatedItem: Omit<Item, "id">
   ): Promise<Item | null> => {
-    if (!currentBranch) {
-      console.error("Cannot update item: No current branch selected");
-      return null;
-    }
-
-    console.log("Updating item:", id);
-    console.log("Updated data:", updatedItem);
-    console.log("Current branch:", currentBranch);
-
     try {
+      if (!currentBranch) {
+        console.error("No branch selected");
+        toast({
+          title: "Error",
+          description: "No branch selected. Please select a branch.",
+          variant: "destructive",
+        });
+        return null;
+      }
+
+      console.log("Current branch:", currentBranch);
+      console.log("Updating item with ID:", id);
+      console.log("Update data:", updatedItem);
+
+      // Ensure that both the camelCase (UI) and snake_case (DB) versions of special fields are set
+      const normalizedItem = {
+        ...updatedItem,
+        is_oil: updatedItem.isOil,
+        image_url: updatedItem.imageUrl,
+        description: updatedItem.notes,
+      };
+
+      console.log("Normalized item data:", normalizedItem);
+
       const updated = await updateItemService(
         id,
-        updatedItem,
+        normalizedItem,
         currentBranch.id
       );
 
       if (updated) {
-        console.log("Item updated successfully:", updated);
-        // Force a complete refresh of items to ensure UI updates
+        console.log("Item updated successfully, updating local state");
+
+        // Update the item in the local state
+        setItems((prevItems) =>
+          prevItems.map((item) => (item.id === id ? { ...updated } : item))
+        );
+
+        // Refresh the data to ensure we have the latest
         await loadItems();
+
         return updated;
       } else {
         console.error("Failed to update item: updateItemService returned null");
+        toast({
+          title: "Update failed",
+          description: "The item could not be updated. Please try again.",
+          variant: "destructive",
+        });
         return null;
       }
     } catch (error) {
       console.error("Error updating item:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      toast({
+        title: "Error updating item",
+        description: errorMessage,
+        variant: "destructive",
+      });
       return null;
     }
   };
 
   const deleteItem = async (id: string): Promise<boolean> => {
     try {
-      const success = await deleteItemService(id);
-      if (success) {
-        setItems((prev) => prev.filter((item) => item.id !== id));
-        return true;
+      if (!currentBranch) {
+        console.error("No branch selected");
+        toast({
+          title: "Error",
+          description: "No branch selected. Please select a branch.",
+          variant: "destructive",
+        });
+        return false;
       }
-      return false;
+
+      console.log(
+        `Attempting to delete item with ID: ${id} from branch: ${currentBranch.id}`
+      );
+
+      // Find the item in the current items array
+      const itemToDelete = items.find((item) => item.id === id);
+      if (!itemToDelete) {
+        console.error(`Item with ID ${id} not found in local data`);
+        toast({
+          title: "Error",
+          description: "Item not found.",
+          variant: "destructive",
+        });
+        return false;
+      }
+
+      console.log(
+        `Calling deleteItemService with id: ${id}, branchId: ${currentBranch.id}`
+      );
+      // Call the service to delete the item
+      const success = await deleteItemService(id, currentBranch.id);
+
+      if (success) {
+        console.log(
+          `Item ${id} deleted successfully from branch ${currentBranch.id}`
+        );
+
+        // Update the local state to remove the deleted item
+        setItems((prevItems) => prevItems.filter((item) => item.id !== id));
+
+        // Force a complete data refresh
+        try {
+          console.log("Forcing data refresh after deletion");
+          await loadItems();
+          console.log("Data refresh complete");
+        } catch (refreshError) {
+          console.error("Error refreshing data after deletion:", refreshError);
+        }
+
+        toast({
+          title: "Item deleted",
+          description: `${itemToDelete.name} has been removed from ${currentBranch.name}.`,
+        });
+
+        return true;
+      } else {
+        console.error(
+          `Failed to delete item ${id} from branch ${currentBranch.id}`
+        );
+        toast({
+          title: "Deletion failed",
+          description: "The item could not be deleted. Please try again.",
+          variant: "destructive",
+        });
+        return false;
+      }
     } catch (error) {
       console.error("Error deleting item:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      toast({
+        title: "Error deleting item",
+        description: errorMessage,
+        variant: "destructive",
+      });
       return false;
     }
   };
@@ -264,16 +379,77 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
       const original = items.find((item) => item.id === id);
       if (!original) return null;
 
-      // Create a copy with a new name
-      const copy = { ...original, name: `${original.name} (Copy)` };
+      console.log("Duplicating item:", original);
 
-      // Remove ID to force creation of a new item
-      const copyWithoutId = Object.fromEntries(
-        Object.entries(copy).filter(([key]) => key !== "id")
-      ) as Omit<Item, "id">;
+      // Create a new clean item object with only the essential fields
+      const newItemData: Omit<Item, "id"> = {
+        name: `${original.name} (Copy)`,
+        price: original.price || 0,
+        category_id: original.category_id,
+        brand_id: original.brand_id,
+        type: original.type,
+        is_oil: original.is_oil || false,
+        sku: original.sku,
+        description: original.description,
+        image_url: original.image_url,
+        created_at: null,
+        updated_at: null,
+      };
+
+      // If it's an oil product with bottle states, include them
+      if (original.is_oil && original.bottleStates) {
+        newItemData.bottleStates = {
+          open: original.bottleStates.open || 0,
+          closed: original.bottleStates.closed || 0,
+        };
+      }
+
+      // If it's not an oil product with batches, set stock to 0
+      // as stock will be managed through batches
+      if (!original.is_oil && original.batches && original.batches.length > 0) {
+        newItemData.stock = 0;
+      }
+      // If it's not an oil product without batches, include the stock
+      else if (!original.is_oil && typeof original.stock === "number") {
+        newItemData.stock = original.stock;
+      }
+
+      // If it has volumes (for oil products), include them
+      if (original.is_oil && original.volumes && original.volumes.length > 0) {
+        // Looking at the createItem function, we see it only needs these properties
+        newItemData.volumes = original.volumes.map((v) => ({
+          size: v.size,
+          price: v.price,
+          // Dummy values that will be replaced by createItem
+          item_id: "",
+          id: "",
+          created_at: null,
+          updated_at: null,
+        }));
+      }
+
+      // If it has batches, include them
+      if (original.batches && original.batches.length > 0) {
+        // Looking at the createItem function, we see it only needs these properties
+        newItemData.batches = original.batches.map((b) => ({
+          purchase_date: b.purchase_date,
+          cost_price: b.cost_price,
+          initial_quantity: b.initial_quantity || b.current_quantity,
+          current_quantity: b.current_quantity,
+          supplier_id: b.supplier_id || null,
+          expiration_date: b.expiration_date,
+          // Dummy values that will be replaced by createItem
+          item_id: "",
+          id: "",
+          created_at: null,
+          updated_at: null,
+        }));
+      }
+
+      console.log("Creating new item with data:", newItemData);
 
       // Add the copy as a new item
-      return await addItem(copyWithoutId);
+      return await addItem(newItemData);
     } catch (error) {
       console.error("Error duplicating item:", error);
       return null;
@@ -312,7 +488,7 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (!categoryId) return false;
 
-      const success = await updateCategory(categoryId, newCategory);
+      const success = await updateCategoryService(categoryId, newCategory);
       if (success) {
         setCategories((prev) =>
           prev.map((cat) => (cat === oldCategory ? newCategory : cat))
@@ -351,7 +527,7 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (!categoryId) return false;
 
-      const success = await deleteCategory(categoryId);
+      const success = await deleteCategoryService(categoryId);
       if (success) {
         setCategories((prev) => prev.filter((cat) => cat !== category));
         categoryMap.delete(categoryId);
@@ -407,7 +583,7 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (!brandId) return false;
 
-      const success = await updateBrand(brandId, newBrand);
+      const success = await updateBrandService(brandId, newBrand);
       if (success) {
         setBrands((prev) =>
           prev.map((brand) => (brand === oldBrand ? newBrand : brand))
@@ -444,7 +620,7 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (!brandId) return false;
 
-      const success = await deleteBrand(brandId);
+      const success = await deleteBrandService(brandId);
       if (success) {
         setBrands((prev) => prev.filter((b) => b !== brand));
         brandMap.delete(brandId);
@@ -484,12 +660,15 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
 
     try {
       console.log("Adding batch with data:", batchData);
+      console.log("Current branch:", currentBranch.id);
+
       const success = await addBatchService(
         itemId,
         {
           purchase_date: batchData.purchase_date,
           cost_price: batchData.cost_price,
-          initial_quantity: batchData.initial_quantity,
+          initial_quantity:
+            batchData.initial_quantity || batchData.current_quantity,
           current_quantity: batchData.current_quantity,
           supplier_id: batchData.supplier_id,
           expiration_date: batchData.expiration_date,
@@ -498,13 +677,23 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
       );
 
       if (success) {
+        console.log("Batch added successfully. Reloading items...");
         // Reload the items to get the updated batch information
         await loadItems();
         return true;
+      } else {
+        console.error("Failed to add batch - addBatchService returned false");
+        return false;
       }
-      return false;
     } catch (error) {
       console.error("Error adding batch:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      toast({
+        title: "Error adding batch",
+        description: errorMessage,
+        variant: "destructive",
+      });
       return false;
     }
   };
@@ -582,6 +771,8 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
         categories,
         brands,
         suppliers,
+        categoryMap: mapToRecord(categoryMap),
+        brandMap: mapToRecord(brandMap),
         addItem,
         updateItem,
         deleteItem,
