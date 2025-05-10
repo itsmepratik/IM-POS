@@ -20,6 +20,7 @@ export type Item = {
   batches?: Batch[];
   created_at: string | null;
   updated_at: string | null;
+  lowStockAlert?: number;
 };
 
 export type Volume = {
@@ -51,7 +52,7 @@ export type BottleStates = {
 
 // Mock data for branch inventory
 const MOCK_INVENTORY: Record<string, Item[]> = {
-  // Branch 1 (Abu Dhabi Branch)
+  // Branch 1 (Abu Dhurus)
   "1": [
     {
       id: "1",
@@ -178,6 +179,7 @@ export const normalizeItem = (item: Partial<Item> | Record<string, unknown>): It
     updated_at: (restRecord.updated_at as string) ?? null,
     type: (restRecord.type as string) ?? null,
     sku: (restRecord.sku as string) ?? null,
+    lowStockAlert: typeof restRecord.lowStockAlert === 'number' ? (restRecord.lowStockAlert as number) : 5,
     
     // Default values for required properties that might be missing
     id: (restRecord.id as string) || 'unknown-id',

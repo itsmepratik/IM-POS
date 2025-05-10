@@ -7,12 +7,19 @@ import {
   useEffect,
   ReactNode,
 } from "react";
-import { Branch, fetchBranches } from "@/lib/services/inventoryService";
+import { Branch, MOCK_BRANCHES } from "@/lib/services/inventoryService";
 import { toast } from "@/components/ui/use-toast";
 
+// Extend the Branch type to allow for our fallback branches
+interface ExtendedBranch extends Omit<Branch, "created_at" | "updated_at"> {
+  created_at: string | null;
+  updated_at: string | null;
+  active?: boolean;
+}
+
 interface BranchContextType {
-  branches: Branch[];
-  currentBranch: Branch | null;
+  branches: ExtendedBranch[];
+  currentBranch: ExtendedBranch | null;
   isLoadingBranches: boolean;
   selectBranch: (branchId: string) => void;
   retryLoadBranches: () => Promise<void>;
@@ -33,8 +40,10 @@ export function useBranch() {
 }
 
 export function BranchProvider({ children }: { children: ReactNode }) {
-  const [branches, setBranches] = useState<Branch[]>([]);
-  const [currentBranch, setCurrentBranch] = useState<Branch | null>(null);
+  const [branches, setBranches] = useState<ExtendedBranch[]>([]);
+  const [currentBranch, setCurrentBranch] = useState<ExtendedBranch | null>(
+    null
+  );
   const [isLoadingBranches, setIsLoadingBranches] = useState(true);
   const [branchLoadError, setBranchLoadError] = useState(false);
 
@@ -44,8 +53,18 @@ export function BranchProvider({ children }: { children: ReactNode }) {
       setIsLoadingBranches(true);
       setBranchLoadError(false);
 
+      // In development mode, use mock branches directly
+      if (process.env.NODE_ENV === "development") {
+        console.log("Using mock branches data");
+        setBranches(MOCK_BRANCHES as ExtendedBranch[]);
+        setCurrentBranch(MOCK_BRANCHES[0] as ExtendedBranch);
+        setBranchLoadError(false);
+        setIsLoadingBranches(false);
+        return;
+      }
+
       // Add fallback branches if there's an issue loading from the server
-      const fallbackBranches: Branch[] = [
+      const fallbackBranches: ExtendedBranch[] = [
         {
           id: "branch1",
           name: "Hafith",
@@ -64,50 +83,41 @@ export function BranchProvider({ children }: { children: ReactNode }) {
         },
       ];
 
-      try {
-        const branchData = await fetchBranches();
+      // In production, try to fetch branches but this isn't implemented yet
+      // This will need to be updated when connecting to Supabase
+      console.warn("Fetching branches from API not implemented yet");
+      setBranches(fallbackBranches);
+      setCurrentBranch(fallbackBranches[0]);
+    } catch (error) {
+      console.error("Error loading branches:", error);
+      const fallbackBranches: ExtendedBranch[] = [
+        {
+          id: "branch1",
+          name: "Hafith",
+          address: "Hafith Location",
+          active: true,
+          created_at: null,
+          updated_at: null,
+        },
+        {
+          id: "branch2",
+          name: "Abu-Dhurus",
+          address: "Abu-Dhurus Location",
+          active: true,
+          created_at: null,
+          updated_at: null,
+        },
+      ];
+      setBranches(fallbackBranches);
+      setCurrentBranch(fallbackBranches[0]);
+      setBranchLoadError(true);
 
-        if (branchData && branchData.length > 0) {
-          setBranches(branchData);
-
-          // Set the branch - prefer non-main branches for the branch inventory page
-          const branch1 = branchData.find((b) => b.id === "branch1");
-          const branch2 = branchData.find((b) => b.id === "branch2");
-          const mainBranch = branchData.find(
-            (b) => b.id === "00000000-0000-0000-0000-000000000000"
-          );
-
-          // Try branch1 first, then branch2, then main branch
-          if (branch1) {
-            setCurrentBranch(branch1);
-          } else if (branch2) {
-            setCurrentBranch(branch2);
-          } else if (mainBranch) {
-            setCurrentBranch(mainBranch);
-          } else if (branchData.length > 0) {
-            setCurrentBranch(branchData[0]);
-          }
-
-          setBranchLoadError(false);
-        } else {
-          console.warn("No branches returned from server, using fallbacks");
-          setBranches(fallbackBranches);
-          setCurrentBranch(fallbackBranches[0]);
-          setBranchLoadError(true);
-        }
-      } catch (error) {
-        console.error("Error fetching branches:", error);
-        setBranches(fallbackBranches);
-        setCurrentBranch(fallbackBranches[0]);
-        setBranchLoadError(true);
-
-        toast({
-          title: "Error loading branches",
-          description:
-            "Using fallback branch data instead. Some features may be limited.",
-          variant: "destructive",
-        });
-      }
+      toast({
+        title: "Error loading branches",
+        description:
+          "Using fallback branch data instead. Some features may be limited.",
+        variant: "destructive",
+      });
     } finally {
       setIsLoadingBranches(false);
     }

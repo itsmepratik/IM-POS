@@ -741,6 +741,88 @@ const products: Product[] = [
     brand: "Nissan",
     type: "Sensors",
   },
+  // Add Battery products
+  {
+    id: 1027,
+    name: "Standard Battery",
+    price: 89.99,
+    category: "Parts",
+    brand: "Toyota",
+    type: "Batteries",
+  },
+  {
+    id: 1028,
+    name: "Premium Battery",
+    price: 129.99,
+    category: "Parts",
+    brand: "Toyota",
+    type: "Batteries",
+  },
+  {
+    id: 1029,
+    name: "Economy Battery",
+    price: 69.99,
+    category: "Parts",
+    brand: "Honda",
+    type: "Batteries",
+  },
+  {
+    id: 1030,
+    name: "Heavy Duty Battery",
+    price: 149.99,
+    category: "Parts",
+    brand: "Lexus",
+    type: "Batteries",
+  },
+  {
+    id: 1031,
+    name: "Standard Battery",
+    price: 84.99,
+    category: "Parts",
+    brand: "Nissan",
+    type: "Batteries",
+  },
+  // Add Spark Plugs as a separate category
+  {
+    id: 1032,
+    name: "Standard Spark Plugs",
+    price: 7.99,
+    category: "Parts",
+    brand: "Toyota",
+    type: "Spark Plugs",
+  },
+  {
+    id: 1033,
+    name: "Iridium Spark Plugs",
+    price: 19.99,
+    category: "Parts",
+    brand: "Toyota",
+    type: "Spark Plugs",
+  },
+  {
+    id: 1034,
+    name: "Platinum Spark Plugs",
+    price: 14.99,
+    category: "Parts",
+    brand: "Honda",
+    type: "Spark Plugs",
+  },
+  {
+    id: 1035,
+    name: "Premium Spark Plugs",
+    price: 22.99,
+    category: "Parts",
+    brand: "Lexus",
+    type: "Spark Plugs",
+  },
+  {
+    id: 1036,
+    name: "Performance Spark Plugs",
+    price: 24.99,
+    category: "Parts",
+    brand: "Nissan",
+    type: "Spark Plugs",
+  },
 ];
 
 // Memoize the cart item component
@@ -751,8 +833,8 @@ const CartItem = memo(
     removeFromCart,
   }: {
     item: CartItem;
-    updateQuantity: (id: number, quantity: number) => void;
-    removeFromCart: (id: number) => void;
+    updateQuantity: (id: number, quantity: number, uniqueId?: string) => void;
+    removeFromCart: (id: number, uniqueId?: string) => void;
   }) => (
     <div className="grid grid-cols-[1fr_auto] gap-3 py-3 first:pt-0 items-start border-b last:border-b-0">
       {/* Item details */}
@@ -787,7 +869,7 @@ const CartItem = memo(
           variant="ghost"
           size="icon"
           className="h-6 w-6 flex-shrink-0"
-          onClick={() => removeFromCart(item.id)}
+          onClick={() => removeFromCart(item.id, item.uniqueId)}
           aria-label="Remove item"
         >
           <X className="h-3 w-3" />
@@ -800,7 +882,11 @@ const CartItem = memo(
             size="icon"
             className="h-6 w-6"
             onClick={() =>
-              updateQuantity(item.id, Math.max(1, item.quantity - 1))
+              updateQuantity(
+                item.id,
+                Math.max(1, item.quantity - 1),
+                item.uniqueId
+              )
             }
           >
             <Minus className="h-3 w-3" />
@@ -812,7 +898,9 @@ const CartItem = memo(
             variant="outline"
             size="icon"
             className="h-6 w-6"
-            onClick={() => updateQuantity(item.id, item.quantity + 1)}
+            onClick={() =>
+              updateQuantity(item.id, item.quantity + 1, item.uniqueId)
+            }
           >
             <Plus className="h-3 w-3" />
           </Button>
@@ -1017,6 +1105,9 @@ export default function POSPage() {
     Array<{ id: number; name: string; price: number; quantity: number }>
   >([]);
 
+  // Add state for payment recipient
+  const [paymentRecipient, setPaymentRecipient] = useState<string | null>(null);
+
   // Mock cashier data
   const cashiers = [
     { id: 1, name: "Hossain (Owner)" },
@@ -1028,18 +1119,31 @@ export default function POSPage() {
     { id: 111, name: "Test Cashier 111" },
   ];
   // Memoize handlers
-  const removeFromCart = useCallback((productId: number) => {
-    setCart((prevCart) => prevCart.filter((item) => item.id !== productId));
+  const removeFromCart = useCallback((productId: number, uniqueId?: string) => {
+    setCart((prevCart) => {
+      // If uniqueId is provided, only remove the item with matching uniqueId
+      if (uniqueId) {
+        return prevCart.filter((item) => item.uniqueId !== uniqueId);
+      }
+      // Otherwise fall back to filtering by id (for backward compatibility)
+      return prevCart.filter((item) => item.id !== productId);
+    });
   }, []);
 
   const updateQuantity = useCallback(
-    (productId: number, newQuantity: number) => {
+    (productId: number, newQuantity: number, uniqueId?: string) => {
       if (newQuantity < 1) {
-        removeFromCart(productId);
+        removeFromCart(productId, uniqueId);
       } else {
         setCart((prevCart) =>
           prevCart.map((item) =>
-            item.id === productId ? { ...item, quantity: newQuantity } : item
+            uniqueId
+              ? item.uniqueId === uniqueId
+                ? { ...item, quantity: newQuantity }
+                : item
+              : item.id === productId
+              ? { ...item, quantity: newQuantity }
+              : item
           )
         );
       }
@@ -1322,12 +1426,21 @@ export default function POSPage() {
     // Make a copy of the appliedDiscount before resetting state
     const discountForReceipt = appliedDiscount ? { ...appliedDiscount } : null;
 
+    // Create payment info object to include recipient for mobile payments
+    const paymentInfo = {
+      method: selectedPaymentMethod,
+      ...(selectedPaymentMethod === "mobile" && paymentRecipient
+        ? { recipient: paymentRecipient }
+        : {}),
+    };
+
     setIsCashierSelectOpen(false);
     // Pass the receipt with the copied discount
     setShowSuccess(true);
 
     // We'll reset other states but keep the discount for the receipt
     console.log("Finalizing payment with discount:", discountForReceipt);
+    console.log("Payment info:", paymentInfo);
   };
 
   // Replace the handleImportCustomers function definition with this one
@@ -1449,7 +1562,12 @@ export default function POSPage() {
   const partTypes = Array.from(
     new Set(
       products
-        .filter((p) => p.category === "Parts" && p.type) // Only include products with type
+        .filter(
+          (p) =>
+            p.category === "Parts" &&
+            p.type &&
+            ["Miscellaneous Parts", "Spark Plugs", "Batteries"].includes(p.type)
+        )
         .map((p) => p.type!)
     )
   );
@@ -2470,6 +2588,7 @@ export default function POSPage() {
             setEnteredCashierId("");
             setFetchedCashier(null);
             setCashierIdError(null);
+            setPaymentRecipient(null);
             if (!selectedCashier) setIsCheckoutModalOpen(true);
           }
         }}
@@ -2479,17 +2598,16 @@ export default function POSPage() {
           onPointerDownOutside={(e) => e.preventDefault()}
           onEscapeKeyDown={(e) => e.preventDefault()}
         >
-          <DialogHeader className="pb-4">
-            <DialogTitle className="text-xl font-semibold text-center">
-              Enter Cashier ID
-            </DialogTitle>
-            <DialogDescription className="text-center">
-              Please enter your cashier ID to proceed.
-            </DialogDescription>
-          </DialogHeader>
-
           {!fetchedCashier ? (
             <>
+              <DialogHeader className="pb-4">
+                <DialogTitle className="text-xl font-semibold text-center">
+                  Enter Cashier ID
+                </DialogTitle>
+                <DialogDescription className="text-center">
+                  Please enter your cashier ID to proceed.
+                </DialogDescription>
+              </DialogHeader>
               <div className="flex flex-col items-center">
                 <form
                   className="flex flex-col items-center w-full"
@@ -2540,16 +2658,58 @@ export default function POSPage() {
             </>
           ) : (
             <>
-              <div className="flex flex-col items-center my-4">
-                <div className="text-lg font-semibold mb-2">
+              <DialogHeader className="pb-4">
+                <DialogTitle className="text-xl font-semibold text-center">
                   Welcome, {fetchedCashier.name}!
-                </div>
+                </DialogTitle>
+              </DialogHeader>
+              <div className="flex flex-col items-center my-4">
                 <div className="text-muted-foreground mb-4">
                   ID: {fetchedCashier.id}
                 </div>
+
+                {/* Payment recipient selection - only show for mobile payments */}
+                {selectedPaymentMethod === "mobile" && (
+                  <div className="w-full mb-4">
+                    <div className="text-sm font-medium text-center mb-2">
+                      Select payment recipient:
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <Button
+                        variant={
+                          paymentRecipient === "Adnan" ? "default" : "outline"
+                        }
+                        className={cn(
+                          "h-10 text-center",
+                          paymentRecipient === "Adnan" && "ring-2 ring-primary"
+                        )}
+                        onClick={() => setPaymentRecipient("Adnan")}
+                      >
+                        Adnan
+                      </Button>
+                      <Button
+                        variant={
+                          paymentRecipient === "Foreman" ? "default" : "outline"
+                        }
+                        className={cn(
+                          "h-10 text-center",
+                          paymentRecipient === "Foreman" &&
+                            "ring-2 ring-primary"
+                        )}
+                        onClick={() => setPaymentRecipient("Foreman")}
+                      >
+                        Foreman
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
                 <Button
                   className="w-full h-12 text-base"
                   onClick={handleFinalizePayment}
+                  disabled={
+                    selectedPaymentMethod === "mobile" && !paymentRecipient
+                  }
                 >
                   Confirm Payment
                 </Button>
@@ -2624,6 +2784,11 @@ export default function POSPage() {
                   paymentMethod={selectedPaymentMethod || "cash"}
                   cashier={selectedCashier ?? undefined}
                   discount={appliedDiscount}
+                  paymentRecipient={
+                    selectedPaymentMethod === "mobile"
+                      ? paymentRecipient
+                      : undefined
+                  }
                 />
 
                 <Button
@@ -2775,13 +2940,16 @@ const ReceiptComponent = ({
   paymentMethod,
   cashier,
   discount,
+  paymentRecipient,
 }: {
   cart: CartItem[];
   paymentMethod: string;
   cashier?: string;
   discount?: { type: "percentage" | "amount"; value: number } | null;
+  paymentRecipient?: string | null;
 }) => {
   console.log("ReceiptComponent mounted with discount:", discount);
+  console.log("Payment recipient:", paymentRecipient);
 
   // Save the discount value in component state to prevent it from being lost
   const [localDiscount, setLocalDiscount] = useState(discount);
@@ -3111,6 +3279,11 @@ const ReceiptComponent = ({
               <p>Payment Method: ${
                 paymentMethod.charAt(0).toUpperCase() + paymentMethod.slice(1)
               }</p>
+              ${
+                paymentMethod === "mobile" && paymentRecipient
+                  ? `<p>Mobile Payment Recipient: ${paymentRecipient}</p>`
+                  : ""
+              }
               ${cashier ? `<p>Cashier: ${cashier}</p>` : ""}
               <p>Keep this Invoice for your Exchanges</p>
               <p class="arabic">احتفظ بهذه الفاتورة للتبديل</p>
@@ -3150,7 +3323,14 @@ const ReceiptComponent = ({
         printWindow.close();
       }
     }, 500);
-  }, [cart, paymentMethod, receiptData, cashier, localDiscount]);
+  }, [
+    cart,
+    paymentMethod,
+    receiptData,
+    cashier,
+    localDiscount,
+    paymentRecipient,
+  ]);
 
   if (!showReceipt || !receiptData.receiptNumber) return null;
 
@@ -3272,6 +3452,9 @@ const ReceiptComponent = ({
           <div className="text-center text-xs text-gray-600 border-t border-dashed pt-2">
             <p>Number of Items: {itemCount}</p>
             <p>Payment Method: {getFormattedPaymentMethod(paymentMethod)}</p>
+            {paymentMethod === "mobile" && paymentRecipient && (
+              <p>Mobile Payment Recipient: {paymentRecipient}</p>
+            )}
             {cashier && <p>Cashier: {cashier}</p>}
             <p>Keep this Invoice for your Exchanges</p>
             <p className="text-xs text-right text-gray-600">

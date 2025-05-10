@@ -1,17 +1,18 @@
-"use client"
+"use client";
 
-import { useState } from "react"
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter
-} from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Card, CardContent } from "@/components/ui/card"
-import { ScrollArea } from "@/components/ui/scroll-area"
+  DialogFooter,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,36 +22,36 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
-import { Badge } from "@/components/ui/badge"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Label } from "@/components/ui/label"
-import { Search, ArrowLeft, ReceiptRefund, Check, AlertCircle } from "lucide-react"
-import { motion, AnimatePresence } from "framer-motion"
-import { cn } from "@/lib/utils"
-import { useToast } from "@/components/ui/use-toast"
+} from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { Search, ArrowLeft, Check, AlertCircle } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { cn } from "@/lib/utils";
+import { useToast } from "@/components/ui/use-toast";
 
 interface CartItem {
-  id: number
-  name: string
-  price: number
-  quantity: number
-  details?: string
-  uniqueId: string
+  id: number;
+  name: string;
+  price: number;
+  quantity: number;
+  details?: string;
+  uniqueId: string;
 }
 
 interface Receipt {
-  receiptNumber: string
-  date: string
-  time: string
-  items: CartItem[]
-  total: number
-  paymentMethod: string
+  receiptNumber: string;
+  date: string;
+  time: string;
+  items: CartItem[];
+  total: number;
+  paymentMethod: string;
 }
 
 interface RefundDialogProps {
-  isOpen: boolean
-  onClose: () => void
+  isOpen: boolean;
+  onClose: () => void;
 }
 
 // This would normally come from a database
@@ -63,10 +64,29 @@ const mockReceipts: Receipt[] = [
     paymentMethod: "Card",
     total: 58.97,
     items: [
-      { id: 101, name: "Toyota 0W-20", price: 39.99, quantity: 1, details: "5L", uniqueId: "101-5L" },
-      { id: 301, name: "Oil Filter", price: 8.99, quantity: 1, uniqueId: "301-" },
-      { id: 401, name: "Air Filter", price: 9.99, quantity: 1, uniqueId: "401-" }
-    ]
+      {
+        id: 101,
+        name: "Toyota 0W-20",
+        price: 39.99,
+        quantity: 1,
+        details: "5L",
+        uniqueId: "101-5L",
+      },
+      {
+        id: 301,
+        name: "Oil Filter",
+        price: 8.99,
+        quantity: 1,
+        uniqueId: "301-",
+      },
+      {
+        id: 401,
+        name: "Air Filter",
+        price: 9.99,
+        quantity: 1,
+        uniqueId: "401-",
+      },
+    ],
   },
   {
     receiptNumber: "A2345",
@@ -75,9 +95,22 @@ const mockReceipts: Receipt[] = [
     paymentMethod: "Cash",
     total: 74.96,
     items: [
-      { id: 102, name: "Toyota 5W-30", price: 34.99, quantity: 2, details: "4L", uniqueId: "102-4L" },
-      { id: 302, name: "Cabin Filter", price: 4.98, quantity: 1, uniqueId: "302-" }
-    ]
+      {
+        id: 102,
+        name: "Toyota 5W-30",
+        price: 34.99,
+        quantity: 2,
+        details: "4L",
+        uniqueId: "102-4L",
+      },
+      {
+        id: 302,
+        name: "Cabin Filter",
+        price: 4.98,
+        quantity: 1,
+        uniqueId: "302-",
+      },
+    ],
   },
   {
     receiptNumber: "A3456",
@@ -86,97 +119,147 @@ const mockReceipts: Receipt[] = [
     paymentMethod: "Mobile Pay",
     total: 29.97,
     items: [
-      { id: 201, name: "Shell 0W-20", price: 13.99, quantity: 1, details: "1L", uniqueId: "201-1L" },
-      { id: 501, name: "Wiper Blades", price: 15.98, quantity: 1, uniqueId: "501-" }
-    ]
+      {
+        id: 201,
+        name: "Shell 0W-20",
+        price: 13.99,
+        quantity: 1,
+        details: "1L",
+        uniqueId: "201-1L",
+      },
+      {
+        id: 501,
+        name: "Wiper Blades",
+        price: 15.98,
+        quantity: 1,
+        uniqueId: "501-",
+      },
+    ],
   },
 ];
 
+// Add mock cashier data similar to the main page
+const cashiers = [
+  { id: 1, name: "Hossain (Owner)" },
+  { id: 2, name: "Adnan Hossain" },
+  { id: 3, name: "Fatima Al-Zadjali" },
+  { id: 4, name: "Sara Al-Kindi" },
+  { id: 5, name: "Khalid Al-Habsi" },
+  { id: 101, name: "Test Cashier 101" },
+  { id: 111, name: "Test Cashier 111" },
+];
+
 export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
-  const { toast } = useToast()
-  const [receiptNumber, setReceiptNumber] = useState("")
-  const [currentReceipt, setCurrentReceipt] = useState<Receipt | null>(null)
-  const [selectedItems, setSelectedItems] = useState<string[]>([])
-  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false)
-  const [refundComplete, setRefundComplete] = useState(false)
-  const [step, setStep] = useState<"search" | "select" | "confirm" | "complete">("search")
-  
+  const { toast } = useToast();
+  const [receiptNumber, setReceiptNumber] = useState("");
+  const [currentReceipt, setCurrentReceipt] = useState<Receipt | null>(null);
+  const [selectedItems, setSelectedItems] = useState<string[]>([]);
+  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
+  const [refundComplete, setRefundComplete] = useState(false);
+  const [step, setStep] = useState<
+    "search" | "select" | "confirm" | "complete"
+  >("search");
+
+  // Add cashier ID entry state
+  const [isCashierSelectOpen, setIsCashierSelectOpen] = useState(false);
+  const [enteredCashierId, setEnteredCashierId] = useState<string>("");
+  const [fetchedCashier, setFetchedCashier] = useState<{
+    id: number;
+    name: string;
+  } | null>(null);
+  const [cashierIdError, setCashierIdError] = useState<string | null>(null);
+  const [selectedCashier, setSelectedCashier] = useState<string | null>(null);
+
   // Calculate refund amount
-  const refundAmount = currentReceipt?.items
-    .filter(item => selectedItems.includes(item.uniqueId))
-    .reduce((sum, item) => sum + (item.price * item.quantity), 0) || 0
-  
+  const refundAmount =
+    currentReceipt?.items
+      .filter((item) => selectedItems.includes(item.uniqueId))
+      .reduce((sum, item) => sum + item.price * item.quantity, 0) || 0;
+
   // Handle looking up a receipt
   const handleLookupReceipt = () => {
     // Normally you would fetch this from an API
-    const receipt = mockReceipts.find(r => r.receiptNumber.toLowerCase() === receiptNumber.toLowerCase())
-    
+    const receipt = mockReceipts.find(
+      (r) => r.receiptNumber.toLowerCase() === receiptNumber.toLowerCase()
+    );
+
     if (receipt) {
-      setCurrentReceipt(receipt)
-      setStep("select")
-      setSelectedItems([])
+      setCurrentReceipt(receipt);
+      setStep("select");
+      setSelectedItems([]);
     } else {
       toast({
         title: "Receipt not found",
         description: "Please check the receipt number and try again.",
-        variant: "destructive"
-      })
+        variant: "destructive",
+      });
     }
-  }
-  
+  };
+
   // Handle toggling an item for refund
   const toggleItemSelection = (uniqueId: string) => {
-    setSelectedItems(prev => 
-      prev.includes(uniqueId) 
-        ? prev.filter(id => id !== uniqueId) 
+    setSelectedItems((prev) =>
+      prev.includes(uniqueId)
+        ? prev.filter((id) => id !== uniqueId)
         : [...prev, uniqueId]
-    )
-  }
-  
+    );
+  };
+
   // Handle proceeding to confirmation
   const handleProceedToConfirm = () => {
     if (selectedItems.length === 0) {
       toast({
         title: "No items selected",
         description: "Please select at least one item to refund.",
-        variant: "destructive"
-      })
-      return
+        variant: "destructive",
+      });
+      return;
     }
-    
-    setStep("confirm")
-  }
-  
+
+    setStep("confirm");
+  };
+
   // Handle confirming the refund
   const handleConfirmRefund = () => {
-    // In a real application, you would make an API call here
-    setIsConfirmDialogOpen(false)
-    setStep("complete")
-    setRefundComplete(true)
-  }
-  
+    // Show cashier selection dialog instead of immediately processing the refund
+    setIsConfirmDialogOpen(false);
+    setIsCashierSelectOpen(true);
+  };
+
+  // Handle finalizing the refund after cashier selection
+  const handleFinalizeRefund = () => {
+    setIsCashierSelectOpen(false);
+    setStep("complete");
+    setRefundComplete(true);
+  };
+
   // Handle closing the dialog
   const handleCloseDialog = () => {
     if (step === "complete") {
       // Reset everything
-      setReceiptNumber("")
-      setCurrentReceipt(null)
-      setSelectedItems([])
-      setRefundComplete(false)
-      setStep("search")
-      onClose()
+      setReceiptNumber("");
+      setCurrentReceipt(null);
+      setSelectedItems([]);
+      setRefundComplete(false);
+      setStep("search");
+      // Reset cashier data
+      setEnteredCashierId("");
+      setFetchedCashier(null);
+      setCashierIdError(null);
+      setSelectedCashier(null);
+      onClose();
     } else if (step === "search") {
       // Just close the dialog
-      onClose()
+      onClose();
     } else {
       // Go back to search
-      setReceiptNumber("")
-      setCurrentReceipt(null)
-      setSelectedItems([])
-      setStep("search")
+      setReceiptNumber("");
+      setCurrentReceipt(null);
+      setSelectedItems([]);
+      setStep("search");
     }
-  }
-  
+  };
+
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
@@ -184,10 +267,10 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
           <DialogHeader className="px-6 pt-6 pb-2">
             <DialogTitle className="text-xl flex items-center gap-2">
               {step !== "search" && (
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="h-8 w-8 mr-1" 
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 mr-1"
                   onClick={() => setStep("search")}
                 >
                   <ArrowLeft className="h-5 w-5" />
@@ -199,7 +282,7 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
               {step === "complete" && "Refund Complete"}
             </DialogTitle>
           </DialogHeader>
-          
+
           <div className="flex-1 overflow-hidden">
             <ScrollArea className="h-full max-h-[calc(90vh-8rem)] md:max-h-[calc(85vh-8rem)]">
               <div className="px-6 pb-6 space-y-4">
@@ -213,9 +296,10 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
                       className="space-y-4"
                     >
                       <div className="text-sm text-muted-foreground">
-                        Enter the receipt number to process a refund. You can find this on the customer's receipt.
+                        Enter the receipt number to process a refund. You can
+                        find this on the customer's receipt.
                       </div>
-                      
+
                       <div className="flex items-center gap-2">
                         <div className="relative flex-1">
                           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -226,27 +310,30 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
                             onChange={(e) => setReceiptNumber(e.target.value)}
                             onKeyDown={(e) => {
                               if (e.key === "Enter" && receiptNumber) {
-                                handleLookupReceipt()
+                                handleLookupReceipt();
                               }
                             }}
                           />
                         </div>
-                        <Button 
+                        <Button
                           onClick={handleLookupReceipt}
                           disabled={!receiptNumber}
                         >
                           Search
                         </Button>
                       </div>
-                      
+
                       <div className="rounded-lg border p-4 bg-muted/50">
                         <div className="flex items-center gap-2 text-sm font-medium mb-2">
                           <AlertCircle className="h-4 w-4 text-amber-500" />
                           Sample Receipt Numbers
                         </div>
                         <div className="text-xs text-muted-foreground space-y-1">
-                          {mockReceipts.map(receipt => (
-                            <div key={receipt.receiptNumber} className="flex justify-between">
+                          {mockReceipts.map((receipt) => (
+                            <div
+                              key={receipt.receiptNumber}
+                              className="flex justify-between"
+                            >
                               <span>{receipt.receiptNumber}</span>
                               <span>OMR {receipt.total.toFixed(2)}</span>
                             </div>
@@ -255,7 +342,7 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
                       </div>
                     </motion.div>
                   )}
-                  
+
                   {step === "select" && currentReceipt && (
                     <motion.div
                       key="select"
@@ -265,58 +352,90 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
                       className="space-y-4"
                     >
                       <div className="rounded-lg border p-4 mb-4">
-                        <div className="text-sm font-medium mb-2">Receipt Information</div>
+                        <div className="text-sm font-medium mb-2">
+                          Receipt Information
+                        </div>
                         <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
                           <div>
-                            <span className="text-muted-foreground">Receipt #:</span> {currentReceipt.receiptNumber}
+                            <span className="text-muted-foreground">
+                              Receipt #:
+                            </span>{" "}
+                            {currentReceipt.receiptNumber}
                           </div>
                           <div>
-                            <span className="text-muted-foreground">Date:</span> {currentReceipt.date}
+                            <span className="text-muted-foreground">Date:</span>{" "}
+                            {currentReceipt.date}
                           </div>
                           <div>
-                            <span className="text-muted-foreground">Time:</span> {currentReceipt.time}
+                            <span className="text-muted-foreground">Time:</span>{" "}
+                            {currentReceipt.time}
                           </div>
                           <div>
-                            <span className="text-muted-foreground">Payment:</span> {currentReceipt.paymentMethod}
+                            <span className="text-muted-foreground">
+                              Payment:
+                            </span>{" "}
+                            {currentReceipt.paymentMethod}
                           </div>
                           <div className="col-span-2">
-                            <span className="text-muted-foreground">Total:</span> OMR {currentReceipt.total.toFixed(2)}
+                            <span className="text-muted-foreground">
+                              Total:
+                            </span>{" "}
+                            OMR {currentReceipt.total.toFixed(2)}
                           </div>
                         </div>
                       </div>
-                      
-                      <div className="text-sm font-medium mb-2">Select Items to Refund</div>
-                      
+
+                      <div className="text-sm font-medium mb-2">
+                        Select Items to Refund
+                      </div>
+
                       <div className="space-y-2">
                         {currentReceipt.items.map((item) => (
                           <Card key={item.uniqueId} className="overflow-hidden">
                             <CardContent className="p-0">
-                              <div 
+                              <div
                                 className={cn(
                                   "p-4 flex items-center gap-3 cursor-pointer hover:bg-muted/50 transition-colors",
-                                  selectedItems.includes(item.uniqueId) && "bg-muted"
+                                  selectedItems.includes(item.uniqueId) &&
+                                    "bg-muted"
                                 )}
-                                onClick={() => toggleItemSelection(item.uniqueId)}
+                                onClick={() =>
+                                  toggleItemSelection(item.uniqueId)
+                                }
                               >
-                                <Checkbox 
-                                  checked={selectedItems.includes(item.uniqueId)}
-                                  onCheckedChange={() => toggleItemSelection(item.uniqueId)}
+                                <Checkbox
+                                  checked={selectedItems.includes(
+                                    item.uniqueId
+                                  )}
+                                  onCheckedChange={() =>
+                                    toggleItemSelection(item.uniqueId)
+                                  }
                                   className="h-5 w-5"
                                 />
-                                
+
                                 <div className="flex-1">
                                   <div className="flex items-start justify-between">
                                     <div>
-                                      <div className="font-medium">{item.name}</div>
+                                      <div className="font-medium">
+                                        {item.name}
+                                      </div>
                                       {item.details && (
-                                        <div className="text-xs text-muted-foreground">{item.details}</div>
+                                        <div className="text-xs text-muted-foreground">
+                                          {item.details}
+                                        </div>
                                       )}
                                     </div>
                                     <div className="text-right">
-                                      <div className="font-medium">OMR {(item.price * item.quantity).toFixed(2)}</div>
+                                      <div className="font-medium">
+                                        OMR{" "}
+                                        {(item.price * item.quantity).toFixed(
+                                          2
+                                        )}
+                                      </div>
                                       {item.quantity > 1 && (
                                         <div className="text-xs text-muted-foreground">
-                                          {item.quantity} × OMR {item.price.toFixed(2)}
+                                          {item.quantity} × OMR{" "}
+                                          {item.price.toFixed(2)}
                                         </div>
                                       )}
                                     </div>
@@ -327,7 +446,7 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
                           </Card>
                         ))}
                       </div>
-                      
+
                       {selectedItems.length > 0 && (
                         <div className="rounded-lg border p-4 bg-muted/50 mt-4">
                           <div className="flex justify-between text-sm font-medium">
@@ -338,7 +457,7 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
                       )}
                     </motion.div>
                   )}
-                  
+
                   {step === "confirm" && currentReceipt && (
                     <motion.div
                       key="confirm"
@@ -348,43 +467,70 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
                       className="space-y-4"
                     >
                       <div className="rounded-lg border p-4 mb-4">
-                        <div className="text-sm font-medium mb-2">Refund Summary</div>
+                        <div className="text-sm font-medium mb-2">
+                          Refund Summary
+                        </div>
                         <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
                           <div>
-                            <span className="text-muted-foreground">Receipt #:</span> {currentReceipt.receiptNumber}
+                            <span className="text-muted-foreground">
+                              Receipt #:
+                            </span>{" "}
+                            {currentReceipt.receiptNumber}
                           </div>
                           <div>
-                            <span className="text-muted-foreground">Date:</span> {currentReceipt.date}
+                            <span className="text-muted-foreground">Date:</span>{" "}
+                            {currentReceipt.date}
                           </div>
                           <div className="col-span-2">
-                            <span className="text-muted-foreground">Items to Refund:</span> {selectedItems.length}
+                            <span className="text-muted-foreground">
+                              Items to Refund:
+                            </span>{" "}
+                            {selectedItems.length}
                           </div>
                           <div className="col-span-2">
-                            <span className="text-muted-foreground">Refund Amount:</span> OMR {refundAmount.toFixed(2)}
+                            <span className="text-muted-foreground">
+                              Refund Amount:
+                            </span>{" "}
+                            OMR {refundAmount.toFixed(2)}
                           </div>
                         </div>
                       </div>
-                      
-                      <div className="text-sm font-medium mb-2">Items to Refund</div>
-                      
+
+                      <div className="text-sm font-medium mb-2">
+                        Items to Refund
+                      </div>
+
                       <div className="space-y-2">
                         {currentReceipt.items
-                          .filter(item => selectedItems.includes(item.uniqueId))
+                          .filter((item) =>
+                            selectedItems.includes(item.uniqueId)
+                          )
                           .map((item) => (
-                            <Card key={item.uniqueId} className="overflow-hidden">
+                            <Card
+                              key={item.uniqueId}
+                              className="overflow-hidden"
+                            >
                               <CardContent className="p-4">
                                 <div className="flex items-start justify-between">
                                   <div>
-                                    <div className="font-medium">{item.name}</div>
+                                    <div className="font-medium">
+                                      {item.name}
+                                    </div>
                                     {item.details && (
-                                      <div className="text-xs text-muted-foreground">{item.details}</div>
+                                      <div className="text-xs text-muted-foreground">
+                                        {item.details}
+                                      </div>
                                     )}
                                   </div>
                                   <div className="text-right">
-                                    <div className="font-medium">OMR {(item.price * item.quantity).toFixed(2)}</div>
+                                    <div className="font-medium">
+                                      OMR{" "}
+                                      {(item.price * item.quantity).toFixed(2)}
+                                    </div>
                                     {item.quantity > 1 && (
                                       <div className="text-xs text-muted-foreground">
-                                        {item.quantity} × OMR {item.price.toFixed(2)}
+                                        {item.quantity} × OMR{" "}
+                                        {item.price.toFixed(2)}
                                       </div>
                                     )}
                                   </div>
@@ -393,21 +539,28 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
                             </Card>
                           ))}
                       </div>
-                      
+
                       <div className="rounded-lg border p-4 bg-muted/50 mt-4">
                         <div className="flex items-center gap-2 mb-2">
                           <AlertCircle className="h-4 w-4 text-amber-500" />
-                          <div className="text-sm font-medium">Refund Policy</div>
+                          <div className="text-sm font-medium">
+                            Refund Policy
+                          </div>
                         </div>
                         <div className="text-xs text-muted-foreground space-y-1">
-                          <p>Refunds are issued to the original payment method.</p>
-                          <p>For cash purchases, store credit may be issued if appropriate.</p>
+                          <p>
+                            Refunds are issued to the original payment method.
+                          </p>
+                          <p>
+                            For cash purchases, store credit may be issued if
+                            appropriate.
+                          </p>
                           <p>All refunds are subject to manager approval.</p>
                         </div>
                       </div>
                     </motion.div>
                   )}
-                  
+
                   {step === "complete" && (
                     <motion.div
                       key="complete"
@@ -419,40 +572,78 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
                       <motion.div
                         initial={{ scale: 0 }}
                         animate={{ scale: 1 }}
-                        transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+                        transition={{
+                          delay: 0.2,
+                          type: "spring",
+                          stiffness: 200,
+                        }}
                         className="rounded-full bg-green-100 p-4 mb-6"
                       >
                         <Check className="w-8 h-8 text-green-600" />
                       </motion.div>
-                      
-                      <h3 className="text-xl font-semibold mb-2">Refund Complete</h3>
-                      
+
+                      <h3 className="text-xl font-semibold mb-2">
+                        Refund Complete
+                      </h3>
+
                       <p className="text-center text-muted-foreground mb-6">
-                        The refund of <span className="font-semibold">OMR {refundAmount.toFixed(2)}</span> has been processed successfully.
+                        The refund of{" "}
+                        <span className="font-semibold">
+                          OMR {refundAmount.toFixed(2)}
+                        </span>{" "}
+                        has been processed successfully.
                       </p>
-                      
+
                       {currentReceipt && (
                         <div className="w-full max-w-sm rounded-lg border p-4 mb-4">
-                          <div className="text-sm font-medium mb-2">Refund Details</div>
+                          <div className="text-sm font-medium mb-2">
+                            Refund Details
+                          </div>
                           <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
                             <div>
-                              <span className="text-muted-foreground">Receipt #:</span> {currentReceipt.receiptNumber}
+                              <span className="text-muted-foreground">
+                                Receipt #:
+                              </span>{" "}
+                              {currentReceipt.receiptNumber}
                             </div>
                             <div>
-                              <span className="text-muted-foreground">Date:</span> {new Date().toLocaleDateString('en-GB')}
+                              <span className="text-muted-foreground">
+                                Date:
+                              </span>{" "}
+                              {new Date().toLocaleDateString("en-GB")}
                             </div>
                             <div>
-                              <span className="text-muted-foreground">Time:</span> {new Date().toLocaleTimeString('en-GB')}
+                              <span className="text-muted-foreground">
+                                Time:
+                              </span>{" "}
+                              {new Date().toLocaleTimeString("en-GB")}
                             </div>
                             <div>
-                              <span className="text-muted-foreground">Items:</span> {selectedItems.length}
+                              <span className="text-muted-foreground">
+                                Items:
+                              </span>{" "}
+                              {selectedItems.length}
                             </div>
                             <div className="col-span-2">
-                              <span className="text-muted-foreground">Refund Amount:</span> OMR {refundAmount.toFixed(2)}
+                              <span className="text-muted-foreground">
+                                Refund Amount:
+                              </span>{" "}
+                              OMR {refundAmount.toFixed(2)}
                             </div>
                             <div className="col-span-2">
-                              <span className="text-muted-foreground">Refund Method:</span> {currentReceipt.paymentMethod}
+                              <span className="text-muted-foreground">
+                                Refund Method:
+                              </span>{" "}
+                              {currentReceipt.paymentMethod}
                             </div>
+                            {selectedCashier && (
+                              <div className="col-span-2">
+                                <span className="text-muted-foreground">
+                                  Authorized by:
+                                </span>{" "}
+                                {selectedCashier}
+                              </div>
+                            )}
                           </div>
                         </div>
                       )}
@@ -462,16 +653,20 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
               </div>
             </ScrollArea>
           </div>
-          
+
           <DialogFooter className="px-6 py-4 border-t">
             {step === "search" && (
-              <Button variant="outline" onClick={handleCloseDialog}>Close</Button>
+              <Button variant="outline" onClick={handleCloseDialog}>
+                Close
+              </Button>
             )}
-            
+
             {step === "select" && (
               <>
-                <Button variant="outline" onClick={handleCloseDialog}>Cancel</Button>
-                <Button 
+                <Button variant="outline" onClick={handleCloseDialog}>
+                  Cancel
+                </Button>
+                <Button
                   onClick={handleProceedToConfirm}
                   disabled={selectedItems.length === 0}
                 >
@@ -479,10 +674,12 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
                 </Button>
               </>
             )}
-            
+
             {step === "confirm" && (
               <>
-                <Button variant="outline" onClick={() => setStep("select")}>Back</Button>
+                <Button variant="outline" onClick={() => setStep("select")}>
+                  Back
+                </Button>
                 <Button
                   onClick={() => setIsConfirmDialogOpen(true)}
                   className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
@@ -491,22 +688,25 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
                 </Button>
               </>
             )}
-            
+
             {step === "complete" && (
               <Button onClick={handleCloseDialog}>Close</Button>
             )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      
+
       {/* Confirm Refund Alert Dialog */}
-      <AlertDialog open={isConfirmDialogOpen} onOpenChange={setIsConfirmDialogOpen}>
+      <AlertDialog
+        open={isConfirmDialogOpen}
+        onOpenChange={setIsConfirmDialogOpen}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Confirm Refund</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to process this refund for OMR {refundAmount.toFixed(2)}?
-              This action cannot be undone.
+              Are you sure you want to process this refund for OMR{" "}
+              {refundAmount.toFixed(2)}? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -520,6 +720,105 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Cashier Selection Dialog */}
+      <Dialog
+        open={isCashierSelectOpen}
+        onOpenChange={(open) => {
+          setIsCashierSelectOpen(open);
+          if (!open) {
+            setEnteredCashierId("");
+            setFetchedCashier(null);
+            setCashierIdError(null);
+            if (!selectedCashier) setIsConfirmDialogOpen(true);
+          }
+        }}
+      >
+        <DialogContent
+          className="w-[90%] max-w-[400px] p-6 rounded-lg"
+          onPointerDownOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => e.preventDefault()}
+        >
+          {!fetchedCashier ? (
+            <>
+              <DialogHeader className="pb-4">
+                <DialogTitle className="text-xl font-semibold text-center">
+                  Enter Cashier ID
+                </DialogTitle>
+                <DialogDescription className="text-center">
+                  Please enter your cashier ID to proceed with the refund.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex flex-col items-center">
+                <form
+                  className="flex flex-col items-center w-full"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const found = cashiers.find(
+                      (c) => c.id.toString() === enteredCashierId
+                    );
+                    if (found) {
+                      setFetchedCashier(found);
+                      setSelectedCashier(found.name);
+                      setCashierIdError(null);
+                    } else {
+                      setCashierIdError(
+                        "Invalid cashier ID. Please try again."
+                      );
+                    }
+                  }}
+                >
+                  <Input
+                    className="text-center text-2xl w-32 mb-2"
+                    value={enteredCashierId}
+                    onChange={(e) => {
+                      setEnteredCashierId(e.target.value.replace(/\D/g, ""));
+                      setCashierIdError(null);
+                    }}
+                    maxLength={6}
+                    inputMode="numeric"
+                    type="tel"
+                    pattern="[0-9]*"
+                    autoFocus
+                    placeholder="ID"
+                  />
+                  <Button
+                    className="w-full mt-4"
+                    type="submit"
+                    disabled={enteredCashierId.length === 0}
+                  >
+                    Proceed
+                  </Button>
+                </form>
+                {cashierIdError && (
+                  <div className="text-destructive text-sm mt-2">
+                    {cashierIdError}
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            <>
+              <DialogHeader className="pb-4">
+                <DialogTitle className="text-xl font-semibold text-center">
+                  Welcome, {fetchedCashier.name}!
+                </DialogTitle>
+              </DialogHeader>
+              <div className="flex flex-col items-center my-4">
+                <div className="text-muted-foreground mb-4">
+                  ID: {fetchedCashier.id}
+                </div>
+                <Button
+                  className="w-full h-12 text-base"
+                  onClick={handleFinalizeRefund}
+                >
+                  Process Refund
+                </Button>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </>
-  )
-} 
+  );
+}

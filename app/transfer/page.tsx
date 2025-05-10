@@ -90,16 +90,31 @@ export default function TransferPage() {
     locations,
     categories,
     isLoading: locationsLoading,
+    refreshTransferData,
   } = useTransferLocations();
   const [hasMounted, setHasMounted] = useState(false);
 
-  // Use useEffect to refresh items when the component mounts
+  // Use useEffect to refresh items and locations when the component mounts
   useEffect(() => {
+    // First clear any cached locations
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("transferLocations");
+    }
+
     refreshItems();
-  }, []);
+    refreshTransferData(); // Force refresh locations to ensure we have the latest data
+  }, [refreshItems, refreshTransferData]);
+
+  // Separate effect to log locations after they've been updated
+  useEffect(() => {
+    if (locations.length > 0) {
+      console.log("Current locations available:", locations);
+    }
+  }, [locations]);
 
   const [sourceLocation, setSourceLocation] = useState<string>("");
-  const [destinationLocation, setDestinationLocation] = useState<string>("");
+  const [destinationLocation, setDestinationLocation] =
+    useState<string>("loc0"); // Default to Sanaiya (Main)
   const [generatedSales, setGeneratedSales] = useState<SaleItem[]>([]);
   const [isGeneratingLoading, setIsGeneratingLoading] = useState(false);
   const [confirmGenerateDialogOpen, setConfirmGenerateDialogOpen] =
@@ -230,43 +245,14 @@ export default function TransferPage() {
 
   return (
     <Layout>
-      <div className="space-y-6 print:hidden">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Link href="/inventory">
-              <Button variant="ghost" size="icon" className="h-8 w-8">
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-            </Link>
-            <h1 className="text-2xl font-bold">Transfer Stock</h1>
-          </div>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              className="flex items-center gap-2"
-              onClick={() => (window.location.href = "/restock-orders")}
-            >
-              <History className="h-4 w-4" />
-              <span className="hidden sm:inline">Transfer History</span>
-            </Button>
-            <Button
-              variant="outline"
-              className="flex items-center gap-2"
-              onClick={generateReceipt}
-              disabled={generatedSales.length === 0}
-            >
-              <FileText className="h-4 w-4" />
-              <span className="hidden sm:inline">Print Report</span>
-            </Button>
-          </div>
-        </div>
+      <div className="space-y-4 print:hidden">
+        {/* Title visible on desktop, laptop, and tablet but hidden on mobile */}
+        <h2 className="text-2xl font-bold mb-6 hidden sm:block">Transfers</h2>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Left Container - Location Selection */}
           <Card>
-            <CardHeader>
-              <CardTitle>Select Locations</CardTitle>
-            </CardHeader>
+            {/* CardHeader removed */}
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium">Source Location</label>
@@ -279,15 +265,20 @@ export default function TransferPage() {
                       <SelectValue placeholder="Select source location" />
                     </SelectTrigger>
                     <SelectContent>
-                      {locations.map((location) => (
-                        <SelectItem
-                          key={location.id}
-                          value={location.id}
-                          disabled={location.id === destinationLocation}
-                        >
-                          {location.name}
-                        </SelectItem>
-                      ))}
+                      {/* Only show Abu Dhurus and Hafith locations */}
+                      {locations
+                        .filter((location) => {
+                          // Only include the two branch locations we need
+                          return (
+                            location.name === "Abu Dhurus" ||
+                            location.name === "Hafith"
+                          );
+                        })
+                        .map((location) => (
+                          <SelectItem key={location.id} value={location.id}>
+                            {location.name}
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                 ) : (
@@ -300,25 +291,9 @@ export default function TransferPage() {
                   Destination Location
                 </label>
                 {hasMounted ? (
-                  <Select
-                    value={destinationLocation}
-                    onValueChange={setDestinationLocation}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select destination location" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {locations.map((location) => (
-                        <SelectItem
-                          key={location.id}
-                          value={location.id}
-                          disabled={location.id === sourceLocation}
-                        >
-                          {location.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background flex items-center">
+                    <span>Sanaiya (Main)</span>
+                  </div>
                 ) : (
                   <div className="h-10 border rounded-md w-full" /> /* Placeholder to maintain layout */
                 )}
@@ -336,9 +311,7 @@ export default function TransferPage() {
 
           {/* Right Container - Generate Sales */}
           <Card>
-            <CardHeader>
-              <CardTitle>Generate Sales Report for Refill</CardTitle>
-            </CardHeader>
+            {/* CardHeader removed */}
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium">Select Date</label>
@@ -373,10 +346,8 @@ export default function TransferPage() {
           {/* Generated sales display - full width */}
           {generatedSales.length > 0 && (
             <Card className="lg:col-span-2">
-              <CardHeader>
-                <CardTitle>Generated Sales for Refill</CardTitle>
-              </CardHeader>
-              <CardContent>
+              {/* CardHeader removed */}
+              <CardContent className="pt-6">
                 {/* Desktop view - hidden on mobile */}
                 <div className="flex-col h-[400px] hidden md:flex">
                   <div className="flex-grow overflow-auto border rounded-md">

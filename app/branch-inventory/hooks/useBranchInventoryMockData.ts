@@ -30,7 +30,7 @@ export const MOCK_BRANCHES = [
 
 // Mock branch inventory data (will show different inventory per branch)
 const MOCK_BRANCH_INVENTORY: Record<string, Item[]> = {
-  // Branch 1 (Abu Dhabi Branch)
+  // Branch 1 (Abu Dhurus)
   "1": [
     {
       id: "1",

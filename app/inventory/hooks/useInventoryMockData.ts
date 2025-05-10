@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { Item } from "@/lib/services/inventoryService";
+import { Item } from "@/lib/services/branchInventoryService";
 
 // Mock data for inventory items
 const MOCK_INVENTORY_ITEMS: Item[] = [
@@ -222,6 +222,9 @@ interface UseInventoryMockDataReturn {
   categories: string[];
   brands: string[];
   
+  // Items state setter
+  setItems: (items: Item[]) => void;
+  
   // UI states
   searchQuery: string;
   setSearchQuery: (query: string) => void;
@@ -381,6 +384,9 @@ export function useInventoryMockData(): UseInventoryMockDataReturn {
     filteredItems,
     categories: MOCK_CATEGORIES,
     brands: MOCK_BRANDS,
+    
+    // Direct state access
+    setItems,
     
     // UI states
     searchQuery,

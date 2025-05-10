@@ -4,7 +4,7 @@
 }
 
 /* Keep the top date display visible */
-.custom-date-range .rdrDateDisplay+div {
+.custom-date-range .rdrDateDisplay + div {
   display: block !important;
 }
 
@@ -14,12 +14,12 @@
 }
 
 .rdrDayDisabled {
-  background-color: hsl(var(--muted)/0.4) !important;
+  background-color: hsl(var(--muted) / 0.4) !important;
   opacity: 1 !important;
 }
 
 .rdrDayDisabled .rdrDayNumber span {
-  color: hsl(var(--muted-foreground)/0.6) !important;
+  color: hsl(var(--muted-foreground) / 0.6) !important;
 }
 
 .rdrInRange {
@@ -74,7 +74,7 @@
 }
 
 /* Ensure all text remains visible */
-.rdrDay .rdrDayNumber>span {
+.rdrDay .rdrDayNumber > span {
   color: hsl(var(--foreground)) !important;
   font-weight: 500;
 }
@@ -206,7 +206,7 @@
 }
 
 .custom-date-range .rdrPprevButton::before {
-  content: '';
+  content: "";
   width: 8px !important;
   height: 8px !important;
   border: solid hsl(var(--foreground)) !important;
@@ -217,7 +217,7 @@
 }
 
 .custom-date-range .rdrNextButton::before {
-  content: '';
+  content: "";
   width: 8px !important;
   height: 8px !important;
   border: solid hsl(var(--foreground)) !important;
@@ -274,6 +274,13 @@
   display: none !important;
 }
 
+/* Stacked price display on all screen sizes */
+#transaction-cards-container .whitespace-pre-wrap {
+  text-align: center !important;
+  line-height: 1 !important;
+  font-size: 1.1rem !important;
+}
+
 @media (max-width: 640px) {
   .custom-date-range .rdrDayNumber {
     font-size: 0.75rem !important;
@@ -314,5 +321,162 @@
 
   .custom-date-range .rdrNextButton::before {
     right: 10px !important;
+  }
+
+  /* Custom styling to stack OMR directly on top of price */
+  #transaction-cards-container .inline-block.min-w-\[80px\].text-right {
+    position: relative !important;
+    display: flex !important;
+    justify-content: center !important;
+    text-align: center !important;
+    padding-top: 15px !important;
+  }
+
+  /* Make OMR label appear on top */
+  #transaction-cards-container .inline-block.min-w-\[80px\].text-right::before {
+    content: "OMR" !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    line-height: 1 !important;
+    text-align: center !important;
+    font-size: 0.9rem !important;
+  }
+
+  /* Hide original OMR text in the string */
+  #transaction-cards-container .inline-block.min-w-\[80px\].text-right {
+    color: transparent !important;
+  }
+
+  /* Make only the number visible again */
+  #transaction-cards-container .inline-block.min-w-\[80px\].text-right::after {
+    content: attr(data-price) !important;
+    position: absolute !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    color: currentColor !important;
+    text-align: center !important;
+  }
+
+  /* Place OMR directly on top of price with line height 1.0 */
+  #transaction-cards-container .text-lg.font-semibold span.inline-block {
+    display: inline-flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    line-height: 1 !important;
+    width: 100% !important;
+    text-align: center !important;
+    padding: 0 !important;
+  }
+
+  /* Text inside the transaction cards */
+  #transaction-cards-container .text-sm {
+    font-size: clamp(0.7rem, 2.5vw, 0.875rem) !important;
+    line-height: 1 !important;
+    margin-bottom: 0.125rem !important;
+  }
+
+  /* Adjust spacing to fit content better */
+  #transaction-cards-container .space-y-1 {
+    margin-top: 0.25rem !important;
+    margin-bottom: 0.25rem !important;
+  }
+
+  /* Adjust amount text size in transaction cards */
+  #transaction-cards-container .text-lg {
+    font-size: clamp(0.9rem, 3vw, 1.125rem) !important;
+    line-height: 1.2 !important;
+  }
+
+  /* Adjust padding in expanded details */
+  #transaction-cards-container .pt-4 {
+    padding-top: 0.5rem !important;
+  }
+
+  /* Adjust gap in expanded details grid */
+  #transaction-cards-container .gap-4 {
+    gap: 0.5rem !important;
+  }
+
+  /* Reduce padding in transaction cards */
+  #transaction-cards-container .p-4 {
+    padding: 0.75rem !important;
+  }
+
+  /* Adjust space between items in transaction cards */
+  #transaction-cards-container .space-y-4 {
+    margin-top: 0.5rem !important;
+    margin-bottom: 0.5rem !important;
+  }
+
+  /* Make chevron buttons smaller */
+  #transaction-cards-container .h-8 {
+    height: 1.5rem !important;
+  }
+
+  /* Make chevron icons smaller */
+  #transaction-cards-container .h-4 {
+    height: 0.875rem !important;
+    width: 0.875rem !important;
+  }
+
+  /* Adjust gap between elements */
+  #transaction-cards-container .gap-2 {
+    gap: 0.375rem !important;
+  }
+
+  /* Ensure time displays on a single line and improve alignments */
+  #transaction-cards-container .text-muted-foreground {
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    max-width: 100% !important;
+  }
+
+  /* Improve flex layout for time information */
+  #transaction-cards-container .flex.items-center.gap-2 {
+    flex-wrap: wrap !important;
+    justify-content: flex-start !important;
+    column-gap: 0.375rem !important;
+  }
+
+  /* Center align and better spacing for card header */
+  #transaction-cards-container .flex.items-center.justify-between {
+    align-items: center !important;
+    margin-bottom: 0.25rem !important;
+  }
+
+  /* Improve vertical centering in card */
+  #transaction-cards-container .flex.items-center.justify-between {
+    min-height: 2.5rem !important;
+  }
+
+  /* Make card layout more centered */
+  #transaction-cards-container .p-4 .space-y-4 {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+  }
+
+  /* Improve spacing between cards */
+  #transaction-cards-container .grid.gap-4 {
+    gap: 0.75rem !important;
+  }
+
+  /* Ensure price text is centered and properly stacked on mobile */
+  #transaction-cards-container .text-lg.font-semibold .whitespace-pre-wrap,
+  #transaction-cards-container .text-green-500.min-w-\[80px\] {
+    text-align: center !important;
+    font-size: 1.05rem !important;
+    line-height: 1 !important;
+    white-space: pre-wrap !important;
+  }
+
+  /* Set fixed card styling for bottom total credit */
+  .fixed .text-lg,
+  .fixed .text-xl {
+    font-size: 1.15rem !important;
   }
 }

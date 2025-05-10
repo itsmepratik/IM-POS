@@ -2,6 +2,9 @@ import { useState, useMemo, useCallback } from "react";
 import { useItems, Item, BottleStates } from "./items-context";
 import { toast } from "@/components/ui/use-toast";
 
+// Define a low stock threshold value
+const LOW_STOCK_THRESHOLD = 5;
+
 export const useInventoryData = () => {
   const { items, categories, brands, deleteItem, duplicateItem } = useItems();
 
@@ -13,11 +16,30 @@ export const useInventoryData = () => {
   const [showInStock, setShowInStock] = useState(true);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
 
+  // New filter states for threshold indicators
+  const [showLowStockOnly, setShowLowStockOnly] = useState(false);
+  const [showOutOfStockOnly, setShowOutOfStockOnly] = useState(false);
+
   // Item selection for bulk actions
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
 
   // Editing modal states
   const [editingItem, setEditingItem] = useState<Item | undefined>(undefined);
+
+  // Count out of stock items
+  const outOfStockCount = useMemo(() => {
+    return items.filter((item) => (item.stock ?? 0) === 0).length;
+  }, [items]);
+
+  // Count low stock items (excluding out of stock)
+  const lowStockCount = useMemo(() => {
+    return items.filter((item) => {
+      const stock = item.stock ?? 0;
+      // Use item's lowStockAlert value if available, otherwise use default threshold
+      const threshold = item.lowStockAlert ?? LOW_STOCK_THRESHOLD;
+      return stock > 0 && stock <= threshold;
+    }).length;
+  }, [items]);
 
   // Filter items based on all filters
   const filteredItems = useMemo(() => {
@@ -51,15 +73,32 @@ export const useInventoryData = () => {
             ? item.bottleStates.open > 0
             : item.bottleStates.closed > 0));
 
-      // Stock filter
+      // Low stock filter
+      const matchesLowStock = showLowStockOnly
+        ? (item.stock ?? 0) > 0 &&
+          (item.stock ?? 0) <= (item.lowStockAlert ?? LOW_STOCK_THRESHOLD)
+        : true;
+
+      // Out of stock filter
+      const matchesOutOfStock = showOutOfStockOnly
+        ? (item.stock ?? 0) === 0
+        : true;
+
+      // Stock filter (only used when not filtering by low/out of stock)
       const matchesStock = !showInStock || (item.stock ?? 0) > 0;
+
+      // Determine which stock filter to apply
+      const stockFilterToApply =
+        showLowStockOnly || showOutOfStockOnly
+          ? matchesLowStock && matchesOutOfStock
+          : matchesStock;
 
       return (
         matchesSearch &&
         matchesCategory &&
         matchesBrand &&
         matchesBottleState &&
-        matchesStock
+        stockFilterToApply
       );
     });
   }, [
@@ -69,6 +108,8 @@ export const useInventoryData = () => {
     selectedBrand,
     selectedBottleState,
     showInStock,
+    showLowStockOnly,
+    showOutOfStockOnly,
   ]);
 
   // Reset all filters
@@ -78,6 +119,8 @@ export const useInventoryData = () => {
     setSelectedBrand("all");
     setSelectedBottleState("all");
     setShowInStock(true);
+    setShowLowStockOnly(false);
+    setShowOutOfStockOnly(false);
   }, []);
 
   // Handle item selection
@@ -186,6 +229,12 @@ export const useInventoryData = () => {
     setIsFiltersOpen,
     resetFilters,
 
+    // New filter states
+    showLowStockOnly,
+    setShowLowStockOnly,
+    showOutOfStockOnly,
+    setShowOutOfStockOnly,
+
     // Selection states
     selectedItems,
     setSelectedItems,
@@ -201,5 +250,9 @@ export const useInventoryData = () => {
     handleAddItem,
     handleDelete,
     handleDuplicate,
+
+    // Counts
+    outOfStockCount,
+    lowStockCount,
   };
 };

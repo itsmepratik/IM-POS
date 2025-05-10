@@ -103,7 +103,7 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
     imageUrl: "",
     imageBlob: "",
     notes: "",
-    lowStockAlert: 10,
+    lowStockAlert: 5,
     isOil: item?.is_oil || false,
     bottleStates: item?.bottleStates || { open: 0, closed: 0 },
     volumes: item?.volumes || [],
@@ -167,7 +167,7 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
         imageUrl: item.image_url || item.imageUrl || "",
         imageBlob: "",
         notes: item.description || item.notes || "",
-        lowStockAlert: 10, // Default value
+        lowStockAlert: item.lowStockAlert || 5, // Use value from item or default to 5
         isOil: item.is_oil || item.isOil || false,
         bottleStates: item.bottleStates || { open: 0, closed: 0 },
         volumes: item.volumes || [],
@@ -210,7 +210,7 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
         imageUrl: "",
         imageBlob: "",
         notes: "",
-        lowStockAlert: 10,
+        lowStockAlert: 5,
         isOil: false,
         bottleStates: { open: 0, closed: 0 },
         volumes: [],
@@ -355,6 +355,8 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
       sku: updatedFormData.sku || null,
       category_id: updatedFormData.category_id,
       brand_id: updatedFormData.brand_id,
+      // Add low stock threshold
+      lowStockAlert: updatedFormData.lowStockAlert || 5,
       // Required fields for a valid Item
       created_at: updatedFormData.created_at || null,
       updated_at: updatedFormData.updated_at || null,
@@ -858,15 +860,24 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
                                       units
                                     </p>
                                   )}
-                                {formData.isOil && (
-                                  <p className="text-xs text-muted-foreground mt-1">
-                                    Stock is automatically calculated from open
-                                    and closed bottles:{" "}
-                                    {(formData.bottleStates?.open || 0) +
-                                      (formData.bottleStates?.closed || 0)}{" "}
-                                    units
-                                  </p>
-                                )}
+                              </div>
+                              <div>
+                                <Label htmlFor="lowStockThreshold">
+                                  Low Stock Threshold
+                                </Label>
+                                <Input
+                                  id="lowStockThreshold"
+                                  type="number"
+                                  min="0"
+                                  value={formData.lowStockAlert || 5}
+                                  onChange={(e) =>
+                                    setFormData({
+                                      ...formData,
+                                      lowStockAlert:
+                                        parseInt(e.target.value) || 0,
+                                    })
+                                  }
+                                />
                               </div>
                               <div>
                                 <Label htmlFor="type">Type</Label>

@@ -36,6 +36,7 @@ import {
   Trash2,
   FolderGit2,
   AlertCircle,
+  PackageX,
 } from "lucide-react";
 import { ItemsProvider, useItems, type Item } from "./items-context";
 import { ItemModal } from "./item-modal";
@@ -66,6 +67,7 @@ import ReceiveModal from "./receive-modal";
 import BrandModal from "./brand-modal";
 import ExportButton from "./export-button";
 import Link from "next/link";
+import { StockIndicator } from "./components/stock-indicator";
 
 // Client-side only component wrapper to prevent hydration mismatch
 const ClientOnly = ({ children }: { children: React.ReactNode }) => {
@@ -203,37 +205,12 @@ const MobileItemCard = memo(
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="text-sm text-muted-foreground">Stock:</span>
-                <span className="font-medium">{item.stock}</span>
+                <span className="font-medium">{item.stock ?? 0}</span>
               </div>
               <div className="text-base font-medium text-primary">
                 OMR {item.price.toFixed(2)}
               </div>
             </div>
-
-            {/* Batch info */}
-            {batchCount > 0 && (
-              <div className="flex items-center justify-between text-sm">
-                <div className="flex items-center gap-1">
-                  <Box className="h-3.5 w-3.5 text-muted-foreground" />
-                  <span className="text-muted-foreground">Batches:</span>
-                  <span className="font-medium">{batchCount}</span>
-                </div>
-                {margin !== null && (
-                  <div
-                    className={`flex items-center gap-1 ${
-                      margin < 15
-                        ? "text-destructive"
-                        : margin < 25
-                        ? "text-yellow-600"
-                        : "text-green-600"
-                    }`}
-                  >
-                    <Percent className="h-3.5 w-3.5" />
-                    <span className="font-medium">{margin}%</span>
-                  </div>
-                )}
-              </div>
-            )}
 
             {item.sku && (
               <div className="text-sm text-muted-foreground">
@@ -241,154 +218,143 @@ const MobileItemCard = memo(
               </div>
             )}
 
-            <Button
-              variant="ghost"
-              className="w-full justify-start p-0 h-auto text-sm text-muted-foreground hover:text-foreground"
-              onClick={() => setShowDetails(!showDetails)}
-            >
-              {showDetails ? "Less details" : "More details"}
-            </Button>
-
             {showDetails && (
-              <div className="pt-2 space-y-3">
-                {item.description && (
-                  <div className="text-sm">
-                    <span className="font-medium">Description:</span>
-                    <p className="text-muted-foreground mt-1">
-                      {item.description}
-                    </p>
+              <>
+                <div className="mt-3 pt-3 border-t">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="text-sm font-medium">Details</div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2 text-xs"
+                      onClick={() => setShowDetails(false)}
+                    >
+                      Hide
+                    </Button>
                   </div>
-                )}
 
-                {/* Cost information */}
-                {batchCount > 0 && avgCost > 0 && (
-                  <div className="border-t pt-2">
-                    <h4 className="text-sm font-medium mb-2">Cost & Margin</h4>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="flex flex-col p-2 rounded-md border">
-                        <span className="text-xs text-muted-foreground">
-                          Avg. Cost Price:
+                  <div className="space-y-2 text-sm">
+                    {avgCost > 0 && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Avg Cost:</span>
+                        <span>OMR {avgCost.toFixed(2)}</span>
+                      </div>
+                    )}
+
+                    {margin !== null && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Margin:</span>
+                        <span
+                          className={
+                            margin < 30 ? "text-red-500" : "text-green-500"
+                          }
+                        >
+                          {margin.toFixed(1)}%
                         </span>
-                        <div className="flex items-center mt-1">
-                          <DollarSign className="h-3.5 w-3.5 text-muted-foreground mr-1" />
-                          <span className="font-medium">
-                            OMR {avgCost.toFixed(2)}
-                          </span>
+                      </div>
+                    )}
+
+                    {batchCount > 0 && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Batches:</span>
+                        <span>{batchCount}</span>
+                      </div>
+                    )}
+
+                    {item.volumes && item.volumes.length > 0 && (
+                      <div className="mt-2">
+                        <div className="text-muted-foreground mb-1">
+                          Volumes:
+                        </div>
+                        <div className="grid gap-1">
+                          {item.volumes.map(
+                            (
+                              volume: { size: string; price: number },
+                              index: number
+                            ) => (
+                              <div
+                                key={index}
+                                className="flex justify-between text-xs"
+                              >
+                                <span>{volume.size}</span>
+                                <span>OMR {volume.price.toFixed(2)}</span>
+                              </div>
+                            )
+                          )}
                         </div>
                       </div>
-                      <div className="flex flex-col p-2 rounded-md border">
-                        <span className="text-xs text-muted-foreground">
-                          Profit Margin:
-                        </span>
-                        <div
-                          className={`flex items-center mt-1 ${
-                            margin < 15
-                              ? "text-destructive"
-                              : margin < 25
-                              ? "text-yellow-600"
-                              : "text-green-600"
-                          }`}
-                        >
-                          <Percent className="h-3.5 w-3.5 mr-1" />
-                          <span className="font-medium">{margin}%</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
+                    )}
 
-                {item.isOil && item.volumes && item.volumes.length > 0 && (
-                  <div className="space-y-2">
-                    <span className="text-sm font-medium">
-                      Available Volumes:
-                    </span>
-                    <div className="grid grid-cols-2 gap-2">
-                      {item.volumes.map((volume, index) => (
-                        <div
-                          key={index}
-                          className="flex items-center justify-between p-2 rounded-md border text-sm"
-                        >
-                          <span>{volume.size}</span>
-                          <span className="font-medium">
-                            OMR {volume.price.toFixed(2)}
-                          </span>
+                    {item.batches && item.batches.length > 0 && (
+                      <div className="mt-2">
+                        <div className="text-muted-foreground mb-1">
+                          Batch Details (FIFO):
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Batches summary */}
-                {batchCount > 0 && (
-                  <div className="border-t pt-2">
-                    <h4 className="text-sm font-medium mb-2">Batch Summary</h4>
-                    <div className="space-y-2">
-                      {item.batches.slice(0, 3).map((batch, index) => (
-                        <div
-                          key={batch.id}
-                          className="flex justify-between items-center p-2 rounded-md border text-sm"
-                        >
-                          <div className="flex flex-col">
-                            <span className="text-xs text-muted-foreground">
-                              Purchase: {batch.purchaseDate}
-                            </span>
-                            <span>Qty: {batch.quantity}</span>
-                            <span className="text-xs text-muted-foreground">
-                              {getBatchFifoPosition(index, item.batches.length)}
-                            </span>
-                          </div>
-                          <div className="text-right">
-                            <span className="text-xs text-muted-foreground">
-                              Cost:
-                            </span>
-                            <div className="font-medium">
-                              OMR {batch.costPrice.toFixed(2)}
+                        <div className="grid gap-1">
+                          {item.batches.map((batch: any, index: number) => (
+                            <div
+                              key={index}
+                              className="flex justify-between text-xs"
+                            >
+                              <span>
+                                {batch.purchase_date.substring(0, 10)} (
+                                {batch.current_quantity}/
+                                {batch.initial_quantity})
+                              </span>
+                              <span>
+                                {getBatchFifoPosition(
+                                  index,
+                                  item.batches?.length || 0
+                                )}
+                              </span>
                             </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {item.isOil && item.bottleStates && (
+                      <div className="mt-2">
+                        <div className="text-muted-foreground mb-1">
+                          Inventory:
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="flex items-center justify-between p-1.5 rounded-md bg-red-50 border border-red-200">
+                            <span className="text-xs text-red-800 flex items-center gap-1">
+                              <OpenBottleIcon className="h-3 w-3" />
+                              Open:
+                            </span>
+                            <span className="font-medium text-red-800">
+                              {item.bottleStates.open}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between p-1.5 rounded-md bg-green-50 border border-green-200">
+                            <span className="text-xs font-medium text-green-800 flex items-center gap-1">
+                              <ClosedBottleIcon className="h-3 w-3" />
+                              Closed:
+                            </span>
+                            <span className="font-medium text-green-800">
+                              {item.bottleStates.closed}
+                            </span>
                           </div>
                         </div>
-                      ))}
-                      {batchCount > 3 && (
-                        <Button
-                          variant="ghost"
-                          className="w-full text-xs h-7"
-                          onClick={() => onEdit(item)}
-                        >
-                          View all {batchCount} batches
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {item.isOil && item.bottleStates && (
-                  <div className="mt-2 border-t pt-2">
-                    <h4 className="text-sm font-medium mb-1">
-                      Bottle Inventory
-                    </h4>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="flex items-center justify-between p-2 rounded-md bg-red-50 border border-red-200">
-                        <span className="text-sm text-red-800 flex items-center gap-1">
-                          <OpenBottleIcon className="h-3 w-3" />
-                          Open Bottles:
-                        </span>
-                        <span className="font-medium text-red-800">
-                          {item.bottleStates.open}
-                        </span>
                       </div>
-                      <div className="flex items-center justify-between p-2 rounded-md bg-green-50 border border-green-200">
-                        <span className="text-sm font-medium text-green-800 flex items-center gap-1">
-                          <ClosedBottleIcon className="h-3 w-3" />
-                          Closed Bottles:
-                        </span>
-                        <span className="font-bold text-green-800">
-                          {item.bottleStates.closed}
-                        </span>
-                      </div>
-                    </div>
+                    )}
                   </div>
-                )}
-              </div>
+                </div>
+              </>
             )}
+
+            <div className="flex justify-end pt-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs"
+                onClick={() => setShowDetails(!showDetails)}
+              >
+                {showDetails ? "Hide Details" : "Show Details"}
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -578,6 +544,12 @@ function MobileView() {
     showInStock,
     setShowInStock,
 
+    // Stock threshold states
+    showLowStockOnly,
+    setShowLowStockOnly,
+    showOutOfStockOnly,
+    setShowOutOfStockOnly,
+
     editingItem,
     setEditingItem,
 
@@ -585,12 +557,17 @@ function MobileView() {
     handleAddItem,
     handleDelete,
     handleDuplicate,
+
+    // Counts
+    outOfStockCount,
+    lowStockCount,
   } = useInventoryData();
 
   const [itemModalOpen, setItemModalOpen] = useState(false);
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
   const [brandModalOpen, setBrandModalOpen] = useState(false);
   const [navigationOpen, setNavigationOpen] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   // Open item modal for adding new item
   const openAddItemModal = () => {
@@ -612,158 +589,188 @@ function MobileView() {
     }
   };
 
+  // Handle low stock click
+  const handleLowStockClick = () => {
+    setShowLowStockOnly((prev) => !prev);
+    if (!showLowStockOnly) {
+      setShowOutOfStockOnly(false);
+      setShowInStock(false);
+    } else {
+      setShowInStock(true);
+    }
+  };
+
+  // Handle out of stock click
+  const handleOutOfStockClick = () => {
+    setShowOutOfStockOnly((prev) => !prev);
+    if (!showOutOfStockOnly) {
+      setShowLowStockOnly(false);
+      setShowInStock(false);
+    } else {
+      setShowInStock(true);
+    }
+  };
+
   return (
-    <div className="space-y-4">
-      <div className="mb-4 flex flex-col gap-4">
-        <div className="flex items-center justify-between">
-          <div className="flex flex-grow items-center gap-2">
-            <Sheet open={navigationOpen} onOpenChange={setNavigationOpen}>
-              <SheetTrigger asChild>
-                <Button variant="outline" size="icon" className="md:hidden">
-                  <Menu className="h-4 w-4" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="left" className="p-0 pt-10">
-                <nav className="grid gap-2 p-4">
-                  <Link
-                    href="/inventory"
-                    className="text-lg font-semibold text-primary"
-                  >
-                    Inventory
-                  </Link>
-                  <Link
-                    href="/pos"
-                    className="text-lg font-medium text-muted-foreground"
-                  >
-                    POS
-                  </Link>
-                  <Link
-                    href="/reports"
-                    className="text-lg font-medium text-muted-foreground"
-                  >
-                    Reports
-                  </Link>
-                </nav>
-              </SheetContent>
-            </Sheet>
+    <div className="space-y-4 -mt-4">
+      <div className="mb-2 flex flex-col gap-4">
+        {/* Search bar and stock indicators */}
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="search"
+              placeholder="Search..."
+              className="w-full pl-9"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
           </div>
+          <StockIndicator
+            lowStockCount={lowStockCount}
+            outOfStockCount={outOfStockCount}
+            onLowStockClick={handleLowStockClick}
+            onOutOfStockClick={handleOutOfStockClick}
+          />
+        </div>
+
+        {/* Buttons row below search */}
+        <div className="flex items-center gap-2 justify-between">
           <div className="flex items-center gap-2">
             <Button onClick={openAddItemModal} size="sm">
               <Plus className="h-4 w-4 mr-1" />
               Add
             </Button>
+            <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
+              <SheetTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Menu className="h-4 w-4 mr-1" />
+                  Filters
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-[280px] sm:w-[380px]">
+                <SheetHeader>
+                  <SheetTitle>Filters</SheetTitle>
+                </SheetHeader>
+                <div className="py-4 space-y-4">
+                  <div className="space-y-4">
+                    <h3 className="text-sm font-medium">Categories</h3>
+                    <ClientOnly>
+                      <Select
+                        value={selectedCategory}
+                        onValueChange={setSelectedCategory}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="All Categories" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Categories</SelectItem>
+                          {categories.map((category) => (
+                            <SelectItem key={category} value={category}>
+                              {category}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </ClientOnly>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setCategoryModalOpen(true);
+                        setFiltersOpen(false);
+                      }}
+                      className="w-full"
+                    >
+                      Manage Categories
+                    </Button>
+                  </div>
+
+                  <div className="space-y-4 pt-2">
+                    <h3 className="text-sm font-medium">Brands</h3>
+                    <ClientOnly>
+                      <Select
+                        value={selectedBrand}
+                        onValueChange={setSelectedBrand}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="All Brands" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Brands</SelectItem>
+                          <SelectItem value="none">No Brand</SelectItem>
+                          {brands.map((brand) => (
+                            <SelectItem key={brand} value={brand}>
+                              {brand}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </ClientOnly>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setBrandModalOpen(true);
+                        setFiltersOpen(false);
+                      }}
+                      className="w-full"
+                    >
+                      Manage Brands
+                    </Button>
+                  </div>
+
+                  <div className="flex items-center space-x-2 pt-2">
+                    <label
+                      htmlFor="mobileShowInStock"
+                      className="text-sm font-medium flex-1"
+                    >
+                      Show in-stock only
+                    </label>
+                    <ClientOnly>
+                      <Checkbox
+                        id="mobileShowInStock"
+                        checked={showInStock}
+                        onCheckedChange={(checked) => {
+                          setShowInStock(!!checked);
+                          if (checked) {
+                            setShowLowStockOnly(false);
+                            setShowOutOfStockOnly(false);
+                          }
+                        }}
+                      />
+                    </ClientOnly>
+                  </div>
+                </div>
+              </SheetContent>
+            </Sheet>
           </div>
+          <ExportButton items={filteredItems} />
         </div>
 
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full">
-            <div className="flex-1 relative w-full min-w-[200px]">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="search"
-                placeholder="Search items..."
-                className="w-full pl-9"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-
-            <div className="flex items-center gap-2">
-              <ExportButton
-                className="sm:hidden"
-                data={filteredItems.map((item) => ({
-                  ...item,
-                  category: item.category || "Uncategorized",
-                  brand: item.brand || "No Brand",
-                }))}
-                filename="inventory_export.csv"
-              />
-            </div>
+        <div className="flex items-center gap-2">
+          <div className="text-sm text-muted-foreground">
+            {filteredItems.length}{" "}
+            {filteredItems.length === 1 ? "item" : "items"} found
           </div>
-
-          <div className="sm:flex-1 flex items-center justify-between gap-4 mt-4 sm:mt-0">
-            <div className="flex-1 flex justify-end gap-2">
-              <ExportButton
-                className="hidden sm:flex"
-                data={filteredItems.map((item) => ({
-                  ...item,
-                  category: item.category || "Uncategorized",
-                  brand: item.brand || "No Brand",
-                }))}
-                filename="inventory_export.csv"
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className="flex gap-2 justify-between">
-          <div className="grid grid-cols-2 gap-2 flex-grow">
-            <ClientOnly>
-              <Select
-                value={selectedCategory}
-                onValueChange={setSelectedCategory}
-              >
-                <SelectTrigger className="text-sm">
-                  <SelectValue placeholder="All Categories" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Categories</SelectItem>
-                  {categories.map((category) => (
-                    <SelectItem key={category} value={category}>
-                      {category}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </ClientOnly>
-            <ClientOnly>
-              <Select value={selectedBrand} onValueChange={setSelectedBrand}>
-                <SelectTrigger className="text-sm">
-                  <SelectValue placeholder="All Brands" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Brands</SelectItem>
-                  <SelectItem value="none">No Brand</SelectItem>
-                  {brands.map((brand) => (
-                    <SelectItem key={brand} value={brand}>
-                      {brand}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </ClientOnly>
-          </div>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setCategoryModalOpen(true)}
-            className="whitespace-nowrap"
-          >
-            Manage Categories
-          </Button>
-        </div>
-
-        <div className="flex justify-between items-center">
-          <div className="flex gap-2 items-center">
-            <label htmlFor="mobileShowInStock" className="text-sm font-medium">
-              In-stock only
-            </label>
-            <ClientOnly>
-              <Checkbox
-                id="mobileShowInStock"
-                checked={showInStock}
-                onCheckedChange={(checked) => setShowInStock(!!checked)}
-              />
-            </ClientOnly>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setBrandModalOpen(true)}
-          >
-            Manage Brands
-          </Button>
+          {showLowStockOnly && (
+            <Badge
+              variant="outline"
+              className="bg-amber-100 border-amber-300 text-amber-700 text-xs flex items-center gap-1"
+            >
+              <AlertCircle className="h-3 w-3" />
+              Low Stock
+            </Badge>
+          )}
+          {showOutOfStockOnly && (
+            <Badge
+              variant="outline"
+              className="bg-red-100 border-red-300 text-red-700 text-xs flex items-center gap-1"
+            >
+              <PackageX className="h-3 w-3" />
+              Out of Stock
+            </Badge>
+          )}
         </div>
       </div>
 
@@ -812,6 +819,13 @@ function DesktopView() {
     setSelectedBrand,
     showInStock,
     setShowInStock,
+
+    // Stock threshold states
+    showLowStockOnly,
+    setShowLowStockOnly,
+    showOutOfStockOnly,
+    setShowOutOfStockOnly,
+
     selectedItems,
     toggleItemSelection,
     toggleAllSelection,
@@ -823,6 +837,10 @@ function DesktopView() {
     handleAddItem,
     handleDelete,
     handleDuplicate,
+
+    // Counts
+    outOfStockCount,
+    lowStockCount,
   } = useInventoryData();
 
   const [itemModalOpen, setItemModalOpen] = useState(false);
@@ -849,24 +867,55 @@ function DesktopView() {
     }
   };
 
+  // Handle low stock click
+  const handleLowStockClick = () => {
+    setShowLowStockOnly((prev) => !prev);
+    if (!showLowStockOnly) {
+      setShowOutOfStockOnly(false);
+      setShowInStock(false);
+    } else {
+      setShowInStock(true);
+    }
+  };
+
+  // Handle out of stock click
+  const handleOutOfStockClick = () => {
+    setShowOutOfStockOnly((prev) => !prev);
+    if (!showOutOfStockOnly) {
+      setShowLowStockOnly(false);
+      setShowInStock(false);
+    } else {
+      setShowInStock(true);
+    }
+  };
+
   const areAllSelected =
     selectedItems.length === filteredItems.length && filteredItems.length > 0;
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-2">
-        <div className="relative flex-grow max-w-md">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <ClientOnly>
-            <Input
-              type="search"
-              placeholder="Search items..."
-              className="pl-9"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </ClientOnly>
+        <div className="flex items-center gap-2">
+          <div className="relative w-60">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <ClientOnly>
+              <Input
+                type="search"
+                placeholder="Search items..."
+                className="pl-9"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </ClientOnly>
+          </div>
+          <StockIndicator
+            lowStockCount={lowStockCount}
+            outOfStockCount={outOfStockCount}
+            onLowStockClick={handleLowStockClick}
+            onOutOfStockClick={handleOutOfStockClick}
+          />
         </div>
+
         <div className="flex items-center gap-2">
           <ClientOnly>
             <Select
@@ -930,10 +979,34 @@ function DesktopView() {
             <Checkbox
               id="showInStock"
               checked={showInStock}
-              onCheckedChange={(checked) => setShowInStock(!!checked)}
+              onCheckedChange={(checked) => {
+                setShowInStock(!!checked);
+                if (checked) {
+                  setShowLowStockOnly(false);
+                  setShowOutOfStockOnly(false);
+                }
+              }}
             />
           </ClientOnly>
         </div>
+        {showLowStockOnly && (
+          <Badge
+            variant="outline"
+            className="bg-amber-100 border-amber-300 text-amber-700 flex items-center gap-1"
+          >
+            <AlertCircle className="h-3 w-3" />
+            Low Stock Only
+          </Badge>
+        )}
+        {showOutOfStockOnly && (
+          <Badge
+            variant="outline"
+            className="bg-red-100 border-red-300 text-red-700 flex items-center gap-1"
+          >
+            <PackageX className="h-3 w-3" />
+            Out of Stock Only
+          </Badge>
+        )}
       </div>
 
       <div className="rounded-md border bg-white overflow-hidden">
@@ -1039,30 +1112,11 @@ function ItemsPageContent() {
 
   return (
     <div className="w-full space-y-6">
-      <PageHeader>Main Inventory</PageHeader>
       <div className="hidden md:block">
         <DesktopView />
       </div>
       <div className="block md:hidden">
         <MobileView />
-      </div>
-      <div className="flex items-center space-x-2">
-        <Link href="/inventory/branch">
-          <Button variant="outline" size="sm">
-            <FolderGit2 className="h-4 w-4 mr-1" />
-            Branch Inventory
-          </Button>
-        </Link>
-        <Link href="/inventory/debug-oil">
-          <Button
-            variant="outline"
-            size="sm"
-            className="text-amber-500 border-amber-500 hover:bg-amber-50"
-          >
-            <AlertCircle className="h-4 w-4 mr-1" />
-            Debug Oil Products
-          </Button>
-        </Link>
       </div>
     </div>
   );

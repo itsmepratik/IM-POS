@@ -57,6 +57,12 @@ import {
 import { OpenBottleIcon, ClosedBottleIcon } from "@/components/ui/bottle-icons";
 import BrandModal from "../inventory/brand-modal";
 import { useBranchInventoryMockData } from "./hooks/useBranchInventoryMockData";
+import {
+  useAbuDhabiInventory,
+  ABU_DHABI_BRANCH,
+} from "./hooks/useAbuDhabiInventory";
+import { useHafithInventory, HAFITH_BRANCH } from "./hooks/useHafithInventory";
+import { StockIndicator } from "../inventory/components/stock-indicator";
 
 // Define volume type
 interface Volume {
@@ -194,75 +200,88 @@ const MobileItemCard = memo(
               </div>
             )}
 
-            <Button
-              variant="ghost"
-              className="w-full justify-start p-0 h-auto text-sm text-muted-foreground hover:text-foreground"
-              onClick={() => setShowDetails(!showDetails)}
-            >
-              {showDetails ? "Less details" : "More details"}
-            </Button>
-
             {showDetails && (
-              <div className="pt-2 space-y-3">
-                {item.description && (
-                  <div className="text-sm">
-                    <span className="font-medium">Description:</span>
-                    <p className="text-muted-foreground mt-1">
-                      {item.description}
-                    </p>
-                  </div>
-                )}
+              <div className="mt-3 pt-3 border-t">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-sm font-medium">Details</div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-xs"
+                    onClick={() => setShowDetails(false)}
+                  >
+                    Hide
+                  </Button>
+                </div>
 
-                {item.isOil && item.volumes && item.volumes.length > 0 && (
-                  <div className="space-y-2">
-                    <span className="text-sm font-medium">
-                      Available Volumes:
-                    </span>
-                    <div className="grid grid-cols-2 gap-2">
-                      {item.volumes.map((volume: Volume, index: number) => (
-                        <div
-                          key={index}
-                          className="flex items-center justify-between p-2 rounded-md border text-sm"
-                        >
-                          <span>{volume.size}</span>
-                          <span className="font-medium">
-                            OMR {volume.price.toFixed(2)}
+                <div className="space-y-2 text-sm">
+                  {item.description && (
+                    <div className="text-sm mb-2">
+                      <span className="text-muted-foreground">
+                        Description:
+                      </span>
+                      <p className="mt-1">{item.description}</p>
+                    </div>
+                  )}
+
+                  {item.isOil && item.volumes && item.volumes.length > 0 && (
+                    <div className="mt-2">
+                      <div className="text-muted-foreground mb-1">Volumes:</div>
+                      <div className="grid gap-1">
+                        {item.volumes.map((volume: Volume, index: number) => (
+                          <div
+                            key={index}
+                            className="flex justify-between text-xs"
+                          >
+                            <span>{volume.size}</span>
+                            <span>OMR {volume.price.toFixed(2)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {item.isOil && item.bottleStates && (
+                    <div className="mt-2">
+                      <div className="text-muted-foreground mb-1">
+                        Inventory:
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="flex items-center justify-between p-1.5 rounded-md bg-red-50 border border-red-200">
+                          <span className="text-xs text-red-800 flex items-center gap-1">
+                            <OpenBottleIcon className="h-3 w-3" />
+                            Open:
+                          </span>
+                          <span className="font-medium text-red-800">
+                            {item.bottleStates.open}
                           </span>
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {item.isOil && item.bottleStates && (
-                  <div className="mt-2 border-t pt-2">
-                    <h4 className="text-sm font-medium mb-1">
-                      Bottle Inventory
-                    </h4>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="flex items-center justify-between p-2 rounded-md bg-red-50 border border-red-200">
-                        <span className="text-sm text-red-800 flex items-center gap-1">
-                          <OpenBottleIcon className="h-3 w-3" />
-                          Open Bottles:
-                        </span>
-                        <span className="font-medium text-red-800">
-                          {item.bottleStates.open}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between p-2 rounded-md bg-green-50 border border-green-200">
-                        <span className="text-sm font-medium text-green-800 flex items-center gap-1">
-                          <ClosedBottleIcon className="h-3 w-3" />
-                          Closed Bottles:
-                        </span>
-                        <span className="font-bold text-green-800">
-                          {item.bottleStates.closed}
-                        </span>
+                        <div className="flex items-center justify-between p-1.5 rounded-md bg-green-50 border border-green-200">
+                          <span className="text-xs font-medium text-green-800 flex items-center gap-1">
+                            <ClosedBottleIcon className="h-3 w-3" />
+                            Closed:
+                          </span>
+                          <span className="font-medium text-green-800">
+                            {item.bottleStates.closed}
+                          </span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             )}
+
+            <div className="flex justify-end pt-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs"
+                onClick={() => setShowDetails(!showDetails)}
+              >
+                {showDetails ? "Hide Details" : "Show Details"}
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -276,176 +295,198 @@ function MobileView({
   isLoading,
   selectedBranch,
   handleDeleteItem,
+  onBranchChange,
 }: {
   items: Item[];
   isLoading: boolean;
-  selectedBranch: Branch | null;
+  selectedBranch: typeof ABU_DHABI_BRANCH | typeof HAFITH_BRANCH;
   handleDeleteItem: (id: string) => Promise<void>;
+  onBranchChange: (branchId: string) => void;
 }) {
-  const {
-    categories,
-    brands,
-    searchQuery,
-    setSearchQuery,
-    selectedCategory,
-    setSelectedCategory,
-    showLowStock,
-    setShowLowStock,
-    isModalOpen,
-    setIsModalOpen,
-    isCategoryModalOpen,
-    setIsCategoryModalOpen,
-    isBrandModalOpen,
-    setIsBrandModalOpen,
-    editingItem,
-    setEditingItem,
-    filteredItems,
-    handleEdit,
-    branches,
-    selectedBranch: hookSelectedBranch,
-    setSelectedBranch,
-    resetFilters,
-  } = useBranchInventoryMockData();
+  const [itemModalOpen, setItemModalOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<Item | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showLowStockOnly, setShowLowStockOnly] = useState(false);
+  const [showOutOfStockOnly, setShowOutOfStockOnly] = useState(false);
+  const [branchId, setBranchId] = useState(selectedBranch.id);
 
-  // Function to handle adding a new item
+  // Get available branches
+  const branches = [ABU_DHABI_BRANCH, HAFITH_BRANCH];
+
+  // Update the branch ID when selectedBranch changes
+  useEffect(() => {
+    setBranchId(selectedBranch.id);
+  }, [selectedBranch]);
+
+  // Count out of stock items
+  const outOfStockCount = useMemo(() => {
+    return items.filter((item) => (item.stock ?? 0) === 0).length;
+  }, [items]);
+
+  // Count low stock items (excluding out of stock)
+  const lowStockCount = useMemo(() => {
+    return items.filter((item) => {
+      const stock = item.stock ?? 0;
+      // Use item's lowStockAlert value if available, otherwise use default threshold of 5
+      const threshold = item.lowStockAlert ?? 5;
+      return stock > 0 && stock <= threshold;
+    }).length;
+  }, [items]);
+
+  // Filter items based on search and stock filters
+  const filteredItems = useMemo(() => {
+    return items.filter((item) => {
+      // Search filter
+      const matchesSearch =
+        searchQuery === "" ||
+        item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (item.brand &&
+          item.brand.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (item.sku &&
+          item.sku.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (item.category &&
+          item.category.toLowerCase().includes(searchQuery.toLowerCase()));
+
+      // Low stock filter
+      const matchesLowStock = showLowStockOnly
+        ? (item.stock ?? 0) > 0 &&
+          (item.stock ?? 0) <= (item.lowStockAlert ?? 5)
+        : true;
+
+      // Out of stock filter
+      const matchesOutOfStock = showOutOfStockOnly
+        ? (item.stock ?? 0) === 0
+        : true;
+
+      return (
+        matchesSearch &&
+        (showLowStockOnly || showOutOfStockOnly
+          ? matchesLowStock && matchesOutOfStock
+          : true)
+      );
+    });
+  }, [items, searchQuery, showLowStockOnly, showOutOfStockOnly]);
+
   const handleAddItem = () => {
     setEditingItem(null);
-    setIsModalOpen(true);
+    setItemModalOpen(true);
+  };
+
+  const handleEditItem = (item: Item) => {
+    setEditingItem(item);
+    setItemModalOpen(true);
+  };
+
+  const handleLowStockClick = () => {
+    setShowOutOfStockOnly(false);
+    setShowLowStockOnly(!showLowStockOnly);
+  };
+
+  const handleOutOfStockClick = () => {
+    setShowLowStockOnly(false);
+    setShowOutOfStockOnly(!showOutOfStockOnly);
+  };
+
+  const handleBranchChange = (branchId: string) => {
+    setBranchId(branchId);
+    onBranchChange(branchId);
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col gap-3">
-        <div className="flex items-center justify-between">
-          <div className="w-full">
-            <Select
-              value={hookSelectedBranch?.id || ""}
-              onValueChange={(value) => {
-                const branch = branches.find((b) => b.id === value);
-                if (branch) setSelectedBranch(branch);
-              }}
-            >
-              <SelectTrigger className="w-full rounded-full bg-primary/10">
-                <div className="flex items-center gap-2">
-                  <Store className="h-4 w-4 text-muted-foreground" />
-                  <SelectValue placeholder="Select Branch" />
-                </div>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="1">Abu Dhabi Branch</SelectItem>
-                <SelectItem value="2">Hafeet Branch</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        <div className="relative">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="Search items..."
-            className="pl-9"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-
-        <div className="flex items-center gap-3">
-          <div className="flex-1">
-            <Select
-              value={selectedCategory}
-              onValueChange={setSelectedCategory}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="All Categories" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="All">All Categories</SelectItem>
-                {categories.map((category) => (
-                  <SelectItem key={category} value={category}>
-                    {category}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button variant="outline" size="icon">
-                <Menu className="h-4 w-4" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="right">
-              <SheetHeader>
-                <SheetTitle>Filters</SheetTitle>
-              </SheetHeader>
-              <div className="py-4 space-y-4">
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="lowStock"
-                    checked={showLowStock}
-                    onCheckedChange={(checked) => setShowLowStock(!!checked)}
-                  />
-                  <Label htmlFor="lowStock">Show low stock only</Label>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="font-medium">Categories</div>
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start"
-                    onClick={() => setIsCategoryModalOpen(true)}
-                  >
-                    Manage Categories
-                  </Button>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="font-medium">Brands</div>
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start"
-                    onClick={() => setIsBrandModalOpen(true)}
-                  >
-                    Manage Brands
-                  </Button>
-                </div>
-
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={resetFilters}
-                >
-                  Reset Filters
-                </Button>
+    <div className="space-y-4 -mt-4 pt-4">
+      <div className="mb-2 flex flex-col gap-4">
+        {/* Branch selector dropdown */}
+        <div>
+          <Select value={branchId} onValueChange={handleBranchChange}>
+            <SelectTrigger className="w-full rounded-full bg-primary/10">
+              <div className="flex items-center gap-2">
+                <Store className="h-4 w-4 text-muted-foreground" />
+                <SelectValue placeholder="Select Branch" />
               </div>
-            </SheetContent>
-          </Sheet>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="1">Abu Dhurus</SelectItem>
+              <SelectItem value="2">Hafeet Branch</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
 
-          <Button onClick={handleAddItem}>
-            <Plus className="h-4 w-4" />
+        {/* Search and indicators */}
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="search"
+              placeholder="Search..."
+              className="pl-9 w-full"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          <StockIndicator
+            lowStockCount={lowStockCount}
+            outOfStockCount={outOfStockCount}
+            onLowStockClick={handleLowStockClick}
+            onOutOfStockClick={handleOutOfStockClick}
+          />
+          <Button
+            onClick={handleAddItem}
+            size="sm"
+            className="shrink-0"
+            type="button"
+          >
+            <Plus className="h-4 w-4 mr-1" />
+            Add
           </Button>
         </div>
       </div>
 
+      {/* Filtered items status */}
+      {(showLowStockOnly || showOutOfStockOnly) && (
+        <div className="mb-2">
+          <Badge variant="outline" className="w-full justify-start py-1 px-3">
+            {showLowStockOnly && "Showing low stock items only"}
+            {showOutOfStockOnly && "Showing out of stock items only"}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-auto p-0 ml-2 text-muted-foreground"
+              onClick={() => {
+                setShowLowStockOnly(false);
+                setShowOutOfStockOnly(false);
+              }}
+            >
+              Clear
+            </Button>
+          </Badge>
+        </div>
+      )}
+
+      {/* Mobile item list */}
       {isLoading ? (
-        <div className="flex justify-center py-8">
-          <div className="animate-pulse text-center">
-            <p>Loading inventory...</p>
-          </div>
+        <div className="flex items-center justify-center h-64">
+          <p className="text-muted-foreground">Loading items...</p>
         </div>
       ) : filteredItems.length === 0 ? (
-        <div className="text-center py-8">
+        <div className="flex flex-col items-center justify-center h-64">
           <p className="text-muted-foreground">No items found</p>
+          {searchQuery && (
+            <Button
+              variant="link"
+              onClick={() => setSearchQuery("")}
+              className="mt-2"
+            >
+              Clear search
+            </Button>
+          )}
         </div>
       ) : (
-        <div className="grid gap-4">
+        <div className="space-y-2 pb-20">
           {filteredItems.map((item) => (
             <MobileItemCard
               key={item.id}
               item={item}
-              onEdit={handleEdit}
+              onEdit={handleEditItem}
               onDelete={handleDeleteItem}
               onDuplicate={() => {}}
             />
@@ -453,34 +494,36 @@ function MobileView({
         </div>
       )}
 
+      {/* Item modal for editing/adding */}
       <ItemModal
-        open={isModalOpen}
-        onOpenChange={(open) => {
-          setIsModalOpen(open);
-          if (!open) setEditingItem(null);
-        }}
+        open={itemModalOpen}
+        onOpenChange={setItemModalOpen}
         item={editingItem || undefined}
       />
-      <CategoryModal
-        open={isCategoryModalOpen}
-        onOpenChange={setIsCategoryModalOpen}
-      />
-      <BrandModal open={isBrandModalOpen} onOpenChange={setIsBrandModalOpen} />
     </div>
   );
 }
 
 function BranchInventoryPage() {
   const { currentUser } = useUser();
+  const [selectedBranchId, setSelectedBranchId] = useState("1"); // Default to Abu Dhurus
+  const [showLowStockOnly, setShowLowStockOnly] = useState(false);
+  const [showOutOfStockOnly, setShowOutOfStockOnly] = useState(false);
 
-  // Use our mock branch inventory hook
+  // Branch specific hooks
+  const abuDhabiInventory = useAbuDhabiInventory();
+  const hafithInventory = useHafithInventory();
+
+  // Select the active branch's data
+  const branchData =
+    selectedBranchId === "1" ? abuDhabiInventory : hafithInventory;
+
+  // Destructure from the selected branch data
   const {
     branchItems,
-    filteredItems,
+    filteredItems: originalFilteredItems,
     isLoading,
     selectedBranch,
-    branches,
-    setSelectedBranch,
     handleDeleteItem,
     // UI states
     searchQuery,
@@ -503,7 +546,60 @@ function BranchInventoryPage() {
     // Actions
     handleEdit,
     resetFilters,
-  } = useBranchInventoryMockData();
+  } = branchData;
+
+  // Count out of stock items
+  const outOfStockCount = useMemo(() => {
+    return branchItems.filter((item) => (item.stock ?? 0) === 0).length;
+  }, [branchItems]);
+
+  // Count low stock items (excluding out of stock)
+  const lowStockCount = useMemo(() => {
+    return branchItems.filter((item) => {
+      const stock = item.stock ?? 0;
+      // Use item's lowStockAlert value if available, otherwise use default threshold of 5
+      const threshold = item.lowStockAlert ?? 5;
+      return stock > 0 && stock <= threshold;
+    }).length;
+  }, [branchItems]);
+
+  // Apply additional filters for low stock and out of stock
+  const filteredItems = useMemo(() => {
+    return originalFilteredItems.filter((item) => {
+      // Low stock filter
+      const matchesLowStock = showLowStockOnly
+        ? (item.stock ?? 0) > 0 &&
+          (item.stock ?? 0) <= (item.lowStockAlert ?? 5)
+        : true;
+
+      // Out of stock filter
+      const matchesOutOfStock = showOutOfStockOnly
+        ? (item.stock ?? 0) === 0
+        : true;
+
+      return showLowStockOnly || showOutOfStockOnly
+        ? matchesLowStock && matchesOutOfStock
+        : true;
+    });
+  }, [originalFilteredItems, showLowStockOnly, showOutOfStockOnly]);
+
+  const handleLowStockClick = () => {
+    setShowOutOfStockOnly(false);
+    setShowLowStockOnly(!showLowStockOnly);
+    setShowLowStock(false); // Turn off the original low stock filter
+  };
+
+  const handleOutOfStockClick = () => {
+    setShowLowStockOnly(false);
+    setShowOutOfStockOnly(!showOutOfStockOnly);
+    setShowLowStock(false); // Turn off the original low stock filter
+  };
+
+  const handleBranchChange = (branchId: string) => {
+    setSelectedBranchId(branchId);
+    setShowLowStockOnly(false);
+    setShowOutOfStockOnly(false);
+  };
 
   const [isMobile, setIsMobile] = useState(false);
 
@@ -527,26 +623,28 @@ function BranchInventoryPage() {
     );
   }
 
+  // Get available branches
+  const branches = [ABU_DHABI_BRANCH, HAFITH_BRANCH];
+
   return (
-    <div className="container mx-auto max-w-7xl px-2 sm:px-4 lg:px-6 py-4">
-      <PageHeader>Branch Inventory</PageHeader>
+    <div className="w-full space-y-6">
       {isMobile ? (
         <MobileView
           items={branchItems}
           isLoading={isLoading}
-          selectedBranch={selectedBranch}
+          selectedBranch={
+            selectedBranchId === "1" ? ABU_DHABI_BRANCH : HAFITH_BRANCH
+          }
           handleDeleteItem={handleDeleteItem}
+          onBranchChange={handleBranchChange}
         />
       ) : (
         <div className="space-y-6">
           <div className="flex justify-between">
             <div className="w-[300px]">
               <Select
-                value={selectedBranch?.id || ""}
-                onValueChange={(value) => {
-                  const branch = branches.find((b) => b.id === value);
-                  if (branch) setSelectedBranch(branch);
-                }}
+                value={selectedBranchId}
+                onValueChange={handleBranchChange}
               >
                 <SelectTrigger className="w-full rounded-full bg-primary/10">
                   <div className="flex items-center gap-2">
@@ -555,7 +653,7 @@ function BranchInventoryPage() {
                   </div>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="1">Abu Dhabi Branch</SelectItem>
+                  <SelectItem value="1">Abu Dhurus</SelectItem>
                   <SelectItem value="2">Hafeet Branch</SelectItem>
                 </SelectContent>
               </Select>
@@ -573,6 +671,12 @@ function BranchInventoryPage() {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
+            <StockIndicator
+              lowStockCount={lowStockCount}
+              outOfStockCount={outOfStockCount}
+              onLowStockClick={handleLowStockClick}
+              onOutOfStockClick={handleOutOfStockClick}
+            />
             <Select
               value={selectedCategory}
               onValueChange={setSelectedCategory}
@@ -589,14 +693,6 @@ function BranchInventoryPage() {
                 ))}
               </SelectContent>
             </Select>
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="lowStockDesktop"
-                checked={showLowStock}
-                onCheckedChange={(checked) => setShowLowStock(!!checked)}
-              />
-              <Label htmlFor="lowStockDesktop">Show low stock only</Label>
-            </div>
             <div className="flex-1 text-right space-x-2">
               <Button
                 variant="outline"
@@ -613,6 +709,27 @@ function BranchInventoryPage() {
               </Button>
             </div>
           </div>
+
+          {/* Filter status indicators */}
+          {(showLowStockOnly || showOutOfStockOnly) && (
+            <div className="flex items-center">
+              <Badge variant="outline" className="py-1 px-3">
+                {showLowStockOnly && "Showing low stock items only"}
+                {showOutOfStockOnly && "Showing out of stock items only"}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-auto p-0 ml-2 text-muted-foreground"
+                  onClick={() => {
+                    setShowLowStockOnly(false);
+                    setShowOutOfStockOnly(false);
+                  }}
+                >
+                  Clear
+                </Button>
+              </Badge>
+            </div>
+          )}
 
           {isLoading ? (
             <div className="flex justify-center py-8">

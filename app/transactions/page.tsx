@@ -148,8 +148,9 @@ const TransactionCard = memo(
                     : "text-green-500"
                 }`}
               >
-                <span className="inline-block min-w-[80px] text-right">
-                  OMR {Math.abs(transaction.amount).toFixed(2)}
+                <span className="inline-block min-w-[80px] text-center whitespace-pre-wrap leading-tight text-[1.1rem]">
+                  {"OMR\n"}
+                  {Math.abs(transaction.amount).toFixed(2)}
                 </span>
               </div>
               <Button

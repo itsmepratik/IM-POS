@@ -31,6 +31,7 @@ import {
 } from "@/lib/services/inventoryService";
 import { useBranch } from "../branch-context";
 import { toast } from "@/components/ui/use-toast";
+import { useInventoryMockData } from "./hooks/useInventoryMockData";
 
 interface ItemsContextType {
   items: Item[];
@@ -115,6 +116,47 @@ export { type Item, type Batch, type Volume, type BottleStates };
 
 export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
   const { currentBranch } = useBranch();
+  // Use mock data hook in development
+  const isDev = process.env.NODE_ENV === "development";
+  const mock = isDev ? useInventoryMockData() : null;
+
+  // If using mock, wire up all context values from the mock hook
+  if (mock) {
+    return (
+      <ItemsContext.Provider
+        value={{
+          items: mock.items,
+          categories: mock.categories,
+          brands: mock.brands,
+          suppliers: [],
+          categoryMap: {},
+          brandMap: {},
+          addItem: async (item) => {
+            mock.handleAddItem();
+            return null;
+          },
+          updateItem: async (id, updatedItem) => null,
+          deleteItem: mock.handleDelete,
+          duplicateItem: mock.handleDuplicate,
+          addCategory: async () => null,
+          updateCategory: async () => false,
+          deleteCategory: async () => false,
+          addBrand: async () => null,
+          updateBrand: async () => false,
+          deleteBrand: async () => false,
+          addBatch: async () => false,
+          updateBatch: async () => false,
+          deleteBatch: async () => false,
+          calculateAverageCost: () => 0,
+          isLoading: false,
+          refetchItems: async () => {},
+        }}
+      >
+        {children}
+      </ItemsContext.Provider>
+    );
+  }
+
   const [items, setItems] = useState<Item[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [brands, setBrands] = useState<string[]>([]);
