@@ -1037,6 +1037,21 @@ function Numpad({
 }
 
 export default function POSPage() {
+  console.log("--- VERCEL DEBUG START ---");
+  console.log("oilProducts length:", oilProducts.length);
+  console.log(
+    "First oil product:",
+    oilProducts[0]
+      ? oilProducts[0].brand
+      : "oilProducts is empty or first item undefined"
+  );
+  console.log("products length:", products.length);
+  console.log(
+    "First product:",
+    products[0] ? products[0].name : "products is empty or first item undefined"
+  );
+  console.log("--- VERCEL DEBUG END ---");
+
   const [cart, setCart] = useState<CartItem[]>([]);
   const [activeCategory, setActiveCategory] = useState<string>("Oil");
   const [searchQuery, setSearchQuery] = useState("");
