@@ -220,7 +220,7 @@ export function MobileNav({ className }: { className?: string }) {
                     "flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
                     mounted &&
                       (pathname === "/inventory" ||
-                        pathname === "/inventory/branch")
+                        pathname === "/branch-inventory")
                       ? "bg-accent text-accent-foreground"
                       : "transparent"
                   )}
@@ -253,11 +253,11 @@ export function MobileNav({ className }: { className?: string }) {
                       <span>Main</span>
                     </Link>
                     <Link
-                      href="/inventory/branch"
+                      href="/branch-inventory"
                       onClick={() => setOpen(false)}
                       className={cn(
                         "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
-                        mounted && pathname === "/inventory/branch"
+                        mounted && pathname === "/branch-inventory"
                           ? "bg-accent text-accent-foreground"
                           : "transparent"
                       )}

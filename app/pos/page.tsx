@@ -1052,60 +1052,6 @@ export default function POSPage() {
   );
   console.log("--- VERCEL DEBUG END ---");
 
-  // Ensure data is always available
-  const [dataInitialized, setDataInitialized] = useState(false);
-
-  // Use memo to ensure these critical data arrays are always available
-  const localOilProducts = useMemo(() => {
-    console.log("Initializing oil products");
-    return oilProducts.length > 0
-      ? oilProducts
-      : [
-          {
-            id: 101,
-            brand: "Toyota",
-            name: "0W-20",
-            basePrice: 39.99,
-            type: "0W-20",
-            image: "/oils/toyota-0w20.jpg",
-            volumes: [
-              { size: "5L", price: 39.99 },
-              { size: "4L", price: 34.99 },
-              { size: "1L", price: 11.99 },
-              { size: "500ml", price: 6.99 },
-              { size: "250ml", price: 3.99 },
-            ],
-          },
-          // Include at least one item to ensure the page isn't empty
-        ];
-  }, []);
-
-  const localProducts = useMemo(() => {
-    console.log("Initializing products");
-    return products.length > 0
-      ? products
-      : [
-          {
-            id: 3,
-            name: "Oil Filter - Standard",
-            price: 12.99,
-            category: "Filters" as "Filters" | "Parts" | "Additives & Fluids",
-            brand: "Toyota",
-            type: "Oil Filter",
-          },
-          // Include at least one item to ensure the page isn't empty
-        ];
-  }, []);
-
-  useEffect(() => {
-    // Set a flag that data is ready
-    setDataInitialized(true);
-    console.log("Data initialized:", {
-      oilProductsCount: localOilProducts.length,
-      productsCount: localProducts.length,
-    });
-  }, [localOilProducts, localProducts]);
-
   const [cart, setCart] = useState<CartItem[]>([]);
   const [activeCategory, setActiveCategory] = useState<string>("Oil");
   const [searchQuery, setSearchQuery] = useState("");
@@ -1364,44 +1310,24 @@ export default function POSPage() {
     setSearchQuery(""); // Clear search when changing categories
   };
 
-  // Use localOilProducts instead of oilProducts in all derived state and rendering
-  const oilBrands = useMemo(
-    () => Array.from(new Set(localOilProducts.map((oil) => oil.brand))),
-    [localOilProducts]
+  const oilBrands = Array.from(new Set(oilProducts.map((oil) => oil.brand)));
+
+  const filterBrands = Array.from(
+    new Set(
+      products.filter((p) => p.category === "Filters").map((p) => p.brand!)
+    )
   );
 
-  // Use localProducts instead of products in all derived state and rendering
-  const filterBrands = useMemo(
-    () =>
-      Array.from(
-        new Set(
-          localProducts
-            .filter((p) => p.category === "Filters")
-            .map((p) => p.brand!)
-        )
-      ),
-    [localProducts]
+  const filterTypes = Array.from(
+    new Set(
+      products.filter((p) => p.category === "Filters").map((p) => p.type!)
+    )
   );
 
-  const filterTypes = useMemo(
-    () =>
-      Array.from(
-        new Set(
-          localProducts
-            .filter((p) => p.category === "Filters")
-            .map((p) => p.type!)
-        )
-      ),
-    [localProducts]
-  );
-
-  const getFiltersByType = useCallback(
-    (type: string) =>
-      localProducts.filter(
-        (product) => product.category === "Filters" && product.type === type
-      ),
-    [localProducts]
-  );
+  const getFiltersByType = (type: string) =>
+    products.filter(
+      (product) => product.category === "Filters" && product.type === type
+    );
 
   // Memoize filtered data
   const filteredOilBrands = useMemo(
@@ -1416,14 +1342,14 @@ export default function POSPage() {
     () =>
       activeCategory === "Oil"
         ? []
-        : localProducts.filter((product) => {
+        : products.filter((product) => {
             const matchesCategory = product.category === activeCategory;
             const matchesSearch = product.name
               .toLowerCase()
               .includes(searchQuery.toLowerCase());
             return matchesCategory && matchesSearch;
           }),
-    [activeCategory, searchQuery, localProducts]
+    [activeCategory, searchQuery]
   );
 
   // Calculate total with discount
@@ -1642,7 +1568,7 @@ export default function POSPage() {
   // Get part brands and types - ensure we don't include undefined values
   const partBrands = Array.from(
     new Set(
-      localProducts
+      products
         .filter((p) => p.category === "Parts" && p.brand) // Only include products with brand
         .map((p) => p.brand!)
     )
@@ -1650,7 +1576,7 @@ export default function POSPage() {
 
   const partTypes = Array.from(
     new Set(
-      localProducts
+      products
         .filter(
           (p) =>
             p.category === "Parts" &&
@@ -1662,26 +1588,9 @@ export default function POSPage() {
   );
 
   const getPartsByType = (type: string) =>
-    localProducts.filter(
+    products.filter(
       (product) => product.category === "Parts" && product.type === type
     );
-
-  if (!dataInitialized) {
-    return (
-      <Layout>
-        <div className="h-[calc(100vh-4rem)] flex items-center justify-center">
-          <div className="text-center">
-            <h2 className="text-2xl font-semibold mb-2">
-              Loading inventory data...
-            </h2>
-            <p className="text-muted-foreground">
-              Please wait while we prepare your POS system
-            </p>
-          </div>
-        </div>
-      </Layout>
-    );
-  }
 
   return (
     <Layout>
@@ -1776,7 +1685,7 @@ export default function POSPage() {
                             </Button>
                             {expandedBrand === brand && (
                               <div className="p-4 bg-muted/50 grid grid-cols-2 sm:grid-cols-3 gap-4">
-                                {localOilProducts
+                                {oilProducts
                                   .filter((oil) => oil.brand === brand)
                                   .map((oil) => (
                                     <Button
@@ -1936,7 +1845,7 @@ export default function POSPage() {
                         // Show additives brands with dropdown (similar to Oil)
                         Array.from(
                           new Set(
-                            localProducts
+                            products
                               .filter(
                                 (p) => p.category === "Additives & Fluids"
                               )
@@ -1973,7 +1882,7 @@ export default function POSPage() {
                               </Button>
                               {expandedBrand === brand && (
                                 <div className="p-4 bg-muted/50 grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                                  {localProducts
+                                  {products
                                     .filter(
                                       (p) =>
                                         p.category === "Additives & Fluids" &&
@@ -3022,7 +2931,7 @@ export default function POSPage() {
         selectedPartType={selectedPartType}
         parts={
           selectedPartBrand && selectedPartType
-            ? localProducts.filter(
+            ? products.filter(
                 (p) =>
                   p.category === "Parts" &&
                   p.brand === selectedPartBrand &&

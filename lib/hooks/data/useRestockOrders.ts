@@ -58,6 +58,26 @@ export function useRestockOrders() {
         "to-004": [
           { id: "item-006", name: "Transmission Fluid", quantity: 6, unit: "bottles" },
           { id: "item-007", name: "Coolant", quantity: 8, unit: "bottles" }
+        ],
+        // New large order with 15+ items
+        "to-005": [
+          { id: "item-008", name: "Synthetic Oil 5W-40", quantity: 20, unit: "liters" },
+          { id: "item-009", name: "Spark Plugs NGK Iridium", quantity: 32, unit: "pcs" },
+          { id: "item-010", name: "Air Filter Toyota Camry", quantity: 15, unit: "pcs" },
+          { id: "item-011", name: "Cabin Filter Honda Accord", quantity: 10, unit: "pcs" },
+          { id: "item-012", name: "Brake Pads Front Set", quantity: 8, unit: "sets" },
+          { id: "item-013", name: "Brake Discs Front Pair", quantity: 6, unit: "pairs" },
+          { id: "item-014", name: "Windshield Washer Fluid", quantity: 24, unit: "bottles" },
+          { id: "item-015", name: "Power Steering Fluid", quantity: 12, unit: "bottles" },
+          { id: "item-016", name: "Differential Fluid 75W-90", quantity: 8, unit: "liters" },
+          { id: "item-017", name: "Transmission Fluid ATF", quantity: 16, unit: "liters" },
+          { id: "item-018", name: "Oil Filter Nissan Altima", quantity: 18, unit: "pcs" },
+          { id: "item-019", name: "Radiator Cap 1.1 Bar", quantity: 10, unit: "pcs" },
+          { id: "item-020", name: "Thermostat Toyota Corolla", quantity: 7, unit: "pcs" },
+          { id: "item-021", name: "Serpentine Belt Honda Civic", quantity: 9, unit: "pcs" },
+          { id: "item-022", name: "Water Pump Ford Focus", quantity: 5, unit: "pcs" },
+          { id: "item-023", name: "Fuel Filter Hyundai Sonata", quantity: 12, unit: "pcs" },
+          { id: "item-024", name: "Shock Absorber KYB Front", quantity: 6, unit: "pcs" }
         ]
       }
 
@@ -106,6 +126,18 @@ export function useRestockOrders() {
           itemCount: 2,
           status: "rejected",
           items: mockItems["to-004"]
+        },
+        // New large transfer order
+        {
+          id: "to-005",
+          orderNumber: "TO-2023-005",
+          date: "Nov 18, 2023",
+          time: "09:45 AM",
+          sourceLocation: "Central Distribution Hub",
+          destinationLocation: "Main Service Center",
+          itemCount: 17,
+          status: "pending",
+          items: mockItems["to-005"]
         }
       ]
       

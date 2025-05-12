@@ -17,6 +17,9 @@ import {
   AlertCircle,
   MoreHorizontal,
   RotateCcw,
+  CheckCircle,
+  XCircle,
+  Package,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -42,6 +45,16 @@ import {
   TransferOrder as HookTransferOrder,
   TransferItem as HookTransferItem,
 } from "@/lib/hooks/data/useRestockOrders";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 // Extend the imported types with our additional fields
 interface TransferItem extends HookTransferItem {
@@ -109,6 +122,128 @@ const mockItems: Record<string, TransferItem[]> = {
       quantity: 8,
       unit: "bottles",
       price: 14.25,
+    },
+  ],
+  // Add new large order with pricing information
+  "to-005": [
+    {
+      id: "item-008",
+      name: "Synthetic Oil 5W-40",
+      quantity: 20,
+      unit: "liters",
+      price: 12.75,
+    },
+    {
+      id: "item-009",
+      name: "Spark Plugs NGK Iridium",
+      quantity: 32,
+      unit: "pcs",
+      price: 7.95,
+    },
+    {
+      id: "item-010",
+      name: "Air Filter Toyota Camry",
+      quantity: 15,
+      unit: "pcs",
+      price: 9.5,
+    },
+    {
+      id: "item-011",
+      name: "Cabin Filter Honda Accord",
+      quantity: 10,
+      unit: "pcs",
+      price: 8.25,
+    },
+    {
+      id: "item-012",
+      name: "Brake Pads Front Set",
+      quantity: 8,
+      unit: "sets",
+      price: 45.99,
+    },
+    {
+      id: "item-013",
+      name: "Brake Discs Front Pair",
+      quantity: 6,
+      unit: "pairs",
+      price: 79.95,
+    },
+    {
+      id: "item-014",
+      name: "Windshield Washer Fluid",
+      quantity: 24,
+      unit: "bottles",
+      price: 4.99,
+    },
+    {
+      id: "item-015",
+      name: "Power Steering Fluid",
+      quantity: 12,
+      unit: "bottles",
+      price: 8.5,
+    },
+    {
+      id: "item-016",
+      name: "Differential Fluid 75W-90",
+      quantity: 8,
+      unit: "liters",
+      price: 22.75,
+    },
+    {
+      id: "item-017",
+      name: "Transmission Fluid ATF",
+      quantity: 16,
+      unit: "liters",
+      price: 15.5,
+    },
+    {
+      id: "item-018",
+      name: "Oil Filter Nissan Altima",
+      quantity: 18,
+      unit: "pcs",
+      price: 6.95,
+    },
+    {
+      id: "item-019",
+      name: "Radiator Cap 1.1 Bar",
+      quantity: 10,
+      unit: "pcs",
+      price: 5.25,
+    },
+    {
+      id: "item-020",
+      name: "Thermostat Toyota Corolla",
+      quantity: 7,
+      unit: "pcs",
+      price: 12.99,
+    },
+    {
+      id: "item-021",
+      name: "Serpentine Belt Honda Civic",
+      quantity: 9,
+      unit: "pcs",
+      price: 18.75,
+    },
+    {
+      id: "item-022",
+      name: "Water Pump Ford Focus",
+      quantity: 5,
+      unit: "pcs",
+      price: 42.5,
+    },
+    {
+      id: "item-023",
+      name: "Fuel Filter Hyundai Sonata",
+      quantity: 12,
+      unit: "pcs",
+      price: 9.99,
+    },
+    {
+      id: "item-024",
+      name: "Shock Absorber KYB Front",
+      quantity: 6,
+      unit: "pcs",
+      price: 65.0,
     },
   ],
 };
@@ -188,11 +323,33 @@ const initialMockTransfers: TransferOrder[] = [
     status: "rejected",
     items: mockItems["to-004"],
   },
+  // Add new large transfer order
+  {
+    id: "to-005",
+    orderNumber: "TO-2023-005",
+    date: "Nov 18, 2023",
+    time: "09:45 AM",
+    sourceLocation: "Central Distribution Hub",
+    destinationLocation: "Main Service Center",
+    itemCount: 17,
+    status: "pending",
+    items: mockItems["to-005"],
+  },
 ];
 
 // Function to handle type checking for TransferItem with price
 const hasPrice = (item: HookTransferItem): item is TransferItem => {
   return "price" in item;
+};
+
+// Add a function to reset localStorage data
+const resetLocalStorageData = () => {
+  if (typeof window !== "undefined") {
+    // Remove localStorage data
+    localStorage.removeItem("restockOrders");
+    // Reload the page to get fresh data
+    window.location.reload();
+  }
 };
 
 export default function RestockOrdersPage() {
@@ -208,6 +365,14 @@ export default function RestockOrdersPage() {
   const [newStatus, setNewStatus] = useState<
     "pending" | "confirmed" | "rejected"
   >("pending");
+  // New state for order details modal
+  const [detailsModalOpen, setDetailsModalOpen] = useState(false);
+  const [selectedOrderDetails, setSelectedOrderDetails] =
+    useState<TransferOrder | null>(null);
+  // State for item verification
+  const [verifiedItems, setVerifiedItems] = useState<Record<string, boolean>>(
+    {}
+  );
   const { toast } = useToast();
 
   // Use the hook instead of direct mock data
@@ -568,40 +733,42 @@ export default function RestockOrdersPage() {
     setRejectDialogOpen(true);
   };
 
-  // Handle reject transfer
-  const handleReject = () => {
-    if (!selectedTransferId) return;
-
-    // Update the transfer status in our state
-    updateTransferStatus(selectedTransferId, "rejected");
-
-    // Show success toast
-    toast({
-      title: "Transfer Rejected",
-      description: `Transfer order has been rejected successfully.`,
-    });
-
-    // Close the dialog
-    setRejectDialogOpen(false);
-    setSelectedTransferId(null);
-  };
-
   // Handle confirm transfer
   const handleConfirm = () => {
     if (!selectedTransferId) return;
 
-    // Update the transfer status in our state
+    // Update the transfer status
     updateTransferStatus(selectedTransferId, "confirmed");
 
     // Show success toast
     toast({
       title: "Transfer Confirmed",
       description: `Transfer order has been confirmed successfully.`,
+      variant: "default",
     });
 
-    // Close the dialog
+    // Close modals
     setConfirmDialogOpen(false);
-    setSelectedTransferId(null);
+    setDetailsModalOpen(false);
+  };
+
+  // Handle reject transfer
+  const handleReject = () => {
+    if (!selectedTransferId) return;
+
+    // Update the transfer status
+    updateTransferStatus(selectedTransferId, "rejected");
+
+    // Show success toast
+    toast({
+      title: "Transfer Rejected",
+      description: `Transfer order has been rejected.`,
+      variant: "destructive",
+    });
+
+    // Close modals
+    setRejectDialogOpen(false);
+    setDetailsModalOpen(false);
   };
 
   // Handle status change
@@ -632,32 +799,76 @@ export default function RestockOrdersPage() {
     setChangeStatusDialogOpen(true);
   };
 
+  // Open order details modal
+  const openDetailsModal = (transfer: HookTransferOrder) => {
+    const enhancedTransfer = enhanceTransferWithPrices(transfer);
+    setSelectedOrderDetails(enhancedTransfer);
+    setSelectedTransferId(transfer.id);
+    // Initialize all items as unverified
+    const initialVerifications: Record<string, boolean> = {};
+    enhancedTransfer.items.forEach((item) => {
+      initialVerifications[item.id] = false;
+    });
+    setVerifiedItems(initialVerifications);
+    setDetailsModalOpen(true);
+  };
+
+  // Toggle item verification
+  const toggleItemVerification = (itemId: string) => {
+    setVerifiedItems((prev) => ({
+      ...prev,
+      [itemId]: !prev[itemId],
+    }));
+  };
+
+  // Check if all items are verified
+  const areAllItemsVerified = () => {
+    if (!selectedOrderDetails || !selectedOrderDetails.items.length)
+      return false;
+    return selectedOrderDetails.items.every((item) => verifiedItems[item.id]);
+  };
+
+  // Confirm all items
+  const confirmAllItems = () => {
+    if (!selectedOrderDetails) return;
+
+    const allVerified: Record<string, boolean> = {};
+    selectedOrderDetails.items.forEach((item) => {
+      allVerified[item.id] = true;
+    });
+    setVerifiedItems(allVerified);
+  };
+
   // Toggle details visibility
   const toggleDetails = (transferId: string) => {
-    setExpandedOrders((prev) =>
-      prev.includes(transferId)
-        ? prev.filter((id) => id !== transferId)
-        : [...prev, transferId]
-    );
+    const transfer = transfers.find((t) => t.id === transferId);
+    if (transfer) {
+      openDetailsModal(transfer);
+    } else {
+      // Fallback to original expand/collapse functionality
+      setExpandedOrders((prev) =>
+        prev.includes(transferId)
+          ? prev.filter((id) => id !== transferId)
+          : [...prev, transferId]
+      );
+    }
   };
 
   return (
     <Layout>
-      <div className="space-y-6">
-        <h1 className="text-2xl font-bold">Incoming Restocks</h1>
-
-        <div className="flex flex-col sm:flex-row gap-4">
+      <div className="space-y-2 sm:space-y-4 pt-1">
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
           <div className="flex-1">
             <Input
               placeholder="Search orders, items..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full"
+              className="w-full text-sm"
             />
           </div>
-          <div className="w-full sm:w-auto">
+          <div className="flex gap-2 w-full sm:w-auto">
             <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="w-full">
+              <SelectTrigger className="w-full text-sm">
                 <SelectValue placeholder="All..." />
               </SelectTrigger>
               <SelectContent>
@@ -667,6 +878,14 @@ export default function RestockOrdersPage() {
                 <SelectItem value="Rejected">Rejected</SelectItem>
               </SelectContent>
             </Select>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={resetLocalStorageData}
+              className="text-xs shrink-0"
+            >
+              Reset Data
+            </Button>
           </div>
         </div>
 
@@ -679,7 +898,7 @@ export default function RestockOrdersPage() {
             {filteredTransfers.map((transfer) => (
               <div
                 key={transfer.id}
-                className={`border rounded-lg p-4 ${
+                className={`border rounded-lg p-3 sm:p-4 ${
                   transfer.status === "confirmed"
                     ? "bg-green-50"
                     : transfer.status === "rejected"
@@ -687,44 +906,39 @@ export default function RestockOrdersPage() {
                     : ""
                 }`}
               >
-                <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-3">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <div className="flex flex-col">
-                      <h3 className="text-lg font-semibold">
+                      <h3 className="text-base sm:text-lg font-semibold">
                         Transfer {transfer.orderNumber}
                       </h3>
-                      <p className="text-sm text-gray-500">
+                      <p className="text-xs sm:text-sm text-gray-500">
                         {transfer.date}, {transfer.time}
                       </p>
                     </div>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap items-center gap-2 mt-1 sm:mt-0">
                       {transfer.status === "pending" && (
                         <>
                           <Button
                             variant="outline"
-                            className="border-red-500 text-red-500 hover:bg-red-50"
-                            onClick={() => openRejectDialog(transfer.id)}
+                            size="sm"
+                            className="border-blue-500 text-blue-500 hover:bg-blue-50 h-8 px-2 text-xs sm:text-sm"
+                            onClick={() => toggleDetails(transfer.id)}
                           >
-                            <span className="mr-2">✕</span> Reject
-                          </Button>
-                          <Button
-                            variant="outline"
-                            className="border-green-500 text-green-500 hover:bg-green-50"
-                            onClick={() => openConfirmDialog(transfer.id)}
-                          >
-                            <span className="mr-2">✓</span> Confirm
+                            <Package className="h-3.5 w-3.5 mr-1" />
+                            Review Items
                           </Button>
                         </>
                       )}
                       {transfer.status === "confirmed" && (
                         <div className="flex items-center gap-2">
-                          <div className="px-3 py-1 bg-green-100 text-green-800 rounded-md font-medium">
+                          <div className="px-2 py-1 bg-green-100 text-green-800 rounded-md font-medium text-xs">
                             Confirmed
                           </div>
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8"
+                            className="h-7 w-7"
                             onClick={() =>
                               openChangeStatusDialog(
                                 transfer.id,
@@ -733,19 +947,19 @@ export default function RestockOrdersPage() {
                             }
                             title="Change Status"
                           >
-                            <RotateCcw className="h-4 w-4" />
+                            <RotateCcw className="h-3.5 w-3.5" />
                           </Button>
                         </div>
                       )}
                       {transfer.status === "rejected" && (
                         <div className="flex items-center gap-2">
-                          <div className="px-3 py-1 bg-red-100 text-red-800 rounded-md font-medium">
+                          <div className="px-2 py-1 bg-red-100 text-red-800 rounded-md font-medium text-xs">
                             Rejected
                           </div>
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8"
+                            className="h-7 w-7"
                             onClick={() =>
                               openChangeStatusDialog(
                                 transfer.id,
@@ -754,16 +968,17 @@ export default function RestockOrdersPage() {
                             }
                             title="Change Status"
                           >
-                            <RotateCcw className="h-4 w-4" />
+                            <RotateCcw className="h-3.5 w-3.5" />
                           </Button>
                         </div>
                       )}
                       <Button
                         variant="outline"
+                        size="sm"
                         onClick={() => handlePrint(transfer)}
-                        className="flex items-center gap-2"
+                        className="flex items-center gap-1 h-8 px-2 text-xs sm:text-sm"
                       >
-                        <Printer className="h-4 w-4" />
+                        <Printer className="h-3.5 w-3.5" />
                         Print
                       </Button>
                       <DropdownMenu>
@@ -771,22 +986,16 @@ export default function RestockOrdersPage() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-9 w-9"
+                            className="h-8 w-8"
                           >
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onClick={() => toggleDetails(transfer.id)}
-                          >
-                            {expandedOrders.includes(transfer.id)
-                              ? "Hide details"
-                              : "Show details"}
-                          </DropdownMenuItem>
+                        <DropdownMenuContent align="end" className="w-[160px]">
                           <DropdownMenuItem
                             onClick={() => handlePrint(transfer)}
                           >
+                            <Printer className="h-4 w-4 mr-2" />
                             Print Receipt
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
@@ -798,6 +1007,7 @@ export default function RestockOrdersPage() {
                               )
                             }
                           >
+                            <RotateCcw className="h-4 w-4 mr-2" />
                             Change Status
                           </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -805,12 +1015,12 @@ export default function RestockOrdersPage() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs sm:text-sm">
                     <div className="flex items-center gap-2">
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
-                        width="16"
-                        height="16"
+                        width="14"
+                        height="14"
                         viewBox="0 0 24 24"
                         fill="none"
                         stroke="currentColor"
@@ -827,8 +1037,8 @@ export default function RestockOrdersPage() {
                     <div className="flex items-center gap-2">
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
-                        width="16"
-                        height="16"
+                        width="14"
+                        height="14"
                         viewBox="0 0 24 24"
                         fill="none"
                         stroke="currentColor"
@@ -845,12 +1055,12 @@ export default function RestockOrdersPage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between text-xs sm:text-sm">
                     <div className="flex items-center gap-2">
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
-                        width="16"
-                        height="16"
+                        width="14"
+                        height="14"
                         viewBox="0 0 24 24"
                         fill="none"
                         stroke="currentColor"
@@ -868,86 +1078,28 @@ export default function RestockOrdersPage() {
                       </span>
                     </div>
                     <button
-                      className="text-blue-600 hover:text-blue-800 hover:underline"
+                      className="text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1 text-xs sm:text-sm"
                       onClick={() => toggleDetails(transfer.id)}
                     >
+                      <Package className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                       {expandedOrders.includes(transfer.id)
                         ? "Hide details"
-                        : "Show details"}
+                        : "View Items"}
                     </button>
                   </div>
-
-                  {/* Expanded details section */}
-                  {expandedOrders.includes(transfer.id) && (
-                    <div className="mt-4 border-t pt-4">
-                      <h4 className="font-medium mb-2">Items:</h4>
-                      <div className="space-y-2">
-                        {transfer.items?.map((item) => {
-                          // Cast the hook item to our enhanced item if possible
-                          const itemWithPrice = item as TransferItem;
-                          return (
-                            <div
-                              key={item.id}
-                              className="flex justify-between items-center p-2 bg-gray-50 rounded"
-                            >
-                              <div>
-                                <span className="font-medium">{item.name}</span>
-                              </div>
-                              <div className="flex items-center gap-4">
-                                <span>{item.quantity}</span>
-                                {hasPrice(itemWithPrice) &&
-                                  itemWithPrice.price !== undefined && (
-                                    <>
-                                      <span className="text-gray-500">×</span>
-                                      <span>
-                                        OMR {itemWithPrice.price.toFixed(2)}
-                                      </span>
-                                      <span className="font-medium">
-                                        = OMR{" "}
-                                        {(
-                                          itemWithPrice.price * item.quantity
-                                        ).toFixed(2)}
-                                      </span>
-                                    </>
-                                  )}
-                              </div>
-                            </div>
-                          );
-                        })}
-                        {!transfer.items?.length && (
-                          <p className="text-gray-500">No items available</p>
-                        )}
-                      </div>
-                      {transfer.items && transfer.items.length > 0 && (
-                        <div className="mt-4 pt-2 border-t flex justify-between">
-                          <span className="font-semibold">Total:</span>
-                          <span className="font-semibold">
-                            OMR{" "}
-                            {transfer.items
-                              .reduce((sum, item) => {
-                                const itemWithPrice = item as TransferItem;
-                                return (
-                                  sum +
-                                  (hasPrice(itemWithPrice) &&
-                                  itemWithPrice.price
-                                    ? itemWithPrice.price * item.quantity
-                                    : 0)
-                                );
-                              }, 0)
-                              .toFixed(2)}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  )}
                 </div>
               </div>
             ))}
 
             {filteredTransfers.length === 0 && !isLoading && (
-              <div className="text-center py-8 border rounded-lg">
-                <p className="text-gray-500">
-                  No transfer orders found matching your criteria.
+              <div className="flex flex-col items-center justify-center py-8 sm:py-12 border rounded-lg">
+                <Package className="h-12 w-12 sm:h-16 sm:w-16 text-muted-foreground opacity-30 mb-3 sm:mb-4" />
+                <p className="text-base sm:text-lg font-medium text-muted-foreground mb-1">
+                  No Transfer Orders Found
+                </p>
+                <p className="text-xs sm:text-sm text-muted-foreground text-center px-4">
+                  No orders match your current filters. Try adjusting your
+                  search criteria.
                 </p>
               </div>
             )}
@@ -957,19 +1109,24 @@ export default function RestockOrdersPage() {
 
       {/* Confirm Dialog */}
       <AlertDialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent className="max-w-[90vw] sm:max-w-[425px] p-4 sm:p-6">
           <AlertDialogHeader>
-            <AlertDialogTitle>Confirm Transfer</AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogTitle className="text-base sm:text-lg flex items-center gap-2">
+              <CheckCircle className="h-5 w-5 text-green-500" />
+              Confirm Transfer
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-xs sm:text-sm">
               Are you sure you want to confirm this transfer order? This will
               update inventory levels accordingly.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0 mt-2">
+            <AlertDialogCancel className="mt-0 text-xs sm:text-sm h-9">
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleConfirm}
-              className="bg-green-600 hover:bg-green-700"
+              className="bg-green-600 hover:bg-green-700 text-xs sm:text-sm h-9"
             >
               Confirm Transfer
             </AlertDialogAction>
@@ -979,22 +1136,24 @@ export default function RestockOrdersPage() {
 
       {/* Reject Dialog */}
       <AlertDialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent className="max-w-[90vw] sm:max-w-[425px] p-4 sm:p-6">
           <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
+            <AlertDialogTitle className="text-base sm:text-lg flex items-center gap-2">
               <AlertCircle className="h-5 w-5 text-red-500" />
               Reject Transfer
             </AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogDescription className="text-xs sm:text-sm">
               Are you sure you want to reject this transfer order? This action
               cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0 mt-2">
+            <AlertDialogCancel className="mt-0 text-xs sm:text-sm h-9">
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleReject}
-              className="bg-red-600 hover:bg-red-700"
+              className="bg-red-600 hover:bg-red-700 text-xs sm:text-sm h-9"
             >
               Reject Transfer
             </AlertDialogAction>
@@ -1007,19 +1166,19 @@ export default function RestockOrdersPage() {
         open={changeStatusDialogOpen}
         onOpenChange={setChangeStatusDialogOpen}
       >
-        <AlertDialogContent>
+        <AlertDialogContent className="max-w-[90vw] sm:max-w-[425px] p-4 sm:p-6">
           <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
+            <AlertDialogTitle className="text-base sm:text-lg flex items-center gap-2">
               <RotateCcw className="h-5 w-5 text-blue-500" />
               Change Order Status
             </AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogDescription className="text-xs sm:text-sm">
               Select a new status for this transfer order.
             </AlertDialogDescription>
           </AlertDialogHeader>
 
-          <div className="py-4">
-            <div className="space-y-4">
+          <div className="py-3 sm:py-4">
+            <div className="space-y-3 sm:space-y-4">
               <div className="flex items-center space-x-2">
                 <input
                   type="radio"
@@ -1031,7 +1190,7 @@ export default function RestockOrdersPage() {
                 />
                 <label
                   htmlFor="status-pending"
-                  className="text-sm font-medium text-gray-700"
+                  className="text-xs sm:text-sm font-medium text-gray-700"
                 >
                   Pending
                 </label>
@@ -1048,7 +1207,7 @@ export default function RestockOrdersPage() {
                 />
                 <label
                   htmlFor="status-confirmed"
-                  className="text-sm font-medium text-gray-700"
+                  className="text-xs sm:text-sm font-medium text-gray-700"
                 >
                   Confirmed
                 </label>
@@ -1065,7 +1224,7 @@ export default function RestockOrdersPage() {
                 />
                 <label
                   htmlFor="status-rejected"
-                  className="text-sm font-medium text-gray-700"
+                  className="text-xs sm:text-sm font-medium text-gray-700"
                 >
                   Rejected
                 </label>
@@ -1073,17 +1232,166 @@ export default function RestockOrdersPage() {
             </div>
           </div>
 
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0 mt-2">
+            <AlertDialogCancel className="mt-0 text-xs sm:text-sm h-9">
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleStatusChange}
-              className="bg-blue-600 hover:bg-blue-700"
+              className="bg-blue-600 hover:bg-blue-700 text-xs sm:text-sm h-9"
             >
               Update Status
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Order Details Modal */}
+      <Dialog open={detailsModalOpen} onOpenChange={setDetailsModalOpen}>
+        <DialogContent className="sm:max-w-[700px] w-[95vw] max-h-[90vh] p-0 overflow-hidden flex flex-col">
+          <DialogHeader className="pb-2 px-4 sm:px-6 pt-4 sm:pt-6 shrink-0 border-b">
+            <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <Package className="h-5 w-5 text-primary" />
+              Order #{selectedOrderDetails?.orderNumber}
+            </DialogTitle>
+          </DialogHeader>
+
+          {selectedOrderDetails && (
+            <>
+              <div className="px-4 sm:px-6 py-3 shrink-0 border-b">
+                <div className="flex flex-col sm:flex-row justify-between text-xs sm:text-sm gap-1 sm:gap-2">
+                  <div className="flex flex-wrap items-center gap-1">
+                    <span className="font-medium">From:</span>{" "}
+                    <span className="text-muted-foreground">
+                      {selectedOrderDetails.sourceLocation}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1">
+                    <span className="font-medium">To:</span>{" "}
+                    <span className="text-muted-foreground">
+                      {selectedOrderDetails.destinationLocation}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1">
+                    <span className="font-medium">Date:</span>{" "}
+                    <span className="text-muted-foreground">
+                      {selectedOrderDetails.date}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="px-4 sm:px-6 py-2 flex items-center justify-between shrink-0 border-b">
+                <div className="text-xs text-muted-foreground">
+                  {Object.values(verifiedItems).filter(Boolean).length} of{" "}
+                  {selectedOrderDetails.items.length} verified
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs px-2 py-1"
+                  onClick={confirmAllItems}
+                >
+                  <CheckCircle className="h-3 w-3 mr-1" />
+                  Mark All
+                </Button>
+              </div>
+
+              {/* Scrollable items area with flex-grow to take available space */}
+              <div className="flex-1 overflow-auto min-h-0 py-2">
+                <div className="space-y-2 sm:space-y-3 px-4 sm:px-6">
+                  {selectedOrderDetails.items.map((item) => (
+                    <div
+                      key={item.id}
+                      className="flex items-center space-x-2 sm:space-x-3 p-2 rounded-md border bg-background"
+                    >
+                      <Checkbox
+                        id={`item-${item.id}`}
+                        checked={verifiedItems[item.id] || false}
+                        onCheckedChange={() => toggleItemVerification(item.id)}
+                        className="h-3.5 w-3.5 sm:h-4 sm:w-4"
+                      />
+                      <div className="flex flex-1 justify-between items-center gap-2 flex-wrap sm:flex-nowrap">
+                        <label
+                          htmlFor={`item-${item.id}`}
+                          className="text-xs sm:text-sm font-medium cursor-pointer line-clamp-2"
+                        >
+                          {item.name}
+                        </label>
+                        <div className="flex items-center ml-auto gap-2 sm:gap-4 text-xs sm:text-sm flex-shrink-0">
+                          <div className="px-1.5 py-0.5 sm:px-2 sm:py-1 bg-blue-50 text-blue-700 rounded whitespace-nowrap">
+                            {item.quantity} {item.unit}
+                          </div>
+                          {hasPrice(item) && item.price !== undefined && (
+                            <div className="text-muted-foreground whitespace-nowrap text-right">
+                              OMR {(item.price * item.quantity).toFixed(2)}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Fixed footer with total and buttons */}
+              <div className="px-4 sm:px-6 py-3 border-t shrink-0 bg-muted/20">
+                {selectedOrderDetails.items.length > 0 && (
+                  <div className="flex justify-between text-xs sm:text-sm mb-3">
+                    <span className="font-semibold">Total Cost:</span>
+                    <span className="font-semibold">
+                      OMR{" "}
+                      {selectedOrderDetails.items
+                        .reduce((sum, item) => {
+                          const itemWithPrice = item as TransferItem;
+                          return (
+                            sum +
+                            (hasPrice(itemWithPrice) && itemWithPrice.price
+                              ? itemWithPrice.price * item.quantity
+                              : 0)
+                          );
+                        }, 0)
+                        .toFixed(2)}
+                    </span>
+                  </div>
+                )}
+
+                <div className="flex flex-col sm:flex-row gap-2 sm:space-x-2">
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    className="w-full sm:w-auto text-xs sm:text-sm"
+                    onClick={() => openRejectDialog(selectedTransferId || "")}
+                    disabled={selectedOrderDetails?.status !== "pending"}
+                  >
+                    <XCircle className="h-3.5 w-3.5 mr-1.5" />
+                    Reject Order
+                  </Button>
+                  <Button
+                    className="bg-green-600 hover:bg-green-700 w-full sm:w-auto text-xs sm:text-sm"
+                    size="sm"
+                    onClick={() => openConfirmDialog(selectedTransferId || "")}
+                    disabled={
+                      !areAllItemsVerified() ||
+                      selectedOrderDetails?.status !== "pending"
+                    }
+                  >
+                    <CheckCircle className="h-3.5 w-3.5 mr-1.5" />
+                    Confirm Order
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
+
+          {selectedOrderDetails?.items.length === 0 && (
+            <div className="flex-1 flex flex-col items-center justify-center py-6 text-muted-foreground">
+              <Package className="h-10 w-10 mb-2 opacity-40" />
+              <p className="text-sm">No items found in this transfer order.</p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 }

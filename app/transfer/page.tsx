@@ -112,9 +112,9 @@ export default function TransferPage() {
     }
   }, [locations]);
 
-  const [sourceLocation, setSourceLocation] = useState<string>("");
-  const [destinationLocation, setDestinationLocation] =
-    useState<string>("loc0"); // Default to Sanaiya (Main)
+  // Set source location to be fixed as "Sanaiya" - use a fake ID to avoid confusion
+  const [sourceLocation] = useState<string>("loc0"); // Fixed to "Sanaiya (Main)"
+  const [destinationLocation, setDestinationLocation] = useState<string>("");
   const [generatedSales, setGeneratedSales] = useState<SaleItem[]>([]);
   const [isGeneratingLoading, setIsGeneratingLoading] = useState(false);
   const [confirmGenerateDialogOpen, setConfirmGenerateDialogOpen] =
@@ -253,16 +253,29 @@ export default function TransferPage() {
           {/* Left Container - Location Selection */}
           <Card>
             {/* CardHeader removed */}
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 pt-6">
               <div className="space-y-2">
                 <label className="text-sm font-medium">Source Location</label>
                 {hasMounted ? (
+                  <div className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background flex items-center">
+                    <span>Sanaiya (Main)</span>
+                  </div>
+                ) : (
+                  <div className="h-10 border rounded-md w-full" /> /* Placeholder to maintain layout */
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">
+                  Destination Location
+                </label>
+                {hasMounted ? (
                   <Select
-                    value={sourceLocation}
-                    onValueChange={setSourceLocation}
+                    value={destinationLocation}
+                    onValueChange={setDestinationLocation}
                   >
                     <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select source location" />
+                      <SelectValue placeholder="Select destination location" />
                     </SelectTrigger>
                     <SelectContent>
                       {/* Only show Abu Dhurus and Hafith locations */}
@@ -286,24 +299,10 @@ export default function TransferPage() {
                 )}
               </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium">
-                  Destination Location
-                </label>
-                {hasMounted ? (
-                  <div className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background flex items-center">
-                    <span>Sanaiya (Main)</span>
-                  </div>
-                ) : (
-                  <div className="h-10 border rounded-md w-full" /> /* Placeholder to maintain layout */
-                )}
-              </div>
-
               {sourceLocation === destinationLocation &&
-                sourceLocation &&
                 destinationLocation && (
                   <div className="bg-amber-50 text-amber-800 p-3 rounded-md text-sm">
-                    Source and destination cannot be the same location.
+                    Cannot transfer to the same location.
                   </div>
                 )}
             </CardContent>
@@ -312,7 +311,7 @@ export default function TransferPage() {
           {/* Right Container - Generate Sales */}
           <Card>
             {/* CardHeader removed */}
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 pt-6">
               <div className="space-y-2">
                 <label className="text-sm font-medium">Select Date</label>
                 <Input
@@ -330,7 +329,6 @@ export default function TransferPage() {
                   className="gap-2 w-full"
                   onClick={() => setConfirmGenerateDialogOpen(true)}
                   disabled={
-                    !sourceLocation ||
                     !destinationLocation ||
                     sourceLocation === destinationLocation ||
                     isGeneratingLoading

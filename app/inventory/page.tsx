@@ -69,6 +69,15 @@ import ExportButton from "./export-button";
 import Link from "next/link";
 import { StockIndicator } from "./components/stock-indicator";
 
+// Add this interface below the other interfaces at the top of the file
+interface Batch {
+  purchase_date: string;
+  current_quantity: number;
+  initial_quantity: number;
+  cost?: number;
+  batch_number?: string;
+}
+
 // Client-side only component wrapper to prevent hydration mismatch
 const ClientOnly = ({ children }: { children: React.ReactNode }) => {
   const [hasMounted, setHasMounted] = useState(false);
@@ -291,7 +300,7 @@ const MobileItemCard = memo(
                           Batch Details (FIFO):
                         </div>
                         <div className="grid gap-1">
-                          {item.batches.map((batch: any, index: number) => (
+                          {item.batches.map((batch: Batch, index: number) => (
                             <div
                               key={index}
                               className="flex justify-between text-xs"
