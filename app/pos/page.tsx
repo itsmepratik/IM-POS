@@ -1881,7 +1881,7 @@ export default function POSPage() {
                                 )}
                               </Button>
                               {expandedBrand === brand && (
-                                <div className="p-4 bg-muted/50 grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                                <div className="p-4 bg-muted/50 grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 gap-4">
                                   {products
                                     .filter(
                                       (p) =>
@@ -1892,13 +1892,11 @@ export default function POSPage() {
                                       <Button
                                         key={product.id}
                                         variant="outline"
-                                        className="flex flex-col items-center justify-between p-3 sm:p-4 h-[200px] sm:h-[220px] md:h-[240px] overflow-hidden"
+                                        className="flex flex-col items-center justify-between p-4 h-auto min-h-[150px] transition-all hover:shadow-md overflow-hidden"
                                         onClick={() => {
-                                          // Create a branded product name for additives, just like oil products
                                           const brandedName = product.brand
                                             ? `${product.brand} ${product.name}`
                                             : product.name;
-
                                           addToCart({
                                             id: product.id,
                                             name: brandedName,
@@ -1906,21 +1904,26 @@ export default function POSPage() {
                                           });
                                         }}
                                       >
-                                        <div className="flex items-center justify-center h-14 w-14 mb-1">
-                                          <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
-                                            <Droplet className="h-6 w-6 text-primary opacity-70" />
-                                          </div>
+                                        {/* Product icon with fixed dimensions */}
+                                        <div className="w-12 h-12 mb-3 flex-shrink-0 flex items-center justify-center rounded-md bg-muted/80">
+                                          <Droplet className="h-6 w-6 text-primary/70" />
                                         </div>
-                                        <div className="text-center flex-1 flex flex-col justify-between">
-                                          <span
-                                            className="text-center font-medium text-xs sm:text-sm w-full px-1 break-words break-all whitespace-normal leading-tight hyphens-auto overflow-hidden"
-                                            style={{ lineHeight: 1.1 }}
-                                          >
-                                            {product.name}
-                                          </span>
-                                          <span className="block text-sm text-primary mt-2">
-                                            OMR {product.price.toFixed(2)}
-                                          </span>
+
+                                        {/* Product information with proper text handling */}
+                                        <div className="w-full flex flex-col items-center space-y-2">
+                                          {/* Product name with line clamping */}
+                                          <div className="text-center w-full">
+                                            <p className="text-sm font-medium line-clamp-2 leading-tight">
+                                              {product.name}
+                                            </p>
+                                          </div>
+
+                                          {/* Price with consistent formatting */}
+                                          <div className="mt-auto">
+                                            <span className="text-sm text-primary font-medium">
+                                              OMR {product.price.toFixed(2)}
+                                            </span>
+                                          </div>
                                         </div>
                                       </Button>
                                     ))}
