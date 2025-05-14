@@ -11,21 +11,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { FileText, ChevronDown, ChevronUp, CalendarRange } from "lucide-react";
-import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
-import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import {
+  FileText,
+  ChevronDown,
+  ChevronUp,
+  CalendarRange,
+  CalendarIcon,
+} from "lucide-react";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import dayjs, { Dayjs } from "dayjs";
-import isBetween from "dayjs/plugin/isBetween";
-import { Range, RangeKeyDict } from "react-date-range";
-import { DateRange as DateRangeCalendar } from "react-date-range";
-// Use a more specific type than 'any'
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const DateRange = DateRangeCalendar as React.ComponentType<any>;
 import {
   format,
   addDays,
@@ -38,14 +35,10 @@ import {
   isBefore,
   isAfter,
 } from "date-fns";
-import "react-date-range/dist/styles.css";
-import "react-date-range/dist/theme/default.css";
-import "./Calendar.css";
+import { Calendar } from "@/components/ui/calendar";
 import { useTransactions, Transaction } from "@/lib/client";
-
-dayjs.extend(isBetween);
-
-type DayTime = "morning" | "evening" | "full";
+import { DateRange } from "react-day-picker";
+import { cn } from "@/lib/utils";
 
 interface TransactionDisplay extends Omit<Transaction, "items"> {
   type: "sale" | "refund";
@@ -57,6 +50,8 @@ interface TransactionDisplay extends Omit<Transaction, "items"> {
   notes?: string;
   cashier: string;
 }
+
+type DayTime = "morning" | "evening" | "full";
 
 const timeOptions = [
   { value: "today", label: "Today" },
@@ -215,34 +210,32 @@ function FixedSalesCard({
 }: {
   transaction: TransactionDisplay | null;
 }) {
-  if (!transaction) return null;
   return (
     <div
-      className="fixed bottom-6 left-0 right-0 z-50 flex justify-center pointer-events-none"
-      style={{ pointerEvents: "none" }}
+      className={`flex flex-row justify-between p-3 border shadow-md text-white ${
+        !transaction
+          ? "bg-gray-600"
+          : transaction.type === "refund"
+          ? "bg-red-500"
+          : "bg-green-600"
+      }`}
     >
-      <div className="w-full max-w-2xl px-4 pointer-events-auto">
-        <Card className="p-4 shadow-lg border-2 border-green-200 bg-white">
-          <div className="flex items-center justify-between">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-green-500">Sale</span>
-                <span className="text-sm text-muted-foreground">
-                  {transaction.time || transaction.date}
-                </span>
-                <span className="text-sm text-muted-foreground">
-                  • Cashier: {transaction.cashier}
-                </span>
-              </div>
-              <div className="text-sm text-muted-foreground">
-                {transaction.items.join(", ")}
-              </div>
-            </div>
-            <div className="text-lg font-semibold text-green-500 min-w-[80px] text-right">
-              OMR {Math.abs(transaction.amount).toFixed(2)}
-            </div>
+      <div className="flex items-center">
+        <div className="text-lg font-medium mr-2">
+          {!transaction
+            ? "No transactions"
+            : transaction.type === "refund"
+            ? "Refund"
+            : "Sale"}
+        </div>
+        {transaction && (
+          <div className="text-sm opacity-80">
+            {transaction.items.join(", ")}
           </div>
-        </Card>
+        )}
+      </div>
+      <div className="text-lg font-bold">
+        {transaction ? `OMR ${Math.abs(transaction.amount).toFixed(2)}` : "--"}
       </div>
     </div>
   );
@@ -259,24 +252,12 @@ export default function TransactionsPage() {
   );
   const [selectedStore, setSelectedStore] = useState("all-stores");
   const [selectedCashier, setSelectedCashier] = useState("all-cashiers");
-  const [dateRange, setDateRange] = useState<Range[]>([
-    {
-      startDate: undefined,
-      endDate: undefined,
-      key: "selection",
-    } as Range,
-  ]);
+  const [date, setDate] = useState<DateRange | undefined>(undefined);
   const [hasMounted, setHasMounted] = useState(false);
 
   useEffect(() => {
     // Reset dates when period changes
-    setDateRange([
-      {
-        startDate: undefined,
-        endDate: undefined,
-        key: "selection",
-      } as Range,
-    ]);
+    setDate(undefined);
   }, [selectedPeriod]);
 
   useEffect(() => {
@@ -321,16 +302,17 @@ export default function TransactionsPage() {
   }, [selectedPeriod]);
 
   const getDateRangeText = useCallback(() => {
-    const { startDate, endDate } = dateRange[0];
-    if (!startDate) {
+    if (!date?.from) {
       return "Select days";
     }
-
-    if (!endDate || startDate === endDate) {
-      return format(startDate, "MMM d, yyyy");
+    if (date.to) {
+      return `${format(date.from, "MMM d")} - ${format(
+        date.to,
+        "MMM d, yyyy"
+      )}`;
     }
-    return `${format(startDate, "MMM d")} - ${format(endDate, "MMM d, yyyy")}`;
-  }, [dateRange]);
+    return format(date.from, "MMM d, yyyy");
+  }, [date]);
 
   // Convert transactions from our data hook to the format expected by the UI
   const getTransactions = useCallback((): TransactionDisplay[] => {
@@ -548,96 +530,31 @@ export default function TransactionsPage() {
               <div className="w-[140px] h-10" />
             )}
 
-            {selectedPeriod !== "today" && (
+            {hasMounted && selectedPeriod !== "today" && (
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
+                    id="date"
                     variant="outline"
-                    className="justify-start text-left font-normal min-w-[240px]"
+                    size="default"
+                    className={cn(
+                      "w-[240px] justify-start text-left font-normal",
+                      !date && "text-muted-foreground"
+                    )}
                   >
-                    <CalendarRange className="mr-2 h-4 w-4" />
+                    <CalendarIcon className="mr-2 h-4 w-4" />
                     {getDateRangeText()}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
-                  <div className="p-3">
-                    <DateRange
-                      className="custom-date-range"
-                      ranges={dateRange}
-                      onChange={(item: RangeKeyDict) =>
-                        setDateRange([item.selection])
-                      }
-                      minDate={getMinMaxDates().minDate}
-                      maxDate={getMinMaxDates().maxDate}
-                      rangeColors={["hsl(var(--primary))"]}
-                      showMonthAndYearPickers={true}
-                      showDateDisplay={false}
-                      direction="horizontal"
-                      months={1}
-                      weekStartsOn={0}
-                      disabledDay={(date: Date) => {
-                        const today = new Date();
-                        switch (selectedPeriod) {
-                          case "monthly":
-                            // Allow full month selection
-                            return (
-                              isBefore(
-                                date,
-                                startOfMonth(subMonths(today, 1))
-                              ) || isAfter(date, today)
-                            );
-                          case "yearly":
-                            // Allow full year selection
-                            return (
-                              isBefore(date, startOfYear(subYears(today, 1))) ||
-                              isAfter(date, today)
-                            );
-                          case "weekly":
-                            // Allow full week selection
-                            return (
-                              isBefore(date, subDays(today, 7)) ||
-                              isAfter(date, today)
-                            );
-                          default:
-                            // For today, only allow today
-                            return (
-                              date.getDate() !== today.getDate() ||
-                              date.getMonth() !== today.getMonth() ||
-                              date.getFullYear() !== today.getFullYear()
-                            );
-                        }
-                      }}
-                    />
-                    {dateRange[0].startDate && (
-                      <div className="border-t p-3">
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="text-sm text-muted-foreground">
-                            {dateRange[0].startDate && dateRange[0].endDate && (
-                              <>
-                                {format(dateRange[0].startDate, "MMM d")} -{" "}
-                                {format(dateRange[0].endDate, "MMM d, yyyy")}
-                              </>
-                            )}
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              setDateRange([
-                                {
-                                  startDate: undefined,
-                                  endDate: undefined,
-                                  key: "selection",
-                                } as Range,
-                              ]);
-                            }}
-                          >
-                            Reset
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                  <Calendar
+                    initialFocus
+                    mode="range"
+                    defaultMonth={date?.from}
+                    selected={date}
+                    onSelect={setDate}
+                    numberOfMonths={1}
+                  />
                 </PopoverContent>
               </Popover>
             )}

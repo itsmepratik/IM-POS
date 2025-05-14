@@ -60,7 +60,7 @@ export function NotificationDemo() {
     return (
       <div className="fixed bottom-4 right-4 z-50">
         <div className="rounded-full w-12 h-12 bg-background shadow-lg border flex items-center justify-center">
-          <Bell className="h-5 w-5 text-foreground" />
+          <Bell className="h-5 w-5 text-foreground" suppressHydrationWarning />
         </div>
       </div>
     );
