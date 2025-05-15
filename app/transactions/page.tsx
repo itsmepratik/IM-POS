@@ -34,6 +34,10 @@ import {
   subYears,
   isBefore,
   isAfter,
+  startOfWeek,
+  endOfWeek,
+  endOfMonth,
+  endOfYear,
 } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { useTransactions, Transaction } from "@/lib/client";
@@ -275,18 +279,18 @@ export default function TransactionsPage() {
     switch (selectedPeriod) {
       case "weekly":
         return {
-          minDate: subDays(today, 6), // Last 7 days including today
-          maxDate: today,
+          minDate: startOfWeek(today, { weekStartsOn: 1 }), // Start of current week (Monday)
+          maxDate: endOfWeek(today, { weekStartsOn: 1 }), // End of current week (Sunday)
         };
       case "monthly":
         return {
-          minDate: subDays(today, 30), // Last 31 days including today
-          maxDate: today,
+          minDate: startOfMonth(today), // Start of current month
+          maxDate: endOfMonth(today), // End of current month
         };
       case "yearly":
         return {
-          minDate: subDays(today, 364), // Last 365 days including today
-          maxDate: today,
+          minDate: startOfYear(today), // Start of current year
+          maxDate: endOfYear(today), // End of current year
         };
       default:
         return {
@@ -538,7 +542,7 @@ export default function TransactionsPage() {
                     variant="outline"
                     size="default"
                     className={cn(
-                      "w-[240px] justify-start text-left font-normal",
+                      "w-[240px] justify-start text-left font-normal border-muted-foreground/20",
                       !date && "text-muted-foreground"
                     )}
                   >
@@ -632,15 +636,13 @@ export default function TransactionsPage() {
         style={{ transition: "left 300ms ease-in-out", willChange: "left" }}
       >
         <div className="p-4 px-6 pb-6 w-full max-w-2xl pointer-events-auto">
-          <Card className="p-4 bg-blue-50 border shadow-md">
+          <Card className="p-4 border shadow-md">
             <div className="flex items-center justify-between">
               <div>
-                <span className="text-lg font-semibold text-blue-800">
-                  Total credit:
-                </span>
+                <span className="text-lg font-semibold">Total credit:</span>
               </div>
               <div>
-                <span className="text-xl font-bold text-blue-800 min-w-[110px] text-right inline-block">
+                <span className="text-xl font-bold min-w-[110px] text-right inline-block">
                   OMR {Math.abs(totalCredit).toFixed(2)}
                 </span>
               </div>
