@@ -256,11 +256,6 @@ export default function TransactionsPage() {
   const [hasMounted, setHasMounted] = useState(false);
 
   useEffect(() => {
-    // Reset dates when period changes
-    setDate(undefined);
-  }, [selectedPeriod]);
-
-  useEffect(() => {
     // Check for time of day
     const hour = new Date().getHours();
     if (hour < 12) {
@@ -280,17 +275,17 @@ export default function TransactionsPage() {
     switch (selectedPeriod) {
       case "weekly":
         return {
-          minDate: subDays(today, 7),
+          minDate: subDays(today, 6), // Last 7 days including today
           maxDate: today,
         };
       case "monthly":
         return {
-          minDate: startOfMonth(subMonths(today, 1)),
+          minDate: subDays(today, 30), // Last 31 days including today
           maxDate: today,
         };
       case "yearly":
         return {
-          minDate: startOfYear(today),
+          minDate: subDays(today, 364), // Last 365 days including today
           maxDate: today,
         };
       default:
@@ -303,8 +298,11 @@ export default function TransactionsPage() {
 
   const getDateRangeText = useCallback(() => {
     if (!date?.from) {
-      return "Select days";
+      // Simply return "Select dates" without the range info
+      return "Select dates";
     }
+
+    // Show selected date range
     if (date.to) {
       return `${format(date.from, "MMM d")} - ${format(
         date.to,
@@ -512,6 +510,8 @@ export default function TransactionsPage() {
               <Select
                 value={selectedPeriod}
                 onValueChange={(value: string) => {
+                  // Reset date selection when period changes
+                  setDate(undefined);
                   setSelectedPeriod(value as TimeOptionValue);
                 }}
               >
@@ -542,7 +542,7 @@ export default function TransactionsPage() {
                       !date && "text-muted-foreground"
                     )}
                   >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    <CalendarRange className="mr-2 h-4 w-4" />
                     {getDateRangeText()}
                   </Button>
                 </PopoverTrigger>
@@ -550,10 +550,14 @@ export default function TransactionsPage() {
                   <Calendar
                     initialFocus
                     mode="range"
-                    defaultMonth={date?.from}
+                    defaultMonth={new Date()}
                     selected={date}
                     onSelect={setDate}
                     numberOfMonths={1}
+                    disabled={{
+                      before: getMinMaxDates().minDate,
+                      after: getMinMaxDates().maxDate,
+                    }}
                   />
                 </PopoverContent>
               </Popover>
