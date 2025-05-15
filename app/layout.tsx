@@ -82,21 +82,21 @@ export default function RootLayout({
           suppressHydrationWarning
           dangerouslySetInnerHTML={{
             __html: `
-          /* Apply fullscreen adjustments for standalone mode */
+          /* PWA standalone mode: ensure full height and scrolling */
           @media all and (display-mode: standalone) {
             html, body {
-              height: 100vh;
-              width: 100vw;
-              margin: 0;
-              padding: 0;
-              overflow: hidden;
+              height: 100% !important;
+              width: 100% !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              overflow: auto !important; /* Enable scrolling */
+              position: static !important; /* Prevent fixed positioning issues */
+              overscroll-behavior-y: contain; /* Optional: prevent overscroll effects like pull-to-refresh if desired */
             }
             body {
-              position: fixed;
-              top: 0;
-              left: 0;
-              right: 0;
-              bottom: 0;
+              /* Ensure body specifically allows scrolling */
+              overflow-y: auto !important;
+              overflow-x: hidden !important;
             }
           }
         `,
@@ -117,7 +117,7 @@ export default function RootLayout({
         </UserProvider>
         <SpeedInsights />
         <Analytics />
-        {/* Register Service Worker */}
+        {/* Register Service Worker & PWA class */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
@@ -134,23 +134,16 @@ export default function RootLayout({
                 });
               }
               
-              // Check if we're in standalone mode and apply fullscreen
               window.addEventListener('load', function() {
                 if (window.matchMedia('(display-mode: standalone)').matches || 
                     window.navigator.standalone) {
-                  
-                  // For newer Android versions, try to go fullscreen programmatically
-                  if (document.documentElement.requestFullscreen) {
-                    document.documentElement.requestFullscreen().catch(err => {
-                      console.log("Couldn't enter fullscreen mode:", err);
-                    });
-                  }
+                  document.body.classList.add('pwa-standalone-mode');
                 }
               });
             `,
           }}
         />
-        {/* Load fullscreen handler script */}
+        {/* fullscreen.js is now empty, so this script tag doesn't do much but can be kept or removed */}
         <script src="/fullscreen.js" async />
       </body>
     </html>

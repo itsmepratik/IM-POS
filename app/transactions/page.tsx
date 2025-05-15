@@ -628,10 +628,10 @@ export default function TransactionsPage() {
 
       {/* Section 2: Fixed total credit card at the bottom, responsive to sidebar */}
       <div
-        className="fixed bottom-0 right-0 left-0 md:left-8 lg:left-56 z-50 w-auto flex justify-center"
+        className="fixed bottom-0 right-0 left-0 md:left-8 lg:left-56 z-40 w-auto flex justify-center pointer-events-none"
         style={{ transition: "left 300ms ease-in-out", willChange: "left" }}
       >
-        <div className="p-4 px-6 pb-6 w-full max-w-2xl">
+        <div className="p-4 px-6 pb-6 w-full max-w-2xl pointer-events-auto">
           <Card className="p-4 bg-blue-50 border shadow-md">
             <div className="flex items-center justify-between">
               <div>
