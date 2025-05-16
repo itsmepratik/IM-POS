@@ -156,6 +156,3 @@ export function BranchProvider({ children }: { children: ReactNode }) {
     </BranchContext.Provider>
   );
 }
-
-// Re-export the Branch type
-export type { Branch } from "@/lib/services/inventoryService";

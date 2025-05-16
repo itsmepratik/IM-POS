@@ -1,85 +1,92 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { Layout } from "@/components/layout"
-import { Button } from "@/components/ui/button"
+import { useState, useEffect } from "react";
+import { Layout } from "@/components/layout";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import { Input } from "@/components/ui/input"
-import { 
-  Plus, 
-  MoreVertical, 
-  Phone, 
-  Mail, 
-  Car, 
-  Calendar, 
-  Search, 
-  Filter, 
+} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import {
+  Plus,
+  MoreVertical,
+  Phone,
+  Mail,
+  Car,
+  Calendar,
+  Search,
+  Filter,
   ChevronDown,
   Download,
-  Upload
-} from "lucide-react"
+  Upload,
+} from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { PageHeader } from "@/components/page-title"
-import { Card, CardContent } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { useToast } from "@/components/ui/use-toast"
-import { CustomerForm, CustomerData } from "./customer-form"
-import { CustomerDetails } from "./customer-details"
-import { DeleteDialog } from "./delete-dialog"
-import { ImportDialog } from "./import-dialog"
-import { useCustomers } from "./customers-context"
+} from "@/components/ui/dropdown-menu";
+import { PageHeader } from "@/components/page-title";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useToast } from "@/components/ui/use-toast";
+import { CustomerForm, CustomerData } from "./customer-form";
+import { CustomerDetails } from "./customer-details";
+import { DeleteDialog } from "./delete-dialog";
+import { ImportDialog } from "./import-dialog";
+import { useCustomers } from "./customers-context";
 
 export default function CustomersPage() {
-  const { customers, addCustomer, updateCustomer, deleteCustomer } = useCustomers()
-  const { toast } = useToast()
-  
-  const [searchQuery, setSearchQuery] = useState("")
-  const [filterValue, setFilterValue] = useState("All customers")
-  const [isFilterExpanded, setIsFilterExpanded] = useState(false)
-  const [selectedCustomers, setSelectedCustomers] = useState<number[]>([])
-  const [viewMode, setViewMode] = useState<"table" | "cards">("table")
-  
+  const { customers, addCustomer, updateCustomer, deleteCustomer } =
+    useCustomers();
+  const { toast } = useToast();
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterValue, setFilterValue] = useState("All customers");
+  const [isFilterExpanded, setIsFilterExpanded] = useState(false);
+  const [selectedCustomers, setSelectedCustomers] = useState<number[]>([]);
+  const [viewMode, setViewMode] = useState<"table" | "cards">("table");
+
   // Modal states
-  const [isCustomerFormOpen, setIsCustomerFormOpen] = useState(false)
-  const [isCustomerDetailsOpen, setIsCustomerDetailsOpen] = useState(false)
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
-  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false)
-  const [currentCustomer, setCurrentCustomer] = useState<number | null>(null)
-  const [hasMounted, setHasMounted] = useState(false)
+  const [isCustomerFormOpen, setIsCustomerFormOpen] = useState(false);
+  const [isCustomerDetailsOpen, setIsCustomerDetailsOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [currentCustomer, setCurrentCustomer] = useState<number | null>(null);
+  const [hasMounted, setHasMounted] = useState(false);
 
   // Filter customers based on search query and filter value
-  const filteredCustomers = customers.filter(customer => {
-    const matchesSearch = 
-      searchQuery === "" || 
+  const filteredCustomers = customers.filter((customer) => {
+    const matchesSearch =
+      searchQuery === "" ||
       customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       customer.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       customer.phone.includes(searchQuery);
-    
-    const matchesFilter = 
-      filterValue === "All customers" || 
+
+    const matchesFilter =
+      filterValue === "All customers" ||
       (filterValue === "Multiple" && customer.vehicles.length > 1) ||
-      (filterValue === "Recent" && new Date(customer.lastVisit || "") > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)) ||
-      (filterValue === "New" && new Date(customer.lastVisit || "") > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000));
-    
+      (filterValue === "Recent" &&
+        new Date(customer.lastVisit || "") >
+          new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)) ||
+      (filterValue === "New" &&
+        new Date(customer.lastVisit || "") >
+          new Date(Date.now() - 7 * 24 * 60 * 60 * 1000));
+
     return matchesSearch && matchesFilter;
   });
 
   // Toggle selection of a customer
   const toggleCustomerSelection = (id: number) => {
-    setSelectedCustomers(prev => 
-      prev.includes(id) ? prev.filter(customerId => customerId !== id) : [...prev, id]
+    setSelectedCustomers((prev) =>
+      prev.includes(id)
+        ? prev.filter((customerId) => customerId !== id)
+        : [...prev, id]
     );
   };
 
@@ -88,78 +95,84 @@ export default function CustomersPage() {
     if (selectedCustomers.length === filteredCustomers.length) {
       setSelectedCustomers([]);
     } else {
-      setSelectedCustomers(filteredCustomers.map(c => c.id));
+      setSelectedCustomers(filteredCustomers.map((c) => c.id));
     }
   };
 
   // Modal handlers
   const openAddCustomer = () => {
-    setCurrentCustomer(null)
-    setIsCustomerFormOpen(true)
-  }
+    setCurrentCustomer(null);
+    setIsCustomerFormOpen(true);
+  };
 
   const openEditCustomer = (id: number) => {
-    setCurrentCustomer(id)
-    setIsCustomerFormOpen(true)
-  }
+    setCurrentCustomer(id);
+    setIsCustomerFormOpen(true);
+  };
 
   const openViewCustomer = (id: number) => {
-    setCurrentCustomer(id)
-    setIsCustomerDetailsOpen(true)
-  }
+    setCurrentCustomer(id);
+    setIsCustomerDetailsOpen(true);
+  };
 
   const openDeleteCustomer = (id: number) => {
-    setCurrentCustomer(id)
-    setIsDeleteDialogOpen(true)
-  }
+    setCurrentCustomer(id);
+    setIsDeleteDialogOpen(true);
+  };
 
   const openImportDialog = () => {
-    setIsImportDialogOpen(true)
-  }
+    setIsImportDialogOpen(true);
+  };
 
   // Form submission handlers
-  const handleAddCustomer = (customerData: Omit<CustomerData, "id" | "lastVisit">) => {
-    addCustomer(customerData)
-    setIsCustomerFormOpen(false)
+  const handleAddCustomer = (
+    customerData: Omit<CustomerData, "id" | "lastVisit">
+  ) => {
+    addCustomer(customerData);
+    setIsCustomerFormOpen(false);
     toast({
       title: "Customer added",
       description: `${customerData.name} has been added successfully.`,
-    })
-  }
+    });
+  };
 
-  const handleUpdateCustomer = (customerData: Omit<CustomerData, "id" | "lastVisit">) => {
+  const handleUpdateCustomer = (
+    customerData: Omit<CustomerData, "id" | "lastVisit">
+  ) => {
     if (currentCustomer) {
-      updateCustomer(currentCustomer, customerData)
-      setIsCustomerFormOpen(false)
+      updateCustomer(currentCustomer, customerData);
+      setIsCustomerFormOpen(false);
       toast({
         title: "Customer updated",
         description: `${customerData.name} has been updated successfully.`,
-      })
+      });
     }
-  }
+  };
 
   const handleDeleteCustomer = () => {
     if (currentCustomer) {
-      const customer = customers.find(c => c.id === currentCustomer)
-      deleteCustomer(currentCustomer)
-      setIsDeleteDialogOpen(false)
+      const customer = customers.find((c) => c.id === currentCustomer);
+      deleteCustomer(currentCustomer);
+      setIsDeleteDialogOpen(false);
       toast({
         title: "Customer deleted",
         description: `${customer?.name} has been deleted.`,
-        variant: "destructive"
-      })
+        variant: "destructive",
+      });
     }
-  }
+  };
 
-  const handleImportCustomers = (importedCustomers: Omit<CustomerData, "id" | "lastVisit">[]) => {
-    importedCustomers.forEach(customer => {
-      addCustomer(customer)
-    })
+  const handleImportCustomers = (
+    importedCustomers: Omit<CustomerData, "id" | "lastVisit">[]
+  ) => {
+    importedCustomers.forEach((customer) => {
+      addCustomer(customer);
+    });
     toast({
       title: "Customers imported",
       description: `${importedCustomers.length} customers have been imported successfully.`,
-    })
-  }
+    });
+  };
 
   // Handle mobile view
   useEffect(() => {
@@ -170,33 +183,37 @@ export default function CustomersPage() {
         setViewMode("table");
       }
     };
-    
+
     // Set initial view mode
     handleResize();
-    
+
     // Add event listener
-    window.addEventListener('resize', handleResize);
-    
+    window.addEventListener("resize", handleResize);
+
     // Clean up
-    return () => window.removeEventListener('resize', handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   useEffect(() => {
     // Set hasMounted to true after component mounts
-    setHasMounted(true)
-  }, [])
+    setHasMounted(true);
+  }, []);
 
   // Get current customer for modals
   const getCurrentCustomer = () => {
-    return customers.find(c => c.id === currentCustomer)
-  }
+    return customers.find((c) => c.id === currentCustomer);
+  };
 
   return (
     <Layout>
       <div className="w-full space-y-6">
         <PageHeader
           actions={
-            <Button variant="default" className="w-full sm:w-auto" onClick={openAddCustomer}>
+            <Button
+              variant="default"
+              className="w-full sm:w-auto"
+              onClick={openAddCustomer}
+            >
               <Plus className="mr-2 h-4 w-4" />
               Add customer
             </Button>
@@ -226,17 +243,21 @@ export default function CustomersPage() {
                       <SelectValue placeholder="All customers" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="All customers">All customers</SelectItem>
+                      <SelectItem value="All customers">
+                        All customers
+                      </SelectItem>
                       <SelectItem value="Recent">Recent customers</SelectItem>
-                      <SelectItem value="Multiple">Multiple vehicles</SelectItem>
+                      <SelectItem value="Multiple">
+                        Multiple vehicles
+                      </SelectItem>
                       <SelectItem value="New">New customers</SelectItem>
                     </SelectContent>
                   </Select>
                 ) : (
                   <div className="w-full sm:w-[180px] h-10 border rounded-md" /> /* Placeholder to maintain layout */
                 )}
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   className="hidden sm:flex"
                   onClick={openImportDialog}
                 >
@@ -244,7 +265,7 @@ export default function CustomersPage() {
                   Import
                 </Button>
               </div>
-              
+
               <Button
                 variant="outline"
                 size="sm"
@@ -253,7 +274,11 @@ export default function CustomersPage() {
               >
                 <Filter className="h-4 w-4 mr-2" />
                 Filters
-                <ChevronDown className={`ml-2 h-4 w-4 transition-transform ${isFilterExpanded ? "rotate-180" : ""}`} />
+                <ChevronDown
+                  className={`ml-2 h-4 w-4 transition-transform ${
+                    isFilterExpanded ? "rotate-180" : ""
+                  }`}
+                />
               </Button>
             </div>
           </div>
@@ -265,10 +290,13 @@ export default function CustomersPage() {
             <thead>
               <tr className="border-b">
                 <th className="p-3 text-left w-10">
-                  <input 
-                    type="checkbox" 
-                    className="rounded" 
-                    checked={selectedCustomers.length === filteredCustomers.length && filteredCustomers.length > 0}
+                  <input
+                    type="checkbox"
+                    className="rounded"
+                    checked={
+                      selectedCustomers.length === filteredCustomers.length &&
+                      filteredCustomers.length > 0
+                    }
                     onChange={toggleAllCustomers}
                   />
                 </th>
@@ -284,9 +312,9 @@ export default function CustomersPage() {
               {filteredCustomers.map((customer) => (
                 <tr key={customer.id} className="border-b hover:bg-muted/50">
                   <td className="p-3">
-                    <input 
-                      type="checkbox" 
-                      className="rounded" 
+                    <input
+                      type="checkbox"
+                      className="rounded"
                       checked={selectedCustomers.includes(customer.id)}
                       onChange={() => toggleCustomerSelection(customer.id)}
                     />
@@ -296,10 +324,15 @@ export default function CustomersPage() {
                   <td className="p-3">{customer.phone}</td>
                   <td className="p-3">
                     <Badge variant="outline" className="font-normal">
-                      {customer.vehicles.length} {customer.vehicles.length === 1 ? 'vehicle' : 'vehicles'}
+                      {customer.vehicles.length}{" "}
+                      {customer.vehicles.length === 1 ? "vehicle" : "vehicles"}
                     </Badge>
                   </td>
-                  <td className="p-3">{customer.lastVisit ? new Date(customer.lastVisit).toLocaleDateString('en-GB') : "-"}</td>
+                  <td className="p-3">
+                    {customer.lastVisit
+                      ? new Date(customer.lastVisit).toLocaleDateString("en-GB")
+                      : "-"}
+                  </td>
                   <td className="p-3 text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -309,13 +342,17 @@ export default function CustomersPage() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => openViewCustomer(customer.id)}>
+                        <DropdownMenuItem
+                          onClick={() => openViewCustomer(customer.id)}
+                        >
                           View details
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => openEditCustomer(customer.id)}>
+                        <DropdownMenuItem
+                          onClick={() => openEditCustomer(customer.id)}
+                        >
                           Edit
                         </DropdownMenuItem>
-                        <DropdownMenuItem 
+                        <DropdownMenuItem
                           className="text-red-600"
                           onClick={() => openDeleteCustomer(customer.id)}
                         >
@@ -343,13 +380,24 @@ export default function CustomersPage() {
                 <div className="p-4 flex flex-col gap-3">
                   <div className="flex items-start justify-between">
                     <div>
-                      <h3 className="font-semibold text-base">{customer.name}</h3>
+                      <h3 className="font-semibold text-base">
+                        {customer.name}
+                      </h3>
                       <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
                         <Badge variant="outline" className="font-normal">
-                          {customer.vehicles.length} {customer.vehicles.length === 1 ? 'vehicle' : 'vehicles'}
+                          {customer.vehicles.length}{" "}
+                          {customer.vehicles.length === 1
+                            ? "vehicle"
+                            : "vehicles"}
                         </Badge>
                         <span>•</span>
-                        <span>{customer.lastVisit ? new Date(customer.lastVisit).toLocaleDateString('en-GB') : "No visits"}</span>
+                        <span>
+                          {customer.lastVisit
+                            ? new Date(customer.lastVisit).toLocaleDateString(
+                                "en-GB"
+                              )
+                            : "No visits"}
+                        </span>
                       </div>
                     </div>
                     <DropdownMenu>
@@ -360,13 +408,17 @@ export default function CustomersPage() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => openViewCustomer(customer.id)}>
+                        <DropdownMenuItem
+                          onClick={() => openViewCustomer(customer.id)}
+                        >
                           View details
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => openEditCustomer(customer.id)}>
+                        <DropdownMenuItem
+                          onClick={() => openEditCustomer(customer.id)}
+                        >
                           Edit
                         </DropdownMenuItem>
-                        <DropdownMenuItem 
+                        <DropdownMenuItem
                           className="text-red-600"
                           onClick={() => openDeleteCustomer(customer.id)}
                         >
@@ -375,36 +427,42 @@ export default function CustomersPage() {
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
-                  
+
                   <div className="space-y-2">
                     {customer.email && (
                       <div className="flex items-center gap-2">
                         <Mail className="h-4 w-4 text-muted-foreground" />
-                        <a href={`mailto:${customer.email}`} className="text-primary hover:underline">
+                        <a
+                          href={`mailto:${customer.email}`}
+                          className="text-primary hover:underline"
+                        >
                           {customer.email}
                         </a>
                       </div>
                     )}
                     <div className="flex items-center gap-2">
                       <Phone className="h-4 w-4 text-muted-foreground" />
-                      <a href={`tel:${customer.phone}`} className="hover:underline">
+                      <a
+                        href={`tel:${customer.phone}`}
+                        className="hover:underline"
+                      >
                         {customer.phone}
                       </a>
                     </div>
                   </div>
-                  
+
                   <div className="flex justify-between pt-2 border-t">
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       className="text-xs"
                       onClick={() => openViewCustomer(customer.id)}
                     >
                       View Details
                     </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
+                    <Button
+                      variant="outline"
+                      size="sm"
                       className="text-xs"
                       onClick={() => openEditCustomer(customer.id)}
                     >
@@ -415,7 +473,7 @@ export default function CustomersPage() {
               </CardContent>
             </Card>
           ))}
-          
+
           {filteredCustomers.length === 0 && (
             <div className="text-center py-8 border rounded-md">
               <p className="text-muted-foreground">No customers found</p>
@@ -426,7 +484,7 @@ export default function CustomersPage() {
 
       {/* Customer Form Modal */}
       {isCustomerFormOpen && (
-        <CustomerForm 
+        <CustomerForm
           isOpen={isCustomerFormOpen}
           onClose={() => setIsCustomerFormOpen(false)}
           customer={getCurrentCustomer()}
@@ -441,15 +499,15 @@ export default function CustomersPage() {
           onClose={() => setIsCustomerDetailsOpen(false)}
           customer={getCurrentCustomer()!}
           onEdit={() => {
-            setIsCustomerDetailsOpen(false)
-            setIsCustomerFormOpen(true)
+            setIsCustomerDetailsOpen(false);
+            setIsCustomerFormOpen(true);
           }}
         />
       )}
 
       {/* Delete Confirmation Dialog */}
       {isDeleteDialogOpen && getCurrentCustomer() && (
-        <DeleteDialog 
+        <DeleteDialog
           isOpen={isDeleteDialogOpen}
           onClose={() => setIsDeleteDialogOpen(false)}
           onConfirm={handleDeleteCustomer}
@@ -459,12 +517,12 @@ export default function CustomersPage() {
 
       {/* Import Dialog */}
       {isImportDialogOpen && (
-        <ImportDialog 
+        <ImportDialog
           isOpen={isImportDialogOpen}
           onClose={() => setIsImportDialogOpen(false)}
           onImport={handleImportCustomers}
         />
       )}
     </Layout>
-  )
-} 
+  );
+}

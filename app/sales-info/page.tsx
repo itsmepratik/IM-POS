@@ -13,27 +13,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  useSalesInfo,
-  type SaleItem,
-  type Store,
-  type SaleVariant,
-} from "@/lib/hooks/data/useSalesInfo";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import {
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  ArrowLeft as ArrowLeftIcon,
-  Package,
-  User,
-  Search,
-} from "lucide-react";
+import { useSalesInfo } from "@/lib/hooks/data/useSalesInfo";
+
+interface SaleItemVariant {
+  size: string;
+  quantity: number;
+  unitPrice: number;
+  totalSales: number;
+}
+
+interface SaleItem {
+  name: string;
+  category: "fluid" | "part" | "service";
+  quantity: number;
+  unitPrice: number;
+  totalSales: number;
+  variants?: SaleItemVariant[];
+  storeId: string;
+}
 
 const stores = [
   { id: "all-stores", name: "All Stores" },
@@ -42,63 +39,73 @@ const stores = [
   { id: "store3", name: "Abu-Dhurus" },
 ];
 
-// Update component to use MobileItemCard
-const MobileItemCard = ({
-  item,
-  isExpanded,
-  onToggle,
-}: {
-  item: SaleItem;
-  isExpanded: boolean;
-  onToggle: () => void;
-}) => {
-  return (
-    <Card className="overflow-hidden">
-      <div className="p-4">
-        <div className="flex justify-between items-start">
-          <div>
-            <h3 className="font-medium">{item.name}</h3>
-            <p className="text-sm text-gray-500">
-              {item.quantity} units • OMR {item.unitPrice.toFixed(2)}
-            </p>
-          </div>
-          <div className="flex items-center">
-            <span className="font-semibold mr-3">
-              OMR {item.totalSales.toFixed(2)}
-            </span>
-            {item.category === "fluid" && item.variants && (
-              <button onClick={onToggle} className="p-1">
-                {isExpanded ? (
-                  <ChevronUp className="h-5 w-5" />
-                ) : (
-                  <ChevronDown className="h-5 w-5" />
-                )}
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {isExpanded && item.category === "fluid" && item.variants && (
-        <div className="bg-gray-50 border-t">
-          {item.variants.map((variant) => (
-            <div
-              key={variant.size}
-              className="px-4 py-2 flex justify-between border-b last:border-b-0"
-            >
-              <span className="text-sm text-gray-600">
-                {variant.size} • {variant.quantity} units
-              </span>
-              <span className="text-sm font-medium">
-                OMR {variant.totalSales.toFixed(2)}
-              </span>
+// Memoize the mobile item card component
+const MobileItemCard = memo(
+  ({
+    item,
+    isExpanded,
+    onToggle,
+  }: {
+    item: SaleItem;
+    isExpanded: boolean;
+    onToggle: () => void;
+  }) => {
+    return (
+      <Card className="overflow-hidden">
+        <div
+          className={`p-4 ${item.category === "fluid" ? "cursor-pointer" : ""}`}
+          onClick={() => item.category === "fluid" && onToggle()}
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-medium">{item.name}</h3>
+              <p className="text-sm text-muted-foreground mt-1">
+                {item.quantity} units at OMR {item.unitPrice.toFixed(2)}
+              </p>
             </div>
-          ))}
+            <div className="text-right">
+              <div className="font-semibold">
+                OMR {item.totalSales.toFixed(2)}
+              </div>
+              {item.category === "fluid" && (
+                <div className="text-blue-500 mt-1">
+                  {isExpanded ? (
+                    <ChevronUp className="h-4 w-4" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4" />
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {item.category === "fluid" && isExpanded && item.variants && (
+            <div className="mt-4 border-t pt-4 space-y-3">
+              {item.variants.map((variant) => (
+                <div
+                  key={variant.size}
+                  className="flex items-center justify-between text-sm text-gray-600"
+                >
+                  <div>
+                    <span className="font-medium">{variant.size}</span>
+                    <p className="text-xs mt-0.5">
+                      {variant.quantity} units at OMR{" "}
+                      {variant.unitPrice.toFixed(2)}
+                    </p>
+                  </div>
+                  <div className="font-medium">
+                    OMR {variant.totalSales.toFixed(2)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-      )}
-    </Card>
-  );
-};
+      </Card>
+    );
+  }
+);
+MobileItemCard.displayName = "MobileItemCard";
 
 // Memoize the desktop view component
 const DesktopView = memo(

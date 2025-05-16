@@ -1,10 +1,7 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
-import { useBranch } from "../branch-context";
-import { toast } from "@/components/ui/use-toast";
-import { useInventoryData } from "./hooks/useInventoryData";
-
+import type React from "react";
+import { createContext, useContext, useState, useEffect } from "react";
 import {
   Item,
   Batch,
@@ -32,8 +29,10 @@ import {
   Category,
   Supplier,
 } from "@/lib/services/inventoryService";
+import { useBranch } from "../branch-context";
+import { toast } from "@/components/ui/use-toast";
+import { useInventoryMockData } from "./hooks/useInventoryMockData";
 
-// Define the Items context interface
 interface ItemsContextType {
   items: Item[];
   categories: string[];
@@ -80,7 +79,6 @@ interface ItemsContextType {
   refetchItems: () => Promise<void>;
 }
 
-// Create the context
 const ItemsContext = createContext<ItemsContextType>({
   items: [],
   categories: [],
@@ -118,7 +116,47 @@ export { type Item, type Batch, type Volume, type BottleStates };
 
 export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
   const { currentBranch } = useBranch();
-  // Initialize state regardless of mock or real data
+  // Use mock data hook in development
+  const isDev = process.env.NODE_ENV === "development";
+  const mock = isDev ? useInventoryMockData() : null;
+
+  // If using mock, wire up all context values from the mock hook
+  if (mock) {
+    return (
+      <ItemsContext.Provider
+        value={{
+          items: mock.items,
+          categories: mock.categories,
+          brands: mock.brands,
+          suppliers: [],
+          categoryMap: {},
+          brandMap: {},
+          addItem: async (item) => {
+            mock.handleAddItem();
+            return null;
+          },
+          updateItem: async (id, updatedItem) => null,
+          deleteItem: mock.handleDelete,
+          duplicateItem: mock.handleDuplicate,
+          addCategory: async () => null,
+          updateCategory: async () => false,
+          deleteCategory: async () => false,
+          addBrand: async () => null,
+          updateBrand: async () => false,
+          deleteBrand: async () => false,
+          addBatch: async () => false,
+          updateBatch: async () => false,
+          deleteBatch: async () => false,
+          calculateAverageCost: () => 0,
+          isLoading: false,
+          refetchItems: async () => {},
+        }}
+      >
+        {children}
+      </ItemsContext.Provider>
+    );
+  }
+
   const [items, setItems] = useState<Item[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [brands, setBrands] = useState<string[]>([]);
@@ -128,11 +166,6 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
     new Map()
   ); // id -> name
   const [brandMap, setBrandMap] = useState<Map<string, string>>(new Map()); // id -> name
-
-  // Use mock data hook in development - always call hooks unconditionally at the top level
-  const isDev = process.env.NODE_ENV === "development";
-  const mockData = useInventoryData();
-  const mock = isDev ? mockData : null;
 
   // Helper function to convert Map to Record
   const mapToRecord = (map: Map<string, string>): Record<string, string> => {
@@ -145,46 +178,46 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
 
   // Fetch items when the current branch changes
   useEffect(() => {
-    if (currentBranch && !mock) {
+    if (currentBranch) {
       loadItems();
     }
-  }, [currentBranch, mock]);
+  }, [currentBranch]);
 
   // Fetch categories, brands, and suppliers on initial load
   useEffect(() => {
-    if (!mock) {
-      loadMetadata();
-    }
-  }, [mock]);
+    const loadMetadata = async () => {
+      try {
+        const [categoriesData, brandsData, suppliersData, branchesData] =
+          await Promise.all([
+            fetchCategories(),
+            fetchBrands(),
+            fetchSuppliers(),
+            fetchBranches(),
+          ]);
 
-  const loadMetadata = async () => {
-    try {
-      const [categoriesData, brandsData, suppliersData, branchesData] =
-        await Promise.all([
-          fetchCategories(),
-          fetchBrands(),
-          fetchSuppliers(),
-          fetchBranches(),
-        ]);
+        // Setting category data
+        setCategories(categoriesData.map((cat) => cat.name));
+        const catMap = new Map<string, string>();
+        categoriesData.forEach((cat: Category) => catMap.set(cat.id, cat.name));
+        setCategoryMap(catMap);
 
-      // Setting category data
-      setCategories(categoriesData.map((cat: Category) => cat.name));
-      const catMap = new Map<string, string>();
-      categoriesData.forEach((cat: Category) => catMap.set(cat.id, cat.name));
-      setCategoryMap(catMap);
+        // Setting brand data
+        setBrands(brandsData.map((brand) => brand.name));
+        const brandMap = new Map<string, string>();
+        brandsData.forEach((brand: Brand) =>
+          brandMap.set(brand.id, brand.name)
+        );
+        setBrandMap(brandMap);
 
-      // Setting brand data
-      setBrands(brandsData.map((brand: Brand) => brand.name));
-      const brandMap = new Map<string, string>();
-      brandsData.forEach((brand: Brand) => brandMap.set(brand.id, brand.name));
-      setBrandMap(brandMap);
+        // Setting supplier data
+        setSuppliers(suppliersData);
+      } catch (error) {
+        console.error("Error loading metadata:", error);
+      }
+    };
 
-      // Setting supplier data
-      setSuppliers(suppliersData);
-    } catch (error) {
-      console.error("Error loading metadata:", error);
-    }
-  };
+    loadMetadata();
+  }, []);
 
   const loadItems = async () => {
     if (!currentBranch) return;

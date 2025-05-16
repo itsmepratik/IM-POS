@@ -79,7 +79,7 @@ export function Layout({ children, pageTitle }: LayoutProps) {
   };
 
   return (
-    <div className="flex flex-col min-h-screen w-full bg-background">
+    <div className="flex min-h-screen w-full bg-background overflow-auto">
       {/* Desktop Sidebar - only show on tablets and above */}
       <Sidebar
         className="hidden lg:flex"
@@ -102,7 +102,7 @@ export function Layout({ children, pageTitle }: LayoutProps) {
       {/* Main content - push to the side based on sidebar state */}
       <div
         className={cn(
-          "flex-1 flex flex-col w-full mt-16 lg:mt-0 overflow-y-auto overflow-x-hidden",
+          "flex-1 w-full flex flex-col mt-16 lg:mt-0 overflow-auto",
           sidebarCollapsed ? "lg:ml-14" : "lg:ml-56"
         )}
         style={{
@@ -110,7 +110,9 @@ export function Layout({ children, pageTitle }: LayoutProps) {
           willChange: "margin-left",
         }}
       >
-        <main className="flex-1 w-full p-4 md:p-6 lg:p-8">{children}</main>
+        <main className="flex-1 w-full p-4 md:p-6 lg:p-8 overflow-auto">
+          {children}
+        </main>
       </div>
     </div>
   );
