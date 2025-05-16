@@ -358,10 +358,12 @@ export function CustomSidebar({ className }: { className?: string }) {
           <div className="flex justify-center">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="px-4 py-3 h-auto w-auto">
-                  <Avatar className="h-9 w-9">
-                    <AvatarImage src="/avatars/01.png" alt="@username" />
-                    <AvatarFallback>SC</AvatarFallback>
+                <Button variant="ghost" className="h-8 w-8 rounded-full p-0">
+                  <Avatar className="h-7 w-7">
+                    <AvatarImage src="/avatars/01.svg" alt="@username" />
+                    <AvatarFallback>
+                      {currentUser?.name ? currentUser.name.charAt(0) : "U"}
+                    </AvatarFallback>
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
@@ -413,9 +415,11 @@ function ProfileMenu() {
   if (!open) {
     return (
       <div className="px-2 py-4 flex justify-center">
-        <Avatar className="h-8 w-8">
-          <AvatarImage src="/avatars/01.png" alt="@username" />
-          <AvatarFallback>SC</AvatarFallback>
+        <Avatar className="h-7 w-7">
+          <AvatarImage src="/avatars/01.svg" alt="@username" />
+          <AvatarFallback>
+            {currentUser?.name ? currentUser.name.charAt(0) : "U"}
+          </AvatarFallback>
         </Avatar>
       </div>
     );
@@ -425,9 +429,11 @@ function ProfileMenu() {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button className="flex w-full items-center gap-3 rounded-md px-4 py-3 text-sm transition-colors hover:bg-accent">
-          <Avatar className="h-9 w-9">
-            <AvatarImage src="/avatars/01.png" alt="@username" />
-            <AvatarFallback>SC</AvatarFallback>
+          <Avatar className="h-7 w-7">
+            <AvatarImage src="/avatars/01.svg" alt="@username" />
+            <AvatarFallback>
+              {currentUser?.name ? currentUser.name.charAt(0) : "U"}
+            </AvatarFallback>
           </Avatar>
           <div className="flex-1 overflow-hidden text-left">
             <div className="font-medium">User</div>

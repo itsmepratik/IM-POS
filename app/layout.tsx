@@ -41,8 +41,11 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "Hossain & Sons",
   description: "Hossain & Sons Oil change & Service Center",
-  themeColor: "#ffffff",
   manifest: "/manifest.json",
+};
+
+export const viewport = {
+  themeColor: "#ffffff",
 };
 
 export default function RootLayout({
@@ -85,18 +88,18 @@ export default function RootLayout({
           /* Apply fullscreen adjustments for standalone mode */
           @media all and (display-mode: standalone) {
             html, body {
-              height: 100vh;
-              width: 100vw;
+              height: 100%;
+              width: 100%;
               margin: 0;
               padding: 0;
-              overflow: hidden;
             }
-            body {
-              position: fixed;
-              top: 0;
-              left: 0;
-              right: 0;
-              bottom: 0;
+            
+            /* Ensure content within the app is scrollable */
+            #app-root {
+              height: 100%;
+              width: 100%;
+              overflow: auto;
+              -webkit-overflow-scrolling: touch;
             }
           }
         `,
@@ -110,7 +113,12 @@ export default function RootLayout({
         <UserProvider>
           <BranchProvider>
             <NotificationProvider>
-              {children}
+              <div
+                id="app-root"
+                style={{ height: "100%", width: "100%", overflow: "auto" }}
+              >
+                {children}
+              </div>
               <NotificationDemo />
             </NotificationProvider>
           </BranchProvider>

@@ -301,7 +301,7 @@ export function MobileNav({ className }: { className?: string }) {
                   className="w-full justify-start px-3 py-2 rounded-md hover:bg-accent transition-colors duration-200"
                 >
                   <Avatar className="h-8 w-8 mr-2">
-                    <AvatarImage src="/avatars/01.png" alt="@username" />
+                    <AvatarImage src="/avatars/01.svg" alt="@username" />
                     <AvatarFallback>SC</AvatarFallback>
                   </Avatar>
                   <div className="flex flex-col items-start text-sm">

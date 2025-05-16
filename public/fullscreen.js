@@ -21,23 +21,25 @@
         // Add a fullscreen class to the body
         document.body.classList.add("pwa-fullscreen");
 
-        // Try multiple fullscreen approaches
-        tryEnterFullscreen();
+        // Only attempt fullscreen on user interaction to avoid scrolling issues
+        /*
+        document.addEventListener('click', function userInteractionHandler() {
+          // Only try once
+          document.removeEventListener('click', userInteractionHandler);
+          tryEnterFullscreen();
+        }, { once: true });
+        */
 
-        // Listen for orientation changes to re-apply fullscreen
-        window.addEventListener("orientationchange", function () {
-          setTimeout(tryEnterFullscreen, 300);
-        });
-
-        // Set a listener for the fullscreenchange event
-        document.addEventListener("fullscreenchange", function () {
-          if (!document.fullscreenElement) {
-            setTimeout(tryEnterFullscreen, 500);
-          }
-        });
-
-        // Apply CSS for status bar replacement instead of inserting an element
+        // Apply CSS for status bar replacement
         forceFullscreenCSS();
+
+        // Add a subtle notification that the app is in standalone mode
+        const appRoot = document.getElementById("app-root");
+        if (appRoot) {
+          // Just ensure the app-root has proper scrolling
+          appRoot.style.overflow = "auto";
+          appRoot.style.webkitOverflowScrolling = "touch";
+        }
       }
     }
   }
@@ -72,7 +74,7 @@
     const style = document.createElement("style");
     style.textContent = `
       body.pwa-fullscreen {
-        position: fixed !important;
+        position: relative !important;
         width: 100% !important;
         height: 100% !important;
         margin: 0 !important;
@@ -81,7 +83,8 @@
         left: 0 !important;
         right: 0 !important;
         bottom: 0 !important;
-        overflow: hidden !important;
+        overflow: auto !important;
+        -webkit-overflow-scrolling: touch !important;
         background-color: #ffffff !important;
       }
       
@@ -97,6 +100,23 @@
         left: 0;
         right: 0;
         z-index: 9999;
+      }
+
+      /* Make sure content is scrollable in PWA mode */
+      #app-root {
+        height: 100% !important;
+        overflow: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+      }
+
+      .flex {
+        display: flex !important;
+      }
+
+      /* Fix any fixed containers that might block scrolling */
+      div[class*="overflow-hidden"] {
+        overflow: auto !important;
+        -webkit-overflow-scrolling: touch !important;
       }
 
       @supports (padding-top: env(safe-area-inset-top)) {

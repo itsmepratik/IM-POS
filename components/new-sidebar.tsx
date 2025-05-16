@@ -386,7 +386,7 @@ function ProfileMenu({ isCollapsed }: { isCollapsed: boolean }) {
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="h-8 w-8 rounded-full p-0">
               <Avatar className="h-7 w-7">
-                <AvatarImage src="/avatars/01.png" alt="@username" />
+                <AvatarImage src="/avatars/01.svg" alt="@username" />
                 <AvatarFallback>
                   {currentUser?.name ? currentUser.name.charAt(0) : "U"}
                 </AvatarFallback>
@@ -433,7 +433,7 @@ function ProfileMenu({ isCollapsed }: { isCollapsed: boolean }) {
             className="p-2 h-auto w-full flex items-center gap-2 justify-start rounded-md hover:bg-accent transition-colors duration-200"
           >
             <Avatar className="h-7 w-7 flex-shrink-0">
-              <AvatarImage src="/avatars/01.png" alt="@username" />
+              <AvatarImage src="/avatars/01.svg" alt="@username" />
               <AvatarFallback>
                 {currentUser?.name ? currentUser.name.charAt(0) : "U"}
               </AvatarFallback>
