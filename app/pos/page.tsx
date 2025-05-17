@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic"; // Ensure dynamic rendering and no server-side caching
+
 import { useState, useMemo, useCallback, memo, useRef, useEffect } from "react";
 import { Layout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
@@ -80,6 +82,9 @@ import { FilterModal } from "./components/filter-modal";
 import { PartsModal } from "./components/parts-modal";
 import { BrandCard } from "./components/brand-card";
 import { BrandLogo } from "./components/brand-logo";
+
+// Import the BillComponent
+import { BillComponent } from "./components/bill-component";
 
 interface OilProduct {
   id: number;
@@ -1093,6 +1098,18 @@ export default function POSPage() {
     value: number;
   } | null>(null);
 
+  // State for Trade-In
+  const [isTradeInDialogOpen, setIsTradeInDialogOpen] = useState(false);
+  const [tradeInAmount, setTradeInAmount] = useState<number>(0);
+  const [appliedTradeInAmount, setAppliedTradeInAmount] = useState<number>(0);
+
+  // State for receipt/bill number, date, time - to be generated before showing success dialog
+  const [transactionData, setTransactionData] = useState({
+    receiptNumber: "",
+    currentDate: "",
+    currentTime: "",
+  });
+
   // Add a state to track if bottle type dialog is open
   const [showBottleTypeDialog, setShowBottleTypeDialog] = useState(false);
   const [currentBottleVolumeSize, setCurrentBottleVolumeSize] = useState<
@@ -1352,7 +1369,7 @@ export default function POSPage() {
     [activeCategory, searchQuery]
   );
 
-  // Calculate total with discount
+  // Calculate total with discount and trade-in
   const subtotal = useMemo(
     () => cart.reduce((sum, item) => sum + item.price * item.quantity, 0),
     [cart]
@@ -1364,14 +1381,18 @@ export default function POSPage() {
     if (appliedDiscount.type === "percentage") {
       return subtotal * (appliedDiscount.value / 100);
     } else {
-      return Math.min(appliedDiscount.value, subtotal); // Don't allow discount larger than subtotal
+      // Ensure discount doesn't exceed subtotal (or subtotal after trade-in if that's the business rule)
+      // For now, discount applies to original subtotal
+      return Math.min(appliedDiscount.value, subtotal);
     }
   }, [subtotal, appliedDiscount]);
 
-  const total = useMemo(
-    () => subtotal - discountAmount,
-    [subtotal, discountAmount]
-  );
+  const total = useMemo(() => {
+    // Apply discount first, then trade-in to the discounted subtotal
+    const subtotalAfterDiscount = subtotal - discountAmount;
+    // Ensure trade-in doesn't make the total negative
+    return Math.max(0, subtotalAfterDiscount - appliedTradeInAmount);
+  }, [subtotal, discountAmount, appliedTradeInAmount]);
 
   const handleFilterClick = (filter: Product) => {
     setSelectedFilters((prev) => {
@@ -1427,15 +1448,40 @@ export default function POSPage() {
   };
 
   const handleCheckout = () => {
+    // Reset the cashierId field whenever checkout is started
+    setEnteredCashierId("");
+    setFetchedCashier(null);
+    setCashierIdError(null);
     setIsCheckoutModalOpen(true);
+
+    // Generate transaction data before showing payment method selection
+    const newReceiptNumber = `A${Math.floor(Math.random() * 10000)
+      .toString()
+      .padStart(4, "0")}`;
+    const newCurrentDate = new Date().toLocaleDateString("en-GB");
+    const newCurrentTime = new Date().toLocaleTimeString("en-GB", {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+    setTransactionData({
+      receiptNumber: newReceiptNumber,
+      currentDate: newCurrentDate,
+      currentTime: newCurrentTime,
+    });
   };
 
   const handlePaymentComplete = () => {
     // Instead of showing success immediately, show cashier selection dialog
     setIsCheckoutModalOpen(false);
+    // Reset cashier fields before opening the cashier selection dialog
+    setEnteredCashierId("");
+    setFetchedCashier(null);
+    setCashierIdError(null);
     setIsCashierSelectOpen(true);
   };
 
+  // Add this new function to handle final payment completion
   // Add this new function to handle final payment completion
   const handleFinalizePayment = () => {
     // Make a copy of the appliedDiscount before resetting state
@@ -1456,6 +1502,29 @@ export default function POSPage() {
     // We'll reset other states but keep the discount for the receipt
     console.log("Finalizing payment with discount:", discountForReceipt);
     console.log("Payment info:", paymentInfo);
+  };
+
+  // Function to reset all POS state after a transaction is complete
+  const resetPOSState = () => {
+    // Reset cart
+    setCart([]);
+    setShowCart(false);
+
+    // Reset payment info
+    setSelectedPaymentMethod(null);
+    setAppliedDiscount(null);
+    setDiscountValue(0);
+
+    // Reset trade-in amounts
+    setAppliedTradeInAmount(0);
+    setTradeInAmount(0);
+
+    // Reset cashier info - this is the important part for fixing the ID persistence issue
+    setSelectedCashier(null);
+    setEnteredCashierId("");
+    setFetchedCashier(null);
+    setCashierIdError(null);
+    setPaymentRecipient(null);
   };
 
   // Replace the handleImportCustomers function definition with this one
@@ -1591,6 +1660,39 @@ export default function POSPage() {
     products.filter(
       (product) => product.category === "Parts" && product.type === type
     );
+
+  // Helper function to check if the cart contains only batteries
+  const cartContainsOnlyBatteries = (cartItems: CartItem[]): boolean => {
+    if (cartItems.length === 0) return false;
+
+    // Filter out the special discount item before checking if all remaining are batteries
+    const actualProductItems = cartItems.filter(
+      (item) => !item.name.toLowerCase().includes("discount on old battery")
+    );
+
+    // If, after filtering out the discount, there are no actual products, it's not a battery-only sale.
+    if (actualProductItems.length === 0) return false;
+
+    return actualProductItems.every((item) => {
+      // Assuming item.id in the cart corresponds to the original product ID in the `products` array.
+      // This ID is used to look up the definitive product characteristics.
+      const productInfo = products.find((p) => p.id === item.id);
+      return (
+        productInfo?.category === "Parts" && productInfo?.type === "Batteries"
+      );
+    });
+  };
+
+  // Helper function to check if the cart contains any battery products
+  const cartContainsAnyBatteries = (cartItems: CartItem[]): boolean => {
+    if (cartItems.length === 0) return false;
+    return cartItems.some((item) => {
+      const productInfo = products.find((p) => p.id === item.id);
+      return (
+        productInfo?.category === "Parts" && productInfo?.type === "Batteries"
+      );
+    });
+  };
 
   return (
     <Layout>
@@ -2008,6 +2110,15 @@ export default function POSPage() {
                         </div>
                       )}
 
+                      {appliedTradeInAmount > 0 && (
+                        <div className="flex justify-between text-[clamp(0.875rem,2vw,1rem)] text-green-600">
+                          {" "}
+                          {/* Trade-in shown in green */}
+                          <span>Trade-In Amount</span>
+                          <span>- OMR {appliedTradeInAmount.toFixed(3)}</span>
+                        </div>
+                      )}
+
                       <div className="flex justify-between text-[clamp(1rem,2.5vw,1.125rem)] font-semibold">
                         <span>Total</span>
                         <span>OMR {total.toFixed(2)}</span>
@@ -2015,15 +2126,39 @@ export default function POSPage() {
                     </div>
 
                     <div className="space-y-1">
-                      <Button
-                        variant="outline"
-                        className="w-full h-9 flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-800 mb-2"
-                        onClick={() => setIsDiscountDialogOpen(true)}
-                        disabled={cart.length === 0}
-                      >
-                        <Scissors className="h-4 w-4" />
-                        {appliedDiscount ? "Edit Discount" : "Add Discount"}
-                      </Button>
+                      <div className="flex gap-2 mb-2">
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "h-9 flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-800",
+                            cartContainsAnyBatteries(cart) ? "flex-1" : "w-full" // Condition updated here
+                          )}
+                          onClick={() => setIsDiscountDialogOpen(true)}
+                          disabled={cart.length === 0}
+                        >
+                          <Scissors className="h-4 w-4" />
+                          {appliedDiscount ? "Edit Discount" : "Discount"}
+                        </Button>
+                        {cartContainsAnyBatteries(cart) && (
+                          <Button
+                            variant="outline"
+                            className="h-9 flex-1 flex items-center justify-center gap-2 bg-orange-100 hover:bg-orange-200 text-orange-800 border-orange-300"
+                            onClick={() => {
+                              setTradeInAmount(
+                                appliedTradeInAmount > 0
+                                  ? appliedTradeInAmount
+                                  : 0
+                              ); // Pre-fill with current applied amount or 0
+                              setIsTradeInDialogOpen(true);
+                            }}
+                          >
+                            <PercentIcon className="h-4 w-4" />
+                            {appliedTradeInAmount > 0
+                              ? "Edit Trade-In"
+                              : "Trade In"}
+                          </Button>
+                        )}
+                      </div>
 
                       <Button
                         className="w-full h-9"
@@ -2121,6 +2256,13 @@ export default function POSPage() {
                         </div>
                       )}
 
+                      {appliedTradeInAmount > 0 && (
+                        <div className="flex justify-between text-[clamp(0.875rem,2vw,1rem)] text-green-600">
+                          <span>Trade-In Amount</span>
+                          <span>- OMR {appliedTradeInAmount.toFixed(3)}</span>
+                        </div>
+                      )}
+
                       <div className="flex justify-between text-[clamp(1rem,2.5vw,1.125rem)] font-semibold">
                         <span>Total</span>
                         <span>OMR {total.toFixed(2)}</span>
@@ -2128,15 +2270,39 @@ export default function POSPage() {
                     </div>
 
                     <div className="space-y-1">
-                      <Button
-                        variant="outline"
-                        className="w-full h-9 flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-800 mb-2"
-                        onClick={() => setIsDiscountDialogOpen(true)}
-                        disabled={cart.length === 0}
-                      >
-                        <Scissors className="h-4 w-4" />
-                        {appliedDiscount ? "Edit Discount" : "Add Discount"}
-                      </Button>
+                      <div className="flex gap-2 mb-2">
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "h-9 flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-800",
+                            cartContainsAnyBatteries(cart) ? "flex-1" : "w-full" // Condition updated here
+                          )}
+                          onClick={() => setIsDiscountDialogOpen(true)}
+                          disabled={cart.length === 0}
+                        >
+                          <Scissors className="h-4 w-4" />
+                          {appliedDiscount ? "Edit Discount" : "Discount"}
+                        </Button>
+                        {cartContainsAnyBatteries(cart) && (
+                          <Button
+                            variant="outline"
+                            className="h-9 flex-1 flex items-center justify-center gap-2 bg-orange-100 hover:bg-orange-200 text-orange-800 border-orange-300"
+                            onClick={() => {
+                              setTradeInAmount(
+                                appliedTradeInAmount > 0
+                                  ? appliedTradeInAmount
+                                  : 0
+                              );
+                              setIsTradeInDialogOpen(true);
+                            }}
+                          >
+                            <PercentIcon className="h-4 w-4" />
+                            {appliedTradeInAmount > 0
+                              ? "Edit Trade-In"
+                              : "Trade In"}
+                          </Button>
+                        )}
+                      </div>
 
                       <Button
                         className="w-full h-9"
@@ -2602,7 +2768,12 @@ export default function POSPage() {
         open={isCashierSelectOpen}
         onOpenChange={(open) => {
           setIsCashierSelectOpen(open);
-          if (!open) {
+          // Always reset the cashier info when opening or closing the dialog
+          if (open) {
+            setEnteredCashierId("");
+            setFetchedCashier(null);
+            setCashierIdError(null);
+          } else {
             setEnteredCashierId("");
             setFetchedCashier(null);
             setCashierIdError(null);
@@ -2646,6 +2817,7 @@ export default function POSPage() {
                   }}
                 >
                   <Input
+                    key={`cashier-id-input-${isCashierSelectOpen}`}
                     className="text-center text-2xl w-32 mb-2"
                     value={enteredCashierId}
                     onChange={(e) => {
@@ -2748,12 +2920,8 @@ export default function POSPage() {
                 appliedDiscount
               );
               setShowSuccess(false);
-              setShowCart(false);
-              setCart([]);
-              setSelectedPaymentMethod(null);
-              // Reset discount state AFTER showing receipt
-              setAppliedDiscount(null);
-              setDiscountValue(0);
+              // Use our resetPOSState function to completely reset all state
+              resetPOSState();
             }
           }}
         >
@@ -2764,62 +2932,83 @@ export default function POSPage() {
           >
             <DialogHeader className="pb-4 sticky top-0 bg-background z-10">
               <DialogTitle className="text-xl font-semibold text-center">
-                Payment Complete
+                {cartContainsOnlyBatteries(cart)
+                  ? "Bill Generated"
+                  : "Payment Complete"}
               </DialogTitle>
             </DialogHeader>
 
             <motion.div
-              key="payment-success"
+              key={
+                cartContainsOnlyBatteries(cart)
+                  ? "bill-success"
+                  : "payment-success"
+              }
               initial={{ scale: 0.5, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.5, opacity: 0 }}
               className="flex flex-col items-center justify-center py-2"
             >
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-                className="rounded-full bg-green-100 p-3 mb-4"
-              >
-                <Check className="w-8 h-8 text-green-600" />
-              </motion.div>
+              {!cartContainsOnlyBatteries(cart) && (
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+                  className="rounded-full bg-green-100 p-3 mb-4"
+                >
+                  <Check className="w-8 h-8 text-green-600" />
+                </motion.div>
+              )}
               <motion.p
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.4 }}
                 className="text-lg font-medium text-green-600 mb-4"
               >
-                Payment Successful!
+                {cartContainsOnlyBatteries(cart)
+                  ? "Bill Ready for Printing"
+                  : "Payment Successful!"}
               </motion.p>
 
-              {/* Receipt will appear after 1 second */}
+              {/* Receipt/Bill will appear after 1 second (handled internally by components) */}
               <div className="w-full">
-                <ReceiptComponent
-                  key={`receipt-${new Date().getTime()}-${JSON.stringify(
-                    appliedDiscount
-                  )}`}
-                  cart={cart}
-                  paymentMethod={selectedPaymentMethod || "cash"}
-                  cashier={selectedCashier ?? undefined}
-                  discount={appliedDiscount}
-                  paymentRecipient={
-                    selectedPaymentMethod === "mobile"
-                      ? paymentRecipient
-                      : undefined
-                  }
-                />
+                {cartContainsOnlyBatteries(cart) ? (
+                  <BillComponent
+                    key={`bill-${transactionData.receiptNumber}`}
+                    cart={cart}
+                    billNumber={transactionData.receiptNumber}
+                    currentDate={transactionData.currentDate}
+                    currentTime={transactionData.currentTime}
+                    cashier={selectedCashier ?? undefined}
+                    appliedDiscount={appliedDiscount} // Pass general discount
+                    appliedTradeInAmount={appliedTradeInAmount} // Pass trade-in amount
+                    // customerName prop can be added if customer selection is implemented
+                  />
+                ) : (
+                  <ReceiptComponent
+                    key={`receipt-${transactionData.receiptNumber}`}
+                    cart={cart}
+                    paymentMethod={selectedPaymentMethod || "cash"}
+                    cashier={selectedCashier ?? undefined}
+                    discount={appliedDiscount}
+                    paymentRecipient={
+                      selectedPaymentMethod === "mobile"
+                        ? paymentRecipient
+                        : undefined
+                    }
+                    // Pass transaction data to ReceiptComponent
+                    receiptNumber={transactionData.receiptNumber}
+                    currentDate={transactionData.currentDate}
+                    currentTime={transactionData.currentTime}
+                  />
+                )}
 
                 <Button
                   variant="outline"
                   onClick={() => {
                     console.log("Close button clicked, resetting state");
                     setShowSuccess(false);
-                    setShowCart(false);
-                    setCart([]);
-                    setSelectedPaymentMethod(null);
-                    // Reset discount state explicitly here
-                    setAppliedDiscount(null);
-                    setDiscountValue(0);
+                    resetPOSState();
                   }}
                   className="w-full mt-4"
                 >
@@ -2948,6 +3137,58 @@ export default function POSPage() {
         onAddToCart={handleAddSelectedPartsToCart}
         onNext={handleNextPartItem}
       />
+
+      {/* Trade-In Dialog */}
+      <Dialog open={isTradeInDialogOpen} onOpenChange={setIsTradeInDialogOpen}>
+        <DialogContent className="w-[90%] max-w-[400px] p-6 rounded-lg">
+          <DialogHeader>
+            <DialogTitle className="text-center text-xl">
+              Enter Trade-In Amount
+            </DialogTitle>
+            <DialogDescription className="text-center">
+              Enter the value of the trade-in in OMR.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6 py-4">
+            <div className="space-y-3">
+              <Label htmlFor="trade-in-amount">Trade-In Amount (OMR)</Label>
+              <Input
+                id="trade-in-amount"
+                type="number"
+                placeholder="e.g. 5.000"
+                min="0"
+                step="0.001" // Allow for 3 decimal places as in example bill
+                value={tradeInAmount === 0 ? "" : tradeInAmount}
+                onChange={(e) =>
+                  setTradeInAmount(parseFloat(e.target.value) || 0)
+                }
+                autoFocus
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="flex flex-col gap-2 sm:flex-row">
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={() => setIsTradeInDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              className="flex-1"
+              onClick={() => {
+                setAppliedTradeInAmount(tradeInAmount);
+                setIsTradeInDialogOpen(false);
+              }}
+              disabled={tradeInAmount <= 0}
+            >
+              Apply Trade-In
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 }
@@ -2959,20 +3200,33 @@ const ReceiptComponent = ({
   cashier,
   discount,
   paymentRecipient,
+  // Add props for receipt number, date, and time
+  receiptNumber,
+  currentDate,
+  currentTime,
 }: {
   cart: CartItem[];
   paymentMethod: string;
   cashier?: string;
   discount?: { type: "percentage" | "amount"; value: number } | null;
   paymentRecipient?: string | null;
+  receiptNumber: string;
+  currentDate: string;
+  currentTime: string;
 }) => {
   console.log("ReceiptComponent mounted with discount:", discount);
   console.log("Payment recipient:", paymentRecipient);
 
-  // Save the discount value in component state to prevent it from being lost
   const [localDiscount, setLocalDiscount] = useState(discount);
+  const receiptRef = useRef<HTMLDivElement>(null);
 
-  // Update localDiscount when prop changes
+  // Client-side state for random values and dates (REMOVED - now passed as props)
+  // const [receiptData, setReceiptData] = useState({
+  //   receiptNumber: "",
+  //   currentDate: "",
+  //   currentTime: "",
+  // });
+
   useEffect(() => {
     if (discount) {
       console.log("Updating local discount from props:", discount);
@@ -2981,40 +3235,11 @@ const ReceiptComponent = ({
   }, [discount]);
 
   const [showReceipt, setShowReceipt] = useState(false);
-  const receiptRef = useRef<HTMLDivElement>(null);
 
-  // Client-side state for random values and dates
-  const [receiptData, setReceiptData] = useState({
-    receiptNumber: "",
-    currentDate: "",
-    currentTime: "",
-  });
-
-  // Generate values only on client-side after component mounts
   useEffect(() => {
-    // Generate a random receipt number
-    const receiptNumber = `A${Math.floor(Math.random() * 10000)
-      .toString()
-      .padStart(4, "0")}`;
-
-    // Generate current date and time
-    const currentDate = new Date().toLocaleDateString("en-GB");
-    const currentTime = new Date().toLocaleTimeString("en-GB", {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    });
-
-    setReceiptData({
-      receiptNumber,
-      currentDate,
-      currentTime,
-    });
-
-    // Show receipt after 1 second
     const timer = setTimeout(() => {
       setShowReceipt(true);
-    }, 1000);
+    }, 1000); // Show receipt after 1 second
 
     // Log discount information if present
     const subtotal = cart.reduce(
@@ -3033,9 +3258,8 @@ const ReceiptComponent = ({
             : Math.min(localDiscount.value, subtotal),
       });
     }
-
     return () => clearTimeout(timer);
-  }, [cart, localDiscount]);
+  }, [cart, localDiscount]); // Removed receiptData from dependencies
 
   const handlePrint = useCallback(() => {
     console.log("Print triggered with discount:", localDiscount);
@@ -3222,10 +3446,8 @@ const ReceiptComponent = ({
             
             <div class="receipt-info">
               <p>INVOICE</p>
-              <p>Date: ${receiptData.currentDate}</p>
-              <p>Time: ${receiptData.currentTime}    POS ID: ${
-      receiptData.receiptNumber
-    }</p>
+              <p>Date: ${currentDate}</p>
+              <p>Time: ${currentTime}    POS ID: ${receiptNumber}</p>
             </div>
             
             <table class="receipt-table">
@@ -3317,7 +3539,7 @@ const ReceiptComponent = ({
             
             <div class="barcode">
               <!-- Barcode would go here in a real implementation -->
-              ${receiptData.receiptNumber}
+              ${receiptNumber}
             </div>
           </div>
         </body>
@@ -3344,13 +3566,16 @@ const ReceiptComponent = ({
   }, [
     cart,
     paymentMethod,
-    receiptData,
+    // receiptData, // Removed
+    receiptNumber,
+    currentDate,
+    currentTime, // Added new props
     cashier,
     localDiscount,
     paymentRecipient,
   ]);
 
-  if (!showReceipt || !receiptData.receiptNumber) return null;
+  if (!showReceipt) return null; // Removed: || !receiptData.receiptNumber
 
   // Calculate totals
   const subtotal = cart.reduce(
@@ -3408,11 +3633,11 @@ const ReceiptComponent = ({
           <div className="border-t border-b border-dashed py-1 mb-3">
             <p className="text-xs font-medium text-center">INVOICE</p>
             <div className="flex justify-between text-xs">
-              <span>Date: {receiptData.currentDate}</span>
+              <span>Date: {currentDate}</span>
             </div>
             <div className="flex justify-between text-xs">
-              <span>Time: {receiptData.currentTime}</span>
-              <span>POS ID: {receiptData.receiptNumber}</span>
+              <span>Time: {currentTime}</span>
+              <span>POS ID: {receiptNumber}</span>
             </div>
           </div>
 
@@ -3489,7 +3714,7 @@ const ReceiptComponent = ({
             <p className="font-medium mt-2">
               WhatsApp 72702537 for latest offers
             </p>
-            <p className="font-mono">{receiptData.receiptNumber}</p>
+            <p className="font-mono">{receiptNumber}</p>
           </div>
         </div>
       </div>
