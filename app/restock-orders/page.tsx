@@ -70,17 +70,17 @@ const mockItems: Record<string, TransferItem[]> = {
   "to-001": [
     {
       id: "item-001",
-      name: "Toyota Oil Filter",
+      name: "Toyota Filter 90915-YZZD2",
       quantity: 5,
       unit: "pcs",
-      price: 9.99,
+      price: 1.5,
     },
     {
-      id: "item-002",
-      name: "Brake Fluid DOT 4",
+      id: "item-011",
+      name: "Toyota 5W-30 4L",
       quantity: 10,
       unit: "bottles",
-      price: 12.5,
+      price: 8.0,
     },
   ],
   "to-002": [
@@ -285,7 +285,7 @@ const initialMockTransfers: TransferOrder[] = [
     date: "Nov 15, 2023",
     time: "10:30 AM",
     sourceLocation: "Main Warehouse",
-    destinationLocation: "Downtown Shop",
+    destinationLocation: "Hijari",
     itemCount: 2,
     status: "pending",
     items: mockItems["to-001"],
@@ -414,6 +414,19 @@ export default function RestockOrdersPage() {
       return;
     }
 
+    // Format current date and time in the format shown in the image (19/05/2025 19:04:18)
+    const now = new Date();
+    const day = String(now.getDate()).padStart(2, "0");
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const year = now.getFullYear();
+    const hours = String(now.getHours()).padStart(2, "0");
+    const minutes = String(now.getMinutes()).padStart(2, "0");
+    const seconds = String(now.getSeconds()).padStart(2, "0");
+
+    const formattedDate = `${day}/${month}/${year}`;
+    const formattedTime = `${hours}:${minutes}:${seconds}`;
+    const printedDateTime = `${formattedDate} ${formattedTime}`;
+
     const htmlContent = `
       <!DOCTYPE html>
       <html>
@@ -423,273 +436,397 @@ export default function RestockOrdersPage() {
           <style>
             @page {
               size: A4;
-              margin: 1.5cm;
+              margin: 0;
+              padding: 0;
             }
-            
+
             body {
               font-family: Arial, sans-serif;
               margin: 0;
               padding: 0;
-              font-size: 12pt;
-              line-height: 1.5;
+              font-size: 10pt;
+              line-height: 1.3;
               color: #333;
-            }
-            
-            .a4-container {
-              width: 21cm;
-              min-height: 29.7cm;
-              padding: 1.5cm;
-              margin: 0 auto;
-              background: white;
+              position: relative;
               box-sizing: border-box;
             }
-            
-            .header {
-              text-align: center;
-              margin-bottom: 2cm;
-              border-bottom: 2px solid #000;
-              padding-bottom: 0.5cm;
+
+            .document-container {
+              width: 21cm;
+              margin: 0 auto;
+              min-height: 29.7cm;
+              position: relative;
+              display: flex;
+              flex-direction: column;
+              padding: 0;
             }
-            
+
+            .header-box {
+              background-color: white;
+              padding: 10px 20px;
+              margin-bottom: 20px;
+              text-align: center;
+            }
+
             .header h1 {
               font-size: 24pt;
               margin: 0;
-              margin-bottom: 0.3cm;
+              margin-bottom: 5px;
+              font-weight: bold;
+              color: #333;
             }
-            
+
             .header h2 {
-              font-size: 18pt;
+              font-size: 16pt;
               margin: 0;
               font-weight: normal;
               text-transform: uppercase;
+              color: #333;
             }
-            
-            .info-section {
-              display: flex;
-              justify-content: space-between;
-              margin-bottom: 1cm;
+
+            .main-divider {
+              border-top: 1px solid #000;
+              margin: 15px 0;
+              height: 0;
             }
-            
-            .info-block {
-              width: 48%;
+
+            .info-grid {
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              column-gap: 30px;
+              row-gap: 8px;
+              margin-bottom: 20px;
+              padding: 0 15px;
+              page-break-inside: avoid;
             }
-            
+
             .info-row {
-              margin-bottom: 0.3cm;
+              display: flex;
+              align-items: center;
+              margin-bottom: 0;
+              line-height: 1.4;
             }
-            
+
             .info-label {
               font-weight: bold;
+              width: 100px;
               display: inline-block;
-              width: 3cm;
             }
-            
+
+            .info-value {
+              display: inline-block;
+            }
+
             .status-badge {
               display: inline-block;
-              padding: 0.2cm 0.5cm;
-              border-radius: 0.2cm;
+              padding: 3px 10px;
+              background-color: #FFCC00;
               font-weight: bold;
-              margin-top: 0.5cm;
               text-transform: uppercase;
+              width: 200px;
+              text-align: center;
             }
-            
-            .status-pending {
-              background-color: #fff3cd;
-              color: #856404;
-            }
-            
-            .status-confirmed {
-              background-color: #d4edda;
-              color: #155724;
-            }
-            
-            .status-rejected {
-              background-color: #f8d7da;
-              color: #721c24;
-            }
-            
-            .items-section {
-              margin-bottom: 1cm;
-            }
-            
-            .items-section h3 {
-              font-size: 14pt;
-              border-bottom: 1px solid #ddd;
-              padding-bottom: 0.2cm;
-              margin-bottom: 0.5cm;
-            }
-            
+
             .items-table {
               width: 100%;
               border-collapse: collapse;
+              margin-bottom: 20px;
+              background-color: #f9f9f9;
+              table-layout: fixed;
+            }
+
+            .items-table thead {
+              display: table-header-group;
+              page-break-after: avoid;
             }
             
+            .items-table tfoot {
+              display: table-footer-group;
+              page-break-before: avoid;
+              page-break-after: avoid;
+            }
+
             .items-table th {
-              background-color: #f8f9fa;
-              border-bottom: 2px solid #ddd;
-              padding: 0.3cm;
+              border-bottom: 1px solid #ddd;
+              padding: 8px;
               text-align: left;
+              font-weight: bold;
+              font-size: 10pt;
+              background-color: #f5f5f5;
+            }
+
+            .items-table td {
+              padding: 8px;
+              border-bottom: 1px solid #ddd;
+              font-size: 10pt;
+              height: 25px;
+            }
+
+            .items-table th:nth-child(1) {
+              width: 5%;
             }
             
-            .items-table th:last-child,
-            .items-table td:last-child {
+            .items-table th:nth-child(2) {
+              width: 45%;
+            }
+
+            .items-table th:nth-child(3) {
+              width: 15%;
+              text-align: center;
+            }
+            
+            .items-table th:nth-child(4) {
+              width: 15%;
               text-align: right;
             }
             
-            .items-table td {
-              padding: 0.3cm;
-              border-bottom: 1px solid #eee;
+            .items-table th:nth-child(5) {
+              width: 20%;
+              text-align: right;
             }
-            
-            .footer {
-              margin-top: 1cm;
-              padding-top: 0.5cm;
-              border-top: 1px solid #ddd;
+
+            .items-table td:nth-child(3) {
               text-align: center;
-              font-size: 10pt;
-              color: #666;
             }
-            
-            .total-row td {
+
+            .items-table td:nth-child(4),
+            .items-table td:nth-child(5) {
+              text-align: right;
+            }
+
+            .total-row {
+              border-top: 1px solid #000;
               font-weight: bold;
-              border-top: 2px solid #ddd;
-              padding-top: 0.5cm;
             }
-            
+
+            .total-amount {
+              text-align: right;
+              padding: 8px;
+              font-weight: bold;
+              margin-top: 10px;
+              border-top: 1px solid #000;
+              page-break-inside: avoid;
+              page-break-before: avoid;
+            }
+
+            .footer-box {
+              padding: 10px;
+              text-align: center;
+              background-color: white;
+              position: fixed;
+              bottom: 0;
+              left: 0;
+              right: 0;
+              width: 100%;
+            }
+
+            .footer p {
+              margin: 5px 0;
+              line-height: 1.4;
+              font-size: 10pt;
+            }
+
+            .timestamp {
+              position: absolute;
+              top: 20px;
+              left: 15px;
+              font-size: 9pt;
+              color: #333;
+            }
+
+            .order-number {
+              position: absolute;
+              top: 20px;
+              right: 15px;
+              font-size: 9pt;
+              color: #333;
+              text-align: right;
+            }
+
+            .page-number {
+              position: absolute;
+              bottom: 15px;
+              right: 15px;
+              font-size: 9pt;
+            }
+
+            .content-area {
+              padding: 0 15px;
+              flex-grow: 1;
+            }
+
             @media print {
               body {
                 background: white;
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
               }
-              
-              .a4-container {
-                width: 100%;
-                min-height: auto;
-                padding: 0;
-                box-shadow: none;
-              }
+                
+                /* Apply these styles to control header/footer placement */
+                .header-box {
+                  position: running(header);
+                  display: block;
+                }
+                
+                /* Make sure the footer only appears once at the end */
+                .footer-box {
+                  position: fixed;
+                  bottom: 0;
+                  left: 0;
+                  right: 0;
+                  width: 100%;
+                  background-color: white;
+                }
+                
+                @page {
+                  @top-center { content: element(header); }
+                }
+                
+                @page:first {
+                  @top-center { content: element(header); }
+                }
+                
+                @page:not(:first) {
+                  @top-center { content: none; }
+                }
+                
+                /* Make sure table rows don't break across pages */
+                table { page-break-inside: auto; }
+                tr { page-break-inside: avoid; page-break-after: auto; }
+                thead { display: table-header-group; }
+                
+                /* Create space for the footer */
+                .document-container {
+                  margin-bottom: 100px;
+                  padding-bottom: 50px;
+                }
+                
+                /* Handle page breaks for large item lists */
+                tr[style*="page-break-before"] {
+                  page-break-before: always;
+                }
+                
+                /* Make sure the total always shows properly */
+                .total-amount {
+                  page-break-inside: avoid;
+                  page-break-before: avoid;
+                  margin-top: 10px;
+                  margin-bottom: 40px;
+                }
             }
           </style>
         </head>
         <body>
-          <div class="a4-container">
+          <div class="document-container">
+          <div class="timestamp">${formattedDate}, ${formattedTime}</div>
+            <div class="order-number">Transfer Order ${
+              transfer.orderNumber
+            }</div>
+
+            <div class="header-box">
             <div class="header">
-              <h1>H AUTOMOTIVES</h1>
-              <h2>Transfer Order</h2>
-              <div>
-                <div class="status-badge status-${transfer.status}">
-                  ${
-                    transfer.status.charAt(0).toUpperCase() +
-                    transfer.status.slice(1)
-                  }
-                </div>
+              <h1>HNS AUTOMOTIVES</h1>
+              <h2>TRANSFER ORDER</h2>
               </div>
             </div>
-            
-            <div class="info-section">
-              <div class="info-block">
-                <div class="info-row">
-                  <span class="info-label">Order #:</span>
-                  <span>${transfer.orderNumber}</span>
-                </div>
-                <div class="info-row">
-                  <span class="info-label">Date:</span>
-                  <span>${transfer.date}</span>
-                </div>
-                <div class="info-row">
-                  <span class="info-label">Time:</span>
-                  <span>${transfer.time}</span>
-                </div>
-                <div class="info-row">
-                  <span class="info-label">ID:</span>
-                  <span>${transfer.id}</span>
-                </div>
+
+            <div class="content-area">
+            <div class="main-divider"></div>
+
+            <div class="info-grid">
+              <div class="info-row">
+                <span class="info-label">Order #:</span>
+                <span class="info-value">${transfer.orderNumber}</span>
               </div>
-              <div class="info-block">
-                <div class="info-row">
-                  <span class="info-label">From:</span>
-                  <span>${transfer.sourceLocation}</span>
-                </div>
-                <div class="info-row">
-                  <span class="info-label">To:</span>
-                  <span>${transfer.destinationLocation}</span>
-                </div>
-                <div class="info-row">
-                  <span class="info-label">Printed on:</span>
-                  <span>${new Date().toLocaleDateString(
-                    "en-GB"
-                  )} ${new Date().toLocaleTimeString("en-GB")}</span>
-                </div>
+              <div class="info-row">
+                <span class="info-label">From:</span>
+                <span class="info-value">${transfer.sourceLocation}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Date:</span>
+                <span class="info-value">${transfer.date}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">To:</span>
+                  <span class="info-value">${
+                    transfer.destinationLocation
+                  }</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Status:</span>
+                <span class="status-badge">PENDING</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Printed on:</span>
+                <span class="info-value">${printedDateTime}</span>
               </div>
             </div>
-            
-            <div class="items-section">
-              <h3>Items (${transfer.itemCount})</h3>
-              <table class="items-table">
-                <thead>
-                  <tr>
-                    <th width="5%">#</th>
-                    <th width="45%">Item</th>
-                    <th width="15%">Quantity</th>
-                    <th width="15%">Unit Price</th>
-                    <th width="20%">Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${
-                    transfer.items && transfer.items.length > 0
-                      ? transfer.items
-                          .map((item, index) => {
-                            const itemWithPrice = item as TransferItem;
-                            return `
-                    <tr>
-                      <td>${index + 1}</td>
-                      <td>${item.name}</td>
-                      <td>${item.quantity}</td>
-                      <td>OMR ${
-                        hasPrice(itemWithPrice) && itemWithPrice.price
-                          ? itemWithPrice.price.toFixed(2)
-                          : "N/A"
-                      }</td>
-                      <td>OMR ${
-                        hasPrice(itemWithPrice) && itemWithPrice.price
-                          ? (itemWithPrice.price * item.quantity).toFixed(2)
-                          : "N/A"
-                      }</td>
-                    </tr>
-                  `;
-                          })
-                          .join("")
-                      : '<tr><td colspan="5">No items available</td></tr>'
-                  }
-                  ${
-                    transfer.items && transfer.items.length > 0
-                      ? `
-                    <tr class="total-row">
-                      <td colspan="4" style="text-align: right;">Total Amount:</td>
-                      <td>OMR ${transfer.items
-                        .reduce((sum, item) => {
+
+            <table class="items-table">
+              <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Item</th>
+                    <th>Quantity</th>
+                    <th>Unit Price<br/>(OMR)</th>
+                    <th>Total<br/>(OMR)</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${
+                  transfer.items && transfer.items.length > 0
+                    ? transfer.items
+                        .map((item, index) => {
                           const itemWithPrice = item as TransferItem;
-                          return (
-                            sum +
-                            (hasPrice(itemWithPrice) && itemWithPrice.price
-                              ? itemWithPrice.price * item.quantity
-                              : 0)
-                          );
-                        }, 0)
-                        .toFixed(2)}</td>
-                    </tr>
-                  `
-                      : ""
-                  }
-                </tbody>
-              </table>
+                          // Add page break before item 16 (index 15)
+                          const pageBreak =
+                            index === 15
+                              ? 'style="page-break-before: always;"'
+                              : "";
+                          return `
+                    <tr ${pageBreak}>
+                    <td>${index + 1}</td>
+                    <td>${item.name}</td>
+                    <td>${item.quantity}</td>
+                    <td>${
+                      hasPrice(itemWithPrice) && itemWithPrice.price
+                        ? itemWithPrice.price.toFixed(3)
+                        : "N/A"
+                    }</td>
+                    <td>${
+                      hasPrice(itemWithPrice) && itemWithPrice.price
+                        ? (itemWithPrice.price * item.quantity).toFixed(3)
+                        : "N/A"
+                    }</td>
+                  </tr>
+                `;
+                        })
+                        .join("")
+                    : '<tr><td colspan="5">No items available</td></tr>'
+                }
+              </tbody>
+            </table>
+
+              <div class="total-amount" style="page-break-inside: avoid; padding-bottom: 40px;">
+                <span style="margin-right: 20px;">Total Amount:</span>
+              <span>OMR ${transfer.items
+                .reduce((sum, item) => {
+                  const itemWithPrice = item as TransferItem;
+                  return (
+                    sum +
+                    (hasPrice(itemWithPrice) && itemWithPrice.price
+                      ? itemWithPrice.price * item.quantity
+                      : 0)
+                  );
+                }, 0)
+                .toFixed(3)}</span>
+              </div>
             </div>
-            
-            <div class="footer">
+
+            <div class="footer-box">
               <p>This is a computer generated document and does not require signature.</p>
-              <p>H Automotives - Thank you for your business</p>
+              <p>HNS Automotive - Thank you for your business</p>
+              <span class="page-number">1/1</span>
             </div>
           </div>
         </body>

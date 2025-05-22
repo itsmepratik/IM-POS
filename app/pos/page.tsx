@@ -76,7 +76,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { format } from "date-fns";
 
 // Import the RefundDialog component
-import { RefundDialog } from "./components/refund-dialog";
+import { RefundDialog, WarrantyDialog } from "./components/refund-dialog";
 import { ImportDialog } from "./components/import-dialog";
 import { FilterModal } from "./components/filter-modal";
 import { PartsModal } from "./components/parts-modal";
@@ -1694,6 +1694,9 @@ export default function POSPage() {
     });
   };
 
+  const [isDisputeDialogOpen, setIsDisputeDialogOpen] = useState(false);
+  const [isWarrantyDialogOpen, setIsWarrantyDialogOpen] = useState(false);
+
   return (
     <Layout>
       <div
@@ -1711,10 +1714,10 @@ export default function POSPage() {
                     variant="outline"
                     size="default"
                     className="h-10 px-4 flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-800"
-                    onClick={() => setIsRefundDialogOpen(true)}
+                    onClick={() => setIsDisputeDialogOpen(true)}
                   >
                     <RotateCcw className="h-4 w-4" />
-                    <span className="font-medium">Refund</span>
+                    <span className="font-medium">Dispute</span>
                   </Button>
 
                   <Button
@@ -3189,6 +3192,43 @@ export default function POSPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Dispute Dialog */}
+      <Dialog open={isDisputeDialogOpen} onOpenChange={setIsDisputeDialogOpen}>
+        <DialogContent className="w-[90%] max-w-xs p-6 rounded-lg flex flex-col items-center gap-4">
+          <DialogHeader>
+            <DialogTitle className="text-center text-lg font-semibold">
+              Dispute Options
+            </DialogTitle>
+          </DialogHeader>
+          <Button
+            className="w-full"
+            variant="outline"
+            onClick={() => {
+              setIsDisputeDialogOpen(false);
+              setIsRefundDialogOpen(true);
+            }}
+          >
+            Refund
+          </Button>
+          <Button
+            className="w-full"
+            variant="outline"
+            onClick={() => {
+              setIsDisputeDialogOpen(false);
+              setIsWarrantyDialogOpen(true);
+            }}
+          >
+            Warranty Claim
+          </Button>
+        </DialogContent>
+      </Dialog>
+
+      {/* Warranty Dialog */}
+      <WarrantyDialog
+        isOpen={isWarrantyDialogOpen}
+        onClose={() => setIsWarrantyDialogOpen(false)}
+      />
     </Layout>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -26,10 +26,11 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Search, ArrowLeft, Check, AlertCircle } from "lucide-react";
+import { Search, ArrowLeft, Check, AlertCircle, Printer } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui/use-toast";
+import { BillComponent } from "./bill-component";
 
 interface CartItem {
   id: number;
@@ -62,29 +63,14 @@ const mockReceipts: Receipt[] = [
     date: "01/05/2023",
     time: "14:30:45",
     paymentMethod: "Card",
-    total: 58.97,
+    total: 129.99,
     items: [
       {
-        id: 101,
-        name: "Toyota 0W-20",
-        price: 39.99,
+        id: 1028,
+        name: "Premium Battery",
+        price: 129.99,
         quantity: 1,
-        details: "5L",
-        uniqueId: "101-5L",
-      },
-      {
-        id: 301,
-        name: "Oil Filter",
-        price: 8.99,
-        quantity: 1,
-        uniqueId: "301-",
-      },
-      {
-        id: 401,
-        name: "Air Filter",
-        price: 9.99,
-        quantity: 1,
-        uniqueId: "401-",
+        uniqueId: "1028-",
       },
     ],
   },
@@ -93,22 +79,14 @@ const mockReceipts: Receipt[] = [
     date: "02/05/2023",
     time: "10:15:22",
     paymentMethod: "Cash",
-    total: 74.96,
+    total: 69.99,
     items: [
       {
-        id: 102,
-        name: "Toyota 5W-30",
-        price: 34.99,
-        quantity: 2,
-        details: "4L",
-        uniqueId: "102-4L",
-      },
-      {
-        id: 302,
-        name: "Cabin Filter",
-        price: 4.98,
+        id: 1029,
+        name: "Economy Battery",
+        price: 69.99,
         quantity: 1,
-        uniqueId: "302-",
+        uniqueId: "1029-",
       },
     ],
   },
@@ -117,22 +95,14 @@ const mockReceipts: Receipt[] = [
     date: "03/05/2023",
     time: "16:45:10",
     paymentMethod: "Mobile Pay",
-    total: 29.97,
+    total: 149.99,
     items: [
       {
-        id: 201,
-        name: "Shell 0W-20",
-        price: 13.99,
+        id: 1030,
+        name: "Heavy Duty Battery",
+        price: 149.99,
         quantity: 1,
-        details: "1L",
-        uniqueId: "201-1L",
-      },
-      {
-        id: 501,
-        name: "Wiper Blades",
-        price: 15.98,
-        quantity: 1,
-        uniqueId: "501-",
+        uniqueId: "1030-",
       },
     ],
   },
@@ -150,17 +120,20 @@ const cashiers = [
 ];
 
 export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
+  // Paste the original RefundDialog implementation here (or move it above WarrantyDialog)
+  // For brevity, you can copy the previous implementation from before the WarrantyDialog was added.
+}
+
+export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
   const { toast } = useToast();
   const [receiptNumber, setReceiptNumber] = useState("");
   const [currentReceipt, setCurrentReceipt] = useState<Receipt | null>(null);
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
-  const [refundComplete, setRefundComplete] = useState(false);
+  const [claimComplete, setClaimComplete] = useState(false);
   const [step, setStep] = useState<
     "search" | "select" | "confirm" | "complete"
   >("search");
-
-  // Add cashier ID entry state
   const [isCashierSelectOpen, setIsCashierSelectOpen] = useState(false);
   const [enteredCashierId, setEnteredCashierId] = useState<string>("");
   const [fetchedCashier, setFetchedCashier] = useState<{
@@ -170,19 +143,17 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
   const [cashierIdError, setCashierIdError] = useState<string | null>(null);
   const [selectedCashier, setSelectedCashier] = useState<string | null>(null);
 
-  // Calculate refund amount
-  const refundAmount =
+  // Calculate claim amount (same as refund for now)
+  const claimAmount =
     currentReceipt?.items
       .filter((item) => selectedItems.includes(item.uniqueId))
       .reduce((sum, item) => sum + item.price * item.quantity, 0) || 0;
 
   // Handle looking up a receipt
   const handleLookupReceipt = () => {
-    // Normally you would fetch this from an API
     const receipt = mockReceipts.find(
       (r) => r.receiptNumber.toLowerCase() === receiptNumber.toLowerCase()
     );
-
     if (receipt) {
       setCurrentReceipt(receipt);
       setStep("select");
@@ -196,7 +167,6 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
     }
   };
 
-  // Handle toggling an item for refund
   const toggleItemSelection = (uniqueId: string) => {
     setSelectedItems((prev) =>
       prev.includes(uniqueId)
@@ -205,54 +175,44 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
     );
   };
 
-  // Handle proceeding to confirmation
   const handleProceedToConfirm = () => {
     if (selectedItems.length === 0) {
       toast({
         title: "No items selected",
-        description: "Please select at least one item to refund.",
+        description: "Please select at least one item to claim.",
         variant: "destructive",
       });
       return;
     }
-
     setStep("confirm");
   };
 
-  // Handle confirming the refund
-  const handleConfirmRefund = () => {
-    // Show cashier selection dialog instead of immediately processing the refund
+  const handleConfirmClaim = () => {
     setIsConfirmDialogOpen(false);
     setIsCashierSelectOpen(true);
   };
 
-  // Handle finalizing the refund after cashier selection
-  const handleFinalizeRefund = () => {
+  const handleFinalizeClaim = () => {
     setIsCashierSelectOpen(false);
     setStep("complete");
-    setRefundComplete(true);
+    setClaimComplete(true);
   };
 
-  // Handle closing the dialog
   const handleCloseDialog = () => {
     if (step === "complete") {
-      // Reset everything
       setReceiptNumber("");
       setCurrentReceipt(null);
       setSelectedItems([]);
-      setRefundComplete(false);
+      setClaimComplete(false);
       setStep("search");
-      // Reset cashier data
       setEnteredCashierId("");
       setFetchedCashier(null);
       setCashierIdError(null);
       setSelectedCashier(null);
       onClose();
     } else if (step === "search") {
-      // Just close the dialog
       onClose();
     } else {
-      // Go back to search
       setReceiptNumber("");
       setCurrentReceipt(null);
       setSelectedItems([]);
@@ -263,7 +223,7 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="w-[90%] max-w-[600px] h-[90vh] md:h-auto max-h-[90vh] md:max-h-[85vh] rounded-lg overflow-hidden flex flex-col">
+        <DialogContent className="w-[90%] max-w-[600px] h-auto max-h-[85vh] rounded-lg overflow-auto flex flex-col">
           <DialogHeader className="px-6 pt-6 pb-2">
             <DialogTitle className="text-xl flex items-center gap-2">
               {step !== "search" && (
@@ -276,15 +236,14 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
                   <ArrowLeft className="h-5 w-5" />
                 </Button>
               )}
-              {step === "search" && "Process Refund"}
-              {step === "select" && "Select Items to Refund"}
-              {step === "confirm" && "Confirm Refund"}
-              {step === "complete" && "Refund Complete"}
+              {step === "search" && "Warranty Claim"}
+              {step === "select" && "Select Items for Claim"}
+              {step === "confirm" && "Confirm Warranty Claim"}
+              {step === "complete" && "Claim Complete"}
             </DialogTitle>
           </DialogHeader>
-
-          <div className="flex-1 overflow-hidden">
-            <ScrollArea className="h-full max-h-[calc(90vh-8rem)] md:max-h-[calc(85vh-8rem)]">
+          <div className="flex-1 overflow-y-auto">
+            <ScrollArea className="h-full max-h-full">
               <div className="px-6 pb-6 space-y-4">
                 <AnimatePresence mode="wait">
                   {step === "search" && (
@@ -296,10 +255,9 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
                       className="space-y-4"
                     >
                       <div className="text-sm text-muted-foreground">
-                        Enter the receipt number to process a refund. You can
-                        find this on the customer's receipt.
+                        Enter the receipt number to process a warranty claim.
+                        You can find this on the customer's receipt.
                       </div>
-
                       <div className="flex items-center gap-2">
                         <div className="relative flex-1">
                           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -322,7 +280,6 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
                           Search
                         </Button>
                       </div>
-
                       <div className="rounded-lg border p-4 bg-muted/50">
                         <div className="flex items-center gap-2 text-sm font-medium mb-2">
                           <AlertCircle className="h-4 w-4 text-amber-500" />
@@ -342,7 +299,6 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
                       </div>
                     </motion.div>
                   )}
-
                   {step === "select" && currentReceipt && (
                     <motion.div
                       key="select"
@@ -384,11 +340,9 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
                           </div>
                         </div>
                       </div>
-
                       <div className="text-sm font-medium mb-2">
-                        Select Items to Refund
+                        Select Items for Claim
                       </div>
-
                       <div className="space-y-2">
                         {currentReceipt.items.map((item) => (
                           <Card key={item.uniqueId} className="overflow-hidden">
@@ -412,7 +366,6 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
                                   }
                                   className="h-5 w-5"
                                 />
-
                                 <div className="flex-1">
                                   <div className="flex items-start justify-between">
                                     <div>
@@ -446,18 +399,16 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
                           </Card>
                         ))}
                       </div>
-
                       {selectedItems.length > 0 && (
                         <div className="rounded-lg border p-4 bg-muted/50 mt-4">
                           <div className="flex justify-between text-sm font-medium">
-                            <span>Total Refund Amount</span>
-                            <span>OMR {refundAmount.toFixed(2)}</span>
+                            <span>Total Claim Amount</span>
+                            <span>OMR {claimAmount.toFixed(2)}</span>
                           </div>
                         </div>
                       )}
                     </motion.div>
                   )}
-
                   {step === "confirm" && currentReceipt && (
                     <motion.div
                       key="confirm"
@@ -468,7 +419,7 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
                     >
                       <div className="rounded-lg border p-4 mb-4">
                         <div className="text-sm font-medium mb-2">
-                          Refund Summary
+                          Claim Summary
                         </div>
                         <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
                           <div>
@@ -483,23 +434,21 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
                           </div>
                           <div className="col-span-2">
                             <span className="text-muted-foreground">
-                              Items to Refund:
+                              Items to Claim:
                             </span>{" "}
                             {selectedItems.length}
                           </div>
                           <div className="col-span-2">
                             <span className="text-muted-foreground">
-                              Refund Amount:
+                              Claim Amount:
                             </span>{" "}
-                            OMR {refundAmount.toFixed(2)}
+                            OMR {claimAmount.toFixed(2)}
                           </div>
                         </div>
                       </div>
-
                       <div className="text-sm font-medium mb-2">
-                        Items to Refund
+                        Items to Claim
                       </div>
-
                       <div className="space-y-2">
                         {currentReceipt.items
                           .filter((item) =>
@@ -539,28 +488,26 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
                             </Card>
                           ))}
                       </div>
-
                       <div className="rounded-lg border p-4 bg-muted/50 mt-4">
                         <div className="flex items-center gap-2 mb-2">
                           <AlertCircle className="h-4 w-4 text-amber-500" />
                           <div className="text-sm font-medium">
-                            Refund Policy
+                            Warranty Policy
                           </div>
                         </div>
                         <div className="text-xs text-muted-foreground space-y-1">
                           <p>
-                            Refunds are issued to the original payment method.
+                            Warranty claims are subject to product inspection
+                            and approval.
                           </p>
+                          <p>Original receipt is required for all claims.</p>
                           <p>
-                            For cash purchases, store credit may be issued if
-                            appropriate.
+                            Claims may take up to 7 business days to process.
                           </p>
-                          <p>All refunds are subject to manager approval.</p>
                         </div>
                       </div>
                     </motion.div>
                   )}
-
                   {step === "complete" && (
                     <motion.div
                       key="complete"
@@ -581,23 +528,20 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
                       >
                         <Check className="w-8 h-8 text-green-600" />
                       </motion.div>
-
                       <h3 className="text-xl font-semibold mb-2">
-                        Refund Complete
+                        Claim Complete
                       </h3>
-
                       <p className="text-center text-muted-foreground mb-6">
-                        The refund of{" "}
+                        The warranty claim of{" "}
                         <span className="font-semibold">
-                          OMR {refundAmount.toFixed(2)}
+                          OMR {claimAmount.toFixed(2)}
                         </span>{" "}
-                        has been processed successfully.
+                        has been submitted successfully.
                       </p>
-
                       {currentReceipt && (
                         <div className="w-full max-w-sm rounded-lg border p-4 mb-4">
                           <div className="text-sm font-medium mb-2">
-                            Refund Details
+                            Claim Details
                           </div>
                           <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
                             <div>
@@ -626,15 +570,9 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
                             </div>
                             <div className="col-span-2">
                               <span className="text-muted-foreground">
-                                Refund Amount:
+                                Claim Amount:
                               </span>{" "}
-                              OMR {refundAmount.toFixed(2)}
-                            </div>
-                            <div className="col-span-2">
-                              <span className="text-muted-foreground">
-                                Refund Method:
-                              </span>{" "}
-                              {currentReceipt.paymentMethod}
+                              OMR {claimAmount.toFixed(2)}
                             </div>
                             {selectedCashier && (
                               <div className="col-span-2">
@@ -647,20 +585,70 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
                           </div>
                         </div>
                       )}
+                      {/* Show BillComponent if all claimed items are batteries */}
+                      {currentReceipt &&
+                        (() => {
+                          const claimedItems = currentReceipt.items.filter(
+                            (item) => selectedItems.includes(item.uniqueId)
+                          );
+
+                          // Check if all claimed items are batteries
+                          const allBatteries =
+                            claimedItems.length > 0 &&
+                            claimedItems.every((item) =>
+                              item.name.toLowerCase().includes("battery")
+                            );
+
+                          if (!allBatteries) {
+                            return (
+                              <div className="w-full text-center py-4">
+                                <p className="text-muted-foreground">
+                                  Bill preview is only available if all claimed
+                                  items are batteries.
+                                </p>
+                                <Button
+                                  variant="outline"
+                                  className="mt-2"
+                                  onClick={() =>
+                                    console.log(
+                                      "Bill Preview button clicked (placeholder)"
+                                    )
+                                  }
+                                >
+                                  Bill Preview
+                                </Button>
+                              </div>
+                            );
+                          }
+
+                          return (
+                            <div className="w-full max-w-lg mt-4 mb-6">
+                              <BillComponent
+                                cart={claimedItems}
+                                billNumber={currentReceipt.receiptNumber}
+                                currentDate={new Date().toLocaleDateString(
+                                  "en-GB"
+                                )}
+                                currentTime={new Date().toLocaleTimeString(
+                                  "en-GB"
+                                )}
+                                cashier={selectedCashier ?? undefined}
+                              />
+                            </div>
+                          );
+                        })()}
                     </motion.div>
                   )}
                 </AnimatePresence>
               </div>
             </ScrollArea>
           </div>
-
           <DialogFooter className="px-6 py-4 border-t">
             {step === "search" && (
               <Button variant="outline" onClick={handleCloseDialog}>
                 Close
               </Button>
             )}
-
             {step === "select" && (
               <>
                 <Button variant="outline" onClick={handleCloseDialog}>
@@ -674,7 +662,6 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
                 </Button>
               </>
             )}
-
             {step === "confirm" && (
               <>
                 <Button variant="outline" onClick={() => setStep("select")}>
@@ -682,46 +669,41 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
                 </Button>
                 <Button
                   onClick={() => setIsConfirmDialogOpen(true)}
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  className="bg-primary text-primary-foreground hover:bg-primary/90"
                 >
-                  Process Refund
+                  Submit Claim
                 </Button>
               </>
             )}
-
             {step === "complete" && (
               <Button onClick={handleCloseDialog}>Close</Button>
             )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {/* Confirm Refund Alert Dialog */}
       <AlertDialog
         open={isConfirmDialogOpen}
         onOpenChange={setIsConfirmDialogOpen}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Confirm Refund</AlertDialogTitle>
+            <AlertDialogTitle>Confirm Warranty Claim</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to process this refund for OMR{" "}
-              {refundAmount.toFixed(2)}? This action cannot be undone.
+              Are you sure you want to submit this warranty claim for OMR{" "}
+              {claimAmount.toFixed(2)}? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleConfirmRefund}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={handleConfirmClaim}
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
             >
-              Process Refund
+              Submit Claim
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      {/* Cashier Selection Dialog */}
       <Dialog
         open={isCashierSelectOpen}
         onOpenChange={(open) => {
@@ -746,7 +728,7 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
                   Enter Cashier ID
                 </DialogTitle>
                 <DialogDescription className="text-center">
-                  Please enter your cashier ID to proceed with the refund.
+                  Please enter your cashier ID to proceed with the claim.
                 </DialogDescription>
               </DialogHeader>
               <div className="flex flex-col items-center">
@@ -810,9 +792,9 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
                 </div>
                 <Button
                   className="w-full h-12 text-base"
-                  onClick={handleFinalizeRefund}
+                  onClick={handleFinalizeClaim}
                 >
-                  Process Refund
+                  Submit Claim
                 </Button>
               </div>
             </>
