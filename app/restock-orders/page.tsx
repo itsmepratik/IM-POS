@@ -246,6 +246,289 @@ const mockItems: Record<string, TransferItem[]> = {
       price: 65.0,
     },
   ],
+  // Add new large order with 40 items
+  "to-006": [
+    {
+      id: "item-101",
+      name: "BMW Oil Filter OEM 11427566327",
+      quantity: 25,
+      unit: "pcs",
+      price: 12.35,
+    },
+    {
+      id: "item-102",
+      name: "Mercedes Brake Pads Front A0084200220",
+      quantity: 12,
+      unit: "sets",
+      price: 85.45,
+    },
+    {
+      id: "item-103",
+      name: "Audi Air Filter 8K0133843K",
+      quantity: 18,
+      unit: "pcs",
+      price: 15.99,
+    },
+    {
+      id: "item-104",
+      name: "Volkswagen DSG Transmission Fluid G052182A2",
+      quantity: 30,
+      unit: "liters",
+      price: 36.8,
+    },
+    {
+      id: "item-105",
+      name: "Range Rover Cabin Filter LR073255",
+      quantity: 10,
+      unit: "pcs",
+      price: 22.5,
+    },
+    {
+      id: "item-106",
+      name: "Lexus Spark Plugs Laser Iridium 90919-01247",
+      quantity: 48,
+      unit: "pcs",
+      price: 9.75,
+    },
+    {
+      id: "item-107",
+      name: "Honda Timing Belt Kit 14400-RNA-A01",
+      quantity: 8,
+      unit: "kits",
+      price: 149.99,
+    },
+    {
+      id: "item-108",
+      name: "Toyota Water Pump 16100-39466",
+      quantity: 12,
+      unit: "pcs",
+      price: 78.25,
+    },
+    {
+      id: "item-109",
+      name: "Nissan CVT Fluid NS-3 KLE53-00004",
+      quantity: 36,
+      unit: "liters",
+      price: 28.5,
+    },
+    {
+      id: "item-110",
+      name: "Subaru Valve Cover Gasket 13270AA140",
+      quantity: 15,
+      unit: "pcs",
+      price: 32.75,
+    },
+    {
+      id: "item-111",
+      name: "Ford EcoBoost Turbo 2.0L CM5G-6K682-CB",
+      quantity: 4,
+      unit: "pcs",
+      price: 675.0,
+    },
+    {
+      id: "item-112",
+      name: "Mazda Throttle Body L3R413640",
+      quantity: 7,
+      unit: "pcs",
+      price: 187.5,
+    },
+    {
+      id: "item-113",
+      name: "Volvo Oxygen Sensor 31405616",
+      quantity: 14,
+      unit: "pcs",
+      price: 95.8,
+    },
+    {
+      id: "item-114",
+      name: "Hyundai Fuel Pump 31110-3K500",
+      quantity: 8,
+      unit: "pcs",
+      price: 112.45,
+    },
+    {
+      id: "item-115",
+      name: "Kia EGR Valve 284104A470",
+      quantity: 9,
+      unit: "pcs",
+      price: 154.25,
+    },
+    {
+      id: "item-116",
+      name: "Porsche PDK Fluid 000-043-305-15",
+      quantity: 16,
+      unit: "liters",
+      price: 48.9,
+    },
+    {
+      id: "item-117",
+      name: "Jaguar Supercharger Pulley C2C39532",
+      quantity: 5,
+      unit: "pcs",
+      price: 215.0,
+    },
+    {
+      id: "item-118",
+      name: "Chevrolet Camshaft Position Sensor 12585546",
+      quantity: 12,
+      unit: "pcs",
+      price: 42.6,
+    },
+    {
+      id: "item-119",
+      name: "Jeep Wrangler Shock Absorber Set 68289266AA",
+      quantity: 8,
+      unit: "sets",
+      price: 325.75,
+    },
+    {
+      id: "item-120",
+      name: "Land Rover Brake Rotor LR059124",
+      quantity: 12,
+      unit: "pcs",
+      price: 97.5,
+    },
+    {
+      id: "item-121",
+      name: "Mitsubishi Turbocharger 1515A295",
+      quantity: 3,
+      unit: "pcs",
+      price: 895.0,
+    },
+    {
+      id: "item-122",
+      name: "Acura TSX Alternator 31100-RK2-004",
+      quantity: 6,
+      unit: "pcs",
+      price: 285.99,
+    },
+    {
+      id: "item-123",
+      name: "Infiniti Serpentine Belt 11720-3JA0A",
+      quantity: 15,
+      unit: "pcs",
+      price: 32.8,
+    },
+    {
+      id: "item-124",
+      name: "Aston Martin Brake Caliper 4G43-2B120-AD",
+      quantity: 4,
+      unit: "pcs",
+      price: 1250.0,
+    },
+    {
+      id: "item-125",
+      name: "Tesla Model 3 HEPA Air Filter 1067702-00-A",
+      quantity: 20,
+      unit: "pcs",
+      price: 45.75,
+    },
+    {
+      id: "item-126",
+      name: "Cadillac ATS Power Steering Pump 23348451",
+      quantity: 7,
+      unit: "pcs",
+      price: 215.6,
+    },
+    {
+      id: "item-127",
+      name: "Dodge Charger Control Arm 68058114AE",
+      quantity: 8,
+      unit: "pcs",
+      price: 127.99,
+    },
+    {
+      id: "item-128",
+      name: "Ferrari 458 Ignition Coil 241517",
+      quantity: 12,
+      unit: "pcs",
+      price: 225.0,
+    },
+    {
+      id: "item-129",
+      name: "Maserati Ghibli Fuel Injector 317290",
+      quantity: 6,
+      unit: "pcs",
+      price: 345.5,
+    },
+    {
+      id: "item-130",
+      name: "Bentley Continental Wheel Bearing 3W0598625A",
+      quantity: 8,
+      unit: "pcs",
+      price: 198.75,
+    },
+    {
+      id: "item-131",
+      name: "Lamborghini Huracan Air Filter 4S0129620C",
+      quantity: 5,
+      unit: "pcs",
+      price: 175.0,
+    },
+    {
+      id: "item-132",
+      name: "Rolls Royce Ghost Wiper Blades RR05-WB",
+      quantity: 6,
+      unit: "pairs",
+      price: 95.0,
+    },
+    {
+      id: "item-133",
+      name: "Bugatti Chiron Oil Filter 04E115561H",
+      quantity: 3,
+      unit: "pcs",
+      price: 350.0,
+    },
+    {
+      id: "item-134",
+      name: "McLaren 720S Brake Pad Sensor 11M33-CP",
+      quantity: 8,
+      unit: "pcs",
+      price: 95.5,
+    },
+    {
+      id: "item-135",
+      name: "Genesis G70 Drive Belt Tensioner 25281-2C300",
+      quantity: 10,
+      unit: "pcs",
+      price: 87.25,
+    },
+    {
+      id: "item-136",
+      name: "Alfa Romeo Giulia Radiator Fan 50537291",
+      quantity: 5,
+      unit: "pcs",
+      price: 215.0,
+    },
+    {
+      id: "item-137",
+      name: "MINI Cooper S Turbocharger Gasket Kit 11657593942",
+      quantity: 9,
+      unit: "kits",
+      price: 48.75,
+    },
+    {
+      id: "item-138",
+      name: "Fiat 500 Clutch Kit 55248101",
+      quantity: 7,
+      unit: "kits",
+      price: 185.9,
+    },
+    {
+      id: "item-139",
+      name: "RAM 1500 Fuel Pump Module 68470275AA",
+      quantity: 6,
+      unit: "pcs",
+      price: 275.0,
+    },
+    {
+      id: "item-140",
+      name: "GMC Sierra Transfer Case Motor 19125571",
+      quantity: 4,
+      unit: "pcs",
+      price: 225.5,
+    },
+  ],
 };
 
 // Helper function to convert from hook transfer to our transfer with prices
@@ -334,6 +617,18 @@ const initialMockTransfers: TransferOrder[] = [
     itemCount: 17,
     status: "pending",
     items: mockItems["to-005"],
+  },
+  // Add the 40-item transfer order
+  {
+    id: "to-006",
+    orderNumber: "TO-2023-006",
+    date: "May 25, 2024",
+    time: "08:15 AM",
+    sourceLocation: "European Parts Warehouse",
+    destinationLocation: "Premium Auto Center",
+    itemCount: 40,
+    status: "pending",
+    items: mockItems["to-006"],
   },
 ];
 
@@ -463,21 +758,21 @@ export default function RestockOrdersPage() {
 
             .header-box {
               background-color: white;
-              padding: 10px 20px;
-              margin-bottom: 20px;
+              padding: 5px 10px;
+              margin-bottom: 10px;
               text-align: center;
             }
 
             .header h1 {
-              font-size: 24pt;
+              font-size: 20pt;
               margin: 0;
-              margin-bottom: 5px;
+              margin-bottom: 0;
               font-weight: bold;
               color: #333;
             }
 
             .header h2 {
-              font-size: 16pt;
+              font-size: 14pt;
               margin: 0;
               font-weight: normal;
               text-transform: uppercase;
@@ -486,25 +781,25 @@ export default function RestockOrdersPage() {
 
             .main-divider {
               border-top: 1px solid #000;
-              margin: 15px 0;
+              margin: 5px 0;
               height: 0;
             }
 
             .info-grid {
               display: grid;
               grid-template-columns: 1fr 1fr;
-              column-gap: 30px;
-              row-gap: 8px;
-              margin-bottom: 20px;
+              column-gap: 20px;
+              row-gap: 4px;
+              margin-bottom: 10px;
               padding: 0 15px;
-              page-break-inside: avoid;
             }
 
             .info-row {
               display: flex;
               align-items: center;
               margin-bottom: 0;
-              line-height: 1.4;
+              line-height: 1.2;
+              font-size: 13pt;
             }
 
             .info-label {
@@ -519,7 +814,7 @@ export default function RestockOrdersPage() {
 
             .status-badge {
               display: inline-block;
-              padding: 3px 10px;
+              padding: 2px 8px;
               background-color: #FFCC00;
               font-weight: bold;
               text-transform: uppercase;
@@ -530,36 +825,25 @@ export default function RestockOrdersPage() {
             .items-table {
               width: 100%;
               border-collapse: collapse;
-              margin-bottom: 20px;
+              margin-bottom: 10px;
               background-color: #f9f9f9;
               table-layout: fixed;
             }
 
-            .items-table thead {
-              display: table-header-group;
-              page-break-after: avoid;
-            }
-            
-            .items-table tfoot {
-              display: table-footer-group;
-              page-break-before: avoid;
-              page-break-after: avoid;
-            }
-
             .items-table th {
               border-bottom: 1px solid #ddd;
-              padding: 8px;
+              padding: 4px 8px;
               text-align: left;
               font-weight: bold;
-              font-size: 10pt;
+              font-size: 13pt;
               background-color: #f5f5f5;
             }
 
             .items-table td {
-              padding: 8px;
+              padding: 4px 8px;
               border-bottom: 1px solid #ddd;
-              font-size: 10pt;
-              height: 25px;
+              font-size: 13pt;
+              height: 20px;
             }
 
             .items-table th:nth-child(1) {
@@ -569,7 +853,7 @@ export default function RestockOrdersPage() {
             .items-table th:nth-child(2) {
               width: 45%;
             }
-
+            
             .items-table th:nth-child(3) {
               width: 15%;
               text-align: center;
@@ -605,19 +889,18 @@ export default function RestockOrdersPage() {
               font-weight: bold;
               margin-top: 10px;
               border-top: 1px solid #000;
-              page-break-inside: avoid;
-              page-break-before: avoid;
+              font-size: 14pt;
             }
 
             .footer-box {
-              padding: 10px;
-              text-align: center;
-              background-color: white;
               position: fixed;
               bottom: 0;
               left: 0;
               right: 0;
-              width: 100%;
+              padding: 10px;
+              text-align: center;
+              background-color: white;
+              margin-top: auto;
             }
 
             .footer p {
@@ -651,8 +934,16 @@ export default function RestockOrdersPage() {
             }
 
             .content-area {
-              padding: 0 15px;
-              flex-grow: 1;
+              margin: 0;
+              padding: 70px 15px 70px;
+            }
+
+            /* Add page break styling */
+            .page-break {
+              page-break-after: always;
+              break-after: page;
+              height: 20px;
+              margin-bottom: 20px;
             }
 
             @media print {
@@ -661,168 +952,194 @@ export default function RestockOrdersPage() {
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
               }
-                
-                /* Apply these styles to control header/footer placement */
-                .header-box {
-                  position: running(header);
-                  display: block;
-                }
-                
-                /* Make sure the footer only appears once at the end */
-                .footer-box {
-                  position: fixed;
-                  bottom: 0;
-                  left: 0;
-                  right: 0;
-                  width: 100%;
-                  background-color: white;
-                }
-                
-                @page {
-                  @top-center { content: element(header); }
-                }
-                
-                @page:first {
-                  @top-center { content: element(header); }
-                }
-                
-                @page:not(:first) {
-                  @top-center { content: none; }
-                }
-                
-                /* Make sure table rows don't break across pages */
-                table { page-break-inside: auto; }
-                tr { page-break-inside: avoid; page-break-after: auto; }
-                thead { display: table-header-group; }
-                
-                /* Create space for the footer */
-                .document-container {
-                  margin-bottom: 100px;
-                  padding-bottom: 50px;
-                }
-                
-                /* Handle page breaks for large item lists */
-                tr[style*="page-break-before"] {
-                  page-break-before: always;
-                }
-                
-                /* Make sure the total always shows properly */
-                .total-amount {
-                  page-break-inside: avoid;
-                  page-break-before: avoid;
-                  margin-top: 10px;
-                  margin-bottom: 40px;
-                }
+
+              .header-box {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                z-index: 100;
+                background-color: white;
+              }
+              
+              .footer-box {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                z-index: 100;
+                background-color: white;
+              }
+
+              /* Ensure table header repeats on each printed page */
+              .items-table thead {
+                display: table-header-group;
+              }
+
+              /* Add styling for each subsequent page after break */
+              .page-break + .items-table {
+                margin-top: 30px;
+              }
+
+              /* Prevent table, its body rows, and individual rows from breaking across pages */
+              .items-table,
+              .items-table tbody tr,
+              .items-table tr {
+                page-break-inside: avoid !important;
+              }
+
+              .content-area {
+                margin: 0;
+                padding: 80px 15px 70px; /* increased top padding */
+              }
+            }
+
+            /* Style for page header after page break */
+            .page-header {
+              text-align: center;
+              margin-bottom: 15px;
+            }
+            
+            .page-header h1 {
+              font-size: 18pt;
+              margin: 0;
+              font-weight: bold;
+            }
+            
+            .page-header h2 {
+              font-size: 14pt;
+              margin: 0;
+              text-transform: uppercase;
             }
           </style>
         </head>
         <body>
           <div class="document-container">
-          <div class="timestamp">${formattedDate}, ${formattedTime}</div>
+            <div class="timestamp">${formattedDate}, ${formattedTime}</div>
             <div class="order-number">Transfer Order ${
               transfer.orderNumber
             }</div>
 
             <div class="header-box">
-            <div class="header">
-              <h1>HNS AUTOMOTIVES</h1>
-              <h2>TRANSFER ORDER</h2>
+              <div class="header">
+                <h1>HNS AUTOMOTIVES</h1>
+                <h2>TRANSFER ORDER</h2>
               </div>
             </div>
 
             <div class="content-area">
-            <div class="main-divider"></div>
+              <div class="main-divider"></div>
 
-            <div class="info-grid">
-              <div class="info-row">
-                <span class="info-label">Order #:</span>
-                <span class="info-value">${transfer.orderNumber}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">From:</span>
-                <span class="info-value">${transfer.sourceLocation}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Date:</span>
-                <span class="info-value">${transfer.date}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">To:</span>
+              <div class="info-grid">
+                <div class="info-row">
+                  <span class="info-label">Order #:</span>
+                  <span class="info-value">${transfer.orderNumber}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">From:</span>
+                  <span class="info-value">${transfer.sourceLocation}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Date:</span>
+                  <span class="info-value">${transfer.date}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">To:</span>
                   <span class="info-value">${
                     transfer.destinationLocation
                   }</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Status:</span>
+                  <span class="status-badge">PENDING</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Printed on:</span>
+                  <span class="info-value">${printedDateTime}</span>
+                </div>
               </div>
-              <div class="info-row">
-                <span class="info-label">Status:</span>
-                <span class="status-badge">PENDING</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Printed on:</span>
-                <span class="info-value">${printedDateTime}</span>
-              </div>
-            </div>
 
-            <table class="items-table">
-              <thead>
-                <tr>
+              <table class="items-table">
+                <thead>
+                  <tr>
                     <th>#</th>
                     <th>Item</th>
                     <th>Quantity</th>
                     <th>Unit Price<br/>(OMR)</th>
                     <th>Total<br/>(OMR)</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${
-                  transfer.items && transfer.items.length > 0
-                    ? transfer.items
-                        .map((item, index) => {
-                          const itemWithPrice = item as TransferItem;
-                          // Add page break before item 16 (index 15)
-                          const pageBreak =
-                            index === 15
-                              ? 'style="page-break-before: always;"'
-                              : "";
-                          return `
-                    <tr ${pageBreak}>
-                    <td>${index + 1}</td>
-                    <td>${item.name}</td>
-                    <td>${item.quantity}</td>
-                    <td>${
-                      hasPrice(itemWithPrice) && itemWithPrice.price
-                        ? itemWithPrice.price.toFixed(3)
-                        : "N/A"
-                    }</td>
-                    <td>${
-                      hasPrice(itemWithPrice) && itemWithPrice.price
-                        ? (itemWithPrice.price * item.quantity).toFixed(3)
-                        : "N/A"
-                    }</td>
                   </tr>
-                `;
-                        })
-                        .join("")
-                    : '<tr><td colspan="5">No items available</td></tr>'
-                }
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  ${
+                    transfer.items && transfer.items.length > 0
+                      ? transfer.items
+                          .map((item, index) => {
+                            const itemWithPrice = item as TransferItem;
+                            // Insert page break after each 20th item
+                            const pageBreak =
+                              index > 0 && index % 20 === 0
+                                ? `</tbody></table><div class="page-break"></div><div class="page-header"><h1>HNS AUTOMOTIVES</h1><h2>TRANSFER ORDER</h2></div><table class="items-table"><thead><tr><th>#</th><th>Item</th><th>Quantity</th><th>Unit Price<br/>(OMR)</th><th>Total<br/>(OMR)</th></tr></thead><tbody>`
+                                : "";
+                            return `
+                    ${pageBreak}
+                    <tr>
+                      <td>${index + 1}</td>
+                      <td>${item.name}</td>
+                      <td>${item.quantity}</td>
+                      <td>${
+                        hasPrice(itemWithPrice) && itemWithPrice.price
+                          ? itemWithPrice.price.toFixed(3)
+                          : "N/A"
+                      }</td>
+                      <td>${
+                        hasPrice(itemWithPrice) && itemWithPrice.price
+                          ? (itemWithPrice.price * item.quantity).toFixed(3)
+                          : "N/A"
+                      }</td>
+                    </tr>
+                  `;
+                          })
+                          .join("")
+                      : '<tr><td colspan="5">No items available</td></tr>'
+                  }
+                  ${
+                    // Add empty rows to match the image
+                    Array.from({
+                      length: Math.max(0, 4 - (transfer.items?.length || 0)),
+                    })
+                      .map((_, i) => {
+                        const rowNum = (transfer.items?.length || 0) + i + 1;
+                        return `
+                    <tr>
+                      <td>${rowNum}</td>
+                      <td></td>
+                      <td></td>
+                      <td></td>
+                      <td></td>
+                    </tr>
+                  `;
+                      })
+                      .join("")
+                  }
+                </tbody>
+              </table>
 
-              <div class="total-amount" style="page-break-inside: avoid; padding-bottom: 40px;">
+              <div class="total-amount">
                 <span style="margin-right: 20px;">Total Amount:</span>
-              <span>OMR ${transfer.items
-                .reduce((sum, item) => {
-                  const itemWithPrice = item as TransferItem;
-                  return (
-                    sum +
-                    (hasPrice(itemWithPrice) && itemWithPrice.price
-                      ? itemWithPrice.price * item.quantity
-                      : 0)
-                  );
-                }, 0)
-                .toFixed(3)}</span>
+                <span>OMR ${transfer.items
+                  .reduce((sum, item) => {
+                    const itemWithPrice = item as TransferItem;
+                    return (
+                      sum +
+                      (hasPrice(itemWithPrice) && itemWithPrice.price
+                        ? itemWithPrice.price * item.quantity
+                        : 0)
+                    );
+                  }, 0)
+                  .toFixed(3)}</span>
               </div>
             </div>
-
+            
             <div class="footer-box">
               <p>This is a computer generated document and does not require signature.</p>
               <p>HNS Automotive - Thank you for your business</p>

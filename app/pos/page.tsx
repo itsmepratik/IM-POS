@@ -85,6 +85,7 @@ import { BrandLogo } from "./components/brand-logo";
 
 // Import the BillComponent
 import { BillComponent } from "./components/bill-component";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface OilProduct {
   id: number;
@@ -1313,6 +1314,7 @@ export default function POSPage() {
     setIsVolumeModalOpen(false);
     setSelectedOil(null);
     setSelectedVolumes([]);
+    if (isMobile) setShowCart(true);
   };
 
   const handleNextItem = () => {
@@ -1434,6 +1436,7 @@ export default function POSPage() {
     setIsFilterBrandModalOpen(false);
     setSelectedFilters([]);
     setSelectedFilterType(null);
+    if (isMobile) setShowCart(true);
   };
 
   const handleNextFilterItem = () => {
@@ -1626,6 +1629,7 @@ export default function POSPage() {
     setIsPartBrandModalOpen(false);
     setSelectedParts([]);
     setSelectedPartType(null);
+    if (isMobile) setShowCart(true);
   };
 
   const handleNextPartItem = () => {
@@ -1696,6 +1700,8 @@ export default function POSPage() {
 
   const [isDisputeDialogOpen, setIsDisputeDialogOpen] = useState(false);
   const [isWarrantyDialogOpen, setIsWarrantyDialogOpen] = useState(false);
+
+  const isMobile = useIsMobile();
 
   return (
     <Layout>
