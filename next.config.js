@@ -6,9 +6,9 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  experimental: {
+  /**experimental: {
     forceSwcTransforms: true,
-  },
+  },*/
   images: {
     unoptimized: true,
     remotePatterns: [

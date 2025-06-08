@@ -3,6 +3,25 @@
 @tailwind utilities;
 
 @layer base {
+  /* Set base font size for mobile */
+  html {
+    font-size: 87.5%; /* 14px - Base for mobile */
+  }
+
+  /* Medium devices (tablets) */
+  @media (min-width: 640px) {
+    html {
+      font-size: 93.75%; /* 15px */
+    }
+  }
+
+  /* Large devices (desktops) */
+  @media (min-width: 1024px) {
+    html {
+      font-size: 100%; /* 16px - Default */
+    }
+  }
+
   :root {
     --background: 0 0% 100%;
     --foreground: 240 10% 3.9%;
