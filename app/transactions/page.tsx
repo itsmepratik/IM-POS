@@ -120,13 +120,13 @@ const TransactionCard = memo(
     onViewReceipt: (transaction: TransactionDisplay) => void;
   }) => {
     return (
-      <Card className="p-3 sm:p-4">
-        <div className="space-y-3 sm:space-y-4">
+      <Card className="p-4 sm:p-5">
+        <div className="space-y-4 sm:space-y-5">
           <div className="flex items-center justify-between">
             <div className="flex flex-col">
-              <div className="flex items-center gap-1 sm:gap-2">
+              <div className="flex items-center gap-1.5 sm:gap-2.5">
                 <span
-                  className={`text-sm sm:text-base font-medium ${
+                  className={`text-base sm:text-lg font-medium ${
                     transaction.type === "refund"
                       ? "text-red-500"
                       : "text-green-500"
@@ -134,18 +134,18 @@ const TransactionCard = memo(
                 >
                   {transaction.type === "refund" ? "Refund" : "Sale"}
                 </span>
-                <span className="text-xs sm:text-sm text-muted-foreground">
+                <span className="text-sm sm:text-base text-muted-foreground">
                   {transaction.time || transaction.date}
                 </span>
               </div>
-              <div className="text-xs sm:text-sm text-muted-foreground mt-0.5 sm:mt-1">
+              <div className="text-sm sm:text-base text-muted-foreground mt-1 sm:mt-1.5">
                 • Cashier: {transaction.cashier}
               </div>
-              <div className="text-xs sm:text-sm mt-0.5 sm:mt-1">
+              <div className="text-sm sm:text-base mt-1 sm:mt-1.5">
                 {transaction.items[0]}
               </div>
             </div>
-            <div className="flex items-center gap-2 sm:gap-4">
+            <div className="flex items-center gap-3 sm:gap-5">
               <div
                 className={`font-semibold ${
                   transaction.type === "refund"
@@ -154,8 +154,8 @@ const TransactionCard = memo(
                 }`}
               >
                 <div className="flex flex-col items-end">
-                  <span className="text-xs sm:text-base">OMR</span>
-                  <span className="text-base sm:text-xl font-bold">
+                  <span className="text-sm sm:text-base">OMR</span>
+                  <span className="text-lg sm:text-2xl font-bold">
                     {Math.abs(transaction.amount).toFixed(2)}
                   </span>
                 </div>
@@ -163,62 +163,64 @@ const TransactionCard = memo(
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-6 w-6 sm:h-8 sm:w-8 p-0 hover:bg-muted"
+                className="h-8 w-8 sm:h-9 sm:w-9 p-0 hover:bg-muted"
                 onClick={onToggle}
               >
                 {isExpanded ? (
-                  <ChevronUp className="h-3 w-3 sm:h-4 sm:w-4" />
+                  <ChevronUp className="h-4 w-4 sm:h-5 sm:w-5" />
                 ) : (
-                  <ChevronDown className="h-3 w-3 sm:h-4 sm:w-4" />
+                  <ChevronDown className="h-4 w-4 sm:h-5 sm:w-5" />
                 )}
               </Button>
             </div>
           </div>
 
           {isExpanded && (
-            <div className="pt-3 sm:pt-4 border-t space-y-3 sm:space-y-4 text-xs sm:text-sm">
-              <div className="grid grid-cols-2 gap-2 sm:gap-4">
+            <div className="pt-4 sm:pt-5 border-t space-y-4 sm:space-y-5 text-sm sm:text-base">
+              <div className="grid grid-cols-2 gap-3 sm:gap-5">
                 <div>
                   <span className="text-muted-foreground">Customer:</span>
-                  <span className="ml-1 sm:ml-2 font-medium">
+                  <span className="ml-1.5 sm:ml-2.5 font-medium">
                     {transaction.customerName}
                   </span>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Payment:</span>
-                  <span className="ml-1 sm:ml-2">
+                  <span className="ml-1.5 sm:ml-2.5">
                     {transaction.paymentMethod}
                   </span>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Reference:</span>
-                  <span className="ml-1 sm:ml-2 font-mono">
+                  <span className="ml-1.5 sm:ml-2.5 font-mono">
                     {transaction.reference}
                   </span>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Cashier:</span>
-                  <span className="ml-1 sm:ml-2 font-medium">
+                  <span className="ml-1.5 sm:ml-2.5 font-medium">
                     {transaction.cashier}
                   </span>
                 </div>
                 {transaction.notes && (
                   <div>
                     <span className="text-muted-foreground">Notes:</span>
-                    <span className="ml-1 sm:ml-2">{transaction.notes}</span>
+                    <span className="ml-1.5 sm:ml-2.5">
+                      {transaction.notes}
+                    </span>
                   </div>
                 )}
               </div>
 
-              <div className="flex justify-end mt-2">
+              <div className="flex justify-end mt-3">
                 <Button
                   variant="outline"
                   size="sm"
-                  className="flex items-center gap-1 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                  className="flex items-center gap-1.5 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
                   onClick={() => onViewReceipt(transaction)}
                 >
-                  <FileText className="h-3 w-3 sm:h-4 sm:w-4" />
-                  <span className="text-xs sm:text-sm">View Receipt</span>
+                  <FileText className="h-4 w-4 sm:h-5 sm:w-5" />
+                  <span className="text-sm sm:text-base">View Receipt</span>
                 </Button>
               </div>
             </div>
@@ -238,7 +240,7 @@ function FixedSalesCard({
 }) {
   return (
     <div
-      className={`flex flex-row justify-between p-3 sm:p-4 border shadow-md rounded-md ${
+      className={`flex flex-row justify-between p-4 sm:p-5 border shadow-md rounded-md ${
         !transaction
           ? "bg-gray-600"
           : transaction.type === "refund"
@@ -247,7 +249,7 @@ function FixedSalesCard({
       }`}
     >
       <div className="flex flex-col text-white">
-        <div className="text-base sm:text-lg font-semibold">
+        <div className="text-lg sm:text-xl font-semibold">
           {!transaction
             ? "No transactions"
             : transaction.type === "refund"
@@ -255,7 +257,7 @@ function FixedSalesCard({
             : "Sale"}
         </div>
         {transaction && (
-          <div className="text-xs sm:text-sm opacity-90 mt-0.5 sm:mt-1">
+          <div className="text-sm sm:text-base opacity-90 mt-1 sm:mt-1.5">
             {transaction.items[0]}
           </div>
         )}
@@ -263,8 +265,8 @@ function FixedSalesCard({
       <div className="flex flex-col items-end text-white">
         {transaction && (
           <>
-            <span className="text-xs sm:text-base">OMR</span>
-            <span className="text-base sm:text-xl font-bold">
+            <span className="text-sm sm:text-base">OMR</span>
+            <span className="text-lg sm:text-2xl font-bold">
               {Math.abs(transaction.amount).toFixed(2)}
             </span>
           </>
