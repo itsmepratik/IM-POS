@@ -120,8 +120,590 @@ const cashiers = [
 ];
 
 export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
-  // Paste the original RefundDialog implementation here (or move it above WarrantyDialog)
-  // For brevity, you can copy the previous implementation from before the WarrantyDialog was added.
+  const { toast } = useToast();
+  const [receiptNumber, setReceiptNumber] = useState("");
+  const [currentReceipt, setCurrentReceipt] = useState<Receipt | null>(null);
+  const [selectedItems, setSelectedItems] = useState<string[]>([]);
+  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
+  const [refundComplete, setRefundComplete] = useState(false);
+  const [step, setStep] = useState<
+    "search" | "select" | "confirm" | "complete"
+  >("search");
+  const [isCashierSelectOpen, setIsCashierSelectOpen] = useState(false);
+  const [enteredCashierId, setEnteredCashierId] = useState<string>("");
+  const [fetchedCashier, setFetchedCashier] = useState<{
+    id: number;
+    name: string;
+  } | null>(null);
+  const [cashierIdError, setCashierIdError] = useState<string | null>(null);
+  const [selectedCashier, setSelectedCashier] = useState<string | null>(null);
+
+  // Calculate refund amount
+  const refundAmount =
+    currentReceipt?.items
+      .filter((item) => selectedItems.includes(item.uniqueId))
+      .reduce((sum, item) => sum + item.price * item.quantity, 0) || 0;
+
+  // Handle looking up a receipt
+  const handleLookupReceipt = () => {
+    const receipt = mockReceipts.find(
+      (r) => r.receiptNumber.toLowerCase() === receiptNumber.toLowerCase()
+    );
+    if (receipt) {
+      setCurrentReceipt(receipt);
+      setStep("select");
+      setSelectedItems([]);
+    } else {
+      toast({
+        title: "Receipt not found",
+        description: "Please check the receipt number and try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const toggleItemSelection = (uniqueId: string) => {
+    setSelectedItems((prev) =>
+      prev.includes(uniqueId)
+        ? prev.filter((id) => id !== uniqueId)
+        : [...prev, uniqueId]
+    );
+  };
+
+  const handleProceedToConfirm = () => {
+    if (selectedItems.length === 0) {
+      toast({
+        title: "No items selected",
+        description: "Please select at least one item to refund.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setStep("confirm");
+  };
+
+  const handleConfirmRefund = () => {
+    setIsConfirmDialogOpen(false);
+    setIsCashierSelectOpen(true);
+  };
+
+  const handleFinalizeRefund = () => {
+    setIsCashierSelectOpen(false);
+    setStep("complete");
+    setRefundComplete(true);
+  };
+
+  const handleCloseDialog = () => {
+    if (step === "complete") {
+      setReceiptNumber("");
+      setCurrentReceipt(null);
+      setSelectedItems([]);
+      setRefundComplete(false);
+      setStep("search");
+      setEnteredCashierId("");
+      setFetchedCashier(null);
+      setCashierIdError(null);
+      setSelectedCashier(null);
+      onClose();
+    } else if (step === "search") {
+      onClose();
+    } else {
+      setReceiptNumber("");
+      setCurrentReceipt(null);
+      setSelectedItems([]);
+      setStep("search");
+    }
+  };
+
+  return (
+    <>
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="w-[90%] max-w-[600px] h-auto max-h-[85vh] rounded-lg overflow-auto flex flex-col">
+          <DialogHeader className="px-6 pt-6 pb-2">
+            <DialogTitle className="text-xl flex items-center gap-2">
+              {step !== "search" && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 mr-1"
+                  onClick={() => setStep("search")}
+                >
+                  <ArrowLeft className="h-5 w-5" />
+                </Button>
+              )}
+              {step === "search" && "Refund Process"}
+              {step === "select" && "Select Items to Refund"}
+              {step === "confirm" && "Confirm Refund"}
+              {step === "complete" && "Refund Complete"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto">
+            <ScrollArea className="h-full max-h-full">
+              <div className="px-6 pb-6 space-y-4">
+                <AnimatePresence mode="wait">
+                  {step === "search" && (
+                    <motion.div
+                      key="search"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      className="space-y-4"
+                    >
+                      <div className="text-sm text-muted-foreground">
+                        Enter the receipt number to process a refund. You can
+                        find this on the customer's receipt.
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="relative flex-1">
+                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            placeholder="Receipt Number (e.g., A1234)"
+                            className="pl-10"
+                            value={receiptNumber}
+                            onChange={(e) => setReceiptNumber(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" && receiptNumber) {
+                                handleLookupReceipt();
+                              }
+                            }}
+                          />
+                        </div>
+                        <Button
+                          onClick={handleLookupReceipt}
+                          disabled={!receiptNumber}
+                        >
+                          Search
+                        </Button>
+                      </div>
+                      <div className="rounded-lg border p-4 bg-muted/50">
+                        <div className="flex items-center gap-2 text-sm font-medium mb-2">
+                          <AlertCircle className="h-4 w-4 text-amber-500" />
+                          Sample Receipt Numbers
+                        </div>
+                        <div className="text-xs text-muted-foreground space-y-1">
+                          {mockReceipts.map((receipt) => (
+                            <div
+                              key={receipt.receiptNumber}
+                              className="flex justify-between"
+                            >
+                              <span>{receipt.receiptNumber}</span>
+                              <span>OMR {receipt.total.toFixed(2)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                  {step === "select" && currentReceipt && (
+                    <motion.div
+                      key="select"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      className="space-y-4"
+                    >
+                      <div className="rounded-lg border p-4 mb-4">
+                        <div className="text-sm font-medium mb-2">
+                          Receipt Information
+                        </div>
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                          <div>
+                            <span className="text-muted-foreground">
+                              Receipt #:
+                            </span>{" "}
+                            {currentReceipt.receiptNumber}
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Date:</span>{" "}
+                            {currentReceipt.date}
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Time:</span>{" "}
+                            {currentReceipt.time}
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">
+                              Payment:
+                            </span>{" "}
+                            {currentReceipt.paymentMethod}
+                          </div>
+                          <div className="col-span-2">
+                            <span className="text-muted-foreground">
+                              Total:
+                            </span>{" "}
+                            OMR {currentReceipt.total.toFixed(2)}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-sm font-medium mb-2">
+                        Select Items to Refund
+                      </div>
+                      <div className="space-y-2">
+                        {currentReceipt.items.map((item) => (
+                          <Card key={item.uniqueId} className="overflow-hidden">
+                            <CardContent className="p-0">
+                              <div
+                                className={cn(
+                                  "p-4 flex items-center gap-3 cursor-pointer hover:bg-muted/50 transition-colors",
+                                  selectedItems.includes(item.uniqueId) &&
+                                    "bg-muted"
+                                )}
+                                onClick={() =>
+                                  toggleItemSelection(item.uniqueId)
+                                }
+                              >
+                                <Checkbox
+                                  checked={selectedItems.includes(
+                                    item.uniqueId
+                                  )}
+                                  onCheckedChange={() =>
+                                    toggleItemSelection(item.uniqueId)
+                                  }
+                                  className="h-5 w-5"
+                                />
+                                <div className="flex-1">
+                                  <div className="flex items-start justify-between">
+                                    <div>
+                                      <div className="font-medium">
+                                        {item.name}
+                                      </div>
+                                      {item.details && (
+                                        <div className="text-xs text-muted-foreground">
+                                          {item.details}
+                                        </div>
+                                      )}
+                                    </div>
+                                    <div className="text-right">
+                                      <div className="font-medium">
+                                        OMR{" "}
+                                        {(item.price * item.quantity).toFixed(
+                                          2
+                                        )}
+                                      </div>
+                                      {item.quantity > 1 && (
+                                        <div className="text-xs text-muted-foreground">
+                                          {item.quantity} × OMR{" "}
+                                          {item.price.toFixed(2)}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                      {selectedItems.length > 0 && (
+                        <div className="rounded-lg border p-4 bg-muted/50 mt-4">
+                          <div className="flex justify-between text-sm font-medium">
+                            <span>Total Refund Amount</span>
+                            <span>OMR {refundAmount.toFixed(2)}</span>
+                          </div>
+                        </div>
+                      )}
+                    </motion.div>
+                  )}
+                  {step === "confirm" && currentReceipt && (
+                    <motion.div
+                      key="confirm"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      className="space-y-4"
+                    >
+                      <div className="rounded-lg border p-4 mb-4">
+                        <div className="text-sm font-medium mb-2">
+                          Refund Summary
+                        </div>
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                          <div>
+                            <span className="text-muted-foreground">
+                              Receipt #:
+                            </span>{" "}
+                            {currentReceipt.receiptNumber}
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Date:</span>{" "}
+                            {currentReceipt.date}
+                          </div>
+                          <div className="col-span-2">
+                            <span className="text-muted-foreground">
+                              Items to Refund:
+                            </span>{" "}
+                            {selectedItems.length}
+                          </div>
+                          <div className="col-span-2">
+                            <span className="text-muted-foreground">
+                              Refund Amount:
+                            </span>{" "}
+                            OMR {refundAmount.toFixed(2)}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-sm font-medium mb-2">
+                        Items to Refund
+                      </div>
+                      <div className="space-y-2">
+                        {currentReceipt.items
+                          .filter((item) =>
+                            selectedItems.includes(item.uniqueId)
+                          )
+                          .map((item) => (
+                            <Card
+                              key={item.uniqueId}
+                              className="overflow-hidden"
+                            >
+                              <CardContent className="p-4">
+                                <div className="flex items-start justify-between">
+                                  <div>
+                                    <div className="font-medium">
+                                      {item.name}
+                                    </div>
+                                    {item.details && (
+                                      <div className="text-xs text-muted-foreground">
+                                        {item.details}
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div className="text-right">
+                                    <div className="font-medium">
+                                      OMR{" "}
+                                      {(item.price * item.quantity).toFixed(2)}
+                                    </div>
+                                    {item.quantity > 1 && (
+                                      <div className="text-xs text-muted-foreground">
+                                        {item.quantity} × OMR{" "}
+                                        {item.price.toFixed(2)}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ))}
+                      </div>
+                      <div className="rounded-lg border p-4 bg-muted/50 mt-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <AlertCircle className="h-4 w-4 text-amber-500" />
+                          <div className="text-sm font-medium">
+                            Refund Policy
+                          </div>
+                        </div>
+                        <div className="text-xs text-muted-foreground space-y-1">
+                          <p>
+                            Refunds are subject to store policy. Items must be
+                            in resellable condition. Refunds will be issued to
+                            the original payment method when possible.
+                          </p>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                  {step === "complete" && (
+                    <motion.div
+                      key="complete"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      className="space-y-4"
+                    >
+                      <div className="flex flex-col items-center justify-center py-6">
+                        <div className="rounded-full bg-green-100 p-3 mb-4">
+                          <Check className="h-6 w-6 text-green-600" />
+                        </div>
+                        <h3 className="text-xl font-semibold mb-2">
+                          Refund Complete
+                        </h3>
+                        <p className="text-muted-foreground text-center mb-4">
+                          The refund of OMR {refundAmount.toFixed(2)} has been
+                          processed successfully.
+                        </p>
+                        <div className="border rounded-lg p-4 w-full">
+                          <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                            <div>
+                              <span className="text-muted-foreground">
+                                Receipt #:
+                              </span>{" "}
+                              {currentReceipt?.receiptNumber}
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">
+                                Date:
+                              </span>{" "}
+                              {new Date().toLocaleDateString()}
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">
+                                Time:
+                              </span>{" "}
+                              {new Date().toLocaleTimeString()}
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">
+                                Cashier:
+                              </span>{" "}
+                              {selectedCashier || "Unknown"}
+                            </div>
+                            <div className="col-span-2">
+                              <span className="text-muted-foreground">
+                                Refund Amount:
+                              </span>{" "}
+                              <span className="font-medium">
+                                OMR {refundAmount.toFixed(2)}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <Button
+                          className="mt-6 w-full"
+                          variant="outline"
+                          onClick={() => {
+                            // Print functionality would go here
+                            toast({
+                              title: "Printing refund receipt",
+                              description:
+                                "The refund receipt is being sent to the printer.",
+                            });
+                          }}
+                        >
+                          <Printer className="mr-2 h-4 w-4" />
+                          Print Refund Receipt
+                        </Button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </ScrollArea>
+          </div>
+          <DialogFooter className="px-6 py-4 border-t">
+            {step === "search" && (
+              <Button variant="ghost" onClick={handleCloseDialog}>
+                Cancel
+              </Button>
+            )}
+            {step === "select" && (
+              <>
+                <Button variant="ghost" onClick={() => setStep("search")}>
+                  Back
+                </Button>
+                <Button onClick={handleProceedToConfirm}>
+                  Continue to Confirm
+                </Button>
+              </>
+            )}
+            {step === "confirm" && (
+              <>
+                <Button variant="ghost" onClick={() => setStep("select")}>
+                  Back
+                </Button>
+                <Button
+                  onClick={() => setIsConfirmDialogOpen(true)}
+                  variant="destructive"
+                >
+                  Process Refund
+                </Button>
+              </>
+            )}
+            {step === "complete" && (
+              <Button onClick={handleCloseDialog}>Done</Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirm Dialog */}
+      <AlertDialog
+        open={isConfirmDialogOpen}
+        onOpenChange={setIsConfirmDialogOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Refund</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to process this refund for OMR{" "}
+              {refundAmount.toFixed(2)}? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmRefund}>
+              Confirm
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Cashier Selection Dialog */}
+      <AlertDialog
+        open={isCashierSelectOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setIsCashierSelectOpen(false);
+            setEnteredCashierId("");
+            setFetchedCashier(null);
+            setCashierIdError(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Enter Cashier ID</AlertDialogTitle>
+            <AlertDialogDescription>
+              Please enter your cashier ID to authorize this refund.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="flex flex-col items-center py-2">
+            <Input
+              className="text-center text-2xl w-32 mb-2"
+              value={enteredCashierId}
+              onChange={(e) => {
+                setEnteredCashierId(e.target.value.replace(/\D/g, ""));
+                setCashierIdError(null);
+              }}
+              maxLength={6}
+              inputMode="numeric"
+              type="tel"
+              pattern="[0-9]*"
+              autoFocus
+              placeholder="ID"
+            />
+            {cashierIdError && (
+              <div className="text-destructive text-sm mt-2">
+                {cashierIdError}
+              </div>
+            )}
+            {fetchedCashier && (
+              <div className="text-green-600 text-sm mt-2">
+                Authorized: {fetchedCashier.name}
+              </div>
+            )}
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                const found = cashiers.find(
+                  (c) => c.id.toString() === enteredCashierId
+                );
+                if (found) {
+                  setFetchedCashier(found);
+                  setSelectedCashier(found.name);
+                  setCashierIdError(null);
+                  handleFinalizeRefund();
+                } else {
+                  setCashierIdError("Invalid cashier ID. Please try again.");
+                }
+              }}
+            >
+              Authorize
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
 }
 
 export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
@@ -299,346 +881,6 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
                       </div>
                     </motion.div>
                   )}
-                  {step === "select" && currentReceipt && (
-                    <motion.div
-                      key="select"
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      className="space-y-4"
-                    >
-                      <div className="rounded-lg border p-4 mb-4">
-                        <div className="text-sm font-medium mb-2">
-                          Receipt Information
-                        </div>
-                        <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                          <div>
-                            <span className="text-muted-foreground">
-                              Receipt #:
-                            </span>{" "}
-                            {currentReceipt.receiptNumber}
-                          </div>
-                          <div>
-                            <span className="text-muted-foreground">Date:</span>{" "}
-                            {currentReceipt.date}
-                          </div>
-                          <div>
-                            <span className="text-muted-foreground">Time:</span>{" "}
-                            {currentReceipt.time}
-                          </div>
-                          <div>
-                            <span className="text-muted-foreground">
-                              Payment:
-                            </span>{" "}
-                            {currentReceipt.paymentMethod}
-                          </div>
-                          <div className="col-span-2">
-                            <span className="text-muted-foreground">
-                              Total:
-                            </span>{" "}
-                            OMR {currentReceipt.total.toFixed(2)}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-sm font-medium mb-2">
-                        Select Items for Claim
-                      </div>
-                      <div className="space-y-2">
-                        {currentReceipt.items.map((item) => (
-                          <Card key={item.uniqueId} className="overflow-hidden">
-                            <CardContent className="p-0">
-                              <div
-                                className={cn(
-                                  "p-4 flex items-center gap-3 cursor-pointer hover:bg-muted/50 transition-colors",
-                                  selectedItems.includes(item.uniqueId) &&
-                                    "bg-muted"
-                                )}
-                                onClick={() =>
-                                  toggleItemSelection(item.uniqueId)
-                                }
-                              >
-                                <Checkbox
-                                  checked={selectedItems.includes(
-                                    item.uniqueId
-                                  )}
-                                  onCheckedChange={() =>
-                                    toggleItemSelection(item.uniqueId)
-                                  }
-                                  className="h-5 w-5"
-                                />
-                                <div className="flex-1">
-                                  <div className="flex items-start justify-between">
-                                    <div>
-                                      <div className="font-medium">
-                                        {item.name}
-                                      </div>
-                                      {item.details && (
-                                        <div className="text-xs text-muted-foreground">
-                                          {item.details}
-                                        </div>
-                                      )}
-                                    </div>
-                                    <div className="text-right">
-                                      <div className="font-medium">
-                                        OMR{" "}
-                                        {(item.price * item.quantity).toFixed(
-                                          2
-                                        )}
-                                      </div>
-                                      {item.quantity > 1 && (
-                                        <div className="text-xs text-muted-foreground">
-                                          {item.quantity} × OMR{" "}
-                                          {item.price.toFixed(2)}
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        ))}
-                      </div>
-                      {selectedItems.length > 0 && (
-                        <div className="rounded-lg border p-4 bg-muted/50 mt-4">
-                          <div className="flex justify-between text-sm font-medium">
-                            <span>Total Claim Amount</span>
-                            <span>OMR {claimAmount.toFixed(2)}</span>
-                          </div>
-                        </div>
-                      )}
-                    </motion.div>
-                  )}
-                  {step === "confirm" && currentReceipt && (
-                    <motion.div
-                      key="confirm"
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      className="space-y-4"
-                    >
-                      <div className="rounded-lg border p-4 mb-4">
-                        <div className="text-sm font-medium mb-2">
-                          Claim Summary
-                        </div>
-                        <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                          <div>
-                            <span className="text-muted-foreground">
-                              Receipt #:
-                            </span>{" "}
-                            {currentReceipt.receiptNumber}
-                          </div>
-                          <div>
-                            <span className="text-muted-foreground">Date:</span>{" "}
-                            {currentReceipt.date}
-                          </div>
-                          <div className="col-span-2">
-                            <span className="text-muted-foreground">
-                              Items to Claim:
-                            </span>{" "}
-                            {selectedItems.length}
-                          </div>
-                          <div className="col-span-2">
-                            <span className="text-muted-foreground">
-                              Claim Amount:
-                            </span>{" "}
-                            OMR {claimAmount.toFixed(2)}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-sm font-medium mb-2">
-                        Items to Claim
-                      </div>
-                      <div className="space-y-2">
-                        {currentReceipt.items
-                          .filter((item) =>
-                            selectedItems.includes(item.uniqueId)
-                          )
-                          .map((item) => (
-                            <Card
-                              key={item.uniqueId}
-                              className="overflow-hidden"
-                            >
-                              <CardContent className="p-4">
-                                <div className="flex items-start justify-between">
-                                  <div>
-                                    <div className="font-medium">
-                                      {item.name}
-                                    </div>
-                                    {item.details && (
-                                      <div className="text-xs text-muted-foreground">
-                                        {item.details}
-                                      </div>
-                                    )}
-                                  </div>
-                                  <div className="text-right">
-                                    <div className="font-medium">
-                                      OMR{" "}
-                                      {(item.price * item.quantity).toFixed(2)}
-                                    </div>
-                                    {item.quantity > 1 && (
-                                      <div className="text-xs text-muted-foreground">
-                                        {item.quantity} × OMR{" "}
-                                        {item.price.toFixed(2)}
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              </CardContent>
-                            </Card>
-                          ))}
-                      </div>
-                      <div className="rounded-lg border p-4 bg-muted/50 mt-4">
-                        <div className="flex items-center gap-2 mb-2">
-                          <AlertCircle className="h-4 w-4 text-amber-500" />
-                          <div className="text-sm font-medium">
-                            Warranty Policy
-                          </div>
-                        </div>
-                        <div className="text-xs text-muted-foreground space-y-1">
-                          <p>
-                            Warranty claims are subject to product inspection
-                            and approval.
-                          </p>
-                          <p>Original receipt is required for all claims.</p>
-                          <p>
-                            Claims may take up to 7 business days to process.
-                          </p>
-                        </div>
-                      </div>
-                    </motion.div>
-                  )}
-                  {step === "complete" && (
-                    <motion.div
-                      key="complete"
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      className="flex flex-col items-center justify-center py-8"
-                    >
-                      <motion.div
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        transition={{
-                          delay: 0.2,
-                          type: "spring",
-                          stiffness: 200,
-                        }}
-                        className="rounded-full bg-green-100 p-4 mb-6"
-                      >
-                        <Check className="w-8 h-8 text-green-600" />
-                      </motion.div>
-                      <h3 className="text-xl font-semibold mb-2">
-                        Claim Complete
-                      </h3>
-                      <p className="text-center text-muted-foreground mb-6">
-                        The warranty claim of{" "}
-                        <span className="font-semibold">
-                          OMR {claimAmount.toFixed(2)}
-                        </span>{" "}
-                        has been submitted successfully.
-                      </p>
-                      {currentReceipt && (
-                        <div className="w-full max-w-sm rounded-lg border p-4 mb-4">
-                          <div className="text-sm font-medium mb-2">
-                            Claim Details
-                          </div>
-                          <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                            <div>
-                              <span className="text-muted-foreground">
-                                Receipt #:
-                              </span>{" "}
-                              {currentReceipt.receiptNumber}
-                            </div>
-                            <div>
-                              <span className="text-muted-foreground">
-                                Date:
-                              </span>{" "}
-                              {new Date().toLocaleDateString("en-GB")}
-                            </div>
-                            <div>
-                              <span className="text-muted-foreground">
-                                Time:
-                              </span>{" "}
-                              {new Date().toLocaleTimeString("en-GB")}
-                            </div>
-                            <div>
-                              <span className="text-muted-foreground">
-                                Items:
-                              </span>{" "}
-                              {selectedItems.length}
-                            </div>
-                            <div className="col-span-2">
-                              <span className="text-muted-foreground">
-                                Claim Amount:
-                              </span>{" "}
-                              OMR {claimAmount.toFixed(2)}
-                            </div>
-                            {selectedCashier && (
-                              <div className="col-span-2">
-                                <span className="text-muted-foreground">
-                                  Authorized by:
-                                </span>{" "}
-                                {selectedCashier}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                      {/* Show BillComponent if all claimed items are batteries */}
-                      {currentReceipt &&
-                        (() => {
-                          const claimedItems = currentReceipt.items.filter(
-                            (item) => selectedItems.includes(item.uniqueId)
-                          );
-
-                          // Check if all claimed items are batteries
-                          const allBatteries =
-                            claimedItems.length > 0 &&
-                            claimedItems.every((item) =>
-                              item.name.toLowerCase().includes("battery")
-                            );
-
-                          if (!allBatteries) {
-                            return (
-                              <div className="w-full text-center py-4">
-                                <p className="text-muted-foreground">
-                                  Bill preview is only available if all claimed
-                                  items are batteries.
-                                </p>
-                                <Button
-                                  variant="outline"
-                                  className="mt-2"
-                                  onClick={() =>
-                                    console.log(
-                                      "Bill Preview button clicked (placeholder)"
-                                    )
-                                  }
-                                >
-                                  Bill Preview
-                                </Button>
-                              </div>
-                            );
-                          }
-
-                          return (
-                            <div className="w-full max-w-lg mt-4 mb-6">
-                              <BillComponent
-                                cart={claimedItems}
-                                billNumber={currentReceipt.receiptNumber}
-                                currentDate={new Date().toLocaleDateString(
-                                  "en-GB"
-                                )}
-                                currentTime={new Date().toLocaleTimeString(
-                                  "en-GB"
-                                )}
-                                cashier={selectedCashier ?? undefined}
-                              />
-                            </div>
-                          );
-                        })()}
-                    </motion.div>
-                  )}
                 </AnimatePresence>
               </div>
             </ScrollArea>
@@ -649,156 +891,7 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
                 Close
               </Button>
             )}
-            {step === "select" && (
-              <>
-                <Button variant="outline" onClick={handleCloseDialog}>
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handleProceedToConfirm}
-                  disabled={selectedItems.length === 0}
-                >
-                  Continue
-                </Button>
-              </>
-            )}
-            {step === "confirm" && (
-              <>
-                <Button variant="outline" onClick={() => setStep("select")}>
-                  Back
-                </Button>
-                <Button
-                  onClick={() => setIsConfirmDialogOpen(true)}
-                  className="bg-primary text-primary-foreground hover:bg-primary/90"
-                >
-                  Submit Claim
-                </Button>
-              </>
-            )}
-            {step === "complete" && (
-              <Button onClick={handleCloseDialog}>Close</Button>
-            )}
           </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      <AlertDialog
-        open={isConfirmDialogOpen}
-        onOpenChange={setIsConfirmDialogOpen}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Confirm Warranty Claim</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to submit this warranty claim for OMR{" "}
-              {claimAmount.toFixed(2)}? This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleConfirmClaim}
-              className="bg-primary text-primary-foreground hover:bg-primary/90"
-            >
-              Submit Claim
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-      <Dialog
-        open={isCashierSelectOpen}
-        onOpenChange={(open) => {
-          setIsCashierSelectOpen(open);
-          if (!open) {
-            setEnteredCashierId("");
-            setFetchedCashier(null);
-            setCashierIdError(null);
-            if (!selectedCashier) setIsConfirmDialogOpen(true);
-          }
-        }}
-      >
-        <DialogContent
-          className="w-[90%] max-w-[400px] p-6 rounded-lg"
-          onPointerDownOutside={(e) => e.preventDefault()}
-          onEscapeKeyDown={(e) => e.preventDefault()}
-        >
-          {!fetchedCashier ? (
-            <>
-              <DialogHeader className="pb-4">
-                <DialogTitle className="text-xl font-semibold text-center">
-                  Enter Cashier ID
-                </DialogTitle>
-                <DialogDescription className="text-center">
-                  Please enter your cashier ID to proceed with the claim.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="flex flex-col items-center">
-                <form
-                  className="flex flex-col items-center w-full"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    const found = cashiers.find(
-                      (c) => c.id.toString() === enteredCashierId
-                    );
-                    if (found) {
-                      setFetchedCashier(found);
-                      setSelectedCashier(found.name);
-                      setCashierIdError(null);
-                    } else {
-                      setCashierIdError(
-                        "Invalid cashier ID. Please try again."
-                      );
-                    }
-                  }}
-                >
-                  <Input
-                    className="text-center text-2xl w-32 mb-2"
-                    value={enteredCashierId}
-                    onChange={(e) => {
-                      setEnteredCashierId(e.target.value.replace(/\D/g, ""));
-                      setCashierIdError(null);
-                    }}
-                    maxLength={6}
-                    inputMode="numeric"
-                    type="tel"
-                    pattern="[0-9]*"
-                    autoFocus
-                    placeholder="ID"
-                  />
-                  <Button
-                    className="w-full mt-4"
-                    type="submit"
-                    disabled={enteredCashierId.length === 0}
-                  >
-                    Proceed
-                  </Button>
-                </form>
-                {cashierIdError && (
-                  <div className="text-destructive text-sm mt-2">
-                    {cashierIdError}
-                  </div>
-                )}
-              </div>
-            </>
-          ) : (
-            <>
-              <DialogHeader className="pb-4">
-                <DialogTitle className="text-xl font-semibold text-center">
-                  Welcome, {fetchedCashier.name}!
-                </DialogTitle>
-              </DialogHeader>
-              <div className="flex flex-col items-center my-4">
-                <div className="text-muted-foreground mb-4">
-                  ID: {fetchedCashier.id}
-                </div>
-                <Button
-                  className="w-full h-12 text-base"
-                  onClick={handleFinalizeClaim}
-                >
-                  Submit Claim
-                </Button>
-              </div>
-            </>
-          )}
         </DialogContent>
       </Dialog>
     </>
