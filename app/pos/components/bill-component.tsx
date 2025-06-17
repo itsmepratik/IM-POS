@@ -24,6 +24,7 @@ interface BillComponentProps {
   cashier?: string;
   appliedDiscount?: { type: "percentage" | "amount"; value: number } | null;
   appliedTradeInAmount?: number;
+  hideButton?: boolean;
 }
 
 const companyDetails = {
@@ -52,6 +53,7 @@ export const BillComponent: React.FC<BillComponentProps> = ({
   cashier,
   appliedDiscount,
   appliedTradeInAmount,
+  hideButton = false,
 }) => {
   const billRef = useRef<HTMLDivElement>(null);
   const [isClient, setIsClient] = useState(false);
@@ -535,11 +537,9 @@ export const BillComponent: React.FC<BillComponentProps> = ({
 
   return (
     <div className="p-4 border rounded-lg bg-white shadow-sm">
-      <h3 className="text-lg font-semibold mb-4 text-center">Bill Preview</h3>
-
       <div
         ref={billRef}
-        className="bill-preview-area p-[5mm] border border-dashed max-h-[50vh] overflow-y-auto text-xs bg-gray-50"
+        className="bill-preview-area p-[5mm] border border-dashed text-xs bg-gray-50"
       >
         {/* Header - three column layout */}
         <div className="flex mb-3">
@@ -689,9 +689,14 @@ export const BillComponent: React.FC<BillComponentProps> = ({
         </div>
       </div>
 
-      <Button onClick={handlePrint} className="w-full mt-4">
-        <Printer className="mr-2 h-4 w-4" /> Print Bill
-      </Button>
+      {!hideButton && (
+        <Button
+          onClick={handlePrint}
+          className="w-full mt-4 receipt-print-button"
+        >
+          <Printer className="mr-2 h-4 w-4" /> Print Bill
+        </Button>
+      )}
     </div>
   );
 };
