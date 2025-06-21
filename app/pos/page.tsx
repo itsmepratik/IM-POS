@@ -1148,8 +1148,9 @@ export default function POSPage() {
     { id: 3, name: "Fatima Al-Zadjali" },
     { id: 4, name: "Sara Al-Kindi" },
     { id: 5, name: "Khalid Al-Habsi" },
-    { id: 101, name: "Test Cashier 101" },
-    { id: 111, name: "Test Cashier 111" },
+    { id: 6, name: "Mohabo" },
+    { id: 7, name: "Bilal" },
+    { id: 8, name: "Rifat" },
   ];
   // Memoize handlers
   const removeFromCart = useCallback((productId: number, uniqueId?: string) => {
@@ -2935,11 +2936,11 @@ export default function POSPage() {
           }}
         >
           <DialogContentWithoutClose
-            className="w-[90%] max-w-[500px] p-6 rounded-lg max-h-[90vh] overflow-auto"
+            className="w-[90%] max-w-[500px] px-6 pb-6 pt-0 rounded-lg max-h-[90vh] overflow-auto"
             onPointerDownOutside={(e) => e.preventDefault()}
             onEscapeKeyDown={(e) => e.preventDefault()}
           >
-            <DialogHeader className="pb-4 sticky top-0 bg-background z-10">
+            <DialogHeader className="pb-4 sticky top-0 bg-background z-10 pt-6">
               <DialogTitle className="text-xl font-semibold text-center">
                 {cartContainsOnlyBatteries(cart)
                   ? "Bill Generated"

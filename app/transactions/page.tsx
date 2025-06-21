@@ -104,6 +104,9 @@ const cashiers = [
   { id: "Mohammed Al-Farsi", name: "Mohammed Al-Farsi" },
   { id: "Ahmed Al-Balushi", name: "Ahmed Al-Balushi" },
   { id: "Hossan", name: "Hossan" },
+  { id: "Mohabo", name: "Mohabo" },
+  { id: "Bilal", name: "Bilal" },
+  { id: "Rifat", name: "Rifat" },
 ] as const;
 
 // Memoize the transaction card component

@@ -246,8 +246,9 @@ const cashiers = [
   { id: 3, name: "Fatima Al-Zadjali" },
   { id: 4, name: "Sara Al-Kindi" },
   { id: 5, name: "Khalid Al-Habsi" },
-  { id: 101, name: "Test Cashier 101" },
-  { id: 111, name: "Test Cashier 111" },
+  { id: 6, name: "Mohabo" },
+  { id: 7, name: "Bilal" },
+  { id: 8, name: "Rifat" },
 ];
 
 export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
@@ -448,18 +449,27 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
   // Scroll to top when showing the receipt
   useEffect(() => {
     if (showRefundReceipt) {
-      const dialogContent = document.querySelector(".DialogContent");
-      if (dialogContent) {
-        dialogContent.scrollTop = 0;
-      }
+      // Use setTimeout to ensure the DOM has updated
+      setTimeout(() => {
+        const dialogContent = document.querySelector(".DialogContent");
+        const contentContainer = document.querySelector(
+          ".flex-1.overflow-y-auto"
+        );
+        if (dialogContent) {
+          dialogContent.scrollTop = 0;
+        }
+        if (contentContainer) {
+          contentContainer.scrollTop = 0;
+        }
+      }, 50);
     }
   }, [showRefundReceipt]);
 
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="w-[90%] max-w-[600px] h-auto max-h-[85vh] rounded-lg flex flex-col print:p-0 print:border-0 print:max-h-none print:h-auto print:overflow-visible">
-          <DialogHeader className="px-6 pt-6 pb-2 flex-shrink-0">
+        <DialogContent className="w-[95%] max-w-[600px] h-auto max-h-[90vh] rounded-lg flex flex-col print:p-0 print:border-0 print:max-h-none print:h-auto print:overflow-visible p-3 sm:p-4">
+          <DialogHeader className="px-3 pt-2 pb-2 flex-shrink-0 z-10 bg-background sticky top-0">
             <DialogTitle className="text-xl flex items-center gap-2">
               {step !== "search" && (
                 <Button
@@ -478,8 +488,8 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
             </DialogTitle>
           </DialogHeader>
 
-          <div className="flex-1 overflow-y-auto print:overflow-visible max-h-[calc(85vh-130px)]">
-            <div className="px-6 pb-6 space-y-4">
+          <div className="flex-1 overflow-y-auto print:overflow-visible max-h-[calc(90vh-130px)] pt-2">
+            <div className="px-3 pb-3 space-y-3">
               <AnimatePresence mode="wait">
                 {step === "search" && (
                   <motion.div
@@ -517,16 +527,17 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
                     </div>
 
                     {/* Add test buttons for quick testing */}
-                    <div className="flex flex-col gap-2 rounded-lg border p-4 bg-muted/50">
-                      <div className="flex items-center gap-2 text-sm font-medium mb-2">
+                    <div className="flex flex-col gap-2 rounded-lg border p-3 bg-muted/50">
+                      <div className="flex items-center gap-2 text-sm font-medium mb-1">
                         <AlertCircle className="h-4 w-4 text-amber-500" />
                         Test Refund Scenarios
                       </div>
-                      <div className="flex flex-wrap gap-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         <Button
                           size="sm"
                           variant="outline"
                           onClick={testBatteryRefund}
+                          className="h-auto py-1.5 text-xs"
                         >
                           Test Battery Refund
                         </Button>
@@ -534,6 +545,7 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
                           size="sm"
                           variant="outline"
                           onClick={testBatteryWithTradeInRefund}
+                          className="h-auto py-1.5 text-xs"
                         >
                           Test Battery with Trade-in
                         </Button>
@@ -541,6 +553,7 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
                           size="sm"
                           variant="outline"
                           onClick={testOilFilterRefund}
+                          className="h-auto py-1.5 text-xs"
                         >
                           Test Oil & Filter Refund
                         </Button>
@@ -548,6 +561,7 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
                           size="sm"
                           variant="outline"
                           onClick={testMultipleItemsRefund}
+                          className="h-auto py-1.5 text-xs"
                         >
                           Test Multiple Items Refund
                         </Button>
@@ -559,7 +573,7 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
                         <AlertCircle className="h-4 w-4 text-amber-500" />
                         Sample Receipt Numbers
                       </div>
-                      <div className="text-xs text-muted-foreground space-y-1">
+                      <div className="text-xs text-muted-foreground grid grid-cols-2 gap-x-2">
                         {mockReceipts.map((receipt) => (
                           <div
                             key={receipt.receiptNumber}
@@ -820,53 +834,58 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
                         </div>
                       </div>
                     ) : (
-                      <>
-                        {containsOnlyBatteries(
-                          currentReceipt?.items.filter((item) =>
-                            selectedItems.includes(item.uniqueId)
-                          ) || []
-                        ) ? (
-                          // Show bill-style receipt for batteries
-                          <BillComponent
-                            cart={
-                              currentReceipt?.items.filter((item) =>
-                                selectedItems.includes(item.uniqueId)
-                              ) || []
-                            }
-                            billNumber={`R${
-                              currentReceipt?.receiptNumber || ""
-                            }`}
-                            currentDate={new Date().toLocaleDateString()}
-                            currentTime={new Date().toLocaleTimeString()}
-                            customerName={customerName || ""}
-                            cashier={selectedCashier || ""}
-                            appliedTradeInAmount={
-                              tradeInAmount > 0 ? tradeInAmount : undefined
-                            }
-                            hideButton={true}
-                          />
-                        ) : (
-                          // Show regular receipt for non-batteries
-                          <RefundReceipt
-                            items={
-                              currentReceipt?.items.filter((item) =>
-                                selectedItems.includes(item.uniqueId)
-                              ) || []
-                            }
-                            receiptNumber={`R${
-                              currentReceipt?.receiptNumber || ""
-                            }`}
-                            originalReceiptNumber={
-                              currentReceipt?.receiptNumber || ""
-                            }
-                            currentDate={new Date().toLocaleDateString()}
-                            currentTime={new Date().toLocaleTimeString()}
-                            customerName={customerName || ""}
-                            cashier={selectedCashier || ""}
-                            refundAmount={refundAmount}
-                          />
-                        )}
-                      </>
+                      <div className="mt-4">
+                        <h3 className="text-lg font-semibold mb-4 text-center">
+                          Bill Preview
+                        </h3>
+                        <div className="overflow-hidden rounded-lg">
+                          {containsOnlyBatteries(
+                            currentReceipt?.items.filter((item) =>
+                              selectedItems.includes(item.uniqueId)
+                            ) || []
+                          ) ? (
+                            // Show bill-style receipt for batteries
+                            <BillComponent
+                              cart={
+                                currentReceipt?.items.filter((item) =>
+                                  selectedItems.includes(item.uniqueId)
+                                ) || []
+                              }
+                              billNumber={`R${
+                                currentReceipt?.receiptNumber || ""
+                              }`}
+                              currentDate={new Date().toLocaleDateString()}
+                              currentTime={new Date().toLocaleTimeString()}
+                              customerName={customerName || ""}
+                              cashier={selectedCashier || ""}
+                              appliedTradeInAmount={
+                                tradeInAmount > 0 ? tradeInAmount : undefined
+                              }
+                              hideButton={true}
+                            />
+                          ) : (
+                            // Show regular receipt for non-batteries
+                            <RefundReceipt
+                              items={
+                                currentReceipt?.items.filter((item) =>
+                                  selectedItems.includes(item.uniqueId)
+                                ) || []
+                              }
+                              receiptNumber={`R${
+                                currentReceipt?.receiptNumber || ""
+                              }`}
+                              originalReceiptNumber={
+                                currentReceipt?.receiptNumber || ""
+                              }
+                              currentDate={new Date().toLocaleDateString()}
+                              currentTime={new Date().toLocaleTimeString()}
+                              customerName={customerName || ""}
+                              cashier={selectedCashier || ""}
+                              refundAmount={refundAmount}
+                            />
+                          )}
+                        </div>
+                      </div>
                     )}
                   </motion.div>
                 )}
@@ -874,24 +893,24 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
             </div>
           </div>
 
-          <DialogFooter className="px-6 py-4 border-t print:hidden flex-shrink-0">
+          <DialogFooter className="px-3 py-3 border-t print:hidden flex-shrink-0 flex-wrap gap-y-2">
             {step === "search" && (
               <Button variant="ghost" onClick={handleCloseDialog}>
                 Cancel
               </Button>
             )}
             {step === "select" && (
-              <>
+              <div className="flex gap-2 sm:gap-3 w-full justify-end flex-wrap">
                 <Button variant="ghost" onClick={() => setStep("search")}>
                   Back
                 </Button>
                 <Button onClick={handleProceedToConfirm}>
                   Continue to Confirm
                 </Button>
-              </>
+              </div>
             )}
             {step === "confirm" && (
-              <>
+              <div className="flex gap-2 sm:gap-3 w-full justify-end flex-wrap">
                 <Button variant="ghost" onClick={() => setStep("select")}>
                   Back
                 </Button>
@@ -901,10 +920,10 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
                 >
                   Process Refund
                 </Button>
-              </>
+              </div>
             )}
             {step === "complete" && (
-              <>
+              <div className="flex gap-2 sm:gap-3 w-full justify-end flex-wrap">
                 {!showRefundReceipt && (
                   <Button
                     onClick={() => setShowRefundReceipt(true)}
@@ -914,7 +933,7 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
                   </Button>
                 )}
                 {showRefundReceipt && (
-                  <div className="flex gap-2 ml-auto">
+                  <div className="flex gap-2 sm:gap-3 w-full justify-end flex-wrap">
                     <Button
                       variant="outline"
                       onClick={() => setShowRefundReceipt(false)}
@@ -931,7 +950,7 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
                 {!showRefundReceipt && (
                   <Button onClick={handleCloseDialog}>Done</Button>
                 )}
-              </>
+              </div>
             )}
           </DialogFooter>
         </DialogContent>
@@ -942,19 +961,21 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
         open={isConfirmDialogOpen}
         onOpenChange={setIsConfirmDialogOpen}
       >
-        <AlertDialogContent>
-          <AlertDialogHeader>
+        <AlertDialogContent className="p-4 sm:p-5">
+          <AlertDialogHeader className="space-y-1">
             <AlertDialogTitle>Confirm Refund</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to process this refund for OMR{" "}
               {refundAmount.toFixed(2)}? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmRefund}>
-              Confirm
-            </AlertDialogAction>
+          <AlertDialogFooter className="flex-wrap gap-y-2">
+            <div className="flex gap-2 sm:gap-3 w-full justify-end flex-wrap">
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleConfirmRefund}>
+                Confirm
+              </AlertDialogAction>
+            </div>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -971,8 +992,8 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
           }
         }}
       >
-        <AlertDialogContent>
-          <AlertDialogHeader>
+        <AlertDialogContent className="p-4 sm:p-5">
+          <AlertDialogHeader className="space-y-1">
             <AlertDialogTitle>Enter Cashier ID</AlertDialogTitle>
             <AlertDialogDescription>
               Please enter your cashier ID to authorize this refund.
@@ -1004,25 +1025,27 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
               </div>
             )}
           </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                const found = cashiers.find(
-                  (c) => c.id.toString() === enteredCashierId
-                );
-                if (found) {
-                  setFetchedCashier(found);
-                  setSelectedCashier(found.name);
-                  setCashierIdError(null);
-                  handleFinalizeRefund();
-                } else {
-                  setCashierIdError("Invalid cashier ID. Please try again.");
-                }
-              }}
-            >
-              Authorize
-            </AlertDialogAction>
+          <AlertDialogFooter className="flex-wrap gap-y-2">
+            <div className="flex gap-2 sm:gap-3 w-full justify-end flex-wrap">
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  const found = cashiers.find(
+                    (c) => c.id.toString() === enteredCashierId
+                  );
+                  if (found) {
+                    setFetchedCashier(found);
+                    setSelectedCashier(found.name);
+                    setCashierIdError(null);
+                    handleFinalizeRefund();
+                  } else {
+                    setCashierIdError("Invalid cashier ID. Please try again.");
+                  }
+                }}
+              >
+                Authorize
+              </AlertDialogAction>
+            </div>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -1129,8 +1152,8 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="w-[90%] max-w-[600px] h-auto max-h-[85vh] rounded-lg overflow-auto flex flex-col">
-          <DialogHeader className="px-6 pt-6 pb-2">
+        <DialogContent className="w-[95%] max-w-[600px] h-auto max-h-[90vh] rounded-lg overflow-auto flex flex-col p-3 sm:p-4">
+          <DialogHeader className="px-3 pt-2 pb-2">
             <DialogTitle className="text-xl flex items-center gap-2">
               {step !== "search" && (
                 <Button
@@ -1149,7 +1172,7 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
             </DialogTitle>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto">
-            <div className="px-6 pb-6 space-y-4">
+            <div className="px-3 pb-3 space-y-3">
               <AnimatePresence mode="wait">
                 {step === "search" && (
                   <motion.div
@@ -1185,12 +1208,12 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
                         Search
                       </Button>
                     </div>
-                    <div className="rounded-lg border p-4 bg-muted/50">
-                      <div className="flex items-center gap-2 text-sm font-medium mb-2">
+                    <div className="rounded-lg border p-3 bg-muted/50">
+                      <div className="flex items-center gap-2 text-sm font-medium mb-1">
                         <AlertCircle className="h-4 w-4 text-amber-500" />
                         Sample Receipt Numbers
                       </div>
-                      <div className="text-xs text-muted-foreground space-y-1">
+                      <div className="text-xs text-muted-foreground grid grid-cols-2 gap-x-2">
                         {mockReceipts.map((receipt) => (
                           <div
                             key={receipt.receiptNumber}
@@ -1207,11 +1230,13 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
               </AnimatePresence>
             </div>
           </div>
-          <DialogFooter className="px-6 py-4 border-t">
+          <DialogFooter className="px-3 py-3 border-t flex-wrap gap-y-2">
             {step === "search" && (
-              <Button variant="outline" onClick={handleCloseDialog}>
-                Close
-              </Button>
+              <div className="flex gap-2 sm:gap-3 w-full justify-end flex-wrap">
+                <Button variant="outline" onClick={handleCloseDialog}>
+                  Close
+                </Button>
+              </div>
             )}
           </DialogFooter>
         </DialogContent>
