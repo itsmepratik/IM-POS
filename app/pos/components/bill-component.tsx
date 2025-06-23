@@ -3,6 +3,7 @@
 import React, { useRef, useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Printer } from "lucide-react";
+import { motion } from "framer-motion";
 
 // Define the structure for cart items consistent with POSPage
 interface CartItem {
@@ -42,7 +43,7 @@ const serviceDescription = {
   arabic: "إصلاح الإطارات وتغيير النفط للمركبات",
 };
 
-const thankYouMessage = "Thankyou for shopping with us";
+const thankYouMessage = "Thankyou for shopping with us\nشكراً للتسوق معنا";
 
 export const BillComponent: React.FC<BillComponentProps> = ({
   cart,
@@ -124,13 +125,14 @@ export const BillComponent: React.FC<BillComponentProps> = ({
             color: #000;
           }
           .bill-container {
-            width: calc(100% - 10mm); 
+            width: calc(100% - 4mm); 
             height: 100%; /* Make bill container take full printable height */
-            padding: 5mm;
+            padding: 2mm;
             margin: 0 auto; 
             box-sizing: border-box;
             display: flex; /* Enable flexbox for vertical alignment */
             flex-direction: column; /* Stack children vertically */
+            justify-content: space-between; /* Push footer to bottom */
           }
           /* Header styling */
           .header-table {
@@ -145,7 +147,10 @@ export const BillComponent: React.FC<BillComponentProps> = ({
           .left-header {
             width: 30%;
             text-align: left;
-            font-size: 9pt;
+            font-size: 8px !important;
+            -webkit-text-size-adjust: none;
+            transform-origin: left top;
+            transform: scale(0.8);
           }
           .center-header {
             width: 40%;
@@ -154,18 +159,22 @@ export const BillComponent: React.FC<BillComponentProps> = ({
           .right-header {
             width: 30%;
             text-align: right;
-            font-size: 9pt;
+            font-size: 8px !important;
+            -webkit-text-size-adjust: none;
+            transform-origin: right top;
+            transform: scale(0.8);
             direction: rtl;
           }
           .company-name {
             color: #0000CC;
-            font-size: 14pt;
+            font-size: 9pt;
             font-weight: bold;
             text-transform: uppercase;
+            white-space: nowrap;
           }
           .company-arabic-name {
             color: #0000CC;
-            font-size: 12pt;
+            font-size: 8pt;
             font-weight: bold;
             margin-top: 2px;
           }
@@ -176,14 +185,14 @@ export const BillComponent: React.FC<BillComponentProps> = ({
           .service-description {
             text-align: center;
             font-weight: bold;
-            font-size: 9pt;
+            font-size: 9px;
             margin: 15px 0;
             border-top: 1px solid #ccc;
             border-bottom: 1px solid #ccc;
             padding: 6px 0;
           }
           .service-description-arabic {
-            font-size: 8pt;
+            font-size: 8px;
             margin-top: 2px;
           }
           /* Bill info */
@@ -197,21 +206,21 @@ export const BillComponent: React.FC<BillComponentProps> = ({
           }
           .bill-number {
             text-align: left;
-            font-size: 9pt;
+            font-size: 9px;
           }
           .print-date {
             text-align: right;
-            font-size: 9pt;
+            font-size: 9px;
           }
           .customer-info {
             text-align: left;
-            font-size: 9pt;
+            font-size: 9px;
             font-weight: bold;
             margin-bottom: 8px;
           }
           .car-plate {
             text-align: right;
-            font-size: 9pt;
+            font-size: 9px;
             font-weight: bold;
           }
           /* Items table */
@@ -219,7 +228,7 @@ export const BillComponent: React.FC<BillComponentProps> = ({
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 20px;
-            font-size: 9pt;
+            font-size: 9px;
           }
           .items-table th, .items-table td {
             padding: 6px 5px;
@@ -244,7 +253,7 @@ export const BillComponent: React.FC<BillComponentProps> = ({
           .summary-table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 9pt;
+            font-size: 9px;
           }
           .summary-table td {
             padding: 3px 0;
@@ -265,7 +274,7 @@ export const BillComponent: React.FC<BillComponentProps> = ({
           }
           .total-row {
             font-weight: bold;
-            font-size: 11pt;
+            font-size: 10px;
             color: #0000CC;
           }
           
@@ -273,12 +282,14 @@ export const BillComponent: React.FC<BillComponentProps> = ({
           .cashier-section {
             display: flex;
             justify-content: space-between;
-            margin-top: 15px;
-            margin-bottom: 15px;
-            font-size: 9pt;
+            margin-top: 5px;
+            margin-bottom: 0;
+            font-size: 8px !important;
+            -webkit-text-size-adjust: none;
           }
           .cashier-info {
             text-align: left;
+            transform-origin: left center;
           }
           .signature-line {
             text-align: right;
@@ -289,27 +300,39 @@ export const BillComponent: React.FC<BillComponentProps> = ({
             width: 150px;
             text-align: center;
             padding-top: 3px;
-            font-size: 8pt;
+            font-size: 8px !important;
+            -webkit-text-size-adjust: none;
+            transform-origin: right center;
+            transform: scale(0.8);
             color: #777;
           }
           .footer {
             text-align: center;
-            font-size: 5pt;
+            font-size: 8px !important;
+            -webkit-text-size-adjust: none;
+            transform-origin: center top;
+            transform: scale(0.8);
             color: #333;
-            border-top: 1px solid #ccc;
-            padding-top: 6px;
+            width: 100%;
+            padding-top: 0;
             margin-top: 0;
+            margin-bottom: 0;
+            position: relative;
+            left: 0;
+            right: 0;
           }
           .footer-contact {
             font-weight: bold;
-            margin-bottom: 2px;
+            margin-bottom: 1px;
           }
           .footer-phone-numbers {
-            direction: ltr;
-            margin-bottom: 2px;
+            margin-bottom: 1px;
           }
           .footer-thank-you {
             font-style: italic;
+            font-size: 7px !important;
+            -webkit-text-size-adjust: none;
+            line-height: 1.2;
           }
         </style>
       </head>
@@ -331,7 +354,7 @@ export const BillComponent: React.FC<BillComponentProps> = ({
                 }</div>
               </td>
               <td class="right-header">
-                <div class="cr-number">السجل التجاري ${
+                <div class="cr-number">السجل التجاري: ${
                   companyDetails.crNumber
                 }</div>
                 <div>ولاية صحم</div>
@@ -350,12 +373,13 @@ export const BillComponent: React.FC<BillComponentProps> = ({
           </div>
 
           <!-- Bill info with two columns -->
-          <table class="bill-info-table">
+          <table class="bill-info-table" style="width: 100%;">
             <tr>
               <td class="bill-number">Bill no.: ${billNumber}</td>
               <td class="print-date">Printed on: ${currentDate} ${currentTime}</td>
             </tr>
           </table>
+          <div style="width: 100%; border-bottom: 1px dashed #999; margin: 3px 0;"></div>
 
           <!-- Customer info with two columns -->
           <table class="bill-info-table">
@@ -455,12 +479,13 @@ export const BillComponent: React.FC<BillComponentProps> = ({
             </div>
           </div>
 
-          <div class="footer">
+          <hr style="width: 100%; border: none; border-top: 1px solid #ccc; margin: 5px 0 2px 0;" />
+          <div class="footer" style="border-top: none;">
             <div class="footer-contact">Contact no.: ${
               companyDetails.contactNumber
             }</div>
-            <div class="footer-phone-numbers">968 7117 0805 :رقم الاتصال</div>
-            <div class="footer-thank-you">${thankYouMessage}</div>
+            <div class="footer-phone-numbers" style="direction: rtl;">رقم الاتصال: ٧١١٧٠٨٠٥</div>
+            <div class="footer-thank-you" style="white-space: pre-line;">${thankYouMessage}</div>
           </div>
         </div>
       </body>
@@ -536,168 +561,172 @@ export const BillComponent: React.FC<BillComponentProps> = ({
   );
 
   return (
-    <div className="p-4 border rounded-lg bg-white shadow-sm">
-      <div
-        ref={billRef}
-        className="bill-preview-area p-[5mm] border border-dashed text-xs bg-gray-50"
-      >
-        {/* Header - three column layout */}
-        <div className="flex mb-3">
-          <div className="w-1/3 text-left text-[9px]">
-            <div>C.R. No.: {companyDetails.crNumber}</div>
-            <div>{companyDetails.addressLine1}</div>
-            <div>{companyDetails.addressLine2}</div>
-            <div>{companyDetails.addressLine3}</div>
-          </div>
-          <div className="w-1/3 text-center">
-            <div className="font-bold text-blue-800 text-sm">
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      className="w-full flex flex-col"
+    >
+      <div className="max-h-[40vh] overflow-auto mb-4">
+        <div
+          ref={billRef}
+          className="bg-white border rounded-lg p-4 w-full max-w-[400px] mx-auto"
+        >
+          {/* Header - three column layout */}
+          <div className="text-center mb-2">
+            <h3 className="font-bold text-lg text-blue-800">
               {companyDetails.name}
-            </div>
-            <div className="font-bold text-blue-800 text-[10px]">
+            </h3>
+            <p className="font-bold text-blue-800 text-sm">
               {companyDetails.arabicName}
+            </p>
+            <div className="flex text-xs text-gray-500 justify-between mt-1">
+              <div className="text-left">
+                <div>C.R. No.: {companyDetails.crNumber}</div>
+                <div>{companyDetails.addressLine1}</div>
+                <div>{companyDetails.addressLine2}</div>
+                <div>{companyDetails.addressLine3}</div>
+              </div>
+              <div className="text-right rtl">
+                <div>السجل التجاري: {companyDetails.crNumber}</div>
+                <div>ولاية صحم</div>
+                <div>الصناعية</div>
+                <div>سلطنة عمان</div>
+              </div>
             </div>
           </div>
-          <div className="w-1/3 text-right text-[9px] rtl">
-            <div>السجل التجاري {companyDetails.crNumber}</div>
-            <div>ولاية صحم</div>
-            <div>الصناعية</div>
-            <div>سلطنة عمان</div>
+
+          {/* Service description */}
+          <div className="border-t border-b border-dashed py-1 mb-3">
+            <p className="text-xs font-bold text-center">
+              {serviceDescription.english}
+            </p>
+            <p className="text-xs font-bold text-center">
+              {serviceDescription.arabic}
+            </p>
           </div>
-        </div>
 
-        {/* Service description */}
-        <div className="text-center font-bold py-1 text-[9px] border-t border-b border-gray-200 my-2">
-          {serviceDescription.english}
-          <div className="text-[8px] mt-0.5">{serviceDescription.arabic}</div>
-        </div>
-
-        {/* Bill info */}
-        <div className="flex justify-between text-[9px] mb-2">
-          <div>Bill no.: {billNumber}</div>
-          <div>
-            Printed on: {currentDate} {currentTime}
+          {/* Bill info */}
+          <div className="flex justify-between text-xs">
+            <span>Bill no.: {billNumber}</span>
+            <span>
+              Printed on: {currentDate} {currentTime}
+            </span>
           </div>
-        </div>
+          <div className="border-t border-dashed my-2"></div>
 
-        {/* Customer info */}
-        <div className="flex justify-between text-[9px] mb-3">
-          <div className="font-semibold">To, Mr./Mrs.: {customerName}</div>
-          <div className="font-semibold">Car Plate: 1456 B</div>
-        </div>
+          {/* Customer info */}
+          <div className="flex justify-between text-xs mb-3">
+            <span className="font-medium">To, Mr./Mrs.: {customerName}</span>
+            <span className="font-medium">Car Plate: 1456 B</span>
+          </div>
 
-        {/* Items table */}
-        <table className="w-full text-[9px] mb-3">
-          <thead>
-            <tr className="border-b border-gray-300">
-              <th className="text-left py-1">#</th>
-              <th className="text-left py-1">Item</th>
-              <th className="text-right py-1">Quantity</th>
-              <th className="text-right py-1">Unit Price</th>
-              <th className="text-right py-1">Total</th>
-            </tr>
-          </thead>
-          <tbody>
+          {/* Items table */}
+          <div className="text-xs mb-3">
+            <div className="grid grid-cols-12 gap-1 font-medium mb-1">
+              <span className="col-span-1">#</span>
+              <span className="col-span-5">Item</span>
+              <span className="col-span-2 text-right">Qty</span>
+              <span className="col-span-2 text-right">Price</span>
+              <span className="col-span-2 text-right">Total</span>
+            </div>
+
             {cart
               .filter(
                 (item) =>
                   !item.name.toLowerCase().includes("discount on old battery")
               )
               .map((item, index) => (
-                <tr key={item.uniqueId} className="border-b border-gray-200">
-                  <td className="py-1">{index + 1}</td>
-                  <td className="py-1">
+                <div
+                  key={item.uniqueId}
+                  className="grid grid-cols-12 gap-1 mb-1"
+                >
+                  <span className="col-span-1">{index + 1}</span>
+                  <span className="col-span-5 break-words">
                     {item.name} {item.details ? `(${item.details})` : ""}
-                  </td>
-                  <td className="text-right py-1">{item.quantity}</td>
-                  <td className="text-right py-1">{item.price.toFixed(3)}</td>
-                  <td className="text-right py-1">
+                  </span>
+                  <span className="col-span-2 text-right">{item.quantity}</span>
+                  <span className="col-span-2 text-right">
+                    {item.price.toFixed(3)}
+                  </span>
+                  <span className="col-span-2 text-right">
                     {(item.price * item.quantity).toFixed(3)}
-                  </td>
-                </tr>
+                  </span>
+                </div>
               ))}
-          </tbody>
-        </table>
-
-        {/* Summary section */}
-        <div className="text-[9px]">
-          <div className="flex justify-between py-0.5">
-            <span>Subtotal</span>
-            <span className="font-semibold">
-              {subtotalForDisplay.toFixed(3)}
-            </span>
           </div>
 
-          {finalTradeInAmountForDisplay > 0 && (
-            <div className="flex justify-between py-0.5 text-red-600">
-              <span>Trade-In Amount</span>
-              <span className="font-semibold">
-                - {finalTradeInAmountForDisplay.toFixed(3)}
-              </span>
+          {/* Summary section */}
+          <div className="border-t border-dashed pt-2 mb-3">
+            <div className="flex justify-between text-xs">
+              <span>Subtotal</span>
+              <span>OMR {subtotalForDisplay.toFixed(3)}</span>
             </div>
-          )}
 
-          {mainDiscountForDisplay > 0 && (
-            <div className="flex justify-between py-0.5 text-red-600">
-              <span>
-                Discount{" "}
-                {appliedDiscount?.type === "percentage"
-                  ? `(${appliedDiscount.value}%)`
-                  : `(Amount)`}
-              </span>
-              <span className="font-semibold">
-                - {mainDiscountForDisplay.toFixed(3)}
-              </span>
-            </div>
-          )}
+            {finalTradeInAmountForDisplay > 0 && (
+              <div className="flex justify-between text-xs text-red-600">
+                <span>Trade-In Amount</span>
+                <span>- OMR {finalTradeInAmountForDisplay.toFixed(3)}</span>
+              </div>
+            )}
 
-          {oldBatteryDiscountForDisplay > 0 && (
-            <div className="flex justify-between py-0.5 text-red-600">
-              <span>Discount on old battery</span>
-              <span className="font-semibold">
-                - {oldBatteryDiscountForDisplay.toFixed(3)}
-              </span>
-            </div>
-          )}
-        </div>
+            {mainDiscountForDisplay > 0 && (
+              <div className="flex justify-between text-xs text-red-600">
+                <span>
+                  Discount{" "}
+                  {appliedDiscount?.type === "percentage"
+                    ? `(${appliedDiscount.value}%)`
+                    : `(Amount)`}
+                </span>
+                <span>- OMR {mainDiscountForDisplay.toFixed(3)}</span>
+              </div>
+            )}
 
-        {/* Divider */}
-        <div className="border-t border-gray-800 my-1"></div>
+            {oldBatteryDiscountForDisplay > 0 && (
+              <div className="flex justify-between text-xs text-red-600">
+                <span>Discount on old battery</span>
+                <span>- OMR {oldBatteryDiscountForDisplay.toFixed(3)}</span>
+              </div>
+            )}
 
-        {/* Total */}
-        <div className="flex justify-between font-bold text-[11px] text-blue-800 py-0.5">
-          <span>TOTAL AMOUNT:</span>
-          <span>{totalAmountForDisplay.toFixed(3)} OMR</span>
-        </div>
+            <div className="border-t border-gray-800 my-1"></div>
 
-        <div style={{ flexGrow: 1 }}></div>
-
-        <div className="flex justify-between text-[9px] mt-4 mb-2">
-          <div>Cashier: {cashier || ""}</div>
-          <div className="text-right">
-            <div className="inline-block border-t border-gray-500 w-[120px] text-center pt-0.5 text-[8px] text-gray-600">
-              Authorized Signature
+            <div className="flex justify-between text-xs font-bold text-blue-800">
+              <span>TOTAL AMOUNT:</span>
+              <span>OMR {totalAmountForDisplay.toFixed(3)}</span>
             </div>
           </div>
-        </div>
 
-        <div className="text-center text-[6px] pt-1 border-t border-gray-300">
-          <div className="font-semibold">
-            Contact no.: {companyDetails.contactNumber}
+          {/* Footer */}
+          <div className="text-center text-xs border-t border-dashed pt-2">
+            <div className="flex justify-between mb-2">
+              <span>Cashier: {cashier || ""}</span>
+              <div className="text-right">
+                <div className="inline-block border-t border-gray-500 w-[100px] text-center pt-1 text-xs text-gray-600">
+                  Authorized Signature
+                </div>
+              </div>
+            </div>
+
+            <p className="font-medium">
+              Contact no.: {companyDetails.contactNumber}
+            </p>
+            <p className="rtl">رقم الاتصال: ٧١١٧٠٨٠٥</p>
+            <p className="italic text-xs">{thankYouMessage}</p>
+            <p className="font-mono mt-2">{billNumber}</p>
           </div>
-          <div>968 7117 0805 :رقم الاتصال</div>
-          <div className="italic">{thankYouMessage}</div>
         </div>
       </div>
 
       {!hideButton && (
         <Button
           onClick={handlePrint}
-          className="w-full mt-4 receipt-print-button"
+          className="w-full flex items-center justify-center gap-2"
         >
-          <Printer className="mr-2 h-4 w-4" /> Print Bill
+          <Printer className="h-4 w-4" /> Print Bill
         </Button>
       )}
-    </div>
+    </motion.div>
   );
 };
 

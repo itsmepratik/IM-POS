@@ -32,6 +32,7 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui/use-toast";
 import { BillComponent } from "./bill-component";
 import { RefundReceipt } from "./refund-receipt";
+import { format } from "date-fns";
 
 interface CartItem {
   id: number;
@@ -435,16 +436,168 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
     }
   }, [currentReceipt, selectedItems]);
 
-  // Add print function that delegates to the component's print handler
-  const handlePrint = useCallback(() => {
-    if (!showRefundReceipt) return;
+  // Add print function that delegates to the component's print functionality
+  const handlePrint = () => {
+    // Instead of trying to find and click a button, directly call the print function
+    const receiptContent = document.querySelector(".refund-receipt-container");
 
-    // Find the Print button within the receipt component and click it
-    const printButton = document.querySelector(".receipt-print-button");
-    if (printButton && printButton instanceof HTMLButtonElement) {
-      printButton.click();
+    if (!receiptContent) {
+      console.error("Receipt content not found");
+      return;
     }
-  }, [showRefundReceipt]);
+
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) {
+      alert("Please allow popups to print the receipt.");
+      return;
+    }
+
+    // Generate HTML content for printing
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Refund Receipt</title>
+        <style>
+          @page {
+            size: 80mm 297mm;
+            margin: 0;
+          }
+          html, body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            font-size: 10pt;
+          }
+          .receipt {
+            width: 76mm;
+            padding: 5mm 2mm;
+            margin: 0 auto;
+          }
+          .receipt-header {
+            text-align: center;
+            margin-bottom: 10px;
+          }
+          .receipt-header h1 {
+            font-size: 14pt;
+            margin: 0;
+            font-weight: bold;
+          }
+          .receipt-header p {
+            font-size: 8pt;
+            margin: 2px 0;
+            color: #555;
+          }
+          .receipt-divider {
+            border-top: 1px dashed #000;
+            margin: 5px 0;
+          }
+          .receipt-info {
+            font-size: 9pt;
+            margin: 5px 0;
+          }
+          .receipt-title {
+            text-align: center;
+            font-weight: bold;
+            margin: 10px 0;
+            font-size: 11pt;
+            color: #D9534F;
+          }
+          .receipt-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+            font-size: 8pt;
+          }
+          .receipt-table th, .receipt-table td {
+            text-align: left;
+            padding: 2px 0;
+          }
+          .receipt-summary {
+            margin: 10px 0;
+            font-size: 9pt;
+          }
+          .receipt-summary table {
+            width: 100%;
+          }
+          .receipt-footer {
+            margin-top: 15px;
+            font-size: 8pt;
+            text-align: center;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="receipt">
+          <div class="receipt-header">
+            <h1>H Automotives</h1>
+            <p>Saham, Sultanate of Oman</p>
+            <p>Ph: 92510750 | 26856848</p>
+          </div>
+          
+          <div class="receipt-divider"></div>
+          
+          <div class="receipt-title">REFUND RECEIPT</div>
+          
+          <div class="receipt-info">
+            <p>Original Receipt: ${currentReceipt?.receiptNumber || ""}</p>
+            <p>Date: ${format(new Date(), "dd/MM/yyyy")}</p>
+            <p>Time: ${format(new Date(), "HH:mm:ss")}</p>
+            <p>Refund ID: R${Math.floor(Math.random() * 10000)
+              .toString()
+              .padStart(4, "0")}</p>
+            ${customerName ? `<p>Customer: ${customerName}</p>` : ""}
+          </div>
+          
+          <div class="receipt-divider"></div>
+          
+          <div class="receipt-summary">
+            <table>
+              <tr>
+                <td style="font-weight: bold;">TOTAL REFUND AMOUNT:</td>
+                <td style="text-align: right; font-weight: bold; color: #D9534F;">
+                  OMR ${refundAmount.toFixed(3)}
+                </td>
+              </tr>
+            </table>
+          </div>
+          
+          <div class="receipt-footer">
+            ${
+              selectedCashier?.name || fetchedCashier?.name
+                ? `<p>Processed by: ${
+                    selectedCashier?.name || fetchedCashier?.name
+                  }</p>`
+                : ""
+            }
+            <div class="receipt-divider"></div>
+            <p>Thank you for shopping with us</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    printWindow.document.open();
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+
+    setTimeout(() => {
+      printWindow.print();
+      // Don't automatically close the print window on mobile devices
+      if (
+        !/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+          navigator.userAgent
+        )
+      ) {
+        // Removed auto close to prevent about:blank text
+        // printWindow.close();
+      }
+    }, 500);
+  };
 
   // Scroll to top when showing the receipt
   useEffect(() => {
@@ -845,44 +998,48 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
                             ) || []
                           ) ? (
                             // Show bill-style receipt for batteries
-                            <BillComponent
-                              cart={
-                                currentReceipt?.items.filter((item) =>
-                                  selectedItems.includes(item.uniqueId)
-                                ) || []
-                              }
-                              billNumber={`R${
-                                currentReceipt?.receiptNumber || ""
-                              }`}
-                              currentDate={new Date().toLocaleDateString()}
-                              currentTime={new Date().toLocaleTimeString()}
-                              customerName={customerName || ""}
-                              cashier={selectedCashier || ""}
-                              appliedTradeInAmount={
-                                tradeInAmount > 0 ? tradeInAmount : undefined
-                              }
-                              hideButton={true}
-                            />
+                            <div className="max-h-[60vh] overflow-auto refund-receipt-container">
+                              <BillComponent
+                                cart={
+                                  currentReceipt?.items.filter((item) =>
+                                    selectedItems.includes(item.uniqueId)
+                                  ) || []
+                                }
+                                billNumber={`R${
+                                  currentReceipt?.receiptNumber || ""
+                                }`}
+                                currentDate={format(new Date(), "dd/MM/yyyy")}
+                                currentTime={format(new Date(), "HH:mm:ss")}
+                                customerName={customerName || ""}
+                                cashier={selectedCashier?.name || ""}
+                                appliedTradeInAmount={
+                                  tradeInAmount > 0 ? tradeInAmount : undefined
+                                }
+                                hideButton={true}
+                              />
+                            </div>
                           ) : (
                             // Show regular receipt for non-batteries
-                            <RefundReceipt
-                              items={
-                                currentReceipt?.items.filter((item) =>
-                                  selectedItems.includes(item.uniqueId)
-                                ) || []
-                              }
-                              receiptNumber={`R${
-                                currentReceipt?.receiptNumber || ""
-                              }`}
-                              originalReceiptNumber={
-                                currentReceipt?.receiptNumber || ""
-                              }
-                              currentDate={new Date().toLocaleDateString()}
-                              currentTime={new Date().toLocaleTimeString()}
-                              customerName={customerName || ""}
-                              cashier={selectedCashier || ""}
-                              refundAmount={refundAmount}
-                            />
+                            <div className="max-h-[60vh] overflow-auto refund-receipt-container">
+                              <RefundReceipt
+                                items={
+                                  currentReceipt?.items.filter((item) =>
+                                    selectedItems.includes(item.uniqueId)
+                                  ) || []
+                                }
+                                receiptNumber={`R${
+                                  currentReceipt?.receiptNumber || ""
+                                }`}
+                                originalReceiptNumber={
+                                  currentReceipt?.receiptNumber || ""
+                                }
+                                currentDate={format(new Date(), "dd/MM/yyyy")}
+                                currentTime={format(new Date(), "HH:mm:ss")}
+                                customerName={customerName || ""}
+                                cashier={selectedCashier?.name || ""}
+                                refundAmount={refundAmount}
+                              />
+                            </div>
                           )}
                         </div>
                       </div>
@@ -1070,13 +1227,37 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
     name: string;
   } | null>(null);
   const [cashierIdError, setCashierIdError] = useState<string | null>(null);
-  const [selectedCashier, setSelectedCashier] = useState<string | null>(null);
+  const [selectedCashier, setSelectedCashier] = useState<null | {
+    id: number;
+    name: string;
+  }>(null);
+  const [showRefundReceipt, setShowRefundReceipt] = useState(false);
+  const [customerName, setCustomerName] = useState<string>("");
+  const [tradeInAmount, setTradeInAmount] = useState<number>(0);
 
   // Calculate claim amount (same as refund for now)
   const claimAmount =
     currentReceipt?.items
       .filter((item) => selectedItems.includes(item.uniqueId))
       .reduce((sum, item) => sum + item.price * item.quantity, 0) || 0;
+
+  // Add the missing containsOnlyBatteries function
+  const containsOnlyBatteries = (items: CartItem[]): boolean => {
+    if (items.length === 0) return false;
+
+    // Filter out the special discount item before checking if all remaining are batteries
+    const actualProductItems = items.filter(
+      (item) => !item.name.toLowerCase().includes("discount on old battery")
+    );
+
+    // If, after filtering out the discount, there are no actual products, it's not a battery-only sale.
+    if (actualProductItems.length === 0) return false;
+
+    // Check if all items are batteries (based on name since we don't have category/type info here)
+    return actualProductItems.every((item) =>
+      item.name.toLowerCase().includes("battery")
+    );
+  };
 
   // Handle looking up a receipt
   const handleLookupReceipt = () => {
@@ -1138,6 +1319,7 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
       setFetchedCashier(null);
       setCashierIdError(null);
       setSelectedCashier(null);
+      setShowRefundReceipt(false);
       onClose();
     } else if (step === "search") {
       onClose();
@@ -1148,6 +1330,188 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
       setStep("search");
     }
   };
+
+  // Add print function that delegates to the component's print functionality
+  const handlePrint = () => {
+    // Instead of trying to find and click a button, directly call the print function
+    const receiptContent = document.querySelector(".refund-receipt-container");
+
+    if (!receiptContent) {
+      console.error("Receipt content not found");
+      return;
+    }
+
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) {
+      alert("Please allow popups to print the receipt.");
+      return;
+    }
+
+    // Generate HTML content for printing
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Warranty Claim Receipt</title>
+        <style>
+          @page {
+            size: 80mm 297mm;
+            margin: 0;
+          }
+          html, body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            font-size: 10pt;
+          }
+          .receipt {
+            width: 76mm;
+            padding: 5mm 2mm;
+            margin: 0 auto;
+          }
+          .receipt-header {
+            text-align: center;
+            margin-bottom: 10px;
+          }
+          .receipt-header h1 {
+            font-size: 14pt;
+            margin: 0;
+            font-weight: bold;
+          }
+          .receipt-header p {
+            font-size: 8pt;
+            margin: 2px 0;
+            color: #555;
+          }
+          .receipt-divider {
+            border-top: 1px dashed #000;
+            margin: 5px 0;
+          }
+          .receipt-info {
+            font-size: 9pt;
+            margin: 5px 0;
+          }
+          .receipt-title {
+            text-align: center;
+            font-weight: bold;
+            margin: 10px 0;
+            font-size: 11pt;
+            color: #D9534F;
+          }
+          .receipt-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+            font-size: 8pt;
+          }
+          .receipt-table th, .receipt-table td {
+            text-align: left;
+            padding: 2px 0;
+          }
+          .receipt-summary {
+            margin: 10px 0;
+            font-size: 9pt;
+          }
+          .receipt-summary table {
+            width: 100%;
+          }
+          .receipt-footer {
+            margin-top: 15px;
+            font-size: 8pt;
+            text-align: center;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="receipt">
+          <div class="receipt-header">
+            <h1>H Automotives</h1>
+            <p>Saham, Sultanate of Oman</p>
+            <p>Ph: 92510750 | 26856848</p>
+          </div>
+          
+          <div class="receipt-divider"></div>
+          
+          <div class="receipt-title">WARRANTY CLAIM RECEIPT</div>
+          
+          <div class="receipt-info">
+            <p>Original Receipt: ${currentReceipt?.receiptNumber || ""}</p>
+            <p>Date: ${format(new Date(), "dd/MM/yyyy")}</p>
+            <p>Time: ${format(new Date(), "HH:mm:ss")}</p>
+            <p>Claim ID: W${Math.floor(Math.random() * 10000)
+              .toString()
+              .padStart(4, "0")}</p>
+            ${customerName ? `<p>Customer: ${customerName}</p>` : ""}
+          </div>
+          
+          <div class="receipt-divider"></div>
+          
+          <div class="receipt-summary">
+            <table>
+              <tr>
+                <td style="font-weight: bold;">TOTAL CLAIM AMOUNT:</td>
+                <td style="text-align: right; font-weight: bold; color: #D9534F;">
+                  OMR ${claimAmount.toFixed(3)}
+                </td>
+              </tr>
+            </table>
+          </div>
+          
+          <div class="receipt-footer">
+            ${
+              selectedCashier?.name || fetchedCashier?.name
+                ? `<p>Processed by: ${
+                    selectedCashier?.name || fetchedCashier?.name
+                  }</p>`
+                : ""
+            }
+            <div class="receipt-divider"></div>
+            <p>Thank you for shopping with us</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    printWindow.document.open();
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+
+    setTimeout(() => {
+      printWindow.print();
+      // Don't automatically close the print window on mobile devices
+      if (
+        !/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+          navigator.userAgent
+        )
+      ) {
+        // Removed auto close to prevent about:blank text
+        // printWindow.close();
+      }
+    }, 500);
+  };
+
+  // Scroll to top when showing the receipt
+  useEffect(() => {
+    if (showRefundReceipt) {
+      // Use setTimeout to ensure the DOM has updated
+      setTimeout(() => {
+        const dialogContent = document.querySelector(".DialogContent");
+        const contentContainer = document.querySelector(
+          ".flex-1.overflow-y-auto"
+        );
+        if (dialogContent) {
+          dialogContent.scrollTop = 0;
+        }
+        if (contentContainer) {
+          contentContainer.scrollTop = 0;
+        }
+      }, 50);
+    }
+  }, [showRefundReceipt]);
 
   return (
     <>
@@ -1227,6 +1591,322 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
                     </div>
                   </motion.div>
                 )}
+                {step === "select" && currentReceipt && (
+                  <motion.div
+                    key="select"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="space-y-4"
+                  >
+                    <div className="rounded-lg border p-4 mb-4">
+                      <div className="text-sm font-medium mb-2">
+                        Receipt Information
+                      </div>
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                        <div>
+                          <span className="text-muted-foreground">
+                            Receipt #:
+                          </span>{" "}
+                          {currentReceipt.receiptNumber}
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Date:</span>{" "}
+                          {currentReceipt.date}
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Time:</span>{" "}
+                          {currentReceipt.time}
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">
+                            Payment:
+                          </span>{" "}
+                          {currentReceipt.paymentMethod}
+                        </div>
+                        <div className="col-span-2">
+                          <span className="text-muted-foreground">Total:</span>{" "}
+                          OMR {currentReceipt.total.toFixed(2)}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-sm font-medium mb-2">
+                      Select Items for Warranty Claim
+                    </div>
+                    <div className="space-y-2">
+                      {currentReceipt.items.map((item) => (
+                        <Card key={item.uniqueId} className="overflow-hidden">
+                          <CardContent className="p-0">
+                            <div
+                              className={cn(
+                                "p-4 flex items-center gap-3 cursor-pointer hover:bg-muted/50 transition-colors",
+                                selectedItems.includes(item.uniqueId) &&
+                                  "bg-muted"
+                              )}
+                              onClick={() => toggleItemSelection(item.uniqueId)}
+                            >
+                              <Checkbox
+                                checked={selectedItems.includes(item.uniqueId)}
+                                onCheckedChange={() =>
+                                  toggleItemSelection(item.uniqueId)
+                                }
+                                className="h-5 w-5"
+                              />
+                              <div className="flex-1">
+                                <div className="flex items-start justify-between">
+                                  <div>
+                                    <div className="font-medium">
+                                      {item.name}
+                                    </div>
+                                    {item.details && (
+                                      <div className="text-xs text-muted-foreground">
+                                        {item.details}
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div className="text-right">
+                                    <div className="font-medium">
+                                      OMR{" "}
+                                      {(item.price * item.quantity).toFixed(2)}
+                                    </div>
+                                    {item.quantity > 1 && (
+                                      <div className="text-xs text-muted-foreground">
+                                        {item.quantity} × OMR{" "}
+                                        {item.price.toFixed(2)}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                    {selectedItems.length > 0 && (
+                      <div className="rounded-lg border p-4 bg-muted/50 mt-4">
+                        <div className="flex justify-between text-sm font-medium">
+                          <span>Total Claim Amount</span>
+                          <span>OMR {claimAmount.toFixed(2)}</span>
+                        </div>
+                      </div>
+                    )}
+                  </motion.div>
+                )}
+                {step === "confirm" && currentReceipt && (
+                  <motion.div
+                    key="confirm"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="space-y-4"
+                  >
+                    <div className="rounded-lg border p-4 mb-4">
+                      <div className="text-sm font-medium mb-2">
+                        Claim Summary
+                      </div>
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                        <div>
+                          <span className="text-muted-foreground">
+                            Receipt #:
+                          </span>{" "}
+                          {currentReceipt.receiptNumber}
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Date:</span>{" "}
+                          {currentReceipt.date}
+                        </div>
+                        <div className="col-span-2">
+                          <span className="text-muted-foreground">
+                            Items to Claim:
+                          </span>{" "}
+                          {selectedItems.length}
+                        </div>
+                        <div className="col-span-2">
+                          <span className="text-muted-foreground">
+                            Claim Amount:
+                          </span>{" "}
+                          OMR {claimAmount.toFixed(2)}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-sm font-medium mb-2">
+                      Items to Claim
+                    </div>
+                    <div className="space-y-2">
+                      {currentReceipt.items
+                        .filter((item) => selectedItems.includes(item.uniqueId))
+                        .map((item) => (
+                          <Card key={item.uniqueId} className="overflow-hidden">
+                            <CardContent className="p-4">
+                              <div className="flex items-start justify-between">
+                                <div>
+                                  <div className="font-medium">{item.name}</div>
+                                  {item.details && (
+                                    <div className="text-xs text-muted-foreground">
+                                      {item.details}
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="text-right">
+                                  <div className="font-medium">
+                                    OMR{" "}
+                                    {(item.price * item.quantity).toFixed(2)}
+                                  </div>
+                                  {item.quantity > 1 && (
+                                    <div className="text-xs text-muted-foreground">
+                                      {item.quantity} × OMR{" "}
+                                      {item.price.toFixed(2)}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                    </div>
+                    <div className="rounded-lg border p-4 bg-muted/50 mt-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <AlertCircle className="h-4 w-4 text-amber-500" />
+                        <div className="text-sm font-medium">Claim Policy</div>
+                      </div>
+                      <div className="text-xs text-muted-foreground space-y-1">
+                        <p>
+                          Claims are subject to store policy. Items must be in
+                          resellable condition. Claims will be issued to the
+                          original payment method when possible.
+                        </p>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+                {step === "complete" && (
+                  <motion.div
+                    key="complete"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="space-y-4"
+                  >
+                    {!showRefundReceipt ? (
+                      <div className="flex flex-col items-center justify-center py-6">
+                        <div className="rounded-full bg-green-100 p-3 mb-4">
+                          <Check className="h-6 w-6 text-green-600" />
+                        </div>
+                        <h3 className="text-xl font-semibold mb-2">
+                          Claim Complete
+                        </h3>
+                        <p className="text-muted-foreground text-center mb-4">
+                          The claim of OMR {claimAmount.toFixed(2)} has been
+                          processed successfully.
+                        </p>
+                        <div className="border rounded-lg p-4 w-full">
+                          <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                            <div>
+                              <span className="text-muted-foreground">
+                                Receipt #:
+                              </span>{" "}
+                              {currentReceipt?.receiptNumber}
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">
+                                Date:
+                              </span>{" "}
+                              {new Date().toLocaleDateString()}
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">
+                                Time:
+                              </span>{" "}
+                              {new Date().toLocaleTimeString()}
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">
+                                Cashier:
+                              </span>{" "}
+                              {selectedCashier?.name || "Unknown"}
+                            </div>
+                            <div className="col-span-2">
+                              <span className="text-muted-foreground">
+                                Claim Amount:
+                              </span>{" "}
+                              <span className="font-medium">
+                                OMR {claimAmount.toFixed(2)}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="mt-4">
+                        <h3 className="text-lg font-semibold mb-4 text-center">
+                          Bill Preview
+                        </h3>
+                        <div className="overflow-hidden rounded-lg">
+                          {containsOnlyBatteries(
+                            currentReceipt?.items.filter((item) =>
+                              selectedItems.includes(item.uniqueId)
+                            ) || []
+                          ) ? (
+                            // Show bill for batteries
+                            <div className="max-h-[60vh] overflow-auto refund-receipt-container">
+                              <BillComponent
+                                cart={
+                                  currentReceipt?.items.filter((item) =>
+                                    selectedItems.includes(item.uniqueId)
+                                  ) || []
+                                }
+                                billNumber={`W${Math.floor(
+                                  Math.random() * 10000
+                                )
+                                  .toString()
+                                  .padStart(4, "0")}`}
+                                currentDate={format(new Date(), "dd/MM/yyyy")}
+                                currentTime={format(new Date(), "HH:mm:ss")}
+                                customerName={customerName}
+                                cashier={
+                                  selectedCashier?.name ||
+                                  fetchedCashier?.name ||
+                                  ""
+                                }
+                                hideButton={true}
+                              />
+                            </div>
+                          ) : (
+                            // Show regular receipt for non-batteries
+                            <div className="max-h-[60vh] overflow-auto refund-receipt-container">
+                              <RefundReceipt
+                                items={selectedItems.map((uniqueId) => {
+                                  const item = currentReceipt?.items.find(
+                                    (i) => i.uniqueId === uniqueId
+                                  );
+                                  return item!;
+                                })}
+                                receiptNumber={`W${Math.floor(
+                                  Math.random() * 10000
+                                )
+                                  .toString()
+                                  .padStart(4, "0")}`}
+                                originalReceiptNumber={
+                                  currentReceipt?.receiptNumber || ""
+                                }
+                                currentDate={format(new Date(), "dd/MM/yyyy")}
+                                currentTime={format(new Date(), "HH:mm:ss")}
+                                customerName={customerName}
+                                cashier={
+                                  selectedCashier?.name ||
+                                  fetchedCashier?.name ||
+                                  ""
+                                }
+                                refundAmount={claimAmount}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </motion.div>
+                )}
               </AnimatePresence>
             </div>
           </div>
@@ -1238,9 +1918,156 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
                 </Button>
               </div>
             )}
+            {step === "select" && (
+              <div className="flex gap-2 sm:gap-3 w-full justify-end flex-wrap">
+                <Button variant="ghost" onClick={() => setStep("search")}>
+                  Back
+                </Button>
+                <Button onClick={handleProceedToConfirm}>
+                  Continue to Confirm
+                </Button>
+              </div>
+            )}
+            {step === "confirm" && (
+              <div className="flex gap-2 sm:gap-3 w-full justify-end flex-wrap">
+                <Button variant="ghost" onClick={() => setStep("select")}>
+                  Back
+                </Button>
+                <Button
+                  onClick={() => setIsConfirmDialogOpen(true)}
+                  variant="destructive"
+                >
+                  Process Claim
+                </Button>
+              </div>
+            )}
+            {step === "complete" && (
+              <div className="flex gap-2 sm:gap-3 w-full justify-end flex-wrap">
+                {!showRefundReceipt && (
+                  <Button
+                    onClick={() => setShowRefundReceipt(true)}
+                    className="gap-2"
+                  >
+                    <Printer className="h-4 w-4" /> View Receipt
+                  </Button>
+                )}
+                {showRefundReceipt && (
+                  <div className="flex gap-2 sm:gap-3 w-full justify-end flex-wrap">
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowRefundReceipt(false)}
+                      className="gap-2"
+                    >
+                      Back
+                    </Button>
+                    <Button onClick={handlePrint} className="gap-2">
+                      <Printer className="h-4 w-4" /> Print Receipt
+                    </Button>
+                    <Button onClick={handleCloseDialog}>Done</Button>
+                  </div>
+                )}
+                {!showRefundReceipt && (
+                  <Button onClick={handleCloseDialog}>Done</Button>
+                )}
+              </div>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Confirm Dialog for Warranty Claims */}
+      <AlertDialog
+        open={isConfirmDialogOpen}
+        onOpenChange={setIsConfirmDialogOpen}
+      >
+        <AlertDialogContent className="p-4 sm:p-5">
+          <AlertDialogHeader className="space-y-1">
+            <AlertDialogTitle>Confirm Warranty Claim</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to process this warranty claim for OMR{" "}
+              {claimAmount.toFixed(2)}? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-wrap gap-y-2">
+            <div className="flex gap-2 sm:gap-3 w-full justify-end flex-wrap">
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleConfirmClaim}>
+                Confirm
+              </AlertDialogAction>
+            </div>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Cashier Selection Dialog */}
+      <AlertDialog
+        open={isCashierSelectOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setIsCashierSelectOpen(false);
+            setEnteredCashierId("");
+            setFetchedCashier(null);
+            setCashierIdError(null);
+          }
+        }}
+      >
+        <AlertDialogContent className="p-4 sm:p-5">
+          <AlertDialogHeader className="space-y-1">
+            <AlertDialogTitle>Enter Cashier ID</AlertDialogTitle>
+            <AlertDialogDescription>
+              Please enter your cashier ID to authorize this warranty claim.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="flex flex-col items-center py-2">
+            <Input
+              className="text-center text-2xl w-32 mb-2"
+              value={enteredCashierId}
+              onChange={(e) => {
+                setEnteredCashierId(e.target.value.replace(/\D/g, ""));
+                setCashierIdError(null);
+              }}
+              maxLength={6}
+              inputMode="numeric"
+              type="tel"
+              pattern="[0-9]*"
+              autoFocus
+              placeholder="ID"
+            />
+            {cashierIdError && (
+              <div className="text-destructive text-sm mt-2">
+                {cashierIdError}
+              </div>
+            )}
+            {fetchedCashier && (
+              <div className="text-green-600 text-sm mt-2">
+                Authorized: {fetchedCashier.name}
+              </div>
+            )}
+          </div>
+          <AlertDialogFooter className="flex-wrap gap-y-2">
+            <div className="flex gap-2 sm:gap-3 w-full justify-end flex-wrap">
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  const found = cashiers.find(
+                    (c) => c.id.toString() === enteredCashierId
+                  );
+                  if (found) {
+                    setFetchedCashier(found);
+                    setSelectedCashier({ id: found.id, name: found.name });
+                    setCashierIdError(null);
+                    handleFinalizeClaim();
+                  } else {
+                    setCashierIdError("Invalid cashier ID. Please try again.");
+                  }
+                }}
+              >
+                Authorize
+              </AlertDialogAction>
+            </div>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

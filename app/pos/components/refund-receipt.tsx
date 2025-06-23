@@ -478,10 +478,10 @@ export const RefundReceipt: React.FC<RefundReceiptProps> = ({
       {/* Hidden print button for parent component to access */}
       <Button
         onClick={handlePrint}
-        className="receipt-print-button hidden"
-        tabIndex={-1}
+        className="w-full flex items-center justify-center gap-2 receipt-print-button"
+        data-testid="warranty-receipt-print-button"
       >
-        Print Receipt
+        <Printer className="h-4 w-4" /> Print Receipt
       </Button>
     </motion.div>
   );
