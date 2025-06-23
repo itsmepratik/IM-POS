@@ -33,6 +33,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { BillComponent } from "./bill-component";
 import { RefundReceipt } from "./refund-receipt";
 import { format } from "date-fns";
+import { useStaffIDs } from "@/lib/hooks/useStaffIDs";
 
 interface CartItem {
   id: number;
@@ -240,20 +241,11 @@ const mockReceipts: Receipt[] = [
   },
 ];
 
-// Add mock cashier data similar to the main page
-const cashiers = [
-  { id: 1, name: "Hossain (Owner)" },
-  { id: 2, name: "Adnan Hossain" },
-  { id: 3, name: "Fatima Al-Zadjali" },
-  { id: 4, name: "Sara Al-Kindi" },
-  { id: 5, name: "Khalid Al-Habsi" },
-  { id: 6, name: "Mohabo" },
-  { id: 7, name: "Bilal" },
-  { id: 8, name: "Rifat" },
-];
+// Get cashier data from the hook
 
 export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
   const { toast } = useToast();
+  const { staffMembers } = useStaffIDs();
   const [receiptNumber, setReceiptNumber] = useState("");
   const [currentReceipt, setCurrentReceipt] = useState<Receipt | null>(null);
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
@@ -265,11 +257,14 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
   const [isCashierSelectOpen, setIsCashierSelectOpen] = useState(false);
   const [enteredCashierId, setEnteredCashierId] = useState<string>("");
   const [fetchedCashier, setFetchedCashier] = useState<{
-    id: number;
+    id: string;
     name: string;
   } | null>(null);
   const [cashierIdError, setCashierIdError] = useState<string | null>(null);
-  const [selectedCashier, setSelectedCashier] = useState<string | null>(null);
+  const [selectedCashier, setSelectedCashier] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
   const [showRefundReceipt, setShowRefundReceipt] = useState(false);
   const [customerName, setCustomerName] = useState<string>("");
   const [tradeInAmount, setTradeInAmount] = useState<number>(0);
@@ -1187,12 +1182,12 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
               <AlertDialogCancel>Cancel</AlertDialogCancel>
               <AlertDialogAction
                 onClick={() => {
-                  const found = cashiers.find(
-                    (c) => c.id.toString() === enteredCashierId
+                  const found = staffMembers.find(
+                    (c) => c.id === enteredCashierId
                   );
                   if (found) {
                     setFetchedCashier(found);
-                    setSelectedCashier(found.name);
+                    setSelectedCashier(found);
                     setCashierIdError(null);
                     handleFinalizeRefund();
                   } else {
@@ -1212,6 +1207,7 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
 
 export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
   const { toast } = useToast();
+  const { staffMembers } = useStaffIDs();
   const [receiptNumber, setReceiptNumber] = useState("");
   const [currentReceipt, setCurrentReceipt] = useState<Receipt | null>(null);
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
@@ -1223,12 +1219,12 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
   const [isCashierSelectOpen, setIsCashierSelectOpen] = useState(false);
   const [enteredCashierId, setEnteredCashierId] = useState<string>("");
   const [fetchedCashier, setFetchedCashier] = useState<{
-    id: number;
+    id: string;
     name: string;
   } | null>(null);
   const [cashierIdError, setCashierIdError] = useState<string | null>(null);
   const [selectedCashier, setSelectedCashier] = useState<null | {
-    id: number;
+    id: string;
     name: string;
   }>(null);
   const [showRefundReceipt, setShowRefundReceipt] = useState(false);
@@ -2049,12 +2045,12 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
               <AlertDialogCancel>Cancel</AlertDialogCancel>
               <AlertDialogAction
                 onClick={() => {
-                  const found = cashiers.find(
-                    (c) => c.id.toString() === enteredCashierId
+                  const found = staffMembers.find(
+                    (c) => c.id === enteredCashierId
                   );
                   if (found) {
                     setFetchedCashier(found);
-                    setSelectedCashier({ id: found.id, name: found.name });
+                    setSelectedCashier(found);
                     setCashierIdError(null);
                     handleFinalizeClaim();
                   } else {

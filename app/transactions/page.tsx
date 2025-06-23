@@ -47,6 +47,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useSettingsUsers } from "@/lib/hooks/data/useSettingsUsers";
+import { useToast } from "@/components/ui/use-toast";
+import { useStaffIDs } from "@/lib/hooks/useStaffIDs";
 
 interface TransactionDisplay extends Omit<Transaction, "items"> {
   type: "sale" | "refund";
@@ -99,15 +102,21 @@ const stores = [
   { id: "store3", name: "Store 3" },
 ] as const;
 
-const cashiers = [
-  { id: "all-cashiers", name: "All Cashiers" },
-  { id: "Mohammed Al-Farsi", name: "Mohammed Al-Farsi" },
-  { id: "Ahmed Al-Balushi", name: "Ahmed Al-Balushi" },
-  { id: "Hossan", name: "Hossan" },
-  { id: "Mohabo", name: "Mohabo" },
-  { id: "Bilal", name: "Bilal" },
-  { id: "Rifat", name: "Rifat" },
-] as const;
+// Create a function to generate the cashiers array from staffMembers
+const useCashiersSelect = () => {
+  const { staffMembers } = useStaffIDs();
+
+  // Convert staffMembers to the format expected by the Select component
+  const cashierOptions = [
+    { id: "all-cashiers", name: "All Cashiers" },
+    ...staffMembers.map((staff) => ({
+      id: staff.name, // Use name as ID since that's what the filtering uses
+      name: staff.name,
+    })),
+  ];
+
+  return cashierOptions;
+};
 
 // Memoize the transaction card component
 const TransactionCard = memo(
@@ -657,19 +666,25 @@ function Receipt({ transaction }: { transaction: TransactionDisplay | null }) {
 
 export default function TransactionsPage() {
   const { transactions, isLoading } = useTransactions();
-
-  const [selectedPeriod, setSelectedPeriod] =
-    useState<TimeOptionValue>("today");
-  const [timeOfDay, setTimeOfDay] = useState<DayTime>("morning");
-  const [expandedTransactions, setExpandedTransactions] = useState<string[]>(
-    []
-  );
+  const [timeOfDay, setTimeOfDay] = useState<DayTime>("full");
   const [selectedStore, setSelectedStore] = useState("all-stores");
   const [selectedCashier, setSelectedCashier] = useState("all-cashiers");
-  const [date, setDate] = useState<DateRange | undefined>(undefined);
-  const [hasMounted, setHasMounted] = useState(false);
+  const [selectedPeriod, setSelectedPeriod] =
+    useState<TimeOptionValue>("today");
   const [selectedTransaction, setSelectedTransaction] =
     useState<TransactionDisplay | null>(null);
+  const [expandedTransactionId, setExpandedTransactionId] = useState<
+    string | null
+  >(null);
+  const [isReceiptDialogOpen, setIsReceiptDialogOpen] = useState(false);
+  const [scrollActive, setScrollActive] = useState(false);
+  const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
+
+  // Get cashier options for the select
+  const cashierOptions = useCashiersSelect();
+
+  const [hasMounted, setHasMounted] = useState(false);
+  const [date, setDate] = useState<DateRange | undefined>(undefined);
   const [receiptOpen, setReceiptOpen] = useState(false);
 
   useEffect(() => {
@@ -833,9 +848,7 @@ export default function TransactionsPage() {
   }, [displayTransactions]);
 
   const toggleTransaction = useCallback((id: string) => {
-    setExpandedTransactions((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
+    setExpandedTransactionId((prev) => (prev === id ? null : id));
   }, []);
 
   const getBackgroundPosition = () => {
@@ -913,7 +926,7 @@ export default function TransactionsPage() {
                   <SelectValue placeholder="Select cashier" />
                 </SelectTrigger>
                 <SelectContent>
-                  {cashiers.map((cashier) => (
+                  {cashierOptions.map((cashier) => (
                     <SelectItem key={cashier.id} value={cashier.id}>
                       {cashier.name}
                     </SelectItem>
@@ -1032,7 +1045,7 @@ export default function TransactionsPage() {
                 <TransactionCard
                   key={transaction.id}
                   transaction={transaction}
-                  isExpanded={expandedTransactions.includes(transaction.id)}
+                  isExpanded={expandedTransactionId === transaction.id}
                   onToggle={() => toggleTransaction(transaction.id)}
                   onViewReceipt={handleViewReceipt}
                 />

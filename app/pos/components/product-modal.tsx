@@ -38,8 +38,6 @@ export function ProductModal({
   const [selectedVariants, setSelectedVariants] = useState<ProductVariant[]>(
     []
   );
-  const [enteredCashierId, setEnteredCashierId] = useState("");
-  const [cashierIdError, setCashierIdError] = useState<string | null>(null);
 
   // Reset selections when modal opens/closes or product changes
   useEffect(() => {
@@ -266,21 +264,6 @@ export function ProductModal({
             Go to Cart
           </Button>
         </div>
-
-        <Input
-          className="text-center text-2xl w-32 mb-2"
-          value={enteredCashierId}
-          onChange={(e) => {
-            setEnteredCashierId(e.target.value.replace(/\\D/g, ""));
-            setCashierIdError(null);
-          }}
-          maxLength={6}
-          inputMode="numeric"
-          type="tel"
-          pattern="[0-9]*"
-          autoFocus
-          placeholder="ID"
-        />
       </DialogContent>
     </Dialog>
   );

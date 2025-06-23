@@ -86,6 +86,7 @@ import { BrandLogo } from "./components/brand-logo";
 // Import the BillComponent
 import { BillComponent } from "./components/bill-component";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useStaffIDs } from "@/lib/hooks/useStaffIDs";
 
 interface OilProduct {
   id: number;
@@ -1119,14 +1120,13 @@ export default function POSPage() {
 
   // New state for cashiers with proper type
   const [isCashierSelectOpen, setIsCashierSelectOpen] = useState(false);
-  const [selectedCashier, setSelectedCashier] = useState<string | null>(null);
-  // Add cashier ID entry state
   const [enteredCashierId, setEnteredCashierId] = useState<string>("");
   const [fetchedCashier, setFetchedCashier] = useState<{
-    id: number;
+    id: string;
     name: string;
   } | null>(null);
   const [cashierIdError, setCashierIdError] = useState<string | null>(null);
+  const [selectedCashier, setSelectedCashier] = useState<string | null>(null);
 
   // Add new state variables for parts
   const [isPartBrandModalOpen, setIsPartBrandModalOpen] = useState(false);
@@ -1141,17 +1141,8 @@ export default function POSPage() {
   // Add state for payment recipient
   const [paymentRecipient, setPaymentRecipient] = useState<string | null>(null);
 
-  // Mock cashier data
-  const cashiers = [
-    { id: 1, name: "Hossain (Owner)" },
-    { id: 2, name: "Adnan Hossain" },
-    { id: 3, name: "Fatima Al-Zadjali" },
-    { id: 4, name: "Sara Al-Kindi" },
-    { id: 5, name: "Khalid Al-Habsi" },
-    { id: 6, name: "Mohabo" },
-    { id: 7, name: "Bilal" },
-    { id: 8, name: "Rifat" },
-  ];
+  // Get cashier data from the hook
+  const { staffMembers } = useStaffIDs();
   // Memoize handlers
   const removeFromCart = useCallback((productId: number, uniqueId?: string) => {
     setCart((prevCart) => {
@@ -2812,8 +2803,8 @@ export default function POSPage() {
                   className="flex flex-col items-center w-full"
                   onSubmit={(e) => {
                     e.preventDefault();
-                    const found = cashiers.find(
-                      (c) => c.id.toString() === enteredCashierId
+                    const found = staffMembers.find(
+                      (c) => c.id === enteredCashierId
                     );
                     if (found) {
                       setFetchedCashier(found);
@@ -2875,31 +2866,28 @@ export default function POSPage() {
                       Select payment recipient:
                     </div>
                     <div className="grid grid-cols-2 gap-3">
-                      <Button
-                        variant={
-                          paymentRecipient === "Adnan" ? "default" : "outline"
-                        }
-                        className={cn(
-                          "h-10 text-center",
-                          paymentRecipient === "Adnan" && "ring-2 ring-primary"
-                        )}
-                        onClick={() => setPaymentRecipient("Adnan")}
-                      >
-                        Adnan
-                      </Button>
-                      <Button
-                        variant={
-                          paymentRecipient === "Foreman" ? "default" : "outline"
-                        }
-                        className={cn(
-                          "h-10 text-center",
-                          paymentRecipient === "Foreman" &&
-                            "ring-2 ring-primary"
-                        )}
-                        onClick={() => setPaymentRecipient("Foreman")}
-                      >
-                        Foreman
-                      </Button>
+                      {staffMembers
+                        .filter(
+                          (staff) => staff.id === "0020" || staff.id === "0010"
+                        )
+                        .map((staff) => (
+                          <Button
+                            key={staff.id}
+                            variant={
+                              paymentRecipient === staff.name
+                                ? "default"
+                                : "outline"
+                            }
+                            className={cn(
+                              "h-10 text-center",
+                              paymentRecipient === staff.name &&
+                                "ring-2 ring-primary"
+                            )}
+                            onClick={() => setPaymentRecipient(staff.name)}
+                          >
+                            {staff.id === "0010" ? "Foreman" : staff.name}
+                          </Button>
+                        ))}
                     </div>
                   </div>
                 )}
