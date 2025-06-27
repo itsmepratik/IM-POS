@@ -26,6 +26,7 @@ interface BillComponentProps {
   appliedDiscount?: { type: "percentage" | "amount"; value: number } | null;
   appliedTradeInAmount?: number;
   hideButton?: boolean;
+  isWarrantyClaim?: boolean;
 }
 
 const companyDetails = {
@@ -55,6 +56,7 @@ export const BillComponent: React.FC<BillComponentProps> = ({
   appliedDiscount,
   appliedTradeInAmount,
   hideButton = false,
+  isWarrantyClaim = false,
 }) => {
   const billRef = useRef<HTMLDivElement>(null);
   const [isClient, setIsClient] = useState(false);
@@ -194,6 +196,21 @@ export const BillComponent: React.FC<BillComponentProps> = ({
           .service-description-arabic {
             font-size: 8px;
             margin-top: 2px;
+          }
+          /* Warranty claim text */
+          .warranty-claim-text {
+            text-align: center;
+            font-weight: bold;
+            font-size: 9px;
+            margin-top: 5px;
+            color: #D9534F;
+            display: block;
+          }
+          .warranty-claim-text-arabic {
+            font-size: 8px;
+            margin-top: 2px;
+            color: #D9534F;
+            display: block;
           }
           /* Bill info */
           .bill-info-table {
@@ -371,6 +388,16 @@ export const BillComponent: React.FC<BillComponentProps> = ({
               serviceDescription.arabic
             }</div>
           </div>
+          
+                      ${
+                        isWarrantyClaim
+                          ? `<!-- Warranty claim text -->
+                   <div style="text-align: center; font-weight: bold; font-size: 9px; margin: 8px 0; color: #D9534F; border-bottom: 1px solid #ccc; padding-bottom: 6px;">
+                     <span style="border: 1px solid #D9534F; padding: 2px 8px; display: inline-block;">WARRANTY CLAIM CERTIFICATE</span>
+                     <div style="font-size: 9px; margin-top: 4px; color: #D9534F;">شهادة ضمان</div>
+                   </div>`
+                          : ""
+                      }
 
           <!-- Bill info with two columns -->
           <table class="bill-info-table" style="width: 100%;">
@@ -385,7 +412,9 @@ export const BillComponent: React.FC<BillComponentProps> = ({
           <table class="bill-info-table">
             <tr>
               <td class="customer-info">To, Mr./Mrs.: ${customerName || ""}</td>
-              <td class="car-plate">Car Plate: 1456 B</td>
+              <td class="car-plate">${
+                isWarrantyClaim ? "Warranty Type: Battery" : "Car Plate: 1456 B"
+              }</td>
             </tr>
           </table>
 
@@ -465,7 +494,9 @@ export const BillComponent: React.FC<BillComponentProps> = ({
           
           <table class="summary-table">
             <tr class="total-row">
-              <td class="label">TOTAL AMOUNT:</td>
+              <td class="label">${
+                isWarrantyClaim ? "WARRANTY AMOUNT:" : "TOTAL AMOUNT:"
+              }</td>
               <td class="amount">${totalAmount.toFixed(3)} OMR</td>
             </tr>
           </table>
@@ -485,7 +516,11 @@ export const BillComponent: React.FC<BillComponentProps> = ({
               companyDetails.contactNumber
             }</div>
             <div class="footer-phone-numbers" style="direction: rtl;">رقم الاتصال: ٧١١٧٠٨٠٥</div>
-            <div class="footer-thank-you" style="white-space: pre-line;">${thankYouMessage}</div>
+            <div class="footer-thank-you" style="white-space: pre-line;">${
+              isWarrantyClaim
+                ? "Thank you for trusting us with your warranty claim\nشكراً لثقتكم بنا"
+                : thankYouMessage
+            }</div>
           </div>
         </div>
       </body>
@@ -566,10 +601,12 @@ export const BillComponent: React.FC<BillComponentProps> = ({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
       className="w-full flex flex-col"
+      data-bill-component
     >
       <div className="max-h-[40vh] overflow-auto mb-4">
         <div
           ref={billRef}
+          data-bill-ref
           className="bg-white border rounded-lg p-4 w-full max-w-[400px] mx-auto"
         >
           {/* Header - three column layout */}
@@ -597,7 +634,7 @@ export const BillComponent: React.FC<BillComponentProps> = ({
           </div>
 
           {/* Service description */}
-          <div className="border-t border-b border-dashed py-1 mb-3">
+          <div className="border-t border-dashed py-1">
             <p className="text-xs font-bold text-center">
               {serviceDescription.english}
             </p>
@@ -605,6 +642,23 @@ export const BillComponent: React.FC<BillComponentProps> = ({
               {serviceDescription.arabic}
             </p>
           </div>
+
+          {isWarrantyClaim && (
+            <div className="border-b border-dashed py-1 mb-3">
+              <div className="flex justify-center mt-2">
+                <span className="text-xs font-bold text-center text-red-600 border border-red-600 px-2 py-0.5">
+                  WARRANTY CLAIM CERTIFICATE
+                </span>
+              </div>
+              <p className="text-xs font-bold text-center text-red-600 mt-1">
+                شهادة ضمان
+              </p>
+            </div>
+          )}
+
+          {!isWarrantyClaim && (
+            <div className="border-b border-dashed mb-3"></div>
+          )}
 
           {/* Bill info */}
           <div className="flex justify-between text-xs">
@@ -618,7 +672,9 @@ export const BillComponent: React.FC<BillComponentProps> = ({
           {/* Customer info */}
           <div className="flex justify-between text-xs mb-3">
             <span className="font-medium">To, Mr./Mrs.: {customerName}</span>
-            <span className="font-medium">Car Plate: 1456 B</span>
+            <span className="font-medium">
+              {isWarrantyClaim ? "Warranty Type: Battery" : "Car Plate: 1456 B"}
+            </span>
           </div>
 
           {/* Items table */}
@@ -692,7 +748,9 @@ export const BillComponent: React.FC<BillComponentProps> = ({
             <div className="border-t border-gray-800 my-1"></div>
 
             <div className="flex justify-between text-xs font-bold text-blue-800">
-              <span>TOTAL AMOUNT:</span>
+              <span>
+                {isWarrantyClaim ? "WARRANTY AMOUNT:" : "TOTAL AMOUNT:"}
+              </span>
               <span>OMR {totalAmountForDisplay.toFixed(3)}</span>
             </div>
           </div>
@@ -712,7 +770,11 @@ export const BillComponent: React.FC<BillComponentProps> = ({
               Contact no.: {companyDetails.contactNumber}
             </p>
             <p className="rtl">رقم الاتصال: ٧١١٧٠٨٠٥</p>
-            <p className="italic text-xs">{thankYouMessage}</p>
+            <p className="italic text-xs">
+              {isWarrantyClaim
+                ? "Thank you for trusting us with your warranty claim\nشكراً لثقتكم بنا"
+                : thankYouMessage}
+            </p>
             <p className="font-mono mt-2">{billNumber}</p>
           </div>
         </div>
@@ -722,6 +784,7 @@ export const BillComponent: React.FC<BillComponentProps> = ({
         <Button
           onClick={handlePrint}
           className="w-full flex items-center justify-center gap-2"
+          data-warranty-print-button
         >
           <Printer className="h-4 w-4" /> Print Bill
         </Button>

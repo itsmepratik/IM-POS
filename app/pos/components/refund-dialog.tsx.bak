@@ -1083,7 +1083,7 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
                     onClick={() => setShowRefundReceipt(true)}
                     className="gap-2"
                   >
-                    <Printer className="h-4 w-4" /> View Refund Bill
+                    <Printer className="h-4 w-4" /> View Warranty Bill
                   </Button>
                 )}
                 {showRefundReceipt && (
@@ -1096,7 +1096,7 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
                       Back
                     </Button>
                     <Button onClick={handlePrint} className="gap-2">
-                      <Printer className="h-4 w-4" /> Print Refund Bill
+                      <Printer className="h-4 w-4" /> Print Warranty Bill
                     </Button>
                     <Button onClick={handleCloseDialog}>Done</Button>
                   </div>
