@@ -25,6 +25,7 @@ interface RefundReceiptProps {
   customerName?: string;
   cashier?: string;
   refundAmount: number;
+  hidePrintButton?: boolean;
 }
 
 const companyDetails = {
@@ -53,6 +54,7 @@ export const RefundReceipt: React.FC<RefundReceiptProps> = ({
   customerName = "",
   cashier,
   refundAmount,
+  hidePrintButton = false,
 }) => {
   const receiptRef = useRef<HTMLDivElement>(null);
   const [isClient, setIsClient] = useState(false);
@@ -475,14 +477,14 @@ export const RefundReceipt: React.FC<RefundReceiptProps> = ({
         </div>
       </div>
 
-      {/* Hidden print button for parent component to access */}
-      <Button
-        onClick={handlePrint}
-        className="w-full flex items-center justify-center gap-2 receipt-print-button"
-        data-testid="warranty-receipt-print-button"
-      >
-        <Printer className="h-4 w-4" /> Print Receipt
-      </Button>
+      {!hidePrintButton && (
+        <Button
+          onClick={handlePrint}
+          className="w-full mt-4 flex items-center justify-center gap-2"
+        >
+          <Printer className="h-4 w-4" /> Print Receipt
+        </Button>
+      )}
     </motion.div>
   );
 };

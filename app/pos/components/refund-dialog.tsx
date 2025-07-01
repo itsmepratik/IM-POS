@@ -433,13 +433,11 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
 
   // Add print function that delegates to the component's print functionality
   const handlePrint = () => {
-    // Instead of trying to find and click a button, directly call the print function
-    const receiptContent = document.querySelector(".refund-receipt-container");
-
-    if (!receiptContent) {
-      console.error("Receipt content not found");
-      return;
-    }
+    // Get the selected items for the refund
+    const selectedRefundItems =
+      currentReceipt?.items.filter((item) =>
+        selectedItems.includes(item.uniqueId)
+      ) || [];
 
     const printWindow = window.open("", "_blank");
     if (!printWindow) {
@@ -447,7 +445,7 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
       return;
     }
 
-    // Generate HTML content for printing
+    // Generate HTML content for thermal receipt printing
     const htmlContent = `
       <!DOCTYPE html>
       <html lang="en">
@@ -511,6 +509,22 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
             text-align: left;
             padding: 2px 0;
           }
+          .receipt-items {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+            font-size: 8pt;
+          }
+          .receipt-items th, .receipt-items td {
+            padding: 3px 0;
+          }
+          .receipt-items th {
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+          }
+          .receipt-items td.price {
+            text-align: right;
+          }
           .receipt-summary {
             margin: 10px 0;
             font-size: 9pt;
@@ -546,6 +560,35 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
               .padStart(4, "0")}</p>
             ${customerName ? `<p>Customer: ${customerName}</p>` : ""}
           </div>
+          
+          <div class="receipt-divider"></div>
+          
+          <table class="receipt-items">
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th>Qty</th>
+                <th style="text-align: right;">Price</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${selectedRefundItems
+                .map(
+                  (item) => `
+                <tr>
+                  <td>${item.name}${
+                    item.details ? ` (${item.details})` : ""
+                  }</td>
+                  <td>${item.quantity}</td>
+                  <td class="price">OMR ${(item.price * item.quantity).toFixed(
+                    3
+                  )}</td>
+                </tr>
+              `
+                )
+                .join("")}
+            </tbody>
+          </table>
           
           <div class="receipt-divider"></div>
           
@@ -616,7 +659,7 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="w-[95%] max-w-[600px] h-auto max-h-[90vh] rounded-lg flex flex-col print:p-0 print:border-0 print:max-h-none print:h-auto print:overflow-visible p-3 sm:p-4">
+        <DialogContent className="w-[95%] max-w-[600px] h-auto max-h-[80vh] rounded-lg flex flex-col print:p-0 print:border-0 print:max-h-none print:h-auto print:overflow-visible p-3 sm:p-4">
           <DialogHeader className="px-3 pt-2 pb-2 flex-shrink-0 z-10 bg-background sticky top-0">
             <DialogTitle className="text-xl flex items-center gap-2">
               {step !== "search" && (
@@ -636,7 +679,7 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
             </DialogTitle>
           </DialogHeader>
 
-          <div className="flex-1 overflow-y-auto print:overflow-visible max-h-[calc(90vh-130px)] pt-2">
+          <div className="flex-1 overflow-y-auto print:overflow-visible max-h-[calc(80vh-130px)] pt-2">
             <div className="px-3 pb-3 space-y-3">
               <AnimatePresence mode="wait">
                 {step === "search" && (
@@ -989,55 +1032,28 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
                           Bill Preview
                         </h3>
                         <div className="overflow-hidden rounded-lg">
-                          {containsOnlyBatteries(
-                            currentReceipt?.items.filter((item) =>
-                              selectedItems.includes(item.uniqueId)
-                            ) || []
-                          ) ? (
-                            // Show bill-style receipt for batteries
-                            <div className="max-h-[60vh] overflow-auto refund-receipt-container">
-                              <BillComponent
-                                cart={
-                                  currentReceipt?.items.filter((item) =>
-                                    selectedItems.includes(item.uniqueId)
-                                  ) || []
-                                }
-                                billNumber={`R${
-                                  currentReceipt?.receiptNumber || ""
-                                }`}
-                                currentDate={format(new Date(), "dd/MM/yyyy")}
-                                currentTime={format(new Date(), "HH:mm:ss")}
-                                customerName={customerName || ""}
-                                cashier={selectedCashier?.name || ""}
-                                appliedTradeInAmount={
-                                  tradeInAmount > 0 ? tradeInAmount : undefined
-                                }
-                                hideButton={true}
-                              />
-                            </div>
-                          ) : (
-                            // Show regular receipt for non-batteries
-                            <div className="max-h-[60vh] overflow-auto refund-receipt-container">
-                              <RefundReceipt
-                                items={
-                                  currentReceipt?.items.filter((item) =>
-                                    selectedItems.includes(item.uniqueId)
-                                  ) || []
-                                }
-                                receiptNumber={`R${
-                                  currentReceipt?.receiptNumber || ""
-                                }`}
-                                originalReceiptNumber={
-                                  currentReceipt?.receiptNumber || ""
-                                }
-                                currentDate={format(new Date(), "dd/MM/yyyy")}
-                                currentTime={format(new Date(), "HH:mm:ss")}
-                                customerName={customerName || ""}
-                                cashier={selectedCashier?.name || ""}
-                                refundAmount={refundAmount}
-                              />
-                            </div>
-                          )}
+                          {/* Always show thermal receipt for refunds regardless of item type */}
+                          <ScrollArea className="h-[60vh]">
+                            <RefundReceipt
+                              items={
+                                currentReceipt?.items.filter((item) =>
+                                  selectedItems.includes(item.uniqueId)
+                                ) || []
+                              }
+                              receiptNumber={`R${
+                                currentReceipt?.receiptNumber || ""
+                              }`}
+                              originalReceiptNumber={
+                                currentReceipt?.receiptNumber || ""
+                              }
+                              currentDate={format(new Date(), "dd/MM/yyyy")}
+                              currentTime={format(new Date(), "HH:mm:ss")}
+                              customerName={customerName || ""}
+                              cashier={selectedCashier?.name || ""}
+                              refundAmount={refundAmount}
+                              hidePrintButton={true}
+                            />
+                          </ScrollArea>
                         </div>
                       </div>
                     )}
@@ -1331,8 +1347,8 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
 
   // Add print function that delegates to the component's print functionality
   const handlePrint = () => {
-    // Get selected items for the bill
-    const selectedBatteryItems =
+    // Get selected items for the warranty claim
+    const selectedClaimItems =
       currentReceipt?.items.filter((item) =>
         selectedItems.includes(item.uniqueId)
       ) || [];
@@ -1345,383 +1361,169 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
     // Open a new window for printing
     const printWindow = window.open("", "_blank");
     if (!printWindow) {
-      alert("Please allow popups to print the warranty bill.");
+      alert("Please allow popups to print the warranty claim receipt.");
       return;
     }
 
-    // Calculate totals
-    let subtotalForBill = 0;
-    selectedBatteryItems.forEach((item) => {
-      subtotalForBill += item.price * item.quantity;
-    });
-    const totalAmount = subtotalForBill;
-
-    // Add the necessary styles for the bill - COPIED DIRECTLY FROM BillComponent
+    // Generate HTML content for thermal receipt printing
     const htmlContent = `
       <!DOCTYPE html>
       <html lang="en">
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Warranty Bill</title>
+        <title>Warranty Claim Receipt</title>
         <style>
           @page {
-            size: A5;
+            size: 80mm 297mm;
             margin: 0;
           }
           html, body {
-            height: 100%; /* Ensure html and body take full height */
+            font-family: Arial, sans-serif;
             margin: 0;
             padding: 0;
-          }
-          body {
-            font-family: Arial, sans-serif;
+            width: 100%;
             font-size: 10pt;
-            line-height: 1.3;
-            width: 100%;
-            color: #000;
           }
-          .bill-container {
-            width: calc(100% - 4mm); 
-            height: 100%; /* Make bill container take full printable height */
-            padding: 2mm;
+          .receipt {
+            width: 76mm;
+            padding: 5mm 2mm;
             margin: 0 auto;
-            box-sizing: border-box;
-            display: flex; /* Enable flexbox for vertical alignment */
-            flex-direction: column; /* Stack children vertically */
-            justify-content: space-between; /* Push footer to bottom */
           }
-          /* Header styling */
-          .header-table {
-            width: 100%;
-            border-collapse: collapse;
+          .receipt-header {
+            text-align: center;
             margin-bottom: 10px;
           }
-          .header-table td {
-            vertical-align: top;
-            padding: 0;
-          }
-          .left-header {
-            width: 30%;
-            text-align: left;
-            font-size: 8px !important;
-            -webkit-text-size-adjust: none;
-            transform-origin: left top;
-            transform: scale(0.8);
-          }
-          .center-header {
-            width: 40%;
-            text-align: center;
-          }
-          .right-header {
-            width: 30%;
-            text-align: right;
-            font-size: 8px !important;
-            -webkit-text-size-adjust: none;
-            transform-origin: right top;
-            transform: scale(0.8);
-            direction: rtl;
-          }
-          .company-name {
-            color: #0000CC;
-            font-size: 9pt;
+          .receipt-header h1 {
+            font-size: 14pt;
+            margin: 0;
             font-weight: bold;
-            text-transform: uppercase;
-            white-space: nowrap;
           }
-          .company-arabic-name {
-            color: #0000CC;
+          .receipt-header p {
             font-size: 8pt;
-            font-weight: bold;
-            margin-top: 2px;
+            margin: 2px 0;
+            color: #555;
           }
-          .cr-number {
-            font-weight: normal;
+          .receipt-divider {
+            border-top: 1px dashed #000;
+            margin: 5px 0;
           }
-          /* Service description */
-          .service-description {
+          .receipt-info {
+            font-size: 9pt;
+            margin: 5px 0;
+          }
+          .receipt-title {
             text-align: center;
             font-weight: bold;
-            font-size: 9px;
-            margin: 15px 0;
-            border-top: 1px solid #ccc;
-            border-bottom: 1px solid #ccc;
-            padding: 6px 0;
-          }
-          .service-description-arabic {
-            font-size: 8px;
-            margin-top: 2px;
-          }
-          /* Bill info */
-          .bill-info-table {
-            width: 100%;
-            margin-bottom: 12px;
-          }
-          .bill-info-table td {
-            vertical-align: top;
-            padding: 0;
-          }
-          .bill-number {
-            text-align: left;
-            font-size: 9px;
-          }
-          .print-date {
-            text-align: right;
-            font-size: 9px;
-          }
-          .customer-info {
-            text-align: left;
-            font-size: 9px;
-            font-weight: bold;
-            margin-bottom: 8px;
-          }
-          .car-plate {
-            text-align: right;
-            font-size: 9px;
-            font-weight: bold;
-          }
-          /* Items table */
-          .items-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 20px;
-            font-size: 9px;
-          }
-          .items-table th, .items-table td {
-            padding: 6px 5px;
-            text-align: left;
-          }
-          .items-table th {
-            font-weight: bold;
-          }
-          .items-table td, .items-table th {
-            border-bottom: 1px solid #ddd;
-          }
-          .items-table th:nth-child(3), .items-table td:nth-child(3),
-          .items-table th:nth-child(4), .items-table td:nth-child(4),
-          .items-table th:nth-child(5), .items-table td:nth-child(5) {
-            text-align: right;
-          }
-          .items-table tr:last-child td {
-            border-bottom: none;
-          }
-
-          /* Summary section */
-          .summary-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 9px;
-          }
-          .summary-table td {
-            padding: 3px 0;
-          }
-          .summary-table .label {
-            text-align: left;
-          }
-          .summary-table .amount {
-            text-align: right;
-            font-weight: bold;
-          }
-          .summary-divider {
-            border-top: 1px solid #000;
-            margin: 6px 0;
-          }
-          .trade-in {
+            margin: 10px 0;
+            font-size: 11pt;
             color: #D9534F;
           }
-          .total-row {
-            font-weight: bold;
-            font-size: 10px;
-            color: #0000CC;
+          .receipt-items {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+            font-size: 8pt;
           }
-          
-          /* Footer section */
-          .cashier-section {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 5px;
-            margin-bottom: 0;
-            font-size: 8px !important;
-            -webkit-text-size-adjust: none;
+          .receipt-items th, .receipt-items td {
+            padding: 3px 0;
           }
-          .cashier-info {
+          .receipt-items th {
             text-align: left;
-            transform-origin: left center;
+            border-bottom: 1px solid #ddd;
           }
-          .signature-line {
+          .receipt-items td.price {
             text-align: right;
           }
-          .signature-line .line {
-            display: inline-block;
-            border-top: 1px solid #777;
-            width: 150px;
-            text-align: center;
-            padding-top: 3px;
-            font-size: 8px !important;
-            -webkit-text-size-adjust: none;
-            transform-origin: right center;
-            transform: scale(0.8);
-            color: #777;
+          .receipt-summary {
+            margin: 10px 0;
+            font-size: 9pt;
           }
-          .footer {
-            text-align: center;
-            font-size: 8px !important;
-            -webkit-text-size-adjust: none;
-            transform-origin: center top;
-            transform: scale(0.8);
-            color: #333;
+          .receipt-summary table {
             width: 100%;
-            padding-top: 0;
-            margin-top: 0;
-            margin-bottom: 0;
-            position: relative;
-            left: 0;
-            right: 0;
           }
-          .footer-contact {
-            font-weight: bold;
-            margin-bottom: 1px;
-          }
-          .footer-phone-numbers {
-            margin-bottom: 1px;
-          }
-          .footer-thank-you {
-            font-style: italic;
-            font-size: 7px !important;
-            -webkit-text-size-adjust: none;
-            line-height: 1.2;
+          .receipt-footer {
+            margin-top: 15px;
+            font-size: 8pt;
+            text-align: center;
           }
         </style>
       </head>
       <body>
-        <div class="bill-container">
-          <!-- Header with three columns -->
-          <table class="header-table">
-            <tr>
-              <td class="left-header">
-                <div>C.R. No.: 1001886</div>
-                <div>W.Saham</div>
-                <div>Al-Sanaiya</div>
-                <div>Sultanate of Oman</div>
-              </td>
-              <td class="center-header">
-                <div class="company-name">AL-TARATH NATIONAL CO.</div>
-                <div class="company-arabic-name">شركة الطارث الوطنية</div>
-              </td>
-              <td class="right-header">
-                <div class="cr-number">السجل التجاري: 1001886</div>
-                <div>ولاية صحم</div>
-                <div>الصناعية</div>
-                <div>سلطنة عمان</div>
-              </td>
-            </tr>
-          </table>
-
-          <!-- Service description -->
-          <div class="service-description">
-            TYRE REPAIRING & OIL CHANGING OF VEHICLES
-            <div class="service-description-arabic">إصلاح الإطارات وتغيير النفط للمركبات</div>
+        <div class="receipt">
+          <div class="receipt-header">
+            <h1>H Automotives</h1>
+            <p>Saham, Sultanate of Oman</p>
+            <p>Ph: 92510750 | 26856848</p>
           </div>
           
-          <!-- Warranty claim text -->
-          <div style="text-align: center; font-weight: bold; font-size: 9px; margin: 8px 0; color: #D9534F; border-bottom: 1px solid #ccc; padding-bottom: 6px;">
-            <span style="border: 1px solid #D9534F; padding: 2px 8px; display: inline-block;">WARRANTY CLAIM CERTIFICATE</span>
-            <div style="font-size: 9px; margin-top: 4px; color: #D9534F;">شهادة ضمان</div>
+          <div class="receipt-divider"></div>
+          
+          <div class="receipt-title">WARRANTY CLAIM RECEIPT</div>
+          
+          <div class="receipt-info">
+            <p>Original Receipt: ${currentReceipt?.receiptNumber || ""}</p>
+            <p>Date: ${format(new Date(), "dd/MM/yyyy")}</p>
+            <p>Time: ${format(new Date(), "HH:mm:ss")}</p>
+            <p>Claim ID: ${warrantyBillNumber}</p>
+            ${customerName ? `<p>Customer: ${customerName}</p>` : ""}
           </div>
-
-          <!-- Bill info with two columns -->
-          <table class="bill-info-table" style="width: 100%;">
-            <tr>
-              <td class="bill-number">Bill no.: ${warrantyBillNumber}</td>
-              <td class="print-date">Printed on: ${format(
-                new Date(),
-                "dd/MM/yyyy"
-              )} ${format(new Date(), "HH:mm:ss")}</td>
-            </tr>
-          </table>
-          <div style="width: 100%; border-bottom: 1px dashed #999; margin: 3px 0;"></div>
-
-          <!-- Customer info with two columns -->
-          <table class="bill-info-table">
-            <tr>
-              <td class="customer-info">To, Mr./Mrs.: ${customerName || ""}</td>
-              <td class="car-plate">Warranty Type: Battery</td>
-            </tr>
-          </table>
-
-          <!-- Items table -->
-          <table class="items-table">
+          
+          <div class="receipt-divider"></div>
+          
+          <table class="receipt-items">
             <thead>
               <tr>
-                <th>#</th>
                 <th>Item</th>
-                <th>Quantity</th>
-                <th>Unit Price</th>
-                <th>Total</th>
+                <th>Qty</th>
+                <th style="text-align: right;">Price</th>
               </tr>
             </thead>
             <tbody>
-              ${selectedBatteryItems
+              ${selectedClaimItems
                 .map(
-                  (item, index) => `
+                  (item) => `
                 <tr>
-                  <td>${index + 1}</td>
                   <td>${item.name}${
-                    item.details ? " (" + item.details + ")" : ""
+                    item.details ? ` (${item.details})` : ""
                   }</td>
                   <td>${item.quantity}</td>
-                  <td>${item.price.toFixed(3)}</td>
-                  <td>${(item.price * item.quantity).toFixed(3)}</td>
+                  <td class="price">OMR ${(item.price * item.quantity).toFixed(
+                    3
+                  )}</td>
                 </tr>
               `
                 )
                 .join("")}
             </tbody>
           </table>
-
-          <!-- Summary section -->
-          <table class="summary-table">
-            <tr>
-              <td class="label">Subtotal</td>
-              <td class="amount">${claimAmount.toFixed(3)}</td>
-            </tr>
-          </table>
           
-          <div class="summary-divider"></div>
+          <div class="receipt-divider"></div>
           
-          <table class="summary-table">
-            <tr class="total-row">
-              <td class="label">WARRANTY AMOUNT:</td>
-              <td class="amount">${claimAmount.toFixed(3)} OMR</td>
-            </tr>
-          </table>
-          
-          <div style="flex-grow: 1;"></div>
-          
-          <div class="cashier-section">
-            <div class="cashier-info">Cashier: ${
-              selectedCashier?.name || fetchedCashier?.name || ""
-            }</div>
-            <div class="signature-line">
-              <div class="line">Authorized Signature</div>
-            </div>
+          <div class="receipt-summary">
+            <table>
+              <tr>
+                <td style="font-weight: bold;">TOTAL CLAIM AMOUNT:</td>
+                <td style="text-align: right; font-weight: bold; color: #D9534F;">
+                  OMR ${claimAmount.toFixed(3)}
+                </td>
+              </tr>
+            </table>
           </div>
-
-          <hr style="width: 100%; border: none; border-top: 1px solid #ccc; margin: 5px 0 2px 0;" />
-          <div class="footer" style="border-top: none;">
-            <div class="footer-contact">Contact no.: 71170805</div>
-            <div class="footer-phone-numbers" style="direction: rtl;">رقم الاتصال: ٧١١٧٠٨٠٥</div>
-            <div class="footer-thank-you" style="white-space: pre-line;">Thank you for trusting us with your warranty claim
-شكراً لثقتكم بنا</div>
+          
+          <div class="receipt-footer">
+            ${
+              selectedCashier?.name || fetchedCashier?.name
+                ? `<p>Processed by: ${
+                    selectedCashier?.name || fetchedCashier?.name
+                  }</p>`
+                : ""
+            }
+            <div class="receipt-divider"></div>
+            <p>Thank you for trusting us with your warranty claim</p>
+            <p>شكراً لثقتكم بنا</p>
           </div>
         </div>
-        <script>
-          window.onload = function() {
-            setTimeout(function() {
-              window.print();
-            }, 500);
-          }
-        </script>
       </body>
       </html>
     `;
@@ -1729,7 +1531,19 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
     printWindow.document.open();
     printWindow.document.write(htmlContent);
     printWindow.document.close();
-    printWindow.document.title = "Warranty Bill";
+
+    setTimeout(() => {
+      printWindow.print();
+      // Don't automatically close the print window on mobile devices
+      if (
+        !/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+          navigator.userAgent
+        )
+      ) {
+        // Removed auto close to prevent about:blank text
+        // printWindow.close();
+      }
+    }, 500);
   };
 
   // Scroll to top when showing the receipt
@@ -1754,7 +1568,7 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="w-[95%] max-w-[600px] h-auto max-h-[90vh] rounded-lg overflow-auto flex flex-col p-3 sm:p-4">
+        <DialogContent className="w-[95%] max-w-[600px] h-auto max-h-[80vh] rounded-lg overflow-auto flex flex-col p-3 sm:p-4">
           <DialogHeader className="px-3 pt-2 pb-2">
             <DialogTitle className="text-xl flex items-center gap-2">
               {step !== "search" && (
@@ -2081,66 +1895,34 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
                           Bill Preview
                         </h3>
                         <div className="overflow-hidden rounded-lg">
-                          {containsOnlyBatteries(
-                            currentReceipt?.items.filter((item) =>
-                              selectedItems.includes(item.uniqueId)
-                            ) || []
-                          ) ? (
-                            // Show bill for batteries
-                            <div className="max-h-[60vh] overflow-auto refund-receipt-container">
-                              <BillComponent
-                                cart={
-                                  currentReceipt?.items.filter((item) =>
-                                    selectedItems.includes(item.uniqueId)
-                                  ) || []
-                                }
-                                billNumber={`W${Math.floor(
-                                  Math.random() * 10000
-                                )
-                                  .toString()
-                                  .padStart(4, "0")}`}
-                                currentDate={format(new Date(), "dd/MM/yyyy")}
-                                currentTime={format(new Date(), "HH:mm:ss")}
-                                customerName={customerName}
-                                cashier={
-                                  selectedCashier?.name ||
-                                  fetchedCashier?.name ||
-                                  ""
-                                }
-                                hideButton={true}
-                                isWarrantyClaim={true}
-                              />
-                            </div>
-                          ) : (
-                            // Show regular receipt for non-batteries
-                            <div className="max-h-[60vh] overflow-auto refund-receipt-container">
-                              <RefundReceipt
-                                items={selectedItems.map((uniqueId) => {
-                                  const item = currentReceipt?.items.find(
-                                    (i) => i.uniqueId === uniqueId
-                                  );
-                                  return item!;
-                                })}
-                                receiptNumber={`W${Math.floor(
-                                  Math.random() * 10000
-                                )
-                                  .toString()
-                                  .padStart(4, "0")}`}
-                                originalReceiptNumber={
-                                  currentReceipt?.receiptNumber || ""
-                                }
-                                currentDate={format(new Date(), "dd/MM/yyyy")}
-                                currentTime={format(new Date(), "HH:mm:ss")}
-                                customerName={customerName}
-                                cashier={
-                                  selectedCashier?.name ||
-                                  fetchedCashier?.name ||
-                                  ""
-                                }
-                                refundAmount={claimAmount}
-                              />
-                            </div>
-                          )}
+                          {/* Always show thermal receipt for warranty claims regardless of item type */}
+                          <ScrollArea className="h-[60vh]">
+                            <RefundReceipt
+                              items={
+                                currentReceipt?.items.filter((item) =>
+                                  selectedItems.includes(item.uniqueId)
+                                ) || []
+                              }
+                              receiptNumber={`W${Math.floor(
+                                Math.random() * 10000
+                              )
+                                .toString()
+                                .padStart(4, "0")}`}
+                              originalReceiptNumber={
+                                currentReceipt?.receiptNumber || ""
+                              }
+                              currentDate={format(new Date(), "dd/MM/yyyy")}
+                              currentTime={format(new Date(), "HH:mm:ss")}
+                              customerName={customerName}
+                              cashier={
+                                selectedCashier?.name ||
+                                fetchedCashier?.name ||
+                                ""
+                              }
+                              refundAmount={claimAmount}
+                              hidePrintButton={true}
+                            />
+                          </ScrollArea>
                         </div>
                       </div>
                     )}
