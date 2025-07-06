@@ -275,16 +275,6 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
       .filter((item) => selectedItems.includes(item.uniqueId))
       .reduce((sum, item) => sum + item.price * item.quantity, 0) || 0;
 
-  // Add function to check if refund contains only batteries
-  const containsOnlyBatteries = (items: CartItem[]): boolean => {
-    if (!items || items.length === 0) return false;
-    return items.every(
-      (item) =>
-        item.name.toLowerCase().includes("battery") ||
-        (item.uniqueId && item.uniqueId.includes("battery"))
-    );
-  };
-
   // Handle looking up a receipt
   const handleLookupReceipt = () => {
     const receipt = mockReceipts.find(
@@ -1255,24 +1245,6 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
       .filter((item) => selectedItems.includes(item.uniqueId))
       .reduce((sum, item) => sum + item.price * item.quantity, 0) || 0;
 
-  // Add the missing containsOnlyBatteries function
-  const containsOnlyBatteries = (items: CartItem[]): boolean => {
-    if (items.length === 0) return false;
-
-    // Filter out the special discount item before checking if all remaining are batteries
-    const actualProductItems = items.filter(
-      (item) => !item.name.toLowerCase().includes("discount on old battery")
-    );
-
-    // If, after filtering out the discount, there are no actual products, it's not a battery-only sale.
-    if (actualProductItems.length === 0) return false;
-
-    // Check if all items are batteries (based on name since we don't have category/type info here)
-    return actualProductItems.every((item) =>
-      item.name.toLowerCase().includes("battery")
-    );
-  };
-
   // Handle looking up a receipt
   const handleLookupReceipt = () => {
     const receipt = mockReceipts.find(
@@ -1365,163 +1337,353 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
       return;
     }
 
-    // Generate HTML content for thermal receipt printing
+    // Use the A5 format HTML for battery warranty claims
     const htmlContent = `
       <!DOCTYPE html>
       <html lang="en">
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Warranty Claim Receipt</title>
+        <title>Warranty Claim Certificate</title>
         <style>
           @page {
-            size: 80mm 297mm;
+            size: A5;
             margin: 0;
           }
           html, body {
-            font-family: Arial, sans-serif;
+            height: 100%;
             margin: 0;
             padding: 0;
-            width: 100%;
+          }
+          body {
+            font-family: Arial, sans-serif;
             font-size: 10pt;
+            line-height: 1.3;
+            width: 100%;
+            color: #000;
           }
-          .receipt {
-            width: 76mm;
-            padding: 5mm 2mm;
-            margin: 0 auto;
+          .bill-container {
+            width: calc(100% - 4mm); 
+            height: 100%;
+            padding: 2mm;
+            margin: 0 auto; 
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
           }
-          .receipt-header {
-            text-align: center;
-            margin-bottom: 10px;
-          }
-          .receipt-header h1 {
-            font-size: 14pt;
-            margin: 0;
-            font-weight: bold;
-          }
-          .receipt-header p {
-            font-size: 8pt;
-            margin: 2px 0;
-            color: #555;
-          }
-          .receipt-divider {
-            border-top: 1px dashed #000;
-            margin: 5px 0;
-          }
-          .receipt-info {
-            font-size: 9pt;
-            margin: 5px 0;
-          }
-          .receipt-title {
-            text-align: center;
-            font-weight: bold;
-            margin: 10px 0;
-            font-size: 11pt;
-            color: #D9534F;
-          }
-          .receipt-items {
+          .header-table {
             width: 100%;
             border-collapse: collapse;
-            margin: 10px 0;
-            font-size: 8pt;
+            margin-bottom: 10px;
           }
-          .receipt-items th, .receipt-items td {
-            padding: 3px 0;
+          .header-table td {
+            vertical-align: top;
+            padding: 0;
           }
-          .receipt-items th {
+          .left-header {
+            width: 30%;
             text-align: left;
+            font-size: 8px !important;
+            -webkit-text-size-adjust: none;
+            transform-origin: left top;
+            transform: scale(0.8);
+          }
+          .center-header {
+            width: 40%;
+            text-align: center;
+          }
+          .right-header {
+            width: 30%;
+            text-align: right;
+            font-size: 8px !important;
+            -webkit-text-size-adjust: none;
+            transform-origin: right top;
+            transform: scale(0.8);
+            direction: rtl;
+          }
+          .company-name {
+            color: #0000CC;
+            font-size: 9pt;
+            font-weight: bold;
+            text-transform: uppercase;
+            white-space: nowrap;
+          }
+          .company-arabic-name {
+            color: #0000CC;
+            font-size: 8pt;
+            font-weight: bold;
+            margin-top: 2px;
+          }
+          .cr-number {
+            font-weight: normal;
+          }
+          .service-description {
+            text-align: center;
+            font-weight: bold;
+            font-size: 9px;
+            margin: 15px 0;
+            border-top: 1px solid #ccc;
+            border-bottom: 1px solid #ccc;
+            padding: 6px 0;
+          }
+          .service-description-arabic {
+            font-size: 8px;
+            margin-top: 2px;
+          }
+          .warranty-claim-text {
+            text-align: center;
+            font-weight: bold;
+            font-size: 9px;
+            margin-top: 5px;
+            color: #D9534F;
+            display: block;
+          }
+          .bill-info-table {
+            width: 100%;
+            margin-bottom: 12px;
+          }
+          .bill-info-table td {
+            vertical-align: top;
+            padding: 0;
+          }
+          .bill-number {
+            text-align: left;
+            font-size: 9px;
+          }
+          .print-date {
+            text-align: right;
+            font-size: 9px;
+          }
+          .customer-info {
+            text-align: left;
+            font-size: 9px;
+            font-weight: bold;
+            margin-bottom: 8px;
+          }
+          .car-plate {
+            text-align: right;
+            font-size: 9px;
+            font-weight: bold;
+          }
+          .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            font-size: 9px;
+          }
+          .items-table th, .items-table td {
+            padding: 6px 5px;
+            text-align: left;
+          }
+          .items-table th {
+            font-weight: bold;
+          }
+          .items-table td, .items-table th {
             border-bottom: 1px solid #ddd;
           }
-          .receipt-items td.price {
+          .items-table th:nth-child(3), .items-table td:nth-child(3),
+          .items-table th:nth-child(4), .items-table td:nth-child(4),
+          .items-table th:nth-child(5), .items-table td:nth-child(5) {
             text-align: right;
           }
-          .receipt-summary {
-            margin: 10px 0;
-            font-size: 9pt;
+          .items-table tr:last-child td {
+            border-bottom: none;
           }
-          .receipt-summary table {
+          .summary-table {
             width: 100%;
+            border-collapse: collapse;
+            font-size: 9px;
           }
-          .receipt-footer {
-            margin-top: 15px;
-            font-size: 8pt;
+          .summary-table td {
+            padding: 3px 0;
+          }
+          .summary-table .label {
+            text-align: left;
+          }
+          .summary-table .amount {
+            text-align: right;
+            font-weight: bold;
+          }
+          .summary-divider {
+            border-top: 1px solid #000;
+            margin: 6px 0;
+          }
+          .trade-in {
+            color: #D9534F;
+          }
+          .total-row {
+            font-weight: bold;
+            font-size: 10px;
+            color: #0000CC;
+          }
+          .cashier-section {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 5px;
+            margin-bottom: 0;
+            font-size: 8px !important;
+            -webkit-text-size-adjust: none;
+          }
+          .cashier-info {
+            text-align: left;
+            transform-origin: left center;
+          }
+          .signature-line {
+            text-align: right;
+          }
+          .signature-line .line {
+            display: inline-block;
+            border-top: 1px solid #777;
+            width: 150px;
             text-align: center;
+            padding-top: 3px;
+            font-size: 8px !important;
+            -webkit-text-size-adjust: none;
+            transform-origin: right center;
+            transform: scale(0.8);
+            color: #777;
+          }
+          .footer {
+            text-align: center;
+            font-size: 8px !important;
+            -webkit-text-size-adjust: none;
+            transform-origin: center top;
+            transform: scale(0.8);
+            color: #333;
+            width: 100%;
+            padding-top: 0;
+            margin-top: 0;
+            margin-bottom: 0;
+            position: relative;
+            left: 0;
+            right: 0;
+          }
+          .footer-contact {
+            font-weight: bold;
+            margin-bottom: 1px;
+          }
+          .footer-phone-numbers {
+            margin-bottom: 1px;
+          }
+          .footer-thank-you {
+            font-style: italic;
+            font-size: 7px !important;
+            -webkit-text-size-adjust: none;
+            line-height: 1.2;
           }
         </style>
       </head>
       <body>
-        <div class="receipt">
-          <div class="receipt-header">
-            <h1>H Automotives</h1>
-            <p>Saham, Sultanate of Oman</p>
-            <p>Ph: 92510750 | 26856848</p>
+        <div class="bill-container">
+          <!-- Header with three columns -->
+          <table class="header-table">
+            <tr>
+              <td class="left-header">
+                <div>C.R. No.: 1001886</div>
+                <div>W.Saham</div>
+                <div>Al-Sanaiya</div>
+                <div>Sultanate of Oman</div>
+              </td>
+              <td class="center-header">
+                <div class="company-name">AL-TARATH NATIONAL CO.</div>
+                <div class="company-arabic-name">شركة الطارث الوطنية</div>
+              </td>
+              <td class="right-header">
+                <div class="cr-number">السجل التجاري: 1001886</div>
+                <div>ولاية صحم</div>
+                <div>الصناعية</div>
+                <div>سلطنة عمان</div>
+              </td>
+            </tr>
+          </table>
+
+          <!-- Service description -->
+          <div class="service-description">
+            TYRE REPAIRING & OIL CHANGING OF VEHICLES
+            <div class="service-description-arabic">إصلاح الإطارات وتغيير النفط للمركبات</div>
           </div>
           
-          <div class="receipt-divider"></div>
-          
-          <div class="receipt-title">WARRANTY CLAIM RECEIPT</div>
-          
-          <div class="receipt-info">
-            <p>Original Receipt: ${currentReceipt?.receiptNumber || ""}</p>
-            <p>Date: ${format(new Date(), "dd/MM/yyyy")}</p>
-            <p>Time: ${format(new Date(), "HH:mm:ss")}</p>
-            <p>Claim ID: ${warrantyBillNumber}</p>
-            ${customerName ? `<p>Customer: ${customerName}</p>` : ""}
+          <!-- Warranty claim text -->
+          <div style="text-align: center; font-weight: bold; font-size: 9px; margin: 8px 0; color: #D9534F; border-bottom: 1px solid #ccc; padding-bottom: 6px;">
+            <span style="border: 1px solid #D9534F; padding: 2px 8px; display: inline-block;">WARRANTY CLAIM CERTIFICATE</span>
+            <div style="font-size: 9px; margin-top: 4px; color: #D9534F;">شهادة ضمان</div>
           </div>
-          
-          <div class="receipt-divider"></div>
-          
-          <table class="receipt-items">
+
+          <!-- Bill info with two columns -->
+          <table class="bill-info-table" style="width: 100%;">
+            <tr>
+              <td class="bill-number">Bill no.: ${warrantyBillNumber}</td>
+              <td class="print-date">Printed on: ${format(
+                new Date(),
+                "dd/MM/yyyy"
+              )} ${format(new Date(), "HH:mm:ss")}</td>
+            </tr>
+          </table>
+          <div style="width: 100%; border-bottom: 1px dashed #999; margin: 3px 0;"></div>
+
+          <!-- Customer info with two columns -->
+          <table class="bill-info-table">
+            <tr>
+              <td class="customer-info">To, Mr./Mrs.: ${customerName || ""}</td>
+              <td class="car-plate">Warranty Type: Battery</td>
+            </tr>
+          </table>
+
+          <!-- Items table -->
+          <table class="items-table">
             <thead>
               <tr>
+                <th>#</th>
                 <th>Item</th>
-                <th>Qty</th>
-                <th style="text-align: right;">Price</th>
+                <th>Quantity</th>
+                <th>Unit Price</th>
+                <th>Total</th>
               </tr>
             </thead>
             <tbody>
               ${selectedClaimItems
                 .map(
-                  (item) => `
+                  (item, index) => `
                 <tr>
+                  <td>${index + 1}</td>
                   <td>${item.name}${
-                    item.details ? ` (${item.details})` : ""
+                    item.details ? " (" + item.details + ")" : ""
                   }</td>
                   <td>${item.quantity}</td>
-                  <td class="price">OMR ${(item.price * item.quantity).toFixed(
-                    3
-                  )}</td>
+                  <td>${item.price.toFixed(3)}</td>
+                  <td>${(item.price * item.quantity).toFixed(3)}</td>
                 </tr>
               `
                 )
                 .join("")}
             </tbody>
           </table>
+
+          <!-- Summary section -->
+          <table class="summary-table">
+            <tr class="total-row">
+              <td class="label">WARRANTY AMOUNT:</td>
+              <td class="amount">${claimAmount.toFixed(3)} OMR</td>
+            </tr>
+          </table>
           
-          <div class="receipt-divider"></div>
+          <div style="flex-grow: 1;"></div>
           
-          <div class="receipt-summary">
-            <table>
-              <tr>
-                <td style="font-weight: bold;">TOTAL CLAIM AMOUNT:</td>
-                <td style="text-align: right; font-weight: bold; color: #D9534F;">
-                  OMR ${claimAmount.toFixed(3)}
-                </td>
-              </tr>
-            </table>
+          <div class="cashier-section">
+            <div class="cashier-info">Cashier: ${
+              selectedCashier?.name || fetchedCashier?.name || ""
+            }</div>
+            <div class="signature-line">
+              <div class="line">Authorized Signature</div>
+            </div>
           </div>
-          
-          <div class="receipt-footer">
-            ${
-              selectedCashier?.name || fetchedCashier?.name
-                ? `<p>Processed by: ${
-                    selectedCashier?.name || fetchedCashier?.name
-                  }</p>`
-                : ""
-            }
-            <div class="receipt-divider"></div>
-            <p>Thank you for trusting us with your warranty claim</p>
-            <p>شكراً لثقتكم بنا</p>
+
+          <hr style="width: 100%; border: none; border-top: 1px solid #ccc; margin: 5px 0 2px 0;" />
+          <div class="footer" style="border-top: none;">
+            <div class="footer-contact">Contact no.: 71170805</div>
+            <div class="footer-phone-numbers" style="direction: rtl;">رقم الاتصال: ٧١١٧٠٨٠٥</div>
+            <div class="footer-thank-you" style="white-space: pre-line;">Thank you for trusting us with your warranty claim\nشكراً لثقتكم بنا</div>
           </div>
         </div>
       </body>
@@ -1531,6 +1693,7 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
     printWindow.document.open();
     printWindow.document.write(htmlContent);
     printWindow.document.close();
+    printWindow.document.title = "";
 
     setTimeout(() => {
       printWindow.print();
@@ -1892,37 +2055,30 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
                     ) : (
                       <div className="mt-4">
                         <h3 className="text-lg font-semibold mb-4 text-center">
-                          Bill Preview
+                          Warranty Certificate
                         </h3>
                         <div className="overflow-hidden rounded-lg">
-                          {/* Always show thermal receipt for warranty claims regardless of item type */}
-                          <ScrollArea className="h-[60vh]">
-                            <RefundReceipt
-                              items={
-                                currentReceipt?.items.filter((item) =>
-                                  selectedItems.includes(item.uniqueId)
-                                ) || []
-                              }
-                              receiptNumber={`W${Math.floor(
-                                Math.random() * 10000
-                              )
-                                .toString()
-                                .padStart(4, "0")}`}
-                              originalReceiptNumber={
-                                currentReceipt?.receiptNumber || ""
-                              }
-                              currentDate={format(new Date(), "dd/MM/yyyy")}
-                              currentTime={format(new Date(), "HH:mm:ss")}
-                              customerName={customerName}
-                              cashier={
-                                selectedCashier?.name ||
-                                fetchedCashier?.name ||
-                                ""
-                              }
-                              refundAmount={claimAmount}
-                              hidePrintButton={true}
-                            />
-                          </ScrollArea>
+                          {/* Use BillComponent for warranty claims since they're only for batteries */}
+                          <BillComponent
+                            cart={
+                              currentReceipt?.items.filter((item) =>
+                                selectedItems.includes(item.uniqueId)
+                              ) || []
+                            }
+                            billNumber={`W${Math.floor(Math.random() * 10000)
+                              .toString()
+                              .padStart(4, "0")}`}
+                            currentDate={format(new Date(), "dd/MM/yyyy")}
+                            currentTime={format(new Date(), "HH:mm:ss")}
+                            customerName={customerName || ""}
+                            cashier={
+                              selectedCashier?.name ||
+                              fetchedCashier?.name ||
+                              ""
+                            }
+                            hideButton={true}
+                            isWarrantyClaim={true}
+                          />
                         </div>
                       </div>
                     )}
