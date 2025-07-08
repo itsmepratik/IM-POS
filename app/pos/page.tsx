@@ -74,6 +74,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
 import { format } from "date-fns";
+import { Badge } from "@/components/ui/badge";
 
 // Import the RefundDialog component
 import { RefundDialog, WarrantyDialog } from "./components/refund-dialog";
@@ -1711,7 +1712,7 @@ export default function POSPage() {
                   <Button
                     variant="outline"
                     size="default"
-                    className="h-10 px-4 flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-800"
+                    className="dispute-button h-10 px-4 flex items-center gap-2 relative transition-all duration-200 ease-in-out active:transition-none"
                     onClick={() => setIsDisputeDialogOpen(true)}
                   >
                     <RotateCcw className="h-4 w-4" />
@@ -1721,14 +1722,17 @@ export default function POSPage() {
                   <Button
                     variant="outline"
                     size="icon"
-                    className="lg:hidden h-10 w-10 relative"
+                    className="cart-button lg:hidden h-10 w-10 relative transition-all duration-200 ease-in-out active:transition-none"
                     onClick={() => setShowCart(true)}
                   >
                     <ShoppingCart className="h-5 w-5" />
                     {cart.length > 0 && (
-                      <span className="absolute -top-2 -right-2 bg-primary text-primary-foreground text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center">
+                      <Badge
+                        className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0"
+                        variant="destructive"
+                      >
                         {cart.length}
-                      </span>
+                      </Badge>
                     )}
                   </Button>
                 </div>
@@ -2069,106 +2073,104 @@ export default function POSPage() {
                 </Button>
               </CardHeader>
               <CardContent className="flex-1 flex flex-col p-4 min-h-0">
-                <div className="flex-1 overflow-hidden flex flex-col min-h-0">
-                  <ScrollArea className="flex-1 -mx-4 px-4 h-[calc(100%-6rem)]">
-                    <div className="space-y-2 pb-2">
-                      {cart.map((item) => (
-                        <CartItem
-                          key={item.uniqueId}
-                          item={item}
-                          updateQuantity={updateQuantity}
-                          removeFromCart={removeFromCart}
-                        />
-                      ))}
-                    </div>
-                  </ScrollArea>
-                  <div className="pt-3 mt-auto border-t">
-                    <div className="space-y-1 mb-2">
-                      <div className="flex justify-between text-[clamp(1rem,2.5vw,1.125rem)] font-semibold">
-                        <span>Subtotal</span>
-                        <span>OMR {subtotal.toFixed(2)}</span>
-                      </div>
-
-                      {appliedDiscount && (
-                        <div className="flex justify-between text-[clamp(0.875rem,2vw,1rem)] text-muted-foreground">
-                          <div className="flex justify-between items-center">
-                            <span>
-                              Discount{" "}
-                              {appliedDiscount.type === "percentage"
-                                ? `(${appliedDiscount.value}%)`
-                                : "(Amount)"}
-                            </span>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-6 w-6 rounded-full"
-                              onClick={removeDiscount}
-                            >
-                              <X className="h-3 w-3" />
-                            </Button>
-                          </div>
-                          <span>- OMR {discountAmount.toFixed(2)}</span>
-                        </div>
-                      )}
-
-                      {appliedTradeInAmount > 0 && (
-                        <div className="flex justify-between text-[clamp(0.875rem,2vw,1rem)] text-green-600">
-                          {" "}
-                          {/* Trade-in shown in green */}
-                          <span>Trade-In Amount</span>
-                          <span>- OMR {appliedTradeInAmount.toFixed(3)}</span>
-                        </div>
-                      )}
-
-                      <div className="flex justify-between text-[clamp(1rem,2.5vw,1.125rem)] font-semibold">
-                        <span>Total</span>
-                        <span>OMR {total.toFixed(2)}</span>
-                      </div>
+                <ScrollArea className="flex-1 -mx-4 px-4">
+                  <div className="space-y-2 pb-2">
+                    {cart.map((item) => (
+                      <CartItem
+                        key={item.uniqueId}
+                        item={item}
+                        updateQuantity={updateQuantity}
+                        removeFromCart={removeFromCart}
+                      />
+                    ))}
+                  </div>
+                </ScrollArea>
+                <div className="pt-3 mt-auto border-t">
+                  <div className="space-y-1 mb-2">
+                    <div className="flex justify-between text-[clamp(1rem,2.5vw,1.125rem)] font-semibold">
+                      <span>Subtotal</span>
+                      <span>OMR {subtotal.toFixed(2)}</span>
                     </div>
 
-                    <div className="space-y-1">
-                      <div className="flex gap-2 mb-2">
+                    {appliedDiscount && (
+                      <div className="flex justify-between text-[clamp(0.875rem,2vw,1rem)] text-muted-foreground">
+                        <div className="flex justify-between items-center">
+                          <span>
+                            Discount{" "}
+                            {appliedDiscount.type === "percentage"
+                              ? `(${appliedDiscount.value}%)`
+                              : "(Amount)"}
+                          </span>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-6 w-6 rounded-full"
+                            onClick={removeDiscount}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                        <span>- OMR {discountAmount.toFixed(2)}</span>
+                      </div>
+                    )}
+
+                    {appliedTradeInAmount > 0 && (
+                      <div className="flex justify-between text-[clamp(0.875rem,2vw,1rem)] text-green-600">
+                        {" "}
+                        {/* Trade-in shown in green */}
+                        <span>Trade-In Amount</span>
+                        <span>- OMR {appliedTradeInAmount.toFixed(3)}</span>
+                      </div>
+                    )}
+
+                    <div className="flex justify-between text-[clamp(1rem,2.5vw,1.125rem)] font-semibold">
+                      <span>Total</span>
+                      <span>OMR {total.toFixed(2)}</span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <div className="flex gap-2 mb-2">
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "h-9 flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-800",
+                          cartContainsAnyBatteries(cart) ? "flex-1" : "w-full" // Condition updated here
+                        )}
+                        onClick={() => setIsDiscountDialogOpen(true)}
+                        disabled={cart.length === 0}
+                      >
+                        <Scissors className="h-4 w-4" />
+                        {appliedDiscount ? "Edit Discount" : "Discount"}
+                      </Button>
+                      {cartContainsAnyBatteries(cart) && (
                         <Button
                           variant="outline"
-                          className={cn(
-                            "h-9 flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-800",
-                            cartContainsAnyBatteries(cart) ? "flex-1" : "w-full" // Condition updated here
-                          )}
-                          onClick={() => setIsDiscountDialogOpen(true)}
-                          disabled={cart.length === 0}
+                          className="h-9 flex-1 flex items-center justify-center gap-2 bg-orange-100 hover:bg-orange-200 text-orange-800 border-orange-300"
+                          onClick={() => {
+                            setTradeInAmount(
+                              appliedTradeInAmount > 0
+                                ? appliedTradeInAmount
+                                : 0
+                            ); // Pre-fill with current applied amount or 0
+                            setIsTradeInDialogOpen(true);
+                          }}
                         >
-                          <Scissors className="h-4 w-4" />
-                          {appliedDiscount ? "Edit Discount" : "Discount"}
+                          <PercentIcon className="h-4 w-4" />
+                          {appliedTradeInAmount > 0
+                            ? "Edit Trade-In"
+                            : "Trade In"}
                         </Button>
-                        {cartContainsAnyBatteries(cart) && (
-                          <Button
-                            variant="outline"
-                            className="h-9 flex-1 flex items-center justify-center gap-2 bg-orange-100 hover:bg-orange-200 text-orange-800 border-orange-300"
-                            onClick={() => {
-                              setTradeInAmount(
-                                appliedTradeInAmount > 0
-                                  ? appliedTradeInAmount
-                                  : 0
-                              ); // Pre-fill with current applied amount or 0
-                              setIsTradeInDialogOpen(true);
-                            }}
-                          >
-                            <PercentIcon className="h-4 w-4" />
-                            {appliedTradeInAmount > 0
-                              ? "Edit Trade-In"
-                              : "Trade In"}
-                          </Button>
-                        )}
-                      </div>
-
-                      <Button
-                        className="w-full h-9"
-                        disabled={cart.length === 0}
-                        onClick={handleCheckout}
-                      >
-                        Checkout
-                      </Button>
+                      )}
                     </div>
+
+                    <Button
+                      className="w-full h-9"
+                      disabled={cart.length === 0}
+                      onClick={handleCheckout}
+                    >
+                      Checkout
+                    </Button>
                   </div>
                 </div>
               </CardContent>

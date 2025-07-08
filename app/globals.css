@@ -30,14 +30,17 @@
     --popover: 0 0% 100%;
     --popover-foreground: 240 10% 3.9%;
     --primary: 213 100% 50%;
+    --primary-shadow: 213 100% 35%;
     --primary-foreground: 0 0% 98%;
     --secondary: 240 4.8% 95.9%;
+    --secondary-shadow: 240 5% 85%;
     --secondary-foreground: 240 5.9% 10%;
     --muted: 240 4.8% 95.9%;
     --muted-foreground: 240 3.8% 46.1%;
     --accent: 213 100% 95%;
     --accent-foreground: 213 100% 50%;
     --destructive: 0 84.2% 60.2%;
+    --destructive-shadow: 0 84.2% 40.2%;
     --destructive-foreground: 0 0% 98%;
     --border: 240 5.9% 90%;
     --input: 240 5.9% 90%;
@@ -62,14 +65,17 @@
     --popover: 240 10% 3.9%;
     --popover-foreground: 0 0% 98%;
     --primary: 213 100% 50%;
+    --primary-shadow: 213 100% 35%;
     --primary-foreground: 240 5.9% 10%;
     --secondary: 240 3.7% 15.9%;
+    --secondary-shadow: 240 3.7% 5.9%;
     --secondary-foreground: 0 0% 98%;
     --muted: 240 3.7% 15.9%;
     --muted-foreground: 240 5% 64.9%;
     --accent: 213 100% 95%;
     --accent-foreground: 213 100% 50%;
     --destructive: 0 62.8% 30.6%;
+    --destructive-shadow: 0 62.8% 20.6%;
     --destructive-foreground: 0 0% 98%;
     --border: 240 3.7% 15.9%;
     --input: 240 3.7% 15.9%;
@@ -188,3 +194,30 @@
 
 /* Full screen styles are now applied via JavaScript in fullscreen.js */
 /* We avoid adding DOM elements that would cause hydration errors */
+
+/* Add padding to space-y-1 divs to fix button shadow clipping */
+div.space-y-1 {
+  box-sizing: border-box;
+  padding-bottom: 8px;
+}
+
+/* Ensure 3D shadows are visible for specific buttons */
+.dispute-button,
+.cart-button {
+  box-shadow: 0 5px 0 #d1d5db, 0 6px 10px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
+}
+
+.dispute-button:hover,
+.cart-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 7px 0 #d1d5db, 0 8px 12px rgba(0, 0, 0, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4) !important;
+}
+
+.dispute-button:active,
+.cart-button:active {
+  transform: translateY(3px);
+  box-shadow: 0 2px 0 #d1d5db, 0 3px 5px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+}

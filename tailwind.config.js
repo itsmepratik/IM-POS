@@ -1,13 +1,13 @@
 /** @type {import('tailwindcss').Config} */
-const { fontFamily } = require("tailwindcss/defaultTheme")
+const { fontFamily } = require("tailwindcss/defaultTheme");
 
 module.exports = {
   darkMode: ["class"],
   content: [
-    './pages/**/*.{ts,tsx}',
-    './components/**/*.{ts,tsx}',
-    './app/**/*.{ts,tsx}',
-    './src/**/*.{ts,tsx}',
+    "./pages/**/*.{ts,tsx}",
+    "./components/**/*.{ts,tsx}",
+    "./app/**/*.{ts,tsx}",
+    "./src/**/*.{ts,tsx}",
   ],
   theme: {
     container: {
@@ -76,7 +76,33 @@ module.exports = {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
       },
+      boxShadow: {
+        "chonky-primary":
+          "0 5px 0 hsl(var(--primary-shadow)), 0 6px 10px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.2)",
+        "chonky-primary-hover":
+          "0 7px 0 hsl(var(--primary-shadow)), 0 8px 12px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.3)",
+        "chonky-primary-active":
+          "0 2px 0 hsl(var(--primary-shadow)), 0 3px 5px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.1)",
+        "chonky-destructive":
+          "0 5px 0 hsl(var(--destructive-shadow)), 0 6px 10px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.2)",
+        "chonky-destructive-hover":
+          "0 7px 0 hsl(var(--destructive-shadow)), 0 8px 12px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.3)",
+        "chonky-destructive-active":
+          "0 2px 0 hsl(var(--destructive-shadow)), 0 3px 5px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.1)",
+        "chonky-secondary":
+          "0 5px 0 hsl(var(--secondary-shadow)), 0 6px 10px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.3)",
+        "chonky-secondary-hover":
+          "0 7px 0 hsl(var(--secondary-shadow)), 0 8px 12px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.4)",
+        "chonky-secondary-active":
+          "0 2px 0 hsl(var(--secondary-shadow)), 0 3px 5px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.2)",
+        "chonky-outline":
+          "0 5px 0 #d1d5db, 0 6px 10px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.3)",
+        "chonky-outline-hover":
+          "0 7px 0 #d1d5db, 0 8px 12px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.4)",
+        "chonky-outline-active":
+          "0 2px 0 #d1d5db, 0 3px 5px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.2)",
+      },
     },
   },
   plugins: [require("tailwindcss-animate")],
-} 
+};
