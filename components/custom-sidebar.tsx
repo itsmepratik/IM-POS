@@ -419,9 +419,7 @@ function ProfileMenu() {
       <div className="px-2 py-4 flex justify-center">
         <Avatar className="h-7 w-7">
           <AvatarImage src="/avatars/01.svg" alt="@username" />
-          <AvatarFallback>
-            {currentUser?.name ? currentUser.name.charAt(0) : "U"}
-          </AvatarFallback>
+          <AvatarFallback>U</AvatarFallback>
         </Avatar>
       </div>
     );
@@ -433,9 +431,7 @@ function ProfileMenu() {
         <button className="flex w-full items-center gap-3 rounded-md px-4 py-3 text-sm transition-colors hover:bg-accent">
           <Avatar className="h-7 w-7">
             <AvatarImage src="/avatars/01.svg" alt="@username" />
-            <AvatarFallback>
-              {currentUser?.name ? currentUser.name.charAt(0) : "U"}
-            </AvatarFallback>
+            <AvatarFallback>U</AvatarFallback>
           </Avatar>
           <div className="flex-1 overflow-hidden text-left">
             <div className="font-medium">User</div>

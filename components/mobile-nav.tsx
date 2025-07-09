@@ -23,6 +23,8 @@ import {
   Warehouse,
   Truck,
   Inbox,
+  Moon,
+  Sun,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -38,6 +40,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 
 export function MobileNav({ className }: { className?: string }) {
   const [open, setOpen] = React.useState(false);
@@ -47,6 +50,7 @@ export function MobileNav({ className }: { className?: string }) {
   const { notifications } = useNotification();
   const router = useRouter();
   const pathname = usePathname();
+  const [darkMode, setDarkMode] = React.useState(false);
 
   const [mounted, setMounted] = React.useState(false);
 
@@ -89,6 +93,11 @@ export function MobileNav({ className }: { className?: string }) {
 
   const showAdminItems = mounted && currentUser && currentUser.role === "admin";
 
+  const toggleDarkMode = () => {
+    setDarkMode(!darkMode);
+    // No actual functionality as per requirements
+  };
+
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <Button
@@ -113,7 +122,14 @@ export function MobileNav({ className }: { className?: string }) {
         <div className="flex h-full flex-col overflow-y-auto rounded-tr-lg rounded-br-lg">
           <SheetHeader className="border-b p-4 rounded-tr-lg">
             <div className="flex items-center gap-2">
-              <span className="text-base font-wide" style={{ fontWeight: 750 }}>
+              <span
+                className="text-base font-wide"
+                style={{
+                  fontWeight: 750,
+                  color: "#6e6a6a",
+                  letterSpacing: "0px",
+                }}
+              >
                 HNS Automotive
               </span>
             </div>
@@ -335,6 +351,23 @@ export function MobileNav({ className }: { className?: string }) {
                 >
                   <Settings className="mr-2 h-5 w-5 stroke-[2]" />
                   <span>Settings</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="rounded-lg py-2 flex items-center justify-between"
+                  onSelect={(e) => {
+                    e.preventDefault();
+                    toggleDarkMode();
+                  }}
+                >
+                  <div className="flex items-center">
+                    {darkMode ? (
+                      <Moon className="mr-2 h-5 w-5 stroke-[2]" />
+                    ) : (
+                      <Sun className="mr-2 h-5 w-5 stroke-[2]" />
+                    )}
+                    <span>Dark Mode</span>
+                  </div>
+                  <Switch checked={darkMode} onCheckedChange={toggleDarkMode} />
                 </DropdownMenuItem>
                 <DropdownMenuSeparator className="my-2" />
                 <DropdownMenuItem

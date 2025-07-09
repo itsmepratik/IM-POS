@@ -25,6 +25,8 @@ import {
   LogOut,
   Bell,
   Inbox,
+  Moon,
+  Sun,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -43,6 +45,7 @@ import {
 } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { useNotification } from "@/app/notification-context";
+import { Switch } from "@/components/ui/switch";
 
 export function Sidebar({
   className,
@@ -168,7 +171,11 @@ export function Sidebar({
               <Link href="/" className="flex-1 truncate">
                 <span
                   className="text-base font-wide"
-                  style={{ fontWeight: 750 }}
+                  style={{
+                    fontWeight: 750,
+                    color: "#6e6a6a",
+                    letterSpacing: "0px",
+                  }}
                 >
                   HNS Automotive
                 </span>
@@ -370,93 +377,42 @@ export function Sidebar({
 }
 
 function ProfileMenu({ isCollapsed }: { isCollapsed: boolean }) {
-  const router = useRouter();
   const { currentUser } = useUser();
+  const router = useRouter();
+  const [darkMode, setDarkMode] = React.useState(false);
 
   const handleSettingsClick = () => {
     router.push("/settings");
   };
 
   const handleLogout = () => {
-    // Handle logout (modify as needed based on your auth implementation)
-    localStorage.removeItem("token"); // Example - remove token
-    sessionStorage.clear(); // Clear session storage
     router.push("/auth");
+  };
+
+  const toggleDarkMode = () => {
+    setDarkMode(!darkMode);
+    // No actual functionality as per requirements
   };
 
   if (isCollapsed) {
     return (
-      <div className="flex justify-center">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="h-8 w-8 rounded-full p-0">
-              <Avatar className="h-7 w-7">
-                <AvatarImage src="/avatars/01.svg" alt="@username" />
-                <AvatarFallback>
-                  {currentUser?.name ? currentUser.name.charAt(0) : "U"}
-                </AvatarFallback>
-              </Avatar>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            className="w-[12.5rem] rounded-xl border p-2"
-            align="end"
-            side="right"
-            forceMount
-          >
-            <DropdownMenuItem className="rounded-lg py-2">
-              <User className="mr-2 h-5 w-5 stroke-[1.5]" />
-              <span>Profile</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              className="rounded-lg py-2"
-              onSelect={handleSettingsClick}
-            >
-              <Settings className="mr-2 h-5 w-5 stroke-[1.5]" />
-              <span>Settings</span>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator className="my-2" />
-            <DropdownMenuItem
-              className="rounded-lg py-2"
-              onSelect={handleLogout}
-            >
-              <LogOut className="mr-2 h-5 w-5 stroke-[1.5]" />
-              <span>Log out</span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex items-center">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button
-            variant="ghost"
-            className="p-2 h-auto w-full flex items-center gap-2 justify-start rounded-md hover:bg-accent transition-colors duration-200"
-          >
-            <Avatar className="h-7 w-7 flex-shrink-0">
-              <AvatarImage src="/avatars/01.svg" alt="@username" />
+          <Button variant="ghost" className="h-9 w-9 rounded-full p-0">
+            <Avatar className="h-8 w-8">
+              <AvatarImage
+                src={"/avatars/01.svg"}
+                alt={currentUser?.name || "User"}
+              />
               <AvatarFallback>
                 {currentUser?.name ? currentUser.name.charAt(0) : "U"}
               </AvatarFallback>
             </Avatar>
-            <div className="grid text-left">
-              <span className="text-xs font-medium truncate max-w-[130px]">
-                {currentUser?.name || "User"}
-              </span>
-              <span className="text-[10px] text-muted-foreground truncate">
-                {currentUser?.role || "User"}
-              </span>
-            </div>
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent
-          className="w-[12.5rem] rounded-xl border p-2"
+          className="w-[12.5rem] rounded-xl border-2 p-2"
           align="end"
-          side="top"
           forceMount
         >
           <DropdownMenuItem className="rounded-lg py-2">
@@ -470,6 +426,23 @@ function ProfileMenu({ isCollapsed }: { isCollapsed: boolean }) {
             <Settings className="mr-2 h-5 w-5 stroke-[1.5]" />
             <span>Settings</span>
           </DropdownMenuItem>
+          <DropdownMenuItem
+            className="rounded-lg py-2 flex items-center justify-between"
+            onSelect={(e) => {
+              e.preventDefault();
+              toggleDarkMode();
+            }}
+          >
+            <div className="flex items-center">
+              {darkMode ? (
+                <Moon className="mr-2 h-5 w-5 stroke-[1.5]" />
+              ) : (
+                <Sun className="mr-2 h-5 w-5 stroke-[1.5]" />
+              )}
+              <span>Dark Mode</span>
+            </div>
+            <Switch checked={darkMode} onCheckedChange={toggleDarkMode} />
+          </DropdownMenuItem>
           <DropdownMenuSeparator className="my-2" />
           <DropdownMenuItem className="rounded-lg py-2" onSelect={handleLogout}>
             <LogOut className="mr-2 h-5 w-5 stroke-[1.5]" />
@@ -477,6 +450,74 @@ function ProfileMenu({ isCollapsed }: { isCollapsed: boolean }) {
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-    </div>
+    );
+  }
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="ghost"
+          className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-sm transition-colors hover:bg-accent"
+        >
+          <Avatar className="h-8 w-8">
+            <AvatarImage
+              src={"/avatars/01.svg"}
+              alt={currentUser?.name || "User"}
+            />
+            <AvatarFallback>
+              {currentUser?.name ? currentUser.name.charAt(0) : "U"}
+            </AvatarFallback>
+          </Avatar>
+          <div className="flex-1 overflow-hidden text-left">
+            <div className="font-medium truncate">
+              {currentUser?.name || "Admin User"}
+            </div>
+            <div className="truncate text-xs text-muted-foreground">
+              {currentUser?.role || "admin"}
+            </div>
+          </div>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        className="w-[12.5rem] rounded-xl border-2 p-2"
+        align="end"
+        forceMount
+      >
+        <DropdownMenuItem className="rounded-lg py-2">
+          <User className="mr-2 h-5 w-5 stroke-[1.5]" />
+          <span>Profile</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          className="rounded-lg py-2"
+          onSelect={handleSettingsClick}
+        >
+          <Settings className="mr-2 h-5 w-5 stroke-[1.5]" />
+          <span>Settings</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          className="rounded-lg py-2 flex items-center justify-between"
+          onSelect={(e) => {
+            e.preventDefault();
+            toggleDarkMode();
+          }}
+        >
+          <div className="flex items-center">
+            {darkMode ? (
+              <Moon className="mr-2 h-5 w-5 stroke-[1.5]" />
+            ) : (
+              <Sun className="mr-2 h-5 w-5 stroke-[1.5]" />
+            )}
+            <span>Dark Mode</span>
+          </div>
+          <Switch checked={darkMode} onCheckedChange={toggleDarkMode} />
+        </DropdownMenuItem>
+        <DropdownMenuSeparator className="my-2" />
+        <DropdownMenuItem className="rounded-lg py-2" onSelect={handleLogout}>
+          <LogOut className="mr-2 h-5 w-5 stroke-[1.5]" />
+          <span>Log out</span>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
