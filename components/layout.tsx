@@ -66,7 +66,7 @@ export function Layout({ children, pageTitle }: LayoutProps) {
       return lastPart.charAt(0).toUpperCase() + lastPart.slice(1);
     }
 
-    return "H Automotives";
+    return "HNS Automotive";
   };
 
   useEffect(() => {

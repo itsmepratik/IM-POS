@@ -166,7 +166,12 @@ export function Sidebar({
           {!isCollapsed ? (
             <div className="flex items-center justify-between w-full">
               <Link href="/" className="flex-1 truncate">
-                <span className="font-bold text-sm">H Automotives</span>
+                <span
+                  className="text-base font-wide"
+                  style={{ fontWeight: 750 }}
+                >
+                  HNS Automotive
+                </span>
               </Link>
               <Button
                 variant="ghost"

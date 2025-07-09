@@ -19,7 +19,7 @@ module.exports = {
     },
     extend: {
       fontFamily: {
-        sans: ["var(--font-general-sans)", ...fontFamily.sans],
+        sans: ["var(--font-formula1)", ...fontFamily.sans],
         mono: ["var(--font-mono)", ...fontFamily.mono],
       },
       colors: {

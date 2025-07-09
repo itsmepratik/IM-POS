@@ -138,7 +138,9 @@ export function CustomSidebar({ className }: { className?: string }) {
         {open ? (
           <div className="flex items-center justify-between">
             <Link href="/" className="flex-1">
-              <span className="font-bold">H Automotives</span>
+              <span className="text-base font-wide" style={{ fontWeight: 750 }}>
+                HNS Automotive
+              </span>
             </Link>
             <Button
               variant="outline"

@@ -113,7 +113,9 @@ export function MobileNav({ className }: { className?: string }) {
         <div className="flex h-full flex-col overflow-y-auto rounded-tr-lg rounded-br-lg">
           <SheetHeader className="border-b p-4 rounded-tr-lg">
             <div className="flex items-center gap-2">
-              <span className="font-bold">H Automotives</span>
+              <span className="text-base font-wide" style={{ fontWeight: 750 }}>
+                HNS Automotive
+              </span>
             </div>
           </SheetHeader>
           <div className="flex-1 overflow-y-auto py-2">

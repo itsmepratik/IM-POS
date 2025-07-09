@@ -507,18 +507,6 @@ function SettingsContent() {
 
   return (
     <div className="w-full">
-      <PageHeader>
-        <div className="flex items-center gap-2">
-          <Settings className="h-6 w-6" />
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
-            <p className="text-muted-foreground">
-              Manage your store settings and preferences
-            </p>
-          </div>
-        </div>
-      </PageHeader>
-
       <Tabs
         value={activeTab || undefined}
         onValueChange={setActiveTab}

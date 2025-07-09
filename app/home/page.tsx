@@ -35,6 +35,7 @@ import { format } from "date-fns";
 import { BranchProvider } from "@/app/branch-context";
 import { motion } from "framer-motion";
 import Link from "next/link";
+import { useUser } from "@/app/user-context";
 
 interface Product {
   id: number;
@@ -57,6 +58,7 @@ function HomePageContent() {
   // Use null as initial state to avoid hydration mismatch
   const [branchSelection, setBranchSelection] = useState<string | null>(null);
   const [hasMounted, setHasMounted] = useState(false);
+  const { currentUser } = useUser();
 
   // Set initial state after component mounts
   useEffect(() => {
@@ -68,6 +70,9 @@ function HomePageContent() {
     useDashboardData();
 
   usePaymentTypes();
+
+  // Get user's first name for display
+  const firstName = currentUser?.name?.split(" ")[0] || "User";
 
   return (
     <Layout>
@@ -114,12 +119,12 @@ function HomePageContent() {
                 Welcome back,
               </motion.h1>
               <motion.span
-                className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-cyan-500 text-transparent bg-clip-text"
+                className="text-2xl font-bold bg-gradient-to-r from-[#E30600] to-[#a30f0a] text-transparent bg-clip-text"
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.4, duration: 0.5 }}
               >
-                Adnan.
+                {firstName}.
               </motion.span>
             </motion.div>
           </div>

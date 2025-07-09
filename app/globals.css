@@ -5,20 +5,20 @@
 @layer base {
   /* Set base font size for mobile */
   html {
-    font-size: 93.75%; /* Increased from 87.5% (14px) to 93.75% (15px) - Base for mobile */
+    font-size: 87.5%; /* Reduced from 93.75% (15px) to 87.5% (14px) - Base for mobile */
   }
 
   /* Medium devices (tablets) */
   @media (min-width: 640px) {
     html {
-      font-size: 93.75%; /* 15px */
+      font-size: 87.5%; /* 14px */
     }
   }
 
   /* Large devices (desktops) */
   @media (min-width: 1024px) {
     html {
-      font-size: 100%; /* 16px - Default */
+      font-size: 93.75%; /* 15px - Reduced from 16px */
     }
   }
 
@@ -54,7 +54,8 @@
     --sidebar-accent-foreground: 240 5.9% 10%;
     --sidebar-border: 220 13% 91%;
     --sidebar-ring: 213 100% 50%;
-    --font-sans: var(--font-general-sans), system-ui, sans-serif;
+    --font-sans: var(--font-formula1), system-ui, sans-serif;
+    --font-wide: var(--font-formula1-wide), system-ui, sans-serif;
   }
 
   .dark {
@@ -96,6 +97,47 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-weight: 400;
+    line-height: 1.5;
+  }
+
+  /* Formula 1 font specific adjustments */
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-weight: 700;
+    line-height: 1.2;
+  }
+
+  h1 {
+    font-size: 1.75rem;
+    letter-spacing: -0.03em;
+  }
+
+  h2 {
+    font-size: 1.5rem;
+    letter-spacing: -0.02em;
+  }
+
+  h3 {
+    font-size: 1.25rem;
+    letter-spacing: -0.01em;
+  }
+
+  /* Reduce font size for buttons and inputs */
+  button,
+  input,
+  select,
+  textarea {
+    font-size: 0.9375rem;
+  }
+
+  /* Make table text smaller */
+  table {
+    font-size: 0.875rem;
   }
 }
 
@@ -142,6 +184,11 @@
   .no-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
+  }
+
+  /* Formula 1 Wide font utility */
+  .font-wide {
+    font-family: var(--font-wide);
   }
 }
 

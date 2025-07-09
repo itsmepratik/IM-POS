@@ -10,25 +10,45 @@ import { NotificationDemo } from "./notification-demo";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 
-// Load General Sans Variable font with optimized settings
-const generalSans = localFont({
+// Load Formula 1 fonts with optimized settings
+const formula1 = localFont({
   src: [
     {
-      path: "../public/fonts/GeneralSans-Variable.ttf",
-      weight: "300 700",
+      path: "../public/fonts/Formula1-Regular-1.ttf",
+      weight: "400",
       style: "normal",
     },
     {
-      path: "../public/fonts/GeneralSans-VariableItalic.ttf",
-      weight: "300 700",
-      style: "italic",
+      path: "../public/fonts/Formula1-Bold-4.ttf",
+      weight: "700",
+      style: "normal",
+    },
+    {
+      path: "../public/fonts/Formula1-Black.ttf",
+      weight: "900",
+      style: "normal",
     },
   ],
-  variable: "--font-general-sans",
+  variable: "--font-formula1",
   display: "swap", // Use 'swap' to ensure text remains visible during font loading
   preload: true, // Preload the font
   fallback: ["system-ui", "sans-serif"], // Fallback fonts
   adjustFontFallback: "Arial", // Automatically adjust the fallback font
+});
+
+// Load Formula 1 Wide font separately for special uses
+const formula1Wide = localFont({
+  src: [
+    {
+      path: "../public/fonts/Formula1-Wide.ttf",
+      weight: "400",
+      style: "normal",
+    },
+  ],
+  variable: "--font-formula1-wide",
+  display: "swap",
+  preload: true,
+  fallback: ["system-ui", "sans-serif"],
 });
 
 // Keep Inter as a fallback
@@ -39,8 +59,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Hossain & Sons",
-  description: "Hossain & Sons Oil change & Service Center",
+  title: "HNS Automotive",
+  description: "HNS Automotive Oil change & Service Center",
   manifest: "/manifest.json",
 };
 
@@ -59,14 +79,28 @@ export default function RootLayout({
         <link rel="icon" href="/favicon.ico" />
         <link
           rel="preload"
-          href="/fonts/GeneralSans-Variable.ttf"
+          href="/fonts/Formula1-Regular-1.ttf"
           as="font"
           type="font/ttf"
           crossOrigin="anonymous"
         />
         <link
           rel="preload"
-          href="/fonts/GeneralSans-VariableItalic.ttf"
+          href="/fonts/Formula1-Bold-4.ttf"
+          as="font"
+          type="font/ttf"
+          crossOrigin="anonymous"
+        />
+        <link
+          rel="preload"
+          href="/fonts/Formula1-Black.ttf"
+          as="font"
+          type="font/ttf"
+          crossOrigin="anonymous"
+        />
+        <link
+          rel="preload"
+          href="/fonts/Formula1-Wide.ttf"
           as="font"
           type="font/ttf"
           crossOrigin="anonymous"
@@ -102,12 +136,34 @@ export default function RootLayout({
               -webkit-overflow-scrolling: touch;
             }
           }
+          
+          /* Formula 1 font adjustments */
+          body {
+            letter-spacing: -0.02em;
+            font-feature-settings: "kern" 1, "liga" 1;
+          }
+          
+          h1, h2, h3, h4, h5, h6 {
+            letter-spacing: -0.03em;
+            font-weight: 700;
+          }
+          
+          /* Reduce the boldness appearance */
+          b, strong {
+            font-weight: 700;
+          }
+          
+          /* Adjust button text */
+          button, .button {
+            letter-spacing: -0.01em;
+            font-weight: 400;
+          }
         `,
           }}
         />
       </head>
       <body
-        className={`${generalSans.variable} ${inter.variable} font-sans antialiased`}
+        className={`${formula1.variable} ${formula1Wide.variable} ${inter.variable} font-sans antialiased`}
         suppressHydrationWarning
       >
         <UserProvider>
