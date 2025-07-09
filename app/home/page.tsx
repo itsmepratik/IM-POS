@@ -259,7 +259,9 @@ function MetricCard({ title, value, comparison, link }: MetricCardProps) {
         <CardTitle className="text-base font-medium">{title}</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="text-2xl font-bold">{value}</div>
+        <div className="text-2xl font-bold" style={{ color: "#886e6e" }}>
+          {value}
+        </div>
         <p className="text-xs text-muted-foreground mt-1">{comparison}</p>
         {link && (
           <div className="mt-3">
