@@ -114,6 +114,11 @@ export function ProductModal({
     const defaultImage = isOil ? "default-oil.jpg" : "default-filter.jpg";
 
     try {
+      // Special case for Shell 20W-50 to use the oil.png image
+      if (isOil && productName === "Shell" && productType === "20W-50") {
+        return "/images/oil.png";
+      }
+
       // Format: brand-type.jpg (lowercase, spaces replaced with hyphens)
       return `${basePath}${productName.toLowerCase()}-${productType
         .toLowerCase()
@@ -149,6 +154,10 @@ export function ProductModal({
               alt={`${productName} ${productType}`}
               className="object-contain w-full h-full p-2"
               onError={(e) => {
+                console.log(
+                  `Error loading image for ${productName} ${productType}`
+                );
+                e.currentTarget.onerror = null; // Prevent infinite error loops
                 e.currentTarget.src = isOil
                   ? "/oils/default-oil.jpg"
                   : "/filters/default-filter.jpg";

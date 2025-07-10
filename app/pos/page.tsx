@@ -182,6 +182,21 @@ const oilProducts: OilProduct[] = [
     ],
   },
   {
+    id: 104,
+    brand: "Toyota",
+    name: "20W-50",
+    basePrice: 37.99,
+    type: "20W-50",
+    image: "/oils/toyota-20w50.jpg",
+    volumes: [
+      { size: "5L", price: 37.99 },
+      { size: "4L", price: 32.99 },
+      { size: "1L", price: 10.99 },
+      { size: "500ml", price: 6.49 },
+      { size: "250ml", price: 3.79 },
+    ],
+  },
+  {
     id: 201,
     brand: "Shell",
     name: "0W-20",
@@ -227,6 +242,21 @@ const oilProducts: OilProduct[] = [
     ],
   },
   {
+    id: 204,
+    brand: "Shell",
+    name: "20W-50",
+    basePrice: 42.99,
+    type: "20W-50",
+    image: "/images/oil.png",
+    volumes: [
+      { size: "5L", price: 42.99 },
+      { size: "4L", price: 36.99 },
+      { size: "1L", price: 12.99 },
+      { size: "500ml", price: 7.49 },
+      { size: "250ml", price: 4.49 },
+    ],
+  },
+  {
     id: 301,
     brand: "Lexus",
     name: "0W-20",
@@ -254,6 +284,21 @@ const oilProducts: OilProduct[] = [
       { size: "1L", price: 14.99 },
       { size: "500ml", price: 8.99 },
       { size: "250ml", price: 5.99 },
+    ],
+  },
+  {
+    id: 303,
+    brand: "Lexus",
+    name: "20W-50",
+    basePrice: 47.99,
+    type: "20W-50",
+    image: "/oils/lexus-20w50.jpg",
+    volumes: [
+      { size: "5L", price: 47.99 },
+      { size: "4L", price: 41.99 },
+      { size: "1L", price: 13.99 },
+      { size: "500ml", price: 8.49 },
+      { size: "250ml", price: 5.49 },
     ],
   },
 ];
@@ -1802,16 +1847,21 @@ export default function POSPage() {
                                       onClick={() => handleOilSelect(oil)}
                                     >
                                       <div className="relative w-16 h-16 sm:w-24 sm:h-24 mt-1 mb-1">
-                                        {oil.image && !oilImageError ? (
+                                        {oil.image ? (
                                           <Image
                                             src={oil.image}
                                             alt={`${oil.brand} ${oil.type}`}
                                             className="object-contain"
                                             fill
                                             sizes="(max-width: 768px) 64px, 96px"
-                                            onError={() =>
-                                              setOilImageError(true)
-                                            }
+                                            onError={(e) => {
+                                              // Prevent the default error behavior which would hide the image
+                                              e.currentTarget.onerror = null;
+                                              // Keep showing the image even if there's an error
+                                              console.log(
+                                                `Error loading image for ${oil.brand} ${oil.type}`
+                                              );
+                                            }}
                                           />
                                         ) : (
                                           <div className="w-full h-full flex items-center justify-center bg-muted rounded-md">
@@ -2332,14 +2382,20 @@ export default function POSPage() {
 
               <div className="flex justify-center mb-4 sm:mb-6">
                 <div className="relative w-[120px] h-[120px] sm:w-[160px] sm:h-[160px] border-2 border-border rounded-lg overflow-hidden bg-muted">
-                  {!oilImageError && selectedOil?.image ? (
+                  {selectedOil?.image ? (
                     <Image
                       src={selectedOil.image}
                       alt={`${selectedOil.brand} ${selectedOil.type}`}
                       className="object-contain p-2"
                       fill
                       sizes="(max-width: 768px) 120px, 160px"
-                      onError={() => setOilImageError(true)}
+                      onError={(e) => {
+                        // Prevent the default error behavior
+                        e.currentTarget.onerror = null;
+                        console.log(
+                          `Error loading image for ${selectedOil.brand} ${selectedOil.type} in modal`
+                        );
+                      }}
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">

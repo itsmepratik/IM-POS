@@ -337,8 +337,9 @@ export function MobileNav({ className }: { className?: string }) {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent
-                className="w-[12rem] sm:w-[12.5rem] rounded-xl border-2 p-2"
+                className="w-[15.5rem] max-w-full sm:w-[280px] rounded-xl border-2 p-2"
                 align="end"
+                side="top"
                 forceMount
               >
                 <DropdownMenuItem className="rounded-lg py-2">
