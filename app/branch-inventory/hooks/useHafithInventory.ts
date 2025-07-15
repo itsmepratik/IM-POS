@@ -17,10 +17,10 @@ export const HAFITH_BRANCH = {
 const HAFITH_INVENTORY: Item[] = [
   {
     id: "2",
-    name: "Engine Oil 10W-40",
+    name: "Engine Lubricant 10W-40",
     price: 24.99,
     stock: 8,
-    category: "Oils",
+    category: "Lubricants",
     brand: "Mobil",
     brand_id: "2",
     category_id: "1",
@@ -32,8 +32,22 @@ const HAFITH_INVENTORY: Item[] = [
     imageUrl: "/placeholders/oil.jpg",
     image_url: "/placeholders/oil.jpg",
     volumes: [
-      { id: "v4", item_id: "2", size: "1L", price: 9.99, created_at: null, updated_at: null },
-      { id: "v5", item_id: "2", size: "4L", price: 24.99, created_at: null, updated_at: null },
+      {
+        id: "v4",
+        item_id: "2",
+        size: "1L",
+        price: 9.99,
+        created_at: null,
+        updated_at: null,
+      },
+      {
+        id: "v5",
+        item_id: "2",
+        size: "4L",
+        price: 24.99,
+        created_at: null,
+        updated_at: null,
+      },
     ],
     bottleStates: { open: 2, closed: 6 },
     created_at: new Date().toISOString(),
@@ -75,8 +89,22 @@ const HAFITH_INVENTORY: Item[] = [
     imageUrl: "/placeholders/fluid.jpg",
     image_url: "/placeholders/fluid.jpg",
     volumes: [
-      { id: "v6", item_id: "6", size: "1L", price: 9.99, created_at: null, updated_at: null },
-      { id: "v7", item_id: "6", size: "3.78L", price: 19.99, created_at: null, updated_at: null },
+      {
+        id: "v6",
+        item_id: "6",
+        size: "1L",
+        price: 9.99,
+        created_at: null,
+        updated_at: null,
+      },
+      {
+        id: "v7",
+        item_id: "6",
+        size: "3.78L",
+        price: 19.99,
+        created_at: null,
+        updated_at: null,
+      },
     ],
     bottleStates: { open: 5, closed: 20 },
     created_at: new Date().toISOString(),
@@ -99,8 +127,22 @@ const HAFITH_INVENTORY: Item[] = [
     imageUrl: "/placeholders/fluid.jpg",
     image_url: "/placeholders/fluid.jpg",
     volumes: [
-      { id: "v11", item_id: "10", size: "1L", price: 4.99, created_at: null, updated_at: null },
-      { id: "v12", item_id: "10", size: "3.78L", price: 8.99, created_at: null, updated_at: null },
+      {
+        id: "v11",
+        item_id: "10",
+        size: "1L",
+        price: 4.99,
+        created_at: null,
+        updated_at: null,
+      },
+      {
+        id: "v12",
+        item_id: "10",
+        size: "3.78L",
+        price: 8.99,
+        created_at: null,
+        updated_at: null,
+      },
     ],
     bottleStates: { open: 10, closed: 45 },
     created_at: new Date().toISOString(),
@@ -109,10 +151,10 @@ const HAFITH_INVENTORY: Item[] = [
   // Hafith specific products
   {
     id: "13",
-    name: "Racing Motor Oil",
+    name: "Racing Motor Lubricant",
     price: 49.99,
     stock: 15,
-    category: "Oils",
+    category: "Lubricants",
     brand: "Motul",
     brand_id: "11",
     category_id: "1",
@@ -124,8 +166,22 @@ const HAFITH_INVENTORY: Item[] = [
     imageUrl: "/placeholders/oil.jpg",
     image_url: "/placeholders/oil.jpg",
     volumes: [
-      { id: "v14", item_id: "13", size: "1L", price: 20.99, created_at: null, updated_at: null },
-      { id: "v15", item_id: "13", size: "4L", price: 49.99, created_at: null, updated_at: null },
+      {
+        id: "v14",
+        item_id: "13",
+        size: "1L",
+        price: 20.99,
+        created_at: null,
+        updated_at: null,
+      },
+      {
+        id: "v15",
+        item_id: "13",
+        size: "4L",
+        price: 49.99,
+        created_at: null,
+        updated_at: null,
+      },
     ],
     bottleStates: { open: 4, closed: 11 },
     created_at: new Date().toISOString(),
@@ -149,7 +205,7 @@ const HAFITH_INVENTORY: Item[] = [
     image_url: "/placeholders/brakes.jpg",
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
-  }
+  },
 ];
 
 interface UseHafithInventoryReturn {
@@ -159,7 +215,7 @@ interface UseHafithInventoryReturn {
   categories: string[];
   brands: string[];
   isLoading: boolean;
-  
+
   // UI states
   searchQuery: string;
   setSearchQuery: (query: string) => void;
@@ -169,7 +225,7 @@ interface UseHafithInventoryReturn {
   setShowLowStock: (show: boolean) => void;
   selectedItems: string[];
   setSelectedItems: (items: string[]) => void;
-  
+
   // Modal states
   isModalOpen: boolean;
   setIsModalOpen: (isOpen: boolean) => void;
@@ -181,14 +237,14 @@ interface UseHafithInventoryReturn {
   setIsFiltersOpen: (isOpen: boolean) => void;
   editingItem: Item | null;
   setEditingItem: (item: Item | null) => void;
-  
+
   // Oil-specific data
   oilItems: Item[];
   nonOilItems: Item[];
-  
+
   // Branch data
   selectedBranch: typeof HAFITH_BRANCH;
-  
+
   // Actions
   toggleItem: (id: string) => void;
   toggleAll: (checked: boolean) => void;
@@ -207,19 +263,19 @@ export function useHafithInventory(): UseHafithInventoryReturn {
   const [branchItems, setBranchItems] = useState<Item[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
-  
+
   // UI states
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [showLowStock, setShowLowStock] = useState(false);
-  
+
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [isBrandModalOpen, setIsBrandModalOpen] = useState(false);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Item | null>(null);
-  
+
   // Utility states
   const [isFixingInventory, setIsFixingInventory] = useState(false);
   const [isMigratingInventory, setIsMigratingInventory] = useState(false);
@@ -241,20 +297,22 @@ export function useHafithInventory(): UseHafithInventoryReturn {
         setIsLoading(false);
       }
     };
-    
+
     fetchData();
   }, []);
 
   const fetchBranchInventory = async (): Promise<Item[]> => {
     // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise((resolve) => setTimeout(resolve, 1000));
     return HAFITH_INVENTORY;
   };
 
   // Derived states
   const categories = useMemo(() => {
     const allCategories = Array.from(
-      new Set(branchItems.map((item) => item.category).filter(Boolean) as string[])
+      new Set(
+        branchItems.map((item) => item.category).filter(Boolean) as string[]
+      )
     );
     return allCategories;
   }, [branchItems]);
@@ -311,14 +369,14 @@ export function useHafithInventory(): UseHafithInventoryReturn {
   const handleDeleteItem = async (id: string): Promise<void> => {
     try {
       // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
       // Update local state
       setBranchItems((prev) => prev.filter((item) => item.id !== id));
-      
+
       // Update selected items
       setSelectedItems((prev) => prev.filter((itemId) => itemId !== id));
-      
+
       toast({
         title: "Success",
         description: "Item deleted successfully",
@@ -343,7 +401,7 @@ export function useHafithInventory(): UseHafithInventoryReturn {
     setIsFixingInventory(true);
     try {
       // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise((resolve) => setTimeout(resolve, 2000));
       toast({
         title: "Success",
         description: "Inventory fixed successfully",
@@ -364,7 +422,7 @@ export function useHafithInventory(): UseHafithInventoryReturn {
     setIsMigratingInventory(true);
     try {
       // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      await new Promise((resolve) => setTimeout(resolve, 3000));
       toast({
         title: "Success",
         description: "Inventory migrated successfully",
@@ -388,7 +446,7 @@ export function useHafithInventory(): UseHafithInventoryReturn {
     categories,
     brands,
     isLoading,
-    
+
     // UI states
     searchQuery,
     setSearchQuery,
@@ -398,7 +456,7 @@ export function useHafithInventory(): UseHafithInventoryReturn {
     setShowLowStock,
     selectedItems,
     setSelectedItems,
-    
+
     // Modal states
     isModalOpen,
     setIsModalOpen,
@@ -410,14 +468,14 @@ export function useHafithInventory(): UseHafithInventoryReturn {
     setIsFiltersOpen,
     editingItem,
     setEditingItem,
-    
+
     // Oil-specific data
     oilItems,
     nonOilItems,
-    
+
     // Branch data
     selectedBranch: HAFITH_BRANCH,
-    
+
     // Actions
     toggleItem,
     toggleAll,
@@ -430,4 +488,4 @@ export function useHafithInventory(): UseHafithInventoryReturn {
     isFixingInventory,
     isMigratingInventory,
   };
-} 
+}

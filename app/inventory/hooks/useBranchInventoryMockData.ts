@@ -10,10 +10,10 @@ const MOCK_BRANCH_INVENTORY: Record<string, Item[]> = {
   "1": [
     {
       id: "1",
-      name: "Engine Oil 5W-30",
+      name: "Engine Lubricant 5W-30",
       price: 29.99,
       stock: 45,
-      category: "Oils",
+      category: "Lubricants",
       brand: "Castrol",
       brand_id: "1",
       category_id: "1",
@@ -25,9 +25,30 @@ const MOCK_BRANCH_INVENTORY: Record<string, Item[]> = {
       imageUrl: "/placeholders/oil.jpg",
       image_url: "/placeholders/oil.jpg",
       volumes: [
-        { id: "v1", item_id: "1", size: "1L", price: 12.99, created_at: null, updated_at: null },
-        { id: "v2", item_id: "1", size: "4L", price: 29.99, created_at: null, updated_at: null },
-        { id: "v3", item_id: "1", size: "5L", price: 34.99, created_at: null, updated_at: null },
+        {
+          id: "v1",
+          item_id: "1",
+          size: "1L",
+          price: 12.99,
+          created_at: null,
+          updated_at: null,
+        },
+        {
+          id: "v2",
+          item_id: "1",
+          size: "4L",
+          price: 29.99,
+          created_at: null,
+          updated_at: null,
+        },
+        {
+          id: "v3",
+          item_id: "1",
+          size: "5L",
+          price: 34.99,
+          created_at: null,
+          updated_at: null,
+        },
       ],
       bottleStates: { open: 3, closed: 42 },
       created_at: new Date().toISOString(),
@@ -88,22 +109,29 @@ const MOCK_BRANCH_INVENTORY: Record<string, Item[]> = {
       imageUrl: "/placeholders/fluid.jpg",
       image_url: "/placeholders/fluid.jpg",
       volumes: [
-        { id: "v10", item_id: "9", size: "1L", price: 16.99, created_at: null, updated_at: null },
+        {
+          id: "v10",
+          item_id: "9",
+          size: "1L",
+          price: 16.99,
+          created_at: null,
+          updated_at: null,
+        },
       ],
       bottleStates: { open: 3, closed: 25 },
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     },
   ],
-  
+
   // Branch 2 (Hafeet Branch)
   "2": [
     {
       id: "2",
-      name: "Engine Oil 10W-40",
+      name: "Engine Lubricant 10W-40",
       price: 24.99,
       stock: 8,
-      category: "Oils",
+      category: "Lubricants",
       brand: "Mobil",
       brand_id: "2",
       category_id: "1",
@@ -115,8 +143,22 @@ const MOCK_BRANCH_INVENTORY: Record<string, Item[]> = {
       imageUrl: "/placeholders/oil.jpg",
       image_url: "/placeholders/oil.jpg",
       volumes: [
-        { id: "v4", item_id: "2", size: "1L", price: 9.99, created_at: null, updated_at: null },
-        { id: "v5", item_id: "2", size: "4L", price: 24.99, created_at: null, updated_at: null },
+        {
+          id: "v4",
+          item_id: "2",
+          size: "1L",
+          price: 9.99,
+          created_at: null,
+          updated_at: null,
+        },
+        {
+          id: "v5",
+          item_id: "2",
+          size: "4L",
+          price: 24.99,
+          created_at: null,
+          updated_at: null,
+        },
       ],
       bottleStates: { open: 2, closed: 6 },
       created_at: new Date().toISOString(),
@@ -158,8 +200,22 @@ const MOCK_BRANCH_INVENTORY: Record<string, Item[]> = {
       imageUrl: "/placeholders/fluid.jpg",
       image_url: "/placeholders/fluid.jpg",
       volumes: [
-        { id: "v6", item_id: "6", size: "1L", price: 9.99, created_at: null, updated_at: null },
-        { id: "v7", item_id: "6", size: "3.78L", price: 19.99, created_at: null, updated_at: null },
+        {
+          id: "v6",
+          item_id: "6",
+          size: "1L",
+          price: 9.99,
+          created_at: null,
+          updated_at: null,
+        },
+        {
+          id: "v7",
+          item_id: "6",
+          size: "3.78L",
+          price: 19.99,
+          created_at: null,
+          updated_at: null,
+        },
       ],
       bottleStates: { open: 5, closed: 20 },
       created_at: new Date().toISOString(),
@@ -182,15 +238,29 @@ const MOCK_BRANCH_INVENTORY: Record<string, Item[]> = {
       imageUrl: "/placeholders/fluid.jpg",
       image_url: "/placeholders/fluid.jpg",
       volumes: [
-        { id: "v11", item_id: "10", size: "1L", price: 4.99, created_at: null, updated_at: null },
-        { id: "v12", item_id: "10", size: "3.78L", price: 8.99, created_at: null, updated_at: null },
+        {
+          id: "v11",
+          item_id: "10",
+          size: "1L",
+          price: 4.99,
+          created_at: null,
+          updated_at: null,
+        },
+        {
+          id: "v12",
+          item_id: "10",
+          size: "3.78L",
+          price: 8.99,
+          created_at: null,
+          updated_at: null,
+        },
       ],
       bottleStates: { open: 10, closed: 45 },
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     },
   ],
-  
+
   // Branch 3 (West Side Branch)
   "3": [
     {
@@ -210,8 +280,22 @@ const MOCK_BRANCH_INVENTORY: Record<string, Item[]> = {
       imageUrl: "/placeholders/fluid.jpg",
       image_url: "/placeholders/fluid.jpg",
       volumes: [
-        { id: "v8", item_id: "7", size: "1L", price: 7.99, created_at: null, updated_at: null },
-        { id: "v9", item_id: "7", size: "3.78L", price: 14.99, created_at: null, updated_at: null },
+        {
+          id: "v8",
+          item_id: "7",
+          size: "1L",
+          price: 7.99,
+          created_at: null,
+          updated_at: null,
+        },
+        {
+          id: "v9",
+          item_id: "7",
+          size: "3.78L",
+          price: 14.99,
+          created_at: null,
+          updated_at: null,
+        },
       ],
       bottleStates: { open: 8, closed: 30 },
       created_at: new Date().toISOString(),
@@ -240,10 +324,26 @@ const MOCK_BRANCH_INVENTORY: Record<string, Item[]> = {
 };
 
 // Mock data for categories
-const MOCK_CATEGORIES = ["Oils", "Filters", "Brakes", "Fluids", "Exterior", "All"];
+const MOCK_CATEGORIES = [
+  "Lubricants",
+  "Filters",
+  "Brakes",
+  "Fluids",
+  "Exterior",
+  "All",
+];
 
 // Mock brands
-const MOCK_BRANDS = ["Castrol", "Mobil", "Bosch", "K&N", "Akebono", "Valvoline", "Prestone", "Rain-X"];
+const MOCK_BRANDS = [
+  "Castrol",
+  "Mobil",
+  "Bosch",
+  "K&N",
+  "Akebono",
+  "Valvoline",
+  "Prestone",
+  "Rain-X",
+];
 
 // Interface for the returned data
 interface UseBranchInventoryMockDataReturn {
@@ -253,7 +353,7 @@ interface UseBranchInventoryMockDataReturn {
   categories: string[];
   brands: string[];
   isLoading: boolean;
-  
+
   // UI states
   searchQuery: string;
   setSearchQuery: (query: string) => void;
@@ -263,7 +363,7 @@ interface UseBranchInventoryMockDataReturn {
   setShowLowStock: (show: boolean) => void;
   selectedItems: string[];
   setSelectedItems: (items: string[]) => void;
-  
+
   // Modal states
   isModalOpen: boolean;
   setIsModalOpen: (isOpen: boolean) => void;
@@ -275,16 +375,16 @@ interface UseBranchInventoryMockDataReturn {
   setIsFiltersOpen: (isOpen: boolean) => void;
   editingItem: Item | null;
   setEditingItem: (item: Item | null) => void;
-  
+
   // Oil-specific data
   oilItems: Item[];
   nonOilItems: Item[];
-  
+
   // Branch data
   branches: typeof MOCK_BRANCHES;
-  selectedBranch: typeof MOCK_BRANCHES[0] | null;
-  setSelectedBranch: (branch: typeof MOCK_BRANCHES[0] | null) => void;
-  
+  selectedBranch: (typeof MOCK_BRANCHES)[0] | null;
+  setSelectedBranch: (branch: (typeof MOCK_BRANCHES)[0] | null) => void;
+
   // Actions
   toggleItem: (id: string) => void;
   toggleAll: (checked: boolean) => void;
@@ -300,163 +400,174 @@ interface UseBranchInventoryMockDataReturn {
 
 export function useBranchInventoryMockData(): UseBranchInventoryMockDataReturn {
   // State for branch and items
-  const [selectedBranch, setSelectedBranch] = useState<typeof MOCK_BRANCHES[0] | null>(MOCK_BRANCHES[0]);
+  const [selectedBranch, setSelectedBranch] = useState<
+    (typeof MOCK_BRANCHES)[0] | null
+  >(MOCK_BRANCHES[0]);
   const [branchItems, setBranchItems] = useState<Item[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isFixingInventory, setIsFixingInventory] = useState(false);
   const [isMigratingInventory, setIsMigratingInventory] = useState(false);
-  
+
   // UI state
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [showLowStock, setShowLowStock] = useState(false);
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
-  
+
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [isBrandModalOpen, setIsBrandModalOpen] = useState(false);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Item | null>(null);
-  
+
   // Mock fetch function for branch inventory
   const fetchBranchInventory = async (branchId: string): Promise<Item[]> => {
     setIsLoading(true);
-    
+
     try {
       // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
+      await new Promise((resolve) => setTimeout(resolve, 800));
+
       // Get mock data for the selected branch
       const items = MOCK_BRANCH_INVENTORY[branchId] || [];
-      console.log(`Fetched ${items.length} items for branch ${branchId} (mock)`);
-      
+      console.log(
+        `Fetched ${items.length} items for branch ${branchId} (mock)`
+      );
+
       setBranchItems(items);
       return items;
     } catch (error) {
-      console.error('Error fetching branch inventory:', error);
+      console.error("Error fetching branch inventory:", error);
       return [];
     } finally {
       setIsLoading(false);
     }
   };
-  
+
   // Load branch items when branch changes
   useEffect(() => {
     if (selectedBranch) {
       fetchBranchInventory(selectedBranch.id);
     }
   }, [selectedBranch]);
-  
+
   // Oil-specific data
-  const oilItems = useMemo(() => branchItems.filter(item => item.isOil), [branchItems]);
-  const nonOilItems = useMemo(() => branchItems.filter(item => !item.isOil), [branchItems]);
-  
+  const oilItems = useMemo(
+    () => branchItems.filter((item) => item.isOil),
+    [branchItems]
+  );
+  const nonOilItems = useMemo(
+    () => branchItems.filter((item) => !item.isOil),
+    [branchItems]
+  );
+
   // Filtered items based on search query, category, and low stock filter
   const filteredItems = useMemo(() => {
     return branchItems.filter((item) => {
       // Search query filter
-      const matchesSearch = 
+      const matchesSearch =
         item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (item.category?.toLowerCase() || "").includes(searchQuery.toLowerCase()) ||
+        (item.category?.toLowerCase() || "").includes(
+          searchQuery.toLowerCase()
+        ) ||
         (item.brand?.toLowerCase() || "").includes(searchQuery.toLowerCase()) ||
         (item.type?.toLowerCase() || "").includes(searchQuery.toLowerCase()) ||
         (item.sku?.toLowerCase() || "").includes(searchQuery.toLowerCase());
-      
+
       // Category filter
-      const matchesCategory = 
-        selectedCategory === "All" || 
-        item.category === selectedCategory;
-      
+      const matchesCategory =
+        selectedCategory === "All" || item.category === selectedCategory;
+
       // Low stock filter
       const matchesLowStock = !showLowStock || (item.stock || 0) < 10;
-      
+
       return matchesSearch && matchesCategory && matchesLowStock;
     });
   }, [branchItems, searchQuery, selectedCategory, showLowStock]);
-  
+
   // Action handlers
   const toggleItem = (id: string) => {
     setSelectedItems((prev) =>
       prev.includes(id) ? prev.filter((itemId) => itemId !== id) : [...prev, id]
     );
   };
-  
+
   const toggleAll = (checked: boolean) => {
     setSelectedItems(checked ? filteredItems.map((item) => item.id) : []);
   };
-  
+
   const handleEdit = (item: Item) => {
     setEditingItem(item);
     setIsModalOpen(true);
   };
-  
+
   const handleDeleteItem = async (id: string): Promise<void> => {
     if (!selectedBranch) return;
-    
+
     try {
       setIsLoading(true);
       // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
       // Remove item from branch inventory
-      const updatedItems = branchItems.filter(item => item.id !== id);
+      const updatedItems = branchItems.filter((item) => item.id !== id);
       setBranchItems(updatedItems);
-      
+
       console.log(`Deleted item ${id} from branch ${selectedBranch.id} (mock)`);
     } catch (error) {
-      console.error('Error deleting item:', error);
+      console.error("Error deleting item:", error);
     } finally {
       setIsLoading(false);
     }
   };
-  
+
   const resetFilters = () => {
     setSearchQuery("");
     setSelectedCategory("All");
     setShowLowStock(false);
     setIsFiltersOpen(false);
   };
-  
+
   // Mock functions for fixing inventory and migration
   const handleRunInventoryFix = async (): Promise<void> => {
     if (!selectedBranch) return;
-    
+
     setIsFixingInventory(true);
-    
+
     try {
       // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise((resolve) => setTimeout(resolve, 2000));
       console.log(`Fixed inventory for branch ${selectedBranch.id} (mock)`);
-      
+
       // Refresh branch inventory
       await fetchBranchInventory(selectedBranch.id);
     } catch (error) {
-      console.error('Error fixing inventory:', error);
+      console.error("Error fixing inventory:", error);
     } finally {
       setIsFixingInventory(false);
     }
   };
-  
+
   const handleMigrateInventory = async (): Promise<void> => {
     if (!selectedBranch) return;
-    
+
     setIsMigratingInventory(true);
-    
+
     try {
       // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      await new Promise((resolve) => setTimeout(resolve, 3000));
       console.log(`Migrated inventory for branch ${selectedBranch.id} (mock)`);
-      
+
       // Refresh branch inventory
       await fetchBranchInventory(selectedBranch.id);
     } catch (error) {
-      console.error('Error migrating inventory:', error);
+      console.error("Error migrating inventory:", error);
     } finally {
       setIsMigratingInventory(false);
     }
   };
-  
+
   return {
     // Data
     branchItems,
@@ -464,7 +575,7 @@ export function useBranchInventoryMockData(): UseBranchInventoryMockDataReturn {
     categories: MOCK_CATEGORIES,
     brands: MOCK_BRANDS,
     isLoading,
-    
+
     // UI states
     searchQuery,
     setSearchQuery,
@@ -474,7 +585,7 @@ export function useBranchInventoryMockData(): UseBranchInventoryMockDataReturn {
     setShowLowStock,
     selectedItems,
     setSelectedItems,
-    
+
     // Modal states
     isModalOpen,
     setIsModalOpen,
@@ -486,16 +597,16 @@ export function useBranchInventoryMockData(): UseBranchInventoryMockDataReturn {
     setIsFiltersOpen,
     editingItem,
     setEditingItem,
-    
+
     // Oil-specific data
     oilItems,
     nonOilItems,
-    
+
     // Branch data
     branches: MOCK_BRANCHES,
     selectedBranch,
     setSelectedBranch,
-    
+
     // Actions
     toggleItem,
     toggleAll,
@@ -508,4 +619,4 @@ export function useBranchInventoryMockData(): UseBranchInventoryMockDataReturn {
     isFixingInventory,
     isMigratingInventory,
   };
-} 
+}

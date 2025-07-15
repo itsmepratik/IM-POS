@@ -84,7 +84,7 @@ export const RefundReceipt: React.FC<RefundReceiptProps> = ({
       itemName += ` (${item.details})`;
     }
 
-    // Add bottle type for oils
+    // Add bottle type for lubricants
     if (item.bottleType) {
       itemName += ` - ${
         item.bottleType === "open" ? "Open Bottle" : "Closed Bottle"
@@ -101,7 +101,7 @@ export const RefundReceipt: React.FC<RefundReceiptProps> = ({
       if (type) return type;
     }
 
-    if (item.name.toLowerCase().includes("oil")) return "oil";
+    if (item.name.toLowerCase().includes("lubricant")) return "lubricant";
     if (item.name.toLowerCase().includes("filter")) return "filter";
     if (item.name.toLowerCase().includes("battery")) return "battery";
     if (item.name.toLowerCase().includes("fluid")) return "fluid";

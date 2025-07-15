@@ -100,7 +100,7 @@ export function FilterModal({
             {filters.map((filter) => (
               <button
                 key={filter.id}
-                className="flex flex-col items-center justify-center rounded-lg border bg-background shadow-sm p-3 sm:p-4 h-[140px] sm:h-[160px] transition hover:bg-accent focus:outline-none focus:ring-2 focus:ring-primary/50 w-full"
+                className="flex flex-col items-center justify-center border-2 rounded-[33px] bg-background shadow-sm p-3 sm:p-4 h-[140px] sm:h-[160px] transition hover:bg-accent focus:outline-none focus:ring-2 focus:ring-primary/50 w-full"
                 onClick={() => onFilterClick(filter)}
                 type="button"
               >

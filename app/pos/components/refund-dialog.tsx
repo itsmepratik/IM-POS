@@ -144,12 +144,12 @@ const mockReceipts: Receipt[] = [
         name: "Shell Helix Ultra 5W-30",
         price: 45.99,
         quantity: 1,
-        uniqueId: "2001-oil",
-        details: "Synthetic Engine Oil",
+        uniqueId: "2001-lubricant",
+        details: "Synthetic Engine Lubricant",
       },
       {
         id: 2002,
-        name: "Toyota Oil Filter",
+        name: "Toyota Lubricant Filter",
         price: 12.5,
         quantity: 1,
         uniqueId: "2002-filter",
@@ -163,7 +163,7 @@ const mockReceipts: Receipt[] = [
       },
       {
         id: 2004,
-        name: "Oil Change Service",
+        name: "Lubricant Change Service",
         price: 12.27,
         quantity: 1,
         uniqueId: "2004-service",
@@ -182,12 +182,12 @@ const mockReceipts: Receipt[] = [
         name: "Castrol EDGE 0W-20",
         price: 52.99,
         quantity: 2,
-        uniqueId: "3001-oil",
+        uniqueId: "3001-lubricant",
         details: "Full Synthetic",
       },
       {
         id: 3002,
-        name: "Mobil 1 Extended Performance Oil Filter",
+        name: "Mobil 1 Extended Performance Lubricant Filter",
         price: 24.99,
         quantity: 1,
         uniqueId: "3002-filter",
@@ -348,14 +348,14 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
   };
 
   // Add test handlers to pre-populate receipt and selections for testing
-  const testOilFilterRefund = () => {
-    // Use receipt B1234 which has oils and filters
+  const testLubricantFilterRefund = () => {
+    // Use receipt B1234 which has lubricants and filters
     setReceiptNumber("B1234");
     const receipt = mockReceipts.find((r) => r.receiptNumber === "B1234");
     if (receipt) {
       setCurrentReceipt(receipt);
-      // Select the oil and filter items
-      setSelectedItems(["2001-oil", "2002-filter"]);
+      // Select the lubricant and filter items
+      setSelectedItems(["2001-lubricant", "2002-filter"]);
       setStep("select");
     }
   };
@@ -733,10 +733,10 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={testOilFilterRefund}
+                          onClick={testLubricantFilterRefund}
                           className="h-auto py-1.5 text-xs"
                         >
-                          Test Oil & Filter Refund
+                          Test Lubricant & Filter Refund
                         </Button>
                         <Button
                           size="sm"
@@ -1600,8 +1600,8 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
 
           <!-- Service description -->
           <div class="service-description">
-            TYRE REPAIRING & OIL CHANGING OF VEHICLES
-            <div class="service-description-arabic">إصلاح الإطارات وتغيير النفط للمركبات</div>
+            TYRE REPAIRING & LUBRICANT CHANGING OF VEHICLES
+                          <div class="service-description-arabic">إصلاح الإطارات وتغيير مواد التشحيم للمركبات</div>
           </div>
           
           <!-- Warranty claim text -->

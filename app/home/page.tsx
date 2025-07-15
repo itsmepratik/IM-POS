@@ -170,7 +170,7 @@ function HomePageContent() {
           </section>
 
           <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <Card>
+            <Card className="border-2 rounded-[33px]">
               <CardHeader className="pb-2">
                 <CardTitle>Payment types</CardTitle>
               </CardHeader>
@@ -205,7 +205,7 @@ function HomePageContent() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="border-2 rounded-[33px]">
               <CardHeader className="pb-2">
                 <CardTitle>Top selling items</CardTitle>
               </CardHeader>
@@ -254,12 +254,12 @@ interface MetricCardProps {
 
 function MetricCard({ title, value, comparison, link }: MetricCardProps) {
   return (
-    <Card>
+    <Card className="border-2 rounded-[33px]">
       <CardHeader className="pb-2">
         <CardTitle className="text-base font-medium">{title}</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="text-2xl font-bold" style={{ color: "#886e6e" }}>
+        <div className="text-2xl font-bold" style={{ color: "#5f5f5f" }}>
           {value}
         </div>
         <p className="text-xs text-muted-foreground mt-1">{comparison}</p>

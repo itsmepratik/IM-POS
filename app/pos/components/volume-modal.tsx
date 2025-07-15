@@ -18,8 +18,8 @@ interface Volume {
 interface VolumeModalProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  selectedOilBrand: string | null;
-  selectedOilType: string | null;
+  selectedLubricantBrand: string | null;
+  selectedLubricantType: string | null;
   volumes: Array<{ id: number; name: string; price: number }>;
   selectedVolumes: Volume[];
   onVolumeClick: (volume: { id: number; name: string; price: number }) => void;
@@ -31,8 +31,8 @@ interface VolumeModalProps {
 export function VolumeModal({
   isOpen,
   onOpenChange,
-  selectedOilBrand,
-  selectedOilType,
+  selectedLubricantBrand,
+  selectedLubricantType,
   volumes,
   selectedVolumes,
   onVolumeClick,
@@ -50,20 +50,20 @@ export function VolumeModal({
       <DialogContent className="w-[90%] max-w-[500px] p-6 rounded-lg">
         <DialogHeader className="pb-4">
           <DialogTitle className="text-[clamp(1.125rem,3vw,1.25rem)] font-semibold">
-            {selectedOilBrand} - {selectedOilType}
+            {selectedLubricantBrand} - {selectedLubricantType}
           </DialogTitle>
         </DialogHeader>
 
         <div className="flex justify-center mb-6">
           <div className="relative w-[140px] h-[140px] sm:w-[160px] sm:h-[160px] border-2 border-border rounded-lg overflow-hidden bg-muted">
             <img
-              src={`/oils/${selectedOilBrand?.toLowerCase()}-${selectedOilType
+              src={`/lubricants/${selectedLubricantBrand?.toLowerCase()}-${selectedLubricantType
                 ?.toLowerCase()
                 .replace(" ", "-")}.jpg`}
-              alt={`${selectedOilBrand} ${selectedOilType}`}
+              alt={`${selectedLubricantBrand} ${selectedLubricantType}`}
               className="object-contain w-full h-full p-2"
               onError={(e) => {
-                e.currentTarget.src = "/oils/default-oil.jpg";
+                e.currentTarget.src = "/lubricants/default-lubricant.jpg";
               }}
             />
           </div>

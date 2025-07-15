@@ -56,10 +56,10 @@ const MOCK_INVENTORY: Record<string, Item[]> = {
   "1": [
     {
       id: "1",
-      name: "Engine Oil 5W-30",
+      name: "Engine Lubricant 5W-30",
       price: 29.99,
       stock: 45,
-      category: "Oils",
+      category: "Lubricants",
       brand: "Castrol",
       type: "Synthetic",
       sku: "OIL-5W30-CAS",
@@ -71,13 +71,34 @@ const MOCK_INVENTORY: Record<string, Item[]> = {
       imageUrl: "/placeholders/oil.jpg",
       image_url: "/placeholders/oil.jpg",
       volumes: [
-        { id: "v1", item_id: "1", size: "1L", price: 12.99, created_at: null, updated_at: null },
-        { id: "v2", item_id: "1", size: "4L", price: 29.99, created_at: null, updated_at: null },
-        { id: "v3", item_id: "1", size: "5L", price: 34.99, created_at: null, updated_at: null },
+        {
+          id: "v1",
+          item_id: "1",
+          size: "1L",
+          price: 12.99,
+          created_at: null,
+          updated_at: null,
+        },
+        {
+          id: "v2",
+          item_id: "1",
+          size: "4L",
+          price: 29.99,
+          created_at: null,
+          updated_at: null,
+        },
+        {
+          id: "v3",
+          item_id: "1",
+          size: "5L",
+          price: 34.99,
+          created_at: null,
+          updated_at: null,
+        },
       ],
       bottleStates: { open: 3, closed: 42 },
       created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
     },
     {
       id: "3",
@@ -96,18 +117,18 @@ const MOCK_INVENTORY: Record<string, Item[]> = {
       imageUrl: "/placeholders/filter.jpg",
       image_url: "/placeholders/filter.jpg",
       created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    }
+      updated_at: new Date().toISOString(),
+    },
   ],
-  
+
   // Branch 2 (Hafeet Branch)
   "2": [
     {
       id: "2",
-      name: "Engine Oil 10W-40",
+      name: "Engine Lubricant 10W-40",
       price: 24.99,
       stock: 8,
-      category: "Oils",
+      category: "Lubricants",
       brand: "Mobil",
       type: "Semi-Synthetic",
       sku: "OIL-10W40-MOB",
@@ -119,15 +140,29 @@ const MOCK_INVENTORY: Record<string, Item[]> = {
       imageUrl: "/placeholders/oil.jpg",
       image_url: "/placeholders/oil.jpg",
       volumes: [
-        { id: "v4", item_id: "2", size: "1L", price: 9.99, created_at: null, updated_at: null },
-        { id: "v5", item_id: "2", size: "4L", price: 24.99, created_at: null, updated_at: null },
+        {
+          id: "v4",
+          item_id: "2",
+          size: "1L",
+          price: 9.99,
+          created_at: null,
+          updated_at: null,
+        },
+        {
+          id: "v5",
+          item_id: "2",
+          size: "4L",
+          price: 24.99,
+          created_at: null,
+          updated_at: null,
+        },
       ],
       bottleStates: { open: 2, closed: 6 },
       created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    }
+      updated_at: new Date().toISOString(),
+    },
   ],
-  
+
   // Branch 3 (West Side Branch)
   "3": [
     {
@@ -147,8 +182,8 @@ const MOCK_INVENTORY: Record<string, Item[]> = {
       imageUrl: "/placeholders/filter.jpg",
       image_url: "/placeholders/filter.jpg",
       created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    }
+      updated_at: new Date().toISOString(),
+    },
   ],
 };
 
@@ -157,21 +192,32 @@ const MOCK_INVENTORY: Record<string, Item[]> = {
  * @param item The item to normalize
  * @returns The normalized item
  */
-export const normalizeItem = (item: Partial<Item> | Record<string, unknown>): Item => {
-  const { is_oil, image_url, description, ...rest } = item as Record<string, unknown>;
-  
+export const normalizeItem = (
+  item: Partial<Item> | Record<string, unknown>
+): Item => {
+  const { is_oil, image_url, description, ...rest } = item as Record<
+    string,
+    unknown
+  >;
+
   // Cast rest to Record<string, unknown> for type safety
   const restRecord = rest as Record<string, unknown>;
-  
+
   // Create a base object with the required properties
   const normalizedItem: Partial<Item> = {
     ...rest,
-    is_oil: typeof is_oil === 'boolean' ? is_oil : false,
-    isOil: typeof is_oil === 'boolean' ? is_oil : false,
-    image_url: image_url as string | null ?? null,
-    imageUrl: (image_url as string | null) ?? (restRecord.imageUrl as string | null) ?? null,
-    description: description as string | null ?? null,
-    notes: (description as string | null) ?? (restRecord.notes as string | null) ?? null,
+    is_oil: typeof is_oil === "boolean" ? is_oil : false,
+    isOil: typeof is_oil === "boolean" ? is_oil : false,
+    image_url: (image_url as string | null) ?? null,
+    imageUrl:
+      (image_url as string | null) ??
+      (restRecord.imageUrl as string | null) ??
+      null,
+    description: (description as string | null) ?? null,
+    notes:
+      (description as string | null) ??
+      (restRecord.notes as string | null) ??
+      null,
     // Ensure required Item properties have default values
     brand_id: (restRecord.brand_id as string) ?? null,
     category_id: (restRecord.category_id as string) ?? null,
@@ -179,14 +225,18 @@ export const normalizeItem = (item: Partial<Item> | Record<string, unknown>): It
     updated_at: (restRecord.updated_at as string) ?? null,
     type: (restRecord.type as string) ?? null,
     sku: (restRecord.sku as string) ?? null,
-    lowStockAlert: typeof restRecord.lowStockAlert === 'number' ? (restRecord.lowStockAlert as number) : 5,
-    
+    lowStockAlert:
+      typeof restRecord.lowStockAlert === "number"
+        ? (restRecord.lowStockAlert as number)
+        : 5,
+
     // Default values for required properties that might be missing
-    id: (restRecord.id as string) || 'unknown-id',
-    name: (restRecord.name as string) || 'Unknown Item',
-    price: typeof restRecord.price === 'number' ? (restRecord.price as number) : 0,
+    id: (restRecord.id as string) || "unknown-id",
+    name: (restRecord.name as string) || "Unknown Item",
+    price:
+      typeof restRecord.price === "number" ? (restRecord.price as number) : 0,
   };
-  
+
   return normalizedItem as Item;
 };
 
@@ -195,20 +245,22 @@ export const normalizeItem = (item: Partial<Item> | Record<string, unknown>): It
  * @param branchId The ID of the branch to fetch inventory for
  * @returns Array of inventory items for the specified branch
  */
-export const fetchBranchInventory = async (branchId: string): Promise<Item[]> => {
+export const fetchBranchInventory = async (
+  branchId: string
+): Promise<Item[]> => {
   try {
-    console.log('Fetching inventory for branch ID:', branchId);
-    
+    console.log("Fetching inventory for branch ID:", branchId);
+
     // Add a delay to simulate API call
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
     // Get mock data for the branch
     const items = MOCK_INVENTORY[branchId] || [];
-    
+
     // Return normalized items
-    return items.map(item => normalizeItem(item));
+    return items.map((item) => normalizeItem(item));
   } catch (error) {
-    console.error('Error in fetchBranchInventory:', error);
+    console.error("Error in fetchBranchInventory:", error);
     return [];
   }
 };
@@ -219,33 +271,40 @@ export const fetchBranchInventory = async (branchId: string): Promise<Item[]> =>
  * @param branchId The ID of the branch
  * @returns Boolean indicating whether the operation was successful
  */
-export const deleteBranchItem = async (itemId: string, branchId?: string): Promise<boolean> => {
+export const deleteBranchItem = async (
+  itemId: string,
+  branchId?: string
+): Promise<boolean> => {
   try {
     console.log(`Deleting item ${itemId} from branch ${branchId} (mock)`);
-    
+
     // Add a delay to simulate API call
-    await new Promise(resolve => setTimeout(resolve, 300));
-    
+    await new Promise((resolve) => setTimeout(resolve, 300));
+
     if (branchId && MOCK_INVENTORY[branchId]) {
       // Remove the item from the branch's inventory (if it exists)
       const initialLength = MOCK_INVENTORY[branchId].length;
-      MOCK_INVENTORY[branchId] = MOCK_INVENTORY[branchId].filter(item => item.id !== itemId);
+      MOCK_INVENTORY[branchId] = MOCK_INVENTORY[branchId].filter(
+        (item) => item.id !== itemId
+      );
       return MOCK_INVENTORY[branchId].length < initialLength;
     }
-    
+
     // If no branchId provided, delete from all branches
     let deletedAny = false;
-    Object.keys(MOCK_INVENTORY).forEach(branch => {
+    Object.keys(MOCK_INVENTORY).forEach((branch) => {
       const initialLength = MOCK_INVENTORY[branch].length;
-      MOCK_INVENTORY[branch] = MOCK_INVENTORY[branch].filter(item => item.id !== itemId);
+      MOCK_INVENTORY[branch] = MOCK_INVENTORY[branch].filter(
+        (item) => item.id !== itemId
+      );
       if (MOCK_INVENTORY[branch].length < initialLength) {
         deletedAny = true;
       }
     });
-    
+
     return deletedAny;
   } catch (error) {
-    console.error('Error in deleteBranchItem:', error);
+    console.error("Error in deleteBranchItem:", error);
     return false;
   }
 };
@@ -263,26 +322,30 @@ export const updateBranchItemQuantity = async (
   quantity: number
 ): Promise<boolean> => {
   try {
-    console.log(`Updating quantity for item ${itemId} in branch ${branchId} to ${quantity} (mock)`);
-    
+    console.log(
+      `Updating quantity for item ${itemId} in branch ${branchId} to ${quantity} (mock)`
+    );
+
     // Add a delay to simulate API call
-    await new Promise(resolve => setTimeout(resolve, 300));
-    
+    await new Promise((resolve) => setTimeout(resolve, 300));
+
     if (MOCK_INVENTORY[branchId]) {
-      const itemIndex = MOCK_INVENTORY[branchId].findIndex(item => item.id === itemId);
+      const itemIndex = MOCK_INVENTORY[branchId].findIndex(
+        (item) => item.id === itemId
+      );
       if (itemIndex >= 0) {
         MOCK_INVENTORY[branchId][itemIndex] = {
           ...MOCK_INVENTORY[branchId][itemIndex],
           stock: quantity,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         };
         return true;
       }
     }
-    
+
     return false;
   } catch (error) {
-    console.error('Error in updateBranchItemQuantity:', error);
+    console.error("Error in updateBranchItemQuantity:", error);
     return false;
   }
 };
@@ -302,27 +365,31 @@ export const updateBranchBottleStates = async (
   closedBottles: number
 ): Promise<boolean> => {
   try {
-    console.log(`Updating bottle states for item ${itemId} in branch ${branchId}: open=${openBottles}, closed=${closedBottles} (mock)`);
-    
+    console.log(
+      `Updating bottle states for item ${itemId} in branch ${branchId}: open=${openBottles}, closed=${closedBottles} (mock)`
+    );
+
     // Add a delay to simulate API call
-    await new Promise(resolve => setTimeout(resolve, 300));
-    
+    await new Promise((resolve) => setTimeout(resolve, 300));
+
     if (MOCK_INVENTORY[branchId]) {
-      const itemIndex = MOCK_INVENTORY[branchId].findIndex(item => item.id === itemId);
+      const itemIndex = MOCK_INVENTORY[branchId].findIndex(
+        (item) => item.id === itemId
+      );
       if (itemIndex >= 0 && MOCK_INVENTORY[branchId][itemIndex].is_oil) {
         MOCK_INVENTORY[branchId][itemIndex] = {
           ...MOCK_INVENTORY[branchId][itemIndex],
           bottleStates: { open: openBottles, closed: closedBottles },
           stock: openBottles + closedBottles,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         };
         return true;
       }
     }
-    
+
     return false;
   } catch (error) {
-    console.error('Error in updateBranchBottleStates:', error);
+    console.error("Error in updateBranchBottleStates:", error);
     return false;
   }
-}; 
+};

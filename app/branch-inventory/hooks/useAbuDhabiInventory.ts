@@ -17,10 +17,10 @@ export const ABU_DHABI_BRANCH = {
 const ABU_DHABI_INVENTORY: Item[] = [
   {
     id: "1",
-    name: "Engine Oil 5W-30",
+    name: "Engine Lubricant 5W-30",
     price: 29.99,
     stock: 45,
-    category: "Oils",
+    category: "Lubricants",
     brand: "Castrol",
     brand_id: "1",
     category_id: "1",
@@ -32,9 +32,30 @@ const ABU_DHABI_INVENTORY: Item[] = [
     imageUrl: "/placeholders/oil.jpg",
     image_url: "/placeholders/oil.jpg",
     volumes: [
-      { id: "v1", item_id: "1", size: "1L", price: 12.99, created_at: null, updated_at: null },
-      { id: "v2", item_id: "1", size: "4L", price: 29.99, created_at: null, updated_at: null },
-      { id: "v3", item_id: "1", size: "5L", price: 34.99, created_at: null, updated_at: null },
+      {
+        id: "v1",
+        item_id: "1",
+        size: "1L",
+        price: 12.99,
+        created_at: null,
+        updated_at: null,
+      },
+      {
+        id: "v2",
+        item_id: "1",
+        size: "4L",
+        price: 29.99,
+        created_at: null,
+        updated_at: null,
+      },
+      {
+        id: "v3",
+        item_id: "1",
+        size: "5L",
+        price: 34.99,
+        created_at: null,
+        updated_at: null,
+      },
     ],
     bottleStates: { open: 3, closed: 42 },
     created_at: new Date().toISOString(),
@@ -95,7 +116,14 @@ const ABU_DHABI_INVENTORY: Item[] = [
     imageUrl: "/placeholders/fluid.jpg",
     image_url: "/placeholders/fluid.jpg",
     volumes: [
-      { id: "v10", item_id: "9", size: "1L", price: 16.99, created_at: null, updated_at: null },
+      {
+        id: "v10",
+        item_id: "9",
+        size: "1L",
+        price: 16.99,
+        created_at: null,
+        updated_at: null,
+      },
     ],
     bottleStates: { open: 3, closed: 25 },
     created_at: new Date().toISOString(),
@@ -119,7 +147,14 @@ const ABU_DHABI_INVENTORY: Item[] = [
     imageUrl: "/placeholders/fluid.jpg",
     image_url: "/placeholders/fluid.jpg",
     volumes: [
-      { id: "v13", item_id: "11", size: "1L", price: 18.99, created_at: null, updated_at: null },
+      {
+        id: "v13",
+        item_id: "11",
+        size: "1L",
+        price: 18.99,
+        created_at: null,
+        updated_at: null,
+      },
     ],
     bottleStates: { open: 5, closed: 35 },
     created_at: new Date().toISOString(),
@@ -143,7 +178,7 @@ const ABU_DHABI_INVENTORY: Item[] = [
     image_url: "/placeholders/cleaning.jpg",
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
-  }
+  },
 ];
 
 interface UseAbuDhabiInventoryReturn {
@@ -153,7 +188,7 @@ interface UseAbuDhabiInventoryReturn {
   categories: string[];
   brands: string[];
   isLoading: boolean;
-  
+
   // UI states
   searchQuery: string;
   setSearchQuery: (query: string) => void;
@@ -163,7 +198,7 @@ interface UseAbuDhabiInventoryReturn {
   setShowLowStock: (show: boolean) => void;
   selectedItems: string[];
   setSelectedItems: (items: string[]) => void;
-  
+
   // Modal states
   isModalOpen: boolean;
   setIsModalOpen: (isOpen: boolean) => void;
@@ -175,14 +210,14 @@ interface UseAbuDhabiInventoryReturn {
   setIsFiltersOpen: (isOpen: boolean) => void;
   editingItem: Item | null;
   setEditingItem: (item: Item | null) => void;
-  
+
   // Oil-specific data
   oilItems: Item[];
   nonOilItems: Item[];
-  
+
   // Branch data
   selectedBranch: typeof ABU_DHABI_BRANCH;
-  
+
   // Actions
   toggleItem: (id: string) => void;
   toggleAll: (checked: boolean) => void;
@@ -201,19 +236,19 @@ export function useAbuDhabiInventory(): UseAbuDhabiInventoryReturn {
   const [branchItems, setBranchItems] = useState<Item[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
-  
+
   // UI states
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [showLowStock, setShowLowStock] = useState(false);
-  
+
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [isBrandModalOpen, setIsBrandModalOpen] = useState(false);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Item | null>(null);
-  
+
   // Utility states
   const [isFixingInventory, setIsFixingInventory] = useState(false);
   const [isMigratingInventory, setIsMigratingInventory] = useState(false);
@@ -235,20 +270,22 @@ export function useAbuDhabiInventory(): UseAbuDhabiInventoryReturn {
         setIsLoading(false);
       }
     };
-    
+
     fetchData();
   }, []);
 
   const fetchBranchInventory = async (): Promise<Item[]> => {
     // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise((resolve) => setTimeout(resolve, 1000));
     return ABU_DHABI_INVENTORY;
   };
 
   // Derived states
   const categories = useMemo(() => {
     const allCategories = Array.from(
-      new Set(branchItems.map((item) => item.category).filter(Boolean) as string[])
+      new Set(
+        branchItems.map((item) => item.category).filter(Boolean) as string[]
+      )
     );
     return allCategories;
   }, [branchItems]);
@@ -305,14 +342,14 @@ export function useAbuDhabiInventory(): UseAbuDhabiInventoryReturn {
   const handleDeleteItem = async (id: string): Promise<void> => {
     try {
       // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
       // Update local state
       setBranchItems((prev) => prev.filter((item) => item.id !== id));
-      
+
       // Update selected items
       setSelectedItems((prev) => prev.filter((itemId) => itemId !== id));
-      
+
       toast({
         title: "Success",
         description: "Item deleted successfully",
@@ -337,7 +374,7 @@ export function useAbuDhabiInventory(): UseAbuDhabiInventoryReturn {
     setIsFixingInventory(true);
     try {
       // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise((resolve) => setTimeout(resolve, 2000));
       toast({
         title: "Success",
         description: "Inventory fixed successfully",
@@ -358,7 +395,7 @@ export function useAbuDhabiInventory(): UseAbuDhabiInventoryReturn {
     setIsMigratingInventory(true);
     try {
       // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      await new Promise((resolve) => setTimeout(resolve, 3000));
       toast({
         title: "Success",
         description: "Inventory migrated successfully",
@@ -382,7 +419,7 @@ export function useAbuDhabiInventory(): UseAbuDhabiInventoryReturn {
     categories,
     brands,
     isLoading,
-    
+
     // UI states
     searchQuery,
     setSearchQuery,
@@ -392,7 +429,7 @@ export function useAbuDhabiInventory(): UseAbuDhabiInventoryReturn {
     setShowLowStock,
     selectedItems,
     setSelectedItems,
-    
+
     // Modal states
     isModalOpen,
     setIsModalOpen,
@@ -404,14 +441,14 @@ export function useAbuDhabiInventory(): UseAbuDhabiInventoryReturn {
     setIsFiltersOpen,
     editingItem,
     setEditingItem,
-    
+
     // Oil-specific data
     oilItems,
     nonOilItems,
-    
+
     // Branch data
     selectedBranch: ABU_DHABI_BRANCH,
-    
+
     // Actions
     toggleItem,
     toggleAll,
@@ -424,4 +461,4 @@ export function useAbuDhabiInventory(): UseAbuDhabiInventoryReturn {
     isFixingInventory,
     isMigratingInventory,
   };
-} 
+}

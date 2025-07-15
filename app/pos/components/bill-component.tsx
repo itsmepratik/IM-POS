@@ -113,6 +113,8 @@ export const BillComponent: React.FC<BillComponentProps> = ({
           @page {
             size: A5;
             margin: 0;
+            margin-top: 0.35cm;
+            margin-bottom: 0.40cm;
           }
           html, body {
             height: 100%; /* Ensure html and body take full height */
@@ -149,10 +151,8 @@ export const BillComponent: React.FC<BillComponentProps> = ({
           .left-header {
             width: 30%;
             text-align: left;
-            font-size: 8px !important;
+            font-size: 13.5px !important;
             -webkit-text-size-adjust: none;
-            transform-origin: left top;
-            transform: scale(0.8);
           }
           .center-header {
             width: 40%;
@@ -161,22 +161,20 @@ export const BillComponent: React.FC<BillComponentProps> = ({
           .right-header {
             width: 30%;
             text-align: right;
-            font-size: 8px !important;
+            font-size: 12.5px !important;
             -webkit-text-size-adjust: none;
-            transform-origin: right top;
-            transform: scale(0.8);
             direction: rtl;
           }
           .company-name {
             color: #0000CC;
-            font-size: 9pt;
+            font-size: 16.5px;
             font-weight: bold;
             text-transform: uppercase;
             white-space: nowrap;
           }
           .company-arabic-name {
             color: #0000CC;
-            font-size: 8pt;
+            font-size: 15.5px;
             font-weight: bold;
             margin-top: 2px;
           }
@@ -187,14 +185,12 @@ export const BillComponent: React.FC<BillComponentProps> = ({
           .service-description {
             text-align: center;
             font-weight: bold;
-            font-size: 9px;
+            font-size: 13.5px;
             margin: 15px 0;
-            border-top: 1px solid #ccc;
-            border-bottom: 1px solid #ccc;
             padding: 6px 0;
           }
           .service-description-arabic {
-            font-size: 8px;
+            font-size: 12.5px;
             margin-top: 2px;
           }
           /* Warranty claim text */
@@ -223,29 +219,35 @@ export const BillComponent: React.FC<BillComponentProps> = ({
           }
           .bill-number {
             text-align: left;
-            font-size: 9px;
+            font-size: 13.5px;
           }
           .print-date {
             text-align: right;
-            font-size: 9px;
+            font-size: 13.5px;
           }
           .customer-info {
             text-align: left;
-            font-size: 9px;
+            font-size: 13.5px;
             font-weight: bold;
             margin-bottom: 8px;
           }
+          .customer-name {
+            font-weight: normal;
+          }
           .car-plate {
             text-align: right;
-            font-size: 9px;
+            font-size: 13.5px;
             font-weight: bold;
+          }
+          .plate-number {
+            font-weight: normal;
           }
           /* Items table */
           .items-table {
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 20px;
-            font-size: 9px;
+            font-size: 13.5px;
           }
           .items-table th, .items-table td {
             padding: 6px 5px;
@@ -270,7 +272,7 @@ export const BillComponent: React.FC<BillComponentProps> = ({
           .summary-table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 9px;
+            font-size: 13.5px;
           }
           .summary-table td {
             padding: 3px 0;
@@ -286,12 +288,9 @@ export const BillComponent: React.FC<BillComponentProps> = ({
             border-top: 1px solid #000;
             margin: 6px 0;
           }
-          .trade-in {
-            color: #D9534F;
-          }
           .total-row {
             font-weight: bold;
-            font-size: 10px;
+            font-size: 15.5px;
             color: #0000CC;
           }
           
@@ -301,12 +300,11 @@ export const BillComponent: React.FC<BillComponentProps> = ({
             justify-content: space-between;
             margin-top: 5px;
             margin-bottom: 0;
-            font-size: 8px !important;
+            font-size: 12.5px !important;
             -webkit-text-size-adjust: none;
           }
           .cashier-info {
             text-align: left;
-            transform-origin: left center;
           }
           .signature-line {
             text-align: right;
@@ -317,18 +315,14 @@ export const BillComponent: React.FC<BillComponentProps> = ({
             width: 150px;
             text-align: center;
             padding-top: 3px;
-            font-size: 8px !important;
+            font-size: 12.5px !important;
             -webkit-text-size-adjust: none;
-            transform-origin: right center;
-            transform: scale(0.8);
             color: #777;
           }
           .footer {
             text-align: center;
-            font-size: 8px !important;
+            font-size: 12.5px !important;
             -webkit-text-size-adjust: none;
-            transform-origin: center top;
-            transform: scale(0.8);
             color: #333;
             width: 100%;
             padding-top: 0;
@@ -347,7 +341,7 @@ export const BillComponent: React.FC<BillComponentProps> = ({
           }
           .footer-thank-you {
             font-style: italic;
-            font-size: 7px !important;
+            font-size: 12.5px !important;
             -webkit-text-size-adjust: none;
             line-height: 1.2;
           }
@@ -392,9 +386,9 @@ export const BillComponent: React.FC<BillComponentProps> = ({
                       ${
                         isWarrantyClaim
                           ? `<!-- Warranty claim text -->
-                   <div style="text-align: center; font-weight: bold; font-size: 9px; margin: 8px 0; color: #D9534F; border-bottom: 1px solid #ccc; padding-bottom: 6px;">
+                   <div style="text-align: center; font-weight: bold; font-size: 13.5px; margin: 8px 0; color: #D9534F; border-bottom: 1px solid #ccc; padding-bottom: 6px;">
                      <span style="border: 1px solid #D9534F; padding: 2px 8px; display: inline-block;">WARRANTY CLAIM CERTIFICATE</span>
-                     <div style="font-size: 9px; margin-top: 4px; color: #D9534F;">شهادة ضمان</div>
+                     <div style="font-size: 13.5px; margin-top: 4px; color: #D9534F;">شهادة ضمان</div>
                    </div>`
                           : ""
                       }
@@ -411,9 +405,13 @@ export const BillComponent: React.FC<BillComponentProps> = ({
           <!-- Customer info with two columns -->
           <table class="bill-info-table">
             <tr>
-              <td class="customer-info">To, Mr./Mrs.: ${customerName || ""}</td>
+              <td class="customer-info">To, Mr./Mrs.: <span class="customer-name">${
+                customerName || ""
+              }</span></td>
               <td class="car-plate">${
-                isWarrantyClaim ? "Warranty Type: Battery" : "Car Plate: 1456 B"
+                isWarrantyClaim
+                  ? "Warranty Type: Battery"
+                  : `Car Plate: <span class="plate-number">1456 B</span>`
               }</td>
             </tr>
           </table>
@@ -457,9 +455,11 @@ export const BillComponent: React.FC<BillComponentProps> = ({
             ${
               finalTradeInAmount > 0
                 ? `
-              <tr class="trade-in">
+              <tr style="color: #D9534E;">
                 <td class="label">Trade-In Amount</td>
-                <td class="amount">- ${finalTradeInAmount.toFixed(3)}</td>
+                <td class="amount" style="color: #D9534E;">- ${finalTradeInAmount.toFixed(
+                  3
+                )}</td>
               </tr>
             `
                 : ""
@@ -467,13 +467,15 @@ export const BillComponent: React.FC<BillComponentProps> = ({
             ${
               mainDiscountAmount > 0
                 ? `
-              <tr class="trade-in">
+              <tr style="color: #D9534E;">
                 <td class="label">Discount ${
                   appliedDiscount?.type === "percentage"
                     ? `(${appliedDiscount.value}%)`
                     : `(Amount)`
                 }</td>
-                <td class="amount">- ${mainDiscountAmount.toFixed(3)}</td>
+                <td class="amount" style="color: #D9534E;">- ${mainDiscountAmount.toFixed(
+                  3
+                )}</td>
               </tr>
             `
                 : ""
@@ -481,9 +483,11 @@ export const BillComponent: React.FC<BillComponentProps> = ({
             ${
               oldBatteryDiscountAmount > 0
                 ? `
-              <tr class="trade-in">
+              <tr style="color: #D9534E;">
                 <td class="label">Discount on old battery</td>
-                <td class="amount">- ${oldBatteryDiscountAmount.toFixed(3)}</td>
+                <td class="amount" style="color: #D9534E;">- ${oldBatteryDiscountAmount.toFixed(
+                  3
+                )}</td>
               </tr>
             `
                 : ""
@@ -510,7 +514,6 @@ export const BillComponent: React.FC<BillComponentProps> = ({
             </div>
           </div>
 
-          <hr style="width: 100%; border: none; border-top: 1px solid #ccc; margin: 5px 0 2px 0;" />
           <div class="footer" style="border-top: none;">
             <div class="footer-contact">Contact no.: ${
               companyDetails.contactNumber
@@ -720,14 +723,14 @@ export const BillComponent: React.FC<BillComponentProps> = ({
             </div>
 
             {finalTradeInAmountForDisplay > 0 && (
-              <div className="flex justify-between text-xs text-red-600">
+              <div className="flex justify-between text-xs text-[#D9534E]">
                 <span>Trade-In Amount</span>
                 <span>- OMR {finalTradeInAmountForDisplay.toFixed(3)}</span>
               </div>
             )}
 
             {mainDiscountForDisplay > 0 && (
-              <div className="flex justify-between text-xs text-red-600">
+              <div className="flex justify-between text-xs text-[#D9534E]">
                 <span>
                   Discount{" "}
                   {appliedDiscount?.type === "percentage"
@@ -739,7 +742,7 @@ export const BillComponent: React.FC<BillComponentProps> = ({
             )}
 
             {oldBatteryDiscountForDisplay > 0 && (
-              <div className="flex justify-between text-xs text-red-600">
+              <div className="flex justify-between text-xs text-[#D9534E]">
                 <span>Discount on old battery</span>
                 <span>- OMR {oldBatteryDiscountForDisplay.toFixed(3)}</span>
               </div>

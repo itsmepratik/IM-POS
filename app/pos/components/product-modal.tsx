@@ -103,20 +103,22 @@ export function ProductModal({
     onOpenChange(false);
   };
 
-  const isOil =
+  const isLubricant =
     productType.toLowerCase().includes("0w-20") ||
     productType.toLowerCase().includes("5w-30") ||
-    productType.toLowerCase().includes("engine oil");
+    productType.toLowerCase().includes("engine lubricant");
 
   // Get image path based on product type
   const getImagePath = () => {
-    const basePath = isOil ? "/oils/" : "/filters/";
-    const defaultImage = isOil ? "default-oil.jpg" : "default-filter.jpg";
+    const basePath = isLubricant ? "/lubricants/" : "/filters/";
+    const defaultImage = isLubricant
+      ? "default-lubricant.jpg"
+      : "default-filter.jpg";
 
     try {
-      // Special case for Shell 20W-50 to use the oil.png image
-      if (isOil && productName === "Shell" && productType === "20W-50") {
-        return "/images/oil.png";
+      // Special case for Shell 20W-50 to use the lubricant.png image
+      if (isLubricant && productName === "Shell" && productType === "20W-50") {
+        return "/images/lubricant.png";
       }
 
       // Format: brand-type.jpg (lowercase, spaces replaced with hyphens)
@@ -158,8 +160,8 @@ export function ProductModal({
                   `Error loading image for ${productName} ${productType}`
                 );
                 e.currentTarget.onerror = null; // Prevent infinite error loops
-                e.currentTarget.src = isOil
-                  ? "/oils/default-oil.jpg"
+                e.currentTarget.src = isLubricant
+                  ? "/lubricants/default-lubricant.jpg"
                   : "/filters/default-filter.jpg";
               }}
             />
@@ -228,7 +230,7 @@ export function ProductModal({
                         <span className="font-medium text-[clamp(0.875rem,2vw,1rem)]">
                           {variant.name}
                         </span>
-                        {isOil &&
+                        {isLubricant &&
                           (variant.name === "1L" ||
                             variant.name === "500ml") && (
                             <div

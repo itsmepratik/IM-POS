@@ -34,6 +34,7 @@ import {
   Droplet,
   Package,
   Trash2,
+  Wrench,
 } from "lucide-react";
 import {
   Dialog,
@@ -89,7 +90,7 @@ import { BillComponent } from "./components/bill-component";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useStaffIDs } from "@/lib/hooks/useStaffIDs";
 
-interface OilProduct {
+interface LubricantProduct {
   id: number;
   brand: string;
   name: string;
@@ -134,15 +135,15 @@ interface ImportedCustomer {
   // Add any other properties that might be in imported customers
 }
 
-// Updated oil products data structure
-const oilProducts: OilProduct[] = [
+// Updated lubricant products data structure
+const lubricantProducts: LubricantProduct[] = [
   {
     id: 101,
     brand: "Toyota",
     name: "0W-20",
     basePrice: 39.99,
     type: "0W-20",
-    image: "/oils/toyota-0w20.jpg",
+    image: "/lubricants/toyota-0w20.jpg", // Updated from oils to lubricants
     volumes: [
       { size: "5L", price: 39.99 },
       { size: "4L", price: 34.99 },
@@ -157,7 +158,7 @@ const oilProducts: OilProduct[] = [
     name: "5W-30",
     basePrice: 39.99,
     type: "5W-30",
-    image: "/oils/toyota-5w30.jpg",
+    image: "/lubricants/toyota-5w30.jpg",
     volumes: [
       { size: "5L", price: 39.99 },
       { size: "4L", price: 34.99 },
@@ -172,7 +173,7 @@ const oilProducts: OilProduct[] = [
     name: "10W-30",
     basePrice: 39.99,
     type: "10W-30",
-    image: "/oils/toyota-10w30.jpg",
+    image: "/lubricants/toyota-10w30.jpg",
     volumes: [
       { size: "5L", price: 39.99 },
       { size: "4L", price: 34.99 },
@@ -187,7 +188,7 @@ const oilProducts: OilProduct[] = [
     name: "20W-50",
     basePrice: 37.99,
     type: "20W-50",
-    image: "/oils/toyota-20w50.jpg",
+    image: "/lubricants/toyota-20w50.jpg",
     volumes: [
       { size: "5L", price: 37.99 },
       { size: "4L", price: 32.99 },
@@ -202,7 +203,7 @@ const oilProducts: OilProduct[] = [
     name: "0W-20",
     basePrice: 45.99,
     type: "0W-20",
-    image: "/oils/shell-0w20.jpg",
+    image: "/lubricants/shell-0w20.jpg",
     volumes: [
       { size: "5L", price: 45.99 },
       { size: "4L", price: 39.99 },
@@ -217,7 +218,7 @@ const oilProducts: OilProduct[] = [
     name: "5W-30",
     basePrice: 45.99,
     type: "5W-30",
-    image: "/oils/shell-5w30.jpg",
+    image: "/lubricants/shell-5w30.jpg",
     volumes: [
       { size: "5L", price: 45.99 },
       { size: "4L", price: 39.99 },
@@ -232,7 +233,7 @@ const oilProducts: OilProduct[] = [
     name: "10W-40",
     basePrice: 35.99,
     type: "10W-40",
-    image: "/oils/shell-10w40.jpg",
+    image: "/lubricants/shell-10w40.jpg",
     volumes: [
       { size: "5L", price: 35.99 },
       { size: "4L", price: 31.99 },
@@ -262,7 +263,7 @@ const oilProducts: OilProduct[] = [
     name: "0W-20",
     basePrice: 49.99,
     type: "0W-20",
-    image: "/oils/lexus-0w20.jpg",
+    image: "/lubricants/lexus-0w20.jpg",
     volumes: [
       { size: "5L", price: 49.99 },
       { size: "4L", price: 43.99 },
@@ -277,7 +278,7 @@ const oilProducts: OilProduct[] = [
     name: "5W-30",
     basePrice: 49.99,
     type: "5W-30",
-    image: "/oils/lexus-5w30.jpg",
+    image: "/lubricants/lexus-5w30.jpg",
     volumes: [
       { size: "5L", price: 49.99 },
       { size: "4L", price: 43.99 },
@@ -292,7 +293,7 @@ const oilProducts: OilProduct[] = [
     name: "20W-50",
     basePrice: 47.99,
     type: "20W-50",
-    image: "/oils/lexus-20w50.jpg",
+    image: "/lubricants/lexus-20w50.jpg",
     volumes: [
       { size: "5L", price: 47.99 },
       { size: "4L", price: 41.99 },
@@ -1091,12 +1092,12 @@ function Numpad({
 
 export default function POSPage() {
   console.log("--- VERCEL DEBUG START ---");
-  console.log("oilProducts length:", oilProducts.length);
+  console.log("lubricantProducts length:", lubricantProducts.length);
   console.log(
-    "First oil product:",
-    oilProducts[0]
-      ? oilProducts[0].brand
-      : "oilProducts is empty or first item undefined"
+    "First lubricant product:",
+    lubricantProducts[0]
+      ? lubricantProducts[0].brand
+      : "lubricantProducts is empty or first item undefined"
   );
   console.log("products length:", products.length);
   console.log(
@@ -1106,12 +1107,13 @@ export default function POSPage() {
   console.log("--- VERCEL DEBUG END ---");
 
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [activeCategory, setActiveCategory] = useState<string>("Oil");
+  const [activeCategory, setActiveCategory] = useState<string>("Lubricant");
   const [searchQuery, setSearchQuery] = useState("");
   const [showCart, setShowCart] = useState(false);
   const [showClearCartDialog, setShowClearCartDialog] = useState(false);
   const [expandedBrand, setExpandedBrand] = useState<string | null>(null);
-  const [selectedOil, setSelectedOil] = useState<OilProduct | null>(null);
+  const [selectedLubricant, setSelectedLubricant] =
+    useState<LubricantProduct | null>(null);
   const [isVolumeModalOpen, setIsVolumeModalOpen] = useState(false);
   const [selectedVolumes, setSelectedVolumes] = useState<SelectedVolume[]>([]);
   const [selectedFilterBrand, setSelectedFilterBrand] = useState<string | null>(
@@ -1125,7 +1127,7 @@ export default function POSPage() {
     Array<{ id: number; name: string; price: number; quantity: number }>
   >([]);
   const [filterImageError, setFilterImageError] = useState(false);
-  const [oilImageError, setOilImageError] = useState(false);
+  const [lubricantImageError, setLubricantImageError] = useState(false);
   const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<
     "card" | "cash" | "mobile" | "voucher" | null
@@ -1244,7 +1246,7 @@ export default function POSPage() {
         // Find the original product to get the brand if it exists
         const originalProduct =
           products.find((p) => p.id === product.id) ||
-          oilProducts.find((p) => p.id === product.id);
+          lubricantProducts.find((p) => p.id === product.id);
 
         const brand =
           originalProduct && "brand" in originalProduct
@@ -1267,8 +1269,8 @@ export default function POSPage() {
     []
   );
 
-  const handleOilSelect = useCallback((oil: OilProduct) => {
-    setSelectedOil(oil);
+  const handleLubricantSelect = useCallback((lubricant: LubricantProduct) => {
+    setSelectedLubricant(lubricant);
     setSelectedVolumes([]);
     setIsVolumeModalOpen(true);
   }, []);
@@ -1299,7 +1301,9 @@ export default function POSPage() {
     size: string,
     bottleType: "open" | "closed"
   ) => {
-    const volumeDetails = selectedOil?.volumes.find((v) => v.size === size);
+    const volumeDetails = selectedLubricant?.volumes.find(
+      (v) => v.size === size
+    );
     if (volumeDetails) {
       setSelectedVolumes((prev) => {
         const existing = prev.find(
@@ -1334,14 +1338,14 @@ export default function POSPage() {
 
   const handleAddSelectedToCart = () => {
     selectedVolumes.forEach((volume) => {
-      if (selectedOil) {
+      if (selectedLubricant) {
         const details =
           volume.size +
           (volume.bottleType ? ` (${volume.bottleType} bottle)` : "");
         addToCart(
           {
-            id: selectedOil.id,
-            name: selectedOil.name,
+            id: selectedLubricant.id,
+            name: selectedLubricant.name,
             price: volume.price,
           },
           details,
@@ -1350,7 +1354,7 @@ export default function POSPage() {
       }
     });
     setIsVolumeModalOpen(false);
-    setSelectedOil(null);
+    setSelectedLubricant(null);
     setSelectedVolumes([]);
     if (isMobile) setShowCart(true);
   };
@@ -1362,12 +1366,14 @@ export default function POSPage() {
     // Navigate to Filters section and close modal
     setActiveCategory("Filters");
     setIsVolumeModalOpen(false);
-    setSelectedOil(null);
+    setSelectedLubricant(null);
     setSelectedVolumes([]);
     setSearchQuery(""); // Clear search when changing categories
   };
 
-  const oilBrands = Array.from(new Set(oilProducts.map((oil) => oil.brand)));
+  const lubricantBrands = Array.from(
+    new Set(lubricantProducts.map((lubricant) => lubricant.brand))
+  );
 
   const filterBrands = Array.from(
     new Set(
@@ -1387,17 +1393,17 @@ export default function POSPage() {
     );
 
   // Memoize filtered data
-  const filteredOilBrands = useMemo(
+  const filteredLubricantBrands = useMemo(
     () =>
-      oilBrands.filter((brand) =>
+      lubricantBrands.filter((brand) =>
         brand.toLowerCase().includes(searchQuery.toLowerCase())
       ),
-    [searchQuery, oilBrands]
+    [searchQuery, lubricantBrands]
   );
 
   const filteredProducts = useMemo(
     () =>
-      activeCategory === "Oil"
+      activeCategory === "Lubricant"
         ? []
         : products.filter((product) => {
             const matchesCategory = product.category === activeCategory;
@@ -1738,6 +1744,8 @@ export default function POSPage() {
 
   const [isDisputeDialogOpen, setIsDisputeDialogOpen] = useState(false);
   const [isWarrantyDialogOpen, setIsWarrantyDialogOpen] = useState(false);
+  const [isLaborDialogOpen, setIsLaborDialogOpen] = useState(false);
+  const [laborAmount, setLaborAmount] = useState<number>(0);
 
   const isMobile = useIsMobile();
 
@@ -1799,8 +1807,19 @@ export default function POSPage() {
                         suppressHydrationWarning
                       />
                     </div>
+
+                    {/* Labor Pill Button */}
+                    <Button
+                      variant="outline"
+                      className="w-full rounded-full border-2 border-blue-300 bg-blue-50 hover:bg-blue-100 text-blue-700 px-8 py-1 font-medium hover:border-blue-400 transition-colors shadow-sm mt-2 mb-2"
+                      onClick={() => setIsLaborDialogOpen(true)}
+                    >
+                      <Wrench className="h-4 w-4 mr-2" />
+                      Labor Service
+                    </Button>
+
                     <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 h-auto p-1 gap-1">
-                      <TabsTrigger value="Oil">Oil</TabsTrigger>
+                      <TabsTrigger value="Lubricant">Lubricant</TabsTrigger>
                       <TabsTrigger value="Filters">Filters</TabsTrigger>
                       <TabsTrigger value="Parts">Parts</TabsTrigger>
                       <TabsTrigger value="Additives & Fluids">
@@ -1810,9 +1829,9 @@ export default function POSPage() {
                   </div>
                   <ScrollArea className="flex-1 mt-4 -mx-2 px-2">
                     <div className="grid grid-cols-1 gap-4">
-                      {activeCategory === "Oil" ? (
-                        // Show oil brands with dropdown
-                        filteredOilBrands.map((brand) => (
+                      {activeCategory === "Lubricant" ? (
+                        // Show lubricant brands with dropdown
+                        filteredLubricantBrands.map((brand) => (
                           <div
                             key={brand}
                             className="border rounded-lg overflow-hidden"
@@ -1837,20 +1856,24 @@ export default function POSPage() {
                             </Button>
                             {expandedBrand === brand && (
                               <div className="p-4 bg-muted/50 grid grid-cols-2 sm:grid-cols-3 gap-4">
-                                {oilProducts
-                                  .filter((oil) => oil.brand === brand)
-                                  .map((oil) => (
+                                {lubricantProducts
+                                  .filter(
+                                    (lubricant) => lubricant.brand === brand
+                                  )
+                                  .map((lubricant) => (
                                     <Button
-                                      key={oil.id}
+                                      key={lubricant.id}
                                       variant="outline"
-                                      className="flex flex-col items-center justify-between p-3 sm:p-4 h-[160px] sm:h-[180px] md:h-[200px] overflow-hidden"
-                                      onClick={() => handleOilSelect(oil)}
+                                      className="border-2 rounded-[33px] flex flex-col items-center justify-between p-3 sm:p-4 h-[160px] sm:h-[180px] md:h-[200px] overflow-hidden"
+                                      onClick={() =>
+                                        handleLubricantSelect(lubricant)
+                                      }
                                     >
                                       <div className="relative w-16 h-16 sm:w-24 sm:h-24 mt-1 mb-1">
-                                        {oil.image ? (
+                                        {lubricant.image ? (
                                           <Image
-                                            src={oil.image}
-                                            alt={`${oil.brand} ${oil.type}`}
+                                            src={lubricant.image}
+                                            alt={`${lubricant.brand} ${lubricant.type}`}
                                             className="object-contain"
                                             fill
                                             sizes="(max-width: 768px) 64px, 96px"
@@ -1859,7 +1882,7 @@ export default function POSPage() {
                                               e.currentTarget.onerror = null;
                                               // Keep showing the image even if there's an error
                                               console.log(
-                                                `Error loading image for ${oil.brand} ${oil.type}`
+                                                `Error loading image for ${lubricant.brand} ${lubricant.type}`
                                               );
                                             }}
                                           />
@@ -1874,10 +1897,10 @@ export default function POSPage() {
                                           className="text-center font-medium text-xs sm:text-sm w-full px-1 word-wrap whitespace-normal leading-tight hyphens-auto"
                                           style={{ lineHeight: 1.1 }}
                                         >
-                                          {oil.type}
+                                          {lubricant.type}
                                         </span>
                                         <span className="block text-sm text-primary mt-2">
-                                          OMR {oil.basePrice.toFixed(2)}
+                                          OMR {lubricant.basePrice.toFixed(2)}
                                         </span>
                                       </div>
                                     </Button>
@@ -2049,7 +2072,7 @@ export default function POSPage() {
                                       <Button
                                         key={product.id}
                                         variant="outline"
-                                        className="flex flex-col items-center justify-between p-4 h-auto min-h-[150px] transition-all hover:shadow-md overflow-hidden"
+                                        className="border-2 rounded-[33px] flex flex-col items-center justify-between p-4 h-auto min-h-[150px] transition-all hover:shadow-md overflow-hidden"
                                         onClick={() => {
                                           const brandedName = product.brand
                                             ? `${product.brand} ${product.name}`
@@ -2376,16 +2399,16 @@ export default function POSPage() {
             <DialogContent className="w-[90%] max-w-[500px] p-4 sm:p-6 rounded-lg">
               <DialogHeader className="pb-3 sm:pb-4">
                 <DialogTitle className="text-base sm:text-xl font-semibold">
-                  {selectedOil?.brand} - {selectedOil?.type}
+                  {selectedLubricant?.brand} - {selectedLubricant?.type}
                 </DialogTitle>
               </DialogHeader>
 
               <div className="flex justify-center mb-4 sm:mb-6">
                 <div className="relative w-[120px] h-[120px] sm:w-[160px] sm:h-[160px] border-2 border-border rounded-lg overflow-hidden bg-muted">
-                  {selectedOil?.image ? (
+                  {selectedLubricant?.image ? (
                     <Image
-                      src={selectedOil.image}
-                      alt={`${selectedOil.brand} ${selectedOil.type}`}
+                      src={selectedLubricant.image}
+                      alt={`${selectedLubricant.brand} ${selectedLubricant.type}`}
                       className="object-contain p-2"
                       fill
                       sizes="(max-width: 768px) 120px, 160px"
@@ -2393,7 +2416,7 @@ export default function POSPage() {
                         // Prevent the default error behavior
                         e.currentTarget.onerror = null;
                         console.log(
-                          `Error loading image for ${selectedOil.brand} ${selectedOil.type} in modal`
+                          `Error loading image for ${selectedLubricant.brand} ${selectedLubricant.type} in modal`
                         );
                       }}
                     />
@@ -2408,7 +2431,7 @@ export default function POSPage() {
               <div className="space-y-4 sm:space-y-6">
                 {/* Volume buttons grid */}
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
-                  {selectedOil?.volumes.map((volume) => (
+                  {selectedLubricant?.volumes.map((volume) => (
                     <Button
                       key={`volume-button-${volume.size}`}
                       variant="outline"
@@ -2765,7 +2788,7 @@ export default function POSPage() {
                 For {currentBottleVolumeSize} volume
               </div>
               <div className="font-semibold text-lg mt-1">
-                {selectedOil?.brand} {selectedOil?.type}
+                {selectedLubricant?.brand} {selectedLubricant?.type}
               </div>
             </div>
 
@@ -3282,6 +3305,85 @@ export default function POSPage() {
         isOpen={isWarrantyDialogOpen}
         onClose={() => setIsWarrantyDialogOpen(false)}
       />
+
+      {/* Labor Dialog */}
+      <Dialog open={isLaborDialogOpen} onOpenChange={setIsLaborDialogOpen}>
+        <DialogContent className="w-[90%] max-w-[500px] p-6 rounded-lg">
+          <DialogHeader>
+            <DialogTitle className="text-center text-xl">
+              Add Labor Charge
+            </DialogTitle>
+            <DialogDescription className="text-center">
+              Enter a custom amount for labor service
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6 py-4">
+            <div className="space-y-3">
+              <Label htmlFor="labor-amount">Labor Amount (OMR)</Label>
+              <Input
+                id="labor-amount"
+                type="number"
+                inputMode="decimal"
+                placeholder="e.g. 5.000"
+                min="0"
+                step="0.001"
+                value={laborAmount === 0 ? "" : laborAmount}
+                onChange={(e) =>
+                  setLaborAmount(parseFloat(e.target.value) || 0)
+                }
+                autoFocus
+              />
+            </div>
+
+            {/* Quick amount buttons */}
+            <div className="space-y-2">
+              <Label>Quick Select</Label>
+              <div className="grid grid-cols-4 gap-2">
+                {[0.5, 1, 2, 3].map((amount) => (
+                  <Button
+                    key={amount}
+                    variant="outline"
+                    className="h-10"
+                    onClick={() => setLaborAmount(amount)}
+                  >
+                    {amount} OMR
+                  </Button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="flex flex-col gap-2 sm:flex-row">
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={() => setIsLaborDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              className="flex-1"
+              onClick={() => {
+                if (laborAmount > 0) {
+                  // Add labor charge to cart
+                  addToCart({
+                    id: 9999, // Use a unique ID for labor
+                    name: "Labor - Custom Service",
+                    price: laborAmount,
+                  });
+                  setLaborAmount(0);
+                  setIsLaborDialogOpen(false);
+                  if (isMobile) setShowCart(true);
+                }
+              }}
+              disabled={laborAmount <= 0}
+            >
+              Add to Cart
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 }
