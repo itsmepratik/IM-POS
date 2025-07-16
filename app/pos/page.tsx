@@ -35,6 +35,8 @@ import {
   Package,
   Trash2,
   Wrench,
+  Car,
+  Eraser,
 } from "lucide-react";
 import {
   Dialog,
@@ -76,6 +78,13 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Accordion,
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent,
+} from "@/components/ui/accordion";
 
 // Import the RefundDialog component
 import { RefundDialog, WarrantyDialog } from "./components/refund-dialog";
@@ -89,6 +98,7 @@ import { BrandLogo } from "./components/brand-logo";
 import { BillComponent } from "./components/bill-component";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useStaffIDs } from "@/lib/hooks/useStaffIDs";
+import { Vehicle, CustomerData } from "@/app/customers/customer-form";
 
 interface LubricantProduct {
   id: number;
@@ -1090,6 +1100,372 @@ function Numpad({
   );
 }
 
+// Add POS Customer Form component - adapted from the customer form
+function POSCustomerForm({
+  isOpen,
+  onClose,
+  onSubmit,
+  onSkip,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (customer: Omit<CustomerData, "id" | "lastVisit">) => void;
+  onSkip: () => void;
+}) {
+  const [formData, setFormData] = useState<
+    Omit<CustomerData, "id" | "lastVisit">
+  >({
+    name: "",
+    email: "",
+    phone: "",
+    address: "",
+    notes: "",
+    vehicles: [],
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSubmit(formData);
+  };
+
+  const addVehicle = () => {
+    setFormData((prev) => ({
+      ...prev,
+      vehicles: [
+        ...prev.vehicles,
+        {
+          id: Date.now().toString(),
+          make: "",
+          model: "",
+          year: "",
+          licensePlate: "",
+        },
+      ],
+    }));
+  };
+
+  const updateVehicle = (id: string, field: keyof Vehicle, value: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      vehicles: prev.vehicles.map((vehicle) =>
+        vehicle.id === id ? { ...vehicle, [field]: value } : vehicle
+      ),
+    }));
+  };
+
+  const removeVehicle = (id: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      vehicles: prev.vehicles.filter((vehicle) => vehicle.id !== id),
+    }));
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="w-[90%] max-w-[600px] max-h-[90vh] rounded-lg overflow-hidden flex flex-col pb-20 sm:pb-4">
+        <DialogHeader className="px-6 pt-6 pb-2 shrink-0">
+          <div className="flex items-center gap-4">
+            <DialogTitle>Add New Customer</DialogTitle>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-8 px-2 text-xs flex items-center gap-1 hover:bg-muted"
+              onClick={() => {
+                setFormData({
+                  name: "",
+                  email: "",
+                  phone: "",
+                  address: "",
+                  notes: "",
+                  vehicles: [],
+                });
+              }}
+              title="Clear all fields"
+            >
+              <Eraser className="h-3.5 w-3.5" />
+              Clear
+            </Button>
+          </div>
+        </DialogHeader>
+        <div className="flex-1 overflow-hidden">
+          <ScrollArea
+            className="h-full overflow-auto pr-2"
+            style={{ maxHeight: "calc(85vh - 12rem)" }}
+          >
+            <div className="px-6 pb-6">
+              <form
+                id="customer-form"
+                onSubmit={handleSubmit}
+                className="space-y-6"
+              >
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Full Name</Label>
+                    <Input
+                      id="name"
+                      value={formData.name}
+                      onChange={(e) =>
+                        setFormData({ ...formData, name: e.target.value })
+                      }
+                      placeholder="John Doe"
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                      id="email"
+                      value={formData.email}
+                      onChange={(e) =>
+                        setFormData({ ...formData, email: e.target.value })
+                      }
+                      placeholder="customer@example.com"
+                      type="email"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Phone</Label>
+                    <Input
+                      id="phone"
+                      value={formData.phone}
+                      onChange={(e) =>
+                        setFormData({ ...formData, phone: e.target.value })
+                      }
+                      placeholder="(555) 123-4567"
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="address">Address</Label>
+                    <Textarea
+                      id="address"
+                      value={formData.address}
+                      onChange={(e) =>
+                        setFormData({ ...formData, address: e.target.value })
+                      }
+                      placeholder="Customer address"
+                      className="h-20"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="notes">Notes</Label>
+                    <Textarea
+                      id="notes"
+                      value={formData.notes}
+                      onChange={(e) =>
+                        setFormData({ ...formData, notes: e.target.value })
+                      }
+                      placeholder="Additional notes about the customer"
+                      className="h-20"
+                    />
+                  </div>
+
+                  <div className="space-y-3 pt-2">
+                    <div className="flex items-center justify-between">
+                      <Label>Vehicles ({formData.vehicles.length})</Label>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={addVehicle}
+                      >
+                        <Plus className="h-4 w-4 mr-1" /> Add Vehicle
+                      </Button>
+                    </div>
+
+                    {formData.vehicles.length > 0 ? (
+                      <Accordion type="multiple" className="w-full">
+                        {formData.vehicles.map((vehicle, idx) => (
+                          <AccordionItem
+                            key={vehicle.id}
+                            value={vehicle.id}
+                            className="border rounded-md px-3 my-2"
+                          >
+                            <div className="flex items-center">
+                              <Car className="h-4 w-4 mr-2 text-muted-foreground" />
+                              <AccordionTrigger className="flex-1 hover:no-underline py-2">
+                                <span className="text-sm">
+                                  {vehicle.make && vehicle.model
+                                    ? `${vehicle.make} ${vehicle.model} ${vehicle.year}`
+                                    : `Vehicle ${idx + 1}`}
+                                </span>
+                              </AccordionTrigger>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  removeVehicle(vehicle.id);
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                            <AccordionContent className="pb-3 pt-1">
+                              <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-2">
+                                  <Label htmlFor={`make-${vehicle.id}`}>
+                                    Make
+                                  </Label>
+                                  <Input
+                                    id={`make-${vehicle.id}`}
+                                    value={vehicle.make}
+                                    onChange={(e) =>
+                                      updateVehicle(
+                                        vehicle.id,
+                                        "make",
+                                        e.target.value
+                                      )
+                                    }
+                                    placeholder="Toyota"
+                                  />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label htmlFor={`model-${vehicle.id}`}>
+                                    Model
+                                  </Label>
+                                  <Input
+                                    id={`model-${vehicle.id}`}
+                                    value={vehicle.model}
+                                    onChange={(e) =>
+                                      updateVehicle(
+                                        vehicle.id,
+                                        "model",
+                                        e.target.value
+                                      )
+                                    }
+                                    placeholder="Camry"
+                                  />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label htmlFor={`year-${vehicle.id}`}>
+                                    Year
+                                  </Label>
+                                  <Input
+                                    id={`year-${vehicle.id}`}
+                                    value={vehicle.year}
+                                    onChange={(e) =>
+                                      updateVehicle(
+                                        vehicle.id,
+                                        "year",
+                                        e.target.value
+                                      )
+                                    }
+                                    placeholder="2023"
+                                  />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label htmlFor={`license-${vehicle.id}`}>
+                                    License Plate
+                                  </Label>
+                                  <Input
+                                    id={`license-${vehicle.id}`}
+                                    value={vehicle.licensePlate}
+                                    onChange={(e) =>
+                                      updateVehicle(
+                                        vehicle.id,
+                                        "licensePlate",
+                                        e.target.value
+                                      )
+                                    }
+                                    placeholder="ABC-1234"
+                                  />
+                                </div>
+                                <div className="space-y-2 col-span-2">
+                                  <Label htmlFor={`vin-${vehicle.id}`}>
+                                    VIN (Optional)
+                                  </Label>
+                                  <Input
+                                    id={`vin-${vehicle.id}`}
+                                    value={vehicle.vin || ""}
+                                    onChange={(e) =>
+                                      updateVehicle(
+                                        vehicle.id,
+                                        "vin",
+                                        e.target.value
+                                      )
+                                    }
+                                    placeholder="Vehicle Identification Number"
+                                  />
+                                </div>
+                                <div className="space-y-2 col-span-2">
+                                  <Label htmlFor={`notes-${vehicle.id}`}>
+                                    Vehicle Notes
+                                  </Label>
+                                  <Textarea
+                                    id={`notes-${vehicle.id}`}
+                                    value={vehicle.notes || ""}
+                                    onChange={(e) =>
+                                      updateVehicle(
+                                        vehicle.id,
+                                        "notes",
+                                        e.target.value
+                                      )
+                                    }
+                                    placeholder="Additional information about the vehicle"
+                                    className="h-16"
+                                  />
+                                </div>
+                              </div>
+                            </AccordionContent>
+                          </AccordionItem>
+                        ))}
+                      </Accordion>
+                    ) : (
+                      <div className="text-center py-6 border border-dashed rounded-md">
+                        <Car className="h-10 w-10 text-muted-foreground mx-auto mb-2" />
+                        <p className="text-sm text-muted-foreground">
+                          No vehicles added yet
+                        </p>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="mt-2"
+                          onClick={addVehicle}
+                        >
+                          <Plus className="h-4 w-4 mr-1" /> Add Vehicle
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Add extra padding at the bottom to ensure content is fully scrollable */}
+                <div className="pb-20 sm:pb-10"></div>
+              </form>
+            </div>
+          </ScrollArea>
+        </div>
+        <DialogFooter className="px-6 py-4 border-t shrink-0 flex flex-col sm:flex-row gap-3 sm:gap-2 fixed bottom-0 left-0 right-0 bg-background sm:relative">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={onSkip}
+            className="w-full sm:w-auto order-2 sm:order-1"
+          >
+            Skip
+          </Button>
+          <Button
+            type="submit"
+            form="customer-form"
+            className="w-full sm:w-auto order-1 sm:order-2"
+          >
+            Add Customer
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function POSPage() {
   console.log("--- VERCEL DEBUG START ---");
   console.log("lubricantProducts length:", lubricantProducts.length);
@@ -1495,13 +1871,10 @@ export default function POSPage() {
   };
 
   const handleCheckout = () => {
-    // Reset the cashierId field whenever checkout is started
-    setEnteredCashierId("");
-    setFetchedCashier(null);
-    setCashierIdError(null);
-    setIsCheckoutModalOpen(true);
+    // First show the customer form instead of going straight to payment
+    setIsCustomerFormOpen(true);
 
-    // Generate transaction data before showing payment method selection
+    // Generate transaction data for later use
     const newReceiptNumber = `A${Math.floor(Math.random() * 10000)
       .toString()
       .padStart(4, "0")}`;
@@ -1572,6 +1945,9 @@ export default function POSPage() {
     setFetchedCashier(null);
     setCashierIdError(null);
     setPaymentRecipient(null);
+
+    // Reset customer info
+    setCurrentCustomer(null);
   };
 
   // Replace the handleImportCustomers function definition with this one
@@ -1748,6 +2124,42 @@ export default function POSPage() {
   const [laborAmount, setLaborAmount] = useState<number>(0);
 
   const isMobile = useIsMobile();
+
+  // Add new state for customer form
+  const [isCustomerFormOpen, setIsCustomerFormOpen] = useState(false);
+  const [currentCustomer, setCurrentCustomer] = useState<Omit<
+    CustomerData,
+    "id" | "lastVisit"
+  > | null>(null);
+
+  // Handle customer form submission
+  const handleAddCustomer = (
+    customerData: Omit<CustomerData, "id" | "lastVisit">
+  ) => {
+    // Save customer data
+    setCurrentCustomer(customerData);
+
+    // Close customer form and proceed to payment selection
+    setIsCustomerFormOpen(false);
+
+    // Reset the cashierId field before showing payment selection
+    setEnteredCashierId("");
+    setFetchedCashier(null);
+    setCashierIdError(null);
+    setIsCheckoutModalOpen(true);
+  };
+
+  // Handle skipping customer form
+  const handleSkipCustomerForm = () => {
+    // Close customer form and proceed to payment selection
+    setIsCustomerFormOpen(false);
+
+    // Reset the cashierId field before showing payment selection
+    setEnteredCashierId("");
+    setFetchedCashier(null);
+    setCashierIdError(null);
+    setIsCheckoutModalOpen(true);
+  };
 
   return (
     <Layout>
@@ -2639,19 +3051,20 @@ export default function POSPage() {
                 >
                   <Button
                     variant={
-                      selectedPaymentMethod === "card" ? "default" : "outline"
+                      selectedPaymentMethod === "mobile" ? "default" : "outline"
                     }
                     className={cn(
                       "h-24 flex flex-col items-center justify-center gap-2",
-                      selectedPaymentMethod === "card" && "ring-2 ring-primary"
+                      selectedPaymentMethod === "mobile" &&
+                        "ring-2 ring-primary"
                     )}
                     onClick={() => {
-                      setSelectedPaymentMethod("card");
+                      setSelectedPaymentMethod("mobile");
                       setShowOtherOptions(false);
                     }}
                   >
-                    <CreditCard className="w-6 h-6" />
-                    <span>Card</span>
+                    <Smartphone className="w-6 h-6" />
+                    <span>Mobile Pay</span>
                   </Button>
                   <Button
                     variant={
@@ -2673,7 +3086,7 @@ export default function POSPage() {
                     variant={showOtherOptions ? "default" : "outline"}
                     className={cn(
                       "h-24 flex flex-col items-center justify-center gap-2",
-                      (selectedPaymentMethod === "mobile" ||
+                      (selectedPaymentMethod === "card" ||
                         selectedPaymentMethod === "voucher") &&
                         "ring-2 ring-primary"
                     )}
@@ -2698,19 +3111,17 @@ export default function POSPage() {
                   >
                     <Button
                       variant={
-                        selectedPaymentMethod === "mobile"
-                          ? "default"
-                          : "outline"
+                        selectedPaymentMethod === "card" ? "default" : "outline"
                       }
                       className={cn(
                         "h-24 flex flex-col items-center justify-center gap-2",
-                        selectedPaymentMethod === "mobile" &&
+                        selectedPaymentMethod === "card" &&
                           "ring-2 ring-primary"
                       )}
-                      onClick={() => setSelectedPaymentMethod("mobile")}
+                      onClick={() => setSelectedPaymentMethod("card")}
                     >
-                      <Smartphone className="w-6 h-6" />
-                      <span>Mobile Pay</span>
+                      <CreditCard className="w-6 h-6" />
+                      <span>Card</span>
                     </Button>
                     <Button
                       variant={
@@ -3061,7 +3472,7 @@ export default function POSPage() {
                     cashier={selectedCashier ?? undefined}
                     appliedDiscount={appliedDiscount} // Pass general discount
                     appliedTradeInAmount={appliedTradeInAmount} // Pass trade-in amount
-                    // customerName prop can be added if customer selection is implemented
+                    customerName={currentCustomer?.name || ""} // Use customer name from form or empty if skipped
                   />
                 ) : (
                   <ReceiptComponent
@@ -3384,6 +3795,14 @@ export default function POSPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Add Customer Form Dialog */}
+      <POSCustomerForm
+        isOpen={isCustomerFormOpen}
+        onClose={() => setIsCustomerFormOpen(false)}
+        onSubmit={handleAddCustomer}
+        onSkip={handleSkipCustomerForm}
+      />
     </Layout>
   );
 }

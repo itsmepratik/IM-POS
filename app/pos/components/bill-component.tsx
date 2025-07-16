@@ -51,7 +51,7 @@ export const BillComponent: React.FC<BillComponentProps> = ({
   billNumber,
   currentDate,
   currentTime,
-  customerName = "Salim Al Marzuf",
+  customerName = "",
   cashier,
   appliedDiscount,
   appliedTradeInAmount,

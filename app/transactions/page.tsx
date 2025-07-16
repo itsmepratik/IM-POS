@@ -875,7 +875,9 @@ export default function TransactionsPage() {
       <Layout>
         <div className="space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <h1 className="text-2xl font-semibold">Transactions</h1>
+            <h1 className="text-2xl font-semibold">
+              <span className="hidden sm:inline">Transactions</span>
+            </h1>
             <div className="w-[180px] h-10" />{" "}
             {/* Placeholder to maintain layout */}
           </div>
@@ -898,7 +900,9 @@ export default function TransactionsPage() {
       {/* Section 1: Main content */}
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <h1 className="text-2xl font-semibold">Transactions</h1>
+          <h1 className="text-2xl font-semibold">
+            <span className="hidden sm:inline">Transactions</span>
+          </h1>
           <div className="flex gap-2">
             {hasMounted ? (
               <Select value={selectedStore} onValueChange={setSelectedStore}>

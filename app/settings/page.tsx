@@ -393,15 +393,25 @@ function UserForm({
 }
 
 function getRoleBadge(role: string) {
+  // Use a smaller font and tighter padding for mobile
+  const baseClass = "px-2 py-0.5 text-xs sm:text-sm leading-tight";
   switch (role) {
     case "admin":
-      return <Badge className="bg-blue-500">Admin</Badge>;
+      return <Badge className={`bg-blue-500 ${baseClass}`}>Admin</Badge>;
     case "manager":
-      return <Badge className="bg-green-500">Manager</Badge>;
+      return <Badge className={`bg-green-500 ${baseClass}`}>Manager</Badge>;
     case "staff":
-      return <Badge variant="outline">Staff</Badge>;
+      return (
+        <Badge variant="outline" className={baseClass}>
+          Staff
+        </Badge>
+      );
     default:
-      return <Badge variant="outline">{role}</Badge>;
+      return (
+        <Badge variant="outline" className={baseClass}>
+          {role}
+        </Badge>
+      );
   }
 }
 
@@ -806,8 +816,8 @@ function SettingsContent() {
             {users.map((user) => (
               <Card key={user.id} className="overflow-hidden">
                 <CardHeader className="pb-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
+                  <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-center gap-3 flex-wrap">
                       <Avatar className="h-10 w-10">
                         {user.avatar ? (
                           <AvatarImage src={user.avatar} alt={user.name} />
@@ -822,7 +832,9 @@ function SettingsContent() {
                         </CardDescription>
                       </div>
                     </div>
-                    {getRoleBadge(user.role)}
+                    <div className="mt-1 sm:mt-0">
+                      {getRoleBadge(user.role)}
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent className="pb-2 pt-0">

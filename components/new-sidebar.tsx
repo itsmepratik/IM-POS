@@ -411,7 +411,7 @@ function ProfileMenu({ isCollapsed }: { isCollapsed: boolean }) {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent
-          className="w-[15.5rem] max-w-full sm:w-[12.5rem] rounded-xl border-2 p-2"
+          className="w-[15.5rem] max-w-full sm:w-[13.3rem] sm:ml-[2px] rounded-xl border-2 p-2"
           align="end"
           forceMount
         >
@@ -480,7 +480,7 @@ function ProfileMenu({ isCollapsed }: { isCollapsed: boolean }) {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
-        className="w-[15.5rem] max-w-full sm:w-[12.5rem] rounded-xl border-2 p-2"
+        className="w-[15.5rem] max-w-full sm:w-[13.3rem] sm:ml-[2px] rounded-xl border-2 p-2"
         align="end"
         forceMount
       >

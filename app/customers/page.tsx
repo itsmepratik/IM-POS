@@ -219,7 +219,7 @@ export default function CustomersPage() {
             </Button>
           }
         >
-          Customers
+          <span className="hidden sm:inline">Customers</span>
         </PageHeader>
 
         {/* Search and Filter Section */}
