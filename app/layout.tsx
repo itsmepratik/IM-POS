@@ -9,6 +9,7 @@ import { NotificationProvider } from "./notification-context";
 import { NotificationDemo } from "./notification-demo";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import ServiceWorkerRegistration from "../components/service-worker-registration";
 
 // Load Formula 1 fonts with optimized settings
 const formula1 = localFont({
@@ -181,39 +182,7 @@ export default function RootLayout({
         </UserProvider>
         <SpeedInsights />
         <Analytics />
-        {/* Register Service Worker */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              if ('serviceWorker' in navigator) {
-                window.addEventListener('load', function() {
-                  navigator.serviceWorker.register('/sw.js').then(
-                    function(registration) {
-                      console.log('Service Worker registration successful with scope: ', registration.scope);
-                    },
-                    function(err) {
-                      console.log('Service Worker registration failed: ', err);
-                    }
-                  );
-                });
-              }
-              
-              // Check if we're in standalone mode and apply fullscreen
-              window.addEventListener('load', function() {
-                if (window.matchMedia('(display-mode: standalone)').matches || 
-                    window.navigator.standalone) {
-                  
-                  // For newer Android versions, try to go fullscreen programmatically
-                  if (document.documentElement.requestFullscreen) {
-                    document.documentElement.requestFullscreen().catch(err => {
-                      console.log("Couldn't enter fullscreen mode:", err);
-                    });
-                  }
-                }
-              });
-            `,
-          }}
-        />
+        <ServiceWorkerRegistration />
         {/* Load fullscreen handler script */}
         <script src="/fullscreen.js" async />
       </body>
