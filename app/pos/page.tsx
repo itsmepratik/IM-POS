@@ -1437,7 +1437,7 @@ function POSCustomerForm({
                     )}
                   </div>
                 </div>
-                
+
                 {/* Add extra padding at the bottom to ensure content is fully scrollable */}
                 <div className="pb-20 sm:pb-10"></div>
               </form>
@@ -2121,7 +2121,7 @@ export default function POSPage() {
   const [isDisputeDialogOpen, setIsDisputeDialogOpen] = useState(false);
   const [isWarrantyDialogOpen, setIsWarrantyDialogOpen] = useState(false);
   const [isLaborDialogOpen, setIsLaborDialogOpen] = useState(false);
-  const [laborAmount, setLaborAmount] = useState<number>(0);
+  const [laborAmount, setLaborAmount] = useState<number>(0.5);
 
   const isMobile = useIsMobile();
 
@@ -2132,6 +2132,9 @@ export default function POSPage() {
     "id" | "lastVisit"
   > | null>(null);
 
+  // Add new state for customer add success animation
+  const [showCustomerSuccess, setShowCustomerSuccess] = useState(false);
+
   // Handle customer form submission
   const handleAddCustomer = (
     customerData: Omit<CustomerData, "id" | "lastVisit">
@@ -2139,14 +2142,19 @@ export default function POSPage() {
     // Save customer data
     setCurrentCustomer(customerData);
 
-    // Close customer form and proceed to payment selection
+    // Show customer add success animation
+    setShowCustomerSuccess(true);
     setIsCustomerFormOpen(false);
 
-    // Reset the cashierId field before showing payment selection
-    setEnteredCashierId("");
-    setFetchedCashier(null);
-    setCashierIdError(null);
-    setIsCheckoutModalOpen(true);
+    // After 3 seconds, proceed to payment selection
+    setTimeout(() => {
+      setShowCustomerSuccess(false);
+      // Reset the cashierId field before showing payment selection
+      setEnteredCashierId("");
+      setFetchedCashier(null);
+      setCashierIdError(null);
+      setIsCheckoutModalOpen(true);
+    }, 3000);
   };
 
   // Handle skipping customer form
@@ -3724,44 +3732,54 @@ export default function POSPage() {
             <DialogTitle className="text-center text-xl">
               Add Labor Charge
             </DialogTitle>
-            <DialogDescription className="text-center">
-              Enter a custom amount for labor service
-            </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-6 py-4">
-            <div className="space-y-3">
-              <Label htmlFor="labor-amount">Labor Amount (OMR)</Label>
-              <Input
-                id="labor-amount"
-                type="number"
-                inputMode="decimal"
-                placeholder="e.g. 5.000"
-                min="0"
-                step="0.001"
-                value={laborAmount === 0 ? "" : laborAmount}
-                onChange={(e) =>
-                  setLaborAmount(parseFloat(e.target.value) || 0)
+          <div className="flex flex-col items-center justify-center py-6">
+            <div className="flex items-center justify-center gap-4 mb-4">
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-10 w-10 rounded-full"
+                onClick={() =>
+                  setLaborAmount(
+                    Math.max(0, Math.round((laborAmount - 0.5) * 10) / 10)
+                  )
                 }
-                autoFocus
-              />
-            </div>
+              >
+                <Minus className="h-4 w-4" />
+              </Button>
 
-            {/* Quick amount buttons */}
-            <div className="space-y-2">
-              <Label>Quick Select</Label>
-              <div className="grid grid-cols-4 gap-2">
-                {[0.5, 1, 2, 3].map((amount) => (
-                  <Button
-                    key={amount}
-                    variant="outline"
-                    className="h-10"
-                    onClick={() => setLaborAmount(amount)}
-                  >
-                    {amount} OMR
-                  </Button>
-                ))}
+              <div className="relative">
+                <Input
+                  id="labor-amount"
+                  type="number"
+                  inputMode="decimal"
+                  className="w-24 text-center text-lg font-medium"
+                  value={laborAmount}
+                  onChange={(e) => {
+                    const value = parseFloat(e.target.value);
+                    if (!isNaN(value)) {
+                      setLaborAmount(value);
+                    } else {
+                      setLaborAmount(0);
+                    }
+                  }}
+                  step="0.5"
+                  min="0"
+                  autoFocus
+                />
               </div>
+
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-10 w-10 rounded-full"
+                onClick={() =>
+                  setLaborAmount(Math.round((laborAmount + 0.5) * 10) / 10)
+                }
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
             </div>
           </div>
 
@@ -3783,7 +3801,7 @@ export default function POSPage() {
                     name: "Labor - Custom Service",
                     price: laborAmount,
                   });
-                  setLaborAmount(0);
+                  setLaborAmount(0.5); // Reset to default 0.5
                   setIsLaborDialogOpen(false);
                   if (isMobile) setShowCart(true);
                 }
@@ -3803,6 +3821,41 @@ export default function POSPage() {
         onSubmit={handleAddCustomer}
         onSkip={handleSkipCustomerForm}
       />
+
+      {/* Render the customer add success animation dialog */}
+      {showCustomerSuccess && (
+        <Dialog open={showCustomerSuccess} onOpenChange={() => {}}>
+          <DialogContentWithoutClose
+            className="w-[90%] max-w-[400px] px-6 pb-6 pt-0 rounded-lg max-h-[90vh] overflow-auto"
+            onPointerDownOutside={(e) => e.preventDefault()}
+            onEscapeKeyDown={(e) => e.preventDefault()}
+          >
+            <DialogHeader>
+              <DialogTitle>
+                <span className="sr-only">Customer Added Successfully</span>
+              </DialogTitle>
+            </DialogHeader>
+            <div className="flex flex-col items-center justify-center min-h-[180px] py-6">
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+                className="rounded-full bg-green-100 p-3 mb-4"
+              >
+                <Check className="w-8 h-8 text-green-600" />
+              </motion.div>
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.4 }}
+                className="text-lg font-semibold text-green-600 text-center"
+              >
+                Customer Added Successfully
+              </motion.p>
+            </div>
+          </DialogContentWithoutClose>
+        </Dialog>
+      )}
     </Layout>
   );
 }

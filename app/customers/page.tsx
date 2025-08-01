@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Plus,
   MoreVertical,
@@ -51,6 +52,12 @@ export default function CustomersPage() {
   const [isFilterExpanded, setIsFilterExpanded] = useState(false);
   const [selectedCustomers, setSelectedCustomers] = useState<number[]>([]);
   const [viewMode, setViewMode] = useState<"table" | "cards">("table");
+  const [completenessFilter, setCompletenessFilter] = useState<
+    "all" | "complete" | "incomplete"
+  >("all");
+  const [requiredFieldsFilter, setRequiredFieldsFilter] = useState<
+    "all" | "complete" | "incomplete"
+  >("all");
 
   // Modal states
   const [isCustomerFormOpen, setIsCustomerFormOpen] = useState(false);
@@ -60,7 +67,33 @@ export default function CustomersPage() {
   const [currentCustomer, setCurrentCustomer] = useState<number | null>(null);
   const [hasMounted, setHasMounted] = useState(false);
 
-  // Filter customers based on search query and filter value
+  // Helper function to determine if a customer is complete
+  const isCustomerComplete = (customer: CustomerData): boolean => {
+    const hasRequiredFields =
+      customer.name.trim() !== "" && customer.phone.trim() !== "";
+
+    const hasAllRecommendedFields =
+      hasRequiredFields &&
+      customer.email?.trim() !== "" &&
+      customer.address?.trim() !== "" &&
+      customer.vehicles.length > 0 &&
+      customer.vehicles.every(
+        (v) =>
+          v.make.trim() !== "" &&
+          v.model.trim() !== "" &&
+          v.year.trim() !== "" &&
+          v.licensePlate.trim() !== ""
+      );
+
+    return hasAllRecommendedFields;
+  };
+
+  // Helper function to determine if required fields are complete
+  const hasRequiredFields = (customer: CustomerData): boolean => {
+    return customer.name.trim() !== "" && customer.phone.trim() !== "";
+  };
+
+  // Filter customers based on search query and filter values
   const filteredCustomers = customers.filter((customer) => {
     const matchesSearch =
       searchQuery === "" ||
@@ -78,7 +111,22 @@ export default function CustomersPage() {
         new Date(customer.lastVisit || "") >
           new Date(Date.now() - 7 * 24 * 60 * 60 * 1000));
 
-    return matchesSearch && matchesFilter;
+    const matchesCompleteness =
+      completenessFilter === "all" ||
+      (completenessFilter === "complete" && isCustomerComplete(customer)) ||
+      (completenessFilter === "incomplete" && !isCustomerComplete(customer));
+
+    const matchesRequiredFields =
+      requiredFieldsFilter === "all" ||
+      (requiredFieldsFilter === "complete" && hasRequiredFields(customer)) ||
+      (requiredFieldsFilter === "incomplete" && !hasRequiredFields(customer));
+
+    return (
+      matchesSearch &&
+      matchesFilter &&
+      matchesCompleteness &&
+      matchesRequiredFields
+    );
   });
 
   // Toggle selection of a customer
@@ -267,13 +315,31 @@ export default function CustomersPage() {
               </div>
 
               <Button
-                variant="outline"
+                variant={
+                  completenessFilter !== "all" || requiredFieldsFilter !== "all"
+                    ? "default"
+                    : "outline"
+                }
                 size="sm"
-                className="w-full sm:w-auto hidden sm:flex"
+                className={`w-full sm:w-auto flex ${
+                  completenessFilter !== "all" || requiredFieldsFilter !== "all"
+                    ? "bg-primary/90 hover:bg-primary"
+                    : ""
+                }`}
                 onClick={() => setIsFilterExpanded(!isFilterExpanded)}
               >
                 <Filter className="h-4 w-4 mr-2" />
                 Filters
+                {(completenessFilter !== "all" ||
+                  requiredFieldsFilter !== "all") && (
+                  <Badge
+                    variant="outline"
+                    className="ml-2 mr-1 bg-primary-foreground text-primary"
+                  >
+                    {(completenessFilter !== "all" ? 1 : 0) +
+                      (requiredFieldsFilter !== "all" ? 1 : 0)}
+                  </Badge>
+                )}
                 <ChevronDown
                   className={`ml-2 h-4 w-4 transition-transform ${
                     isFilterExpanded ? "rotate-180" : ""
@@ -283,6 +349,69 @@ export default function CustomersPage() {
             </div>
           </div>
         </div>
+
+        {/* Expanded Filters Section */}
+        {isFilterExpanded && (
+          <div className="mb-6 p-4 border rounded-md bg-muted/30 animate-in fade-in duration-200">
+            <h3 className="font-medium mb-3">Advanced Filters</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Completeness filter */}
+              <div className="space-y-2">
+                <Label htmlFor="completeness-filter">
+                  Customer Completeness
+                </Label>
+                <Select
+                  value={completenessFilter}
+                  onValueChange={(value: "all" | "complete" | "incomplete") =>
+                    setCompletenessFilter(value)
+                  }
+                >
+                  <SelectTrigger id="completeness-filter">
+                    <SelectValue placeholder="All Records" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Records</SelectItem>
+                    <SelectItem value="complete">Complete Records</SelectItem>
+                    <SelectItem value="incomplete">
+                      Incomplete Records
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Complete records have all fields filled including contact
+                  details and vehicles
+                </p>
+              </div>
+
+              {/* Required fields filter */}
+              <div className="space-y-2">
+                <Label htmlFor="required-fields-filter">Required Fields</Label>
+                <Select
+                  value={requiredFieldsFilter}
+                  onValueChange={(value: "all" | "complete" | "incomplete") =>
+                    setRequiredFieldsFilter(value)
+                  }
+                >
+                  <SelectTrigger id="required-fields-filter">
+                    <SelectValue placeholder="All Records" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Records</SelectItem>
+                    <SelectItem value="complete">
+                      Has Required Fields
+                    </SelectItem>
+                    <SelectItem value="incomplete">
+                      Missing Required Fields
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Required fields are name and phone number
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Desktop Table View */}
         <div className="hidden lg:block border rounded-md">
