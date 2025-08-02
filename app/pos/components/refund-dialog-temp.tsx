@@ -461,11 +461,14 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
             margin: 0;
           }
           html, body {
-            font-family: Arial, sans-serif;
+            font-family: sans-serif !important;
             margin: 0;
             padding: 0;
             width: 100%;
             font-size: 10pt;
+          }
+          * {
+            font-family: sans-serif !important;
           }
           .receipt {
             width: 76mm;
@@ -1375,7 +1378,7 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
             padding: 0;
           }
           body {
-            font-family: Arial, sans-serif;
+            font-family: sans-serif;
             font-size: 10pt;
             line-height: 1.3;
             width: 100%;

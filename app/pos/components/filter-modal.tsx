@@ -118,7 +118,7 @@ export function FilterModal({
                   {filter.name}
                 </span>
                 <span className="block text-xs sm:text-sm text-primary mt-1">
-                  OMR {filter.price.toFixed(2)}
+                  OMR {filter.price.toFixed(3)}
                 </span>
               </button>
             ))}
@@ -162,7 +162,7 @@ export function FilterModal({
                         {filter.name}
                       </span>
                       <span className="font-medium text-[clamp(0.875rem,2vw,1rem)] whitespace-nowrap pl-2 flex-shrink-0">
-                        OMR {(filter.price * filter.quantity).toFixed(2)}
+                        OMR {(filter.price * filter.quantity).toFixed(3)}
                       </span>
                     </div>
                   ))}

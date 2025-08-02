@@ -58,7 +58,7 @@ export function Cart({
         <div className="flex items-center justify-between">
           <span className="text-[clamp(1rem,2.5vw,1.125rem)] font-medium">Total</span>
           <span className="text-[clamp(1.125rem,3vw,1.25rem)] font-semibold">
-            OMR {total.toFixed(2)}
+            OMR {total.toFixed(3)}
           </span>
         </div>
         <Button

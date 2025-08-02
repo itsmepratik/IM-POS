@@ -919,10 +919,10 @@ const CartItem = memo(
           </div>
         )}
         <div className="text-[clamp(0.75rem,1.5vw,0.875rem)] text-muted-foreground">
-          OMR {item.price.toFixed(2)} each
+          OMR {item.price.toFixed(3)} each
         </div>
         <div className="font-medium text-[clamp(0.875rem,2vw,1rem)] mt-1">
-          OMR {(item.price * item.quantity).toFixed(2)}
+          OMR {(item.price * item.quantity).toFixed(3)}
         </div>
       </div>
 
@@ -1003,7 +1003,7 @@ const ProductButton = memo(
           {product.name}
         </span>
         <span className="block text-sm text-primary mt-2">
-          OMR {product.price.toFixed(2)}
+          OMR {product.price.toFixed(3)}
         </span>
       </div>
     </Button>
@@ -2320,7 +2320,7 @@ export default function POSPage() {
                                           {lubricant.type}
                                         </span>
                                         <span className="block text-sm text-primary mt-2">
-                                          OMR {lubricant.basePrice.toFixed(2)}
+                                          OMR {lubricant.basePrice.toFixed(3)}
                                         </span>
                                       </div>
                                     </Button>
@@ -2521,7 +2521,7 @@ export default function POSPage() {
                                           {/* Price with consistent formatting */}
                                           <div className="mt-auto">
                                             <span className="text-sm text-primary font-medium">
-                                              OMR {product.price.toFixed(2)}
+                                              OMR {product.price.toFixed(3)}
                                             </span>
                                           </div>
                                         </div>
@@ -2582,7 +2582,7 @@ export default function POSPage() {
                   <div className="space-y-1 mb-2">
                     <div className="flex justify-between text-[clamp(1rem,2.5vw,1.125rem)] font-semibold">
                       <span>Subtotal</span>
-                      <span>OMR {subtotal.toFixed(2)}</span>
+                      <span>OMR {subtotal.toFixed(3)}</span>
                     </div>
 
                     {appliedDiscount && (
@@ -2603,7 +2603,7 @@ export default function POSPage() {
                             <X className="h-3 w-3" />
                           </Button>
                         </div>
-                        <span>- OMR {discountAmount.toFixed(2)}</span>
+                        <span>- OMR {discountAmount.toFixed(3)}</span>
                       </div>
                     )}
 
@@ -2618,7 +2618,7 @@ export default function POSPage() {
 
                     <div className="flex justify-between text-[clamp(1rem,2.5vw,1.125rem)] font-semibold">
                       <span>Total</span>
-                      <span>OMR {total.toFixed(2)}</span>
+                      <span>OMR {total.toFixed(3)}</span>
                     </div>
                   </div>
 
@@ -2727,7 +2727,7 @@ export default function POSPage() {
                     <div className="space-y-1">
                       <div className="flex justify-between text-[clamp(1rem,2.5vw,1.125rem)] font-semibold">
                         <span>Subtotal</span>
-                        <span>OMR {subtotal.toFixed(2)}</span>
+                        <span>OMR {subtotal.toFixed(3)}</span>
                       </div>
 
                       {appliedDiscount && (
@@ -2748,7 +2748,7 @@ export default function POSPage() {
                               <X className="h-3 w-3" />
                             </Button>
                           </div>
-                          <span>- OMR {discountAmount.toFixed(2)}</span>
+                          <span>- OMR {discountAmount.toFixed(3)}</span>
                         </div>
                       )}
 
@@ -2761,7 +2761,7 @@ export default function POSPage() {
 
                       <div className="flex justify-between text-[clamp(1rem,2.5vw,1.125rem)] font-semibold">
                         <span>Total</span>
-                        <span>OMR {total.toFixed(2)}</span>
+                        <span>OMR {total.toFixed(3)}</span>
                       </div>
                     </div>
 
@@ -2862,7 +2862,7 @@ export default function POSPage() {
                         {volume.size}
                       </div>
                       <div className="text-xs sm:text-sm text-muted-foreground">
-                        OMR {volume.price.toFixed(2)}
+                        OMR {volume.price.toFixed(3)}
                       </div>
                     </Button>
                   ))}
@@ -2927,7 +2927,7 @@ export default function POSPage() {
 
                                 <span className="font-medium text-sm text-right w-full">
                                   OMR{" "}
-                                  {(volume.price * volume.quantity).toFixed(2)}
+                                  {(volume.price * volume.quantity).toFixed(3)}
                                 </span>
                               </div>
                             </div>
@@ -3153,7 +3153,7 @@ export default function POSPage() {
                 <div className="border-t pt-6">
                   <div className="flex justify-between text-lg font-semibold mb-6">
                     <span>Total Amount</span>
-                    <span>OMR {total.toFixed(2)}</span>
+                    <span>OMR {total.toFixed(3)}</span>
                   </div>
                   <Button
                     className="w-full h-12 text-base"
@@ -3585,11 +3585,11 @@ export default function POSPage() {
                 {discountType === "percentage"
                   ? `This will reduce the total by ${(
                       subtotal * (discountValue / 100) || 0
-                    ).toFixed(2)} OMR`
+                    ).toFixed(3)} OMR`
                   : `This will reduce the total by ${Math.min(
                       discountValue,
                       subtotal
-                    ).toFixed(2)} OMR`}
+                    ).toFixed(3)} OMR`}
               </div>
             </div>
           </div>
@@ -3971,11 +3971,14 @@ const ReceiptComponent = ({
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <style>
             body {
-              font-family: 'Courier New', monospace;
+              font-family: sans-serif !important;
               padding: 0;
               margin: 0;
               width: 80mm;
               font-size: 12px;
+            }
+            * {
+              font-family: sans-serif !important;
             }
             .receipt-container {
               padding: 5mm;
@@ -4135,7 +4138,7 @@ const ReceiptComponent = ({
                     <td class="description">${item.name}${
                       item.details ? ` (${item.details})` : ""
                     }</td>
-                    <td class="price">${item.price.toFixed(2)}</td>
+                    <td class="price">${item.price.toFixed(3)}</td>
                     <td class="amount">${(item.price * item.quantity).toFixed(
                       2
                     )}</td>
@@ -4150,7 +4153,7 @@ const ReceiptComponent = ({
               <table>
                 <tr>
                   <td>Total w/o VAT</td>
-                  <td class="total-amount">OMR ${subtotal.toFixed(2)}</td>
+                  <td class="total-amount">OMR ${subtotal.toFixed(3)}</td>
                 </tr>
                 ${
                   localDiscount
@@ -4169,11 +4172,11 @@ const ReceiptComponent = ({
                 }
                 <tr>
                   <td>VAT</td>
-                  <td class="total-amount">OMR ${vat.toFixed(2)}</td>
+                  <td class="total-amount">OMR ${vat.toFixed(3)}</td>
                 </tr>
                 <tr>
                   <td class="total-label">Total with VAT</td>
-                  <td class="total-amount">OMR ${total.toFixed(2)}</td>
+                  <td class="total-amount">OMR ${total.toFixed(3)}</td>
                 </tr>
               </table>
             </div>
@@ -4324,10 +4327,10 @@ const ReceiptComponent = ({
                   {item.details ? ` (${item.details})` : ""}
                 </span>
                 <span className="col-span-2 text-right">
-                  {item.price.toFixed(2)}
+                  {item.price.toFixed(3)}
                 </span>
                 <span className="col-span-2 text-right">
-                  {(item.price * item.quantity).toFixed(2)}
+                  {(item.price * item.quantity).toFixed(3)}
                 </span>
               </div>
             ))}
@@ -4336,7 +4339,7 @@ const ReceiptComponent = ({
           <div className="border-t border-dashed pt-2 mb-3">
             <div className="flex justify-between text-xs">
               <span>Total w/o VAT</span>
-              <span>OMR {subtotal.toFixed(2)}</span>
+              <span>OMR {subtotal.toFixed(3)}</span>
             </div>
             {localDiscount && (
               <div className="flex justify-between items-center border-t pt-2">
@@ -4346,16 +4349,16 @@ const ReceiptComponent = ({
                     ? `(${localDiscount.value}%)`
                     : "(Amount)"}
                 </span>
-                <span>- OMR {discountAmount.toFixed(2)}</span>
+                <span>- OMR {discountAmount.toFixed(3)}</span>
               </div>
             )}
             <div className="flex justify-between text-xs">
               <span>VAT</span>
-              <span>OMR {vat.toFixed(2)}</span>
+              <span>OMR {vat.toFixed(3)}</span>
             </div>
             <div className="flex justify-between text-xs font-bold">
               <span>Total with VAT</span>
-              <span>OMR {total.toFixed(2)}</span>
+              <span>OMR {total.toFixed(3)}</span>
             </div>
           </div>
 

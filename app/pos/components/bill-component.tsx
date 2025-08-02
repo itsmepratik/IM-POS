@@ -120,13 +120,17 @@ export const BillComponent: React.FC<BillComponentProps> = ({
             height: 100%; /* Ensure html and body take full height */
             margin: 0;
             padding: 0;
+            font-family: sans-serif !important;
           }
           body {
-            font-family: Arial, sans-serif;
+            font-family: sans-serif !important;
             font-size: 10pt;
             line-height: 1.3;
             width: 100%;
             color: #000;
+          }
+          * {
+            font-family: sans-serif !important;
           }
           .bill-container {
             width: calc(100% - 4mm); 

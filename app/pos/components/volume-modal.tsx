@@ -83,7 +83,7 @@ export function VolumeModal({
                   {volume.name}
                 </div>
                 <div className="text-[clamp(0.75rem,1.5vw,0.875rem)] text-muted-foreground">
-                  OMR {volume.price.toFixed(2)}
+                  OMR {volume.price.toFixed(3)}
                 </div>
               </Button>
             ))}
@@ -125,7 +125,7 @@ export function VolumeModal({
                           {volume.name}
                         </span>
                         <span className="font-medium text-[clamp(0.875rem,2vw,1rem)] whitespace-nowrap">
-                          OMR {(volume.price * volume.quantity).toFixed(2)}
+                          OMR {(volume.price * volume.quantity).toFixed(3)}
                         </span>
                       </div>
                     </div>
