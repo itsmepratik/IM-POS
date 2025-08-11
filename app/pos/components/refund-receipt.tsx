@@ -4,6 +4,7 @@ import React, { useRef, useCallback, useEffect, useState } from "react";
 import { Printer } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
+import { useCompanyInfo } from "@/lib/hooks/useCompanyInfo";
 
 // Define the structure for refund items
 interface RefundItem {
@@ -44,6 +45,7 @@ const serviceDescription = {
 };
 
 const thankYouMessage = "Thankyou for shopping with us";
+const POS_ID_FALLBACK = "POS-01";
 
 export const RefundReceipt: React.FC<RefundReceiptProps> = ({
   items,
@@ -58,6 +60,7 @@ export const RefundReceipt: React.FC<RefundReceiptProps> = ({
 }) => {
   const receiptRef = useRef<HTMLDivElement>(null);
   const [isClient, setIsClient] = useState(false);
+  const { brand } = useCompanyInfo();
 
   useEffect(() => {
     setIsClient(true);
@@ -129,131 +132,42 @@ export const RefundReceipt: React.FC<RefundReceiptProps> = ({
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Refund Receipt</title>
         <style>
-          @page {
-            size: 80mm 297mm;
-            margin: 0;
-          }
-          html, body {
-            font-family: sans-serif !important;
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            font-size: 10pt;
-          }
-          * {
-            font-family: sans-serif !important;
-          }
-          .receipt {
-            width: 76mm;
-            padding: 5mm 2mm;
-            margin: 0 auto;
-          }
-          .receipt-header {
-            text-align: center;
-            margin-bottom: 10px;
-          }
-          .receipt-header h1 {
-            font-size: 14pt;
-            margin: 0;
-            font-weight: bold;
-          }
-          .receipt-header p {
-            font-size: 8pt;
-            margin: 2px 0;
-            color: #555;
-          }
-          .receipt-divider {
-            border-top: 1px dashed #000;
-            margin: 5px 0;
-          }
-          .receipt-info {
-            font-size: 9pt;
-            margin: 5px 0;
-          }
-          .receipt-info p {
-            margin: 2px 0;
-            display: flex;
-            justify-content: space-between;
-          }
-          .receipt-title {
-            text-align: center;
-            font-weight: bold;
-            margin: 10px 0;
-            font-size: 11pt;
-            color: #D9534F;
-          }
-          .receipt-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 10px 0;
-            font-size: 8pt;
-          }
-          .receipt-table th, .receipt-table td {
-            text-align: left;
-            padding: 2px 0;
-          }
-          .receipt-table .qty {
-            width: 10%;
-            text-align: left;
-          }
-          .receipt-table .description {
-            width: 50%;
-            text-align: left;
-          }
-          .receipt-table .price {
-            width: 20%;
-            text-align: right;
-          }
-          .receipt-table .amount {
-            width: 20%;
-            text-align: right;
-          }
-          .receipt-summary {
-            margin: 10px 0;
-            font-size: 9pt;
-          }
-          .receipt-summary table {
-            width: 100%;
-          }
-          .receipt-summary td {
-            padding: 2px 0;
-          }
-          .receipt-summary .total-amount {
-            text-align: right;
-          }
-          .receipt-summary .total-label {
-            font-weight: bold;
-          }
-          .receipt-footer {
-            margin-top: 15px;
-            font-size: 8pt;
-            text-align: center;
-          }
-          .receipt-footer p {
-            margin: 2px 0;
-          }
-          .discount-row {
-            color: #D9534F;
-            font-weight: bold;
-          }
-          .original-receipt {
-            font-size: 9pt;
-            margin: 5px 0;
-            font-style: italic;
-          }
-          .item-details {
-            font-size: 7pt;
-            color: #555;
-          }
+          body { font-family: sans-serif !important; padding: 0; margin: 0; width: 80mm; font-size: 12px; }
+          * { font-family: sans-serif !important; }
+          .receipt { width: 76mm; padding: 5mm 2mm; margin: 0 auto; }
+          .receipt-header { text-align: center; margin-bottom: 10px; }
+          .receipt-header h1 { font-size: 16px; margin: 0; font-weight: bold; }
+          .receipt-header p { font-size: 12px; margin: 2px 0; color: #555; }
+          .receipt-divider { border-top: 1px dashed #000; margin: 5px 0; }
+          .receipt-info { font-size: 12px; margin: 5px 0; }
+          .receipt-info p { margin: 2px 0; display: flex; justify-content: space-between; align-items: center; }
+          .receipt-title { text-align: center; font-weight: bold; margin: 10px 0; font-size: 13px; color: #D9534F; text-transform: uppercase; }
+          .receipt-table { width: 100%; border-collapse: collapse; margin: 10px 0; table-layout: fixed; }
+          .receipt-table th { text-align: left; font-size: 12px; padding-bottom: 5px; }
+          .receipt-table td { font-size: 12px; padding: 2px 0; word-wrap: break-word; word-break: break-word; }
+          .receipt-table .sno { width: 22px; }
+          .receipt-table .qty { width: 38px; text-align: left; }
+          .receipt-table .description { width: auto; max-width: 100%; }
+          .receipt-table .price { width: 60px; text-align: right; }
+          .receipt-table .amount { width: 70px; text-align: right; }
+          .receipt-summary { margin-top: 10px; border-top: 1px dashed #000; padding-top: 5px; }
+          .receipt-summary table { width: 100%; }
+          .receipt-summary td { font-size: 12px; padding: 2px 0; }
+          .receipt-summary .total-label { font-weight: bold; }
+          .receipt-summary .total-amount { text-align: right; font-weight: bold; }
+          .receipt-footer { margin-top: 10px; text-align: center; font-size: 12px; border-top: 1px dashed #000; padding-top: 5px; }
+          .receipt-footer p { margin: 3px 0; }
+          .arabic { font-size: 11px; direction: rtl; margin: 2px 0; }
+          @media print { body { width: 80mm; margin: 0; padding: 0; } @page { margin: 0; size: 80mm auto; } }
         </style>
       </head>
       <body>
         <div class="receipt">
           <div class="receipt-header">
-            <h1>H Automotives</h1>
-            <p>Saham, Sultanate of Oman</p>
-            <p>Ph: 92510750 | 26856848</p>
-            <p>VATIN: OM1100006980</p>
+            <h1>${brand.name}</h1>
+            <p>${brand.addressLines.join(" ")}</p>
+            <p>Ph: ${brand.phones.join(" | ")}</p>
+            <p>POS ID: ${brand.posId || POS_ID_FALLBACK}</p>
           </div>
           
           <div class="receipt-divider"></div>
@@ -261,17 +175,16 @@ export const RefundReceipt: React.FC<RefundReceiptProps> = ({
           <div class="receipt-title">REFUND RECEIPT</div>
           
           <div class="receipt-info">
-            <p>
-              <span>Original Receipt: ${originalReceiptNumber}</span>
-            </p>
-            <p>
-              <span>Date: ${currentDate}</span>
-            </p>
-            <p>
-              <span>Time: ${currentTime}</span>
-              <span>POS ID: ${receiptNumber}</span>
-            </p>
-            ${customerName ? `<p>Customer: ${customerName}</p>` : ""}
+            <p><span>Refund: ${receiptNumber}</span><span>POS ID: ${
+      brand.posId || POS_ID_FALLBACK
+    }</span></p>
+            <p><span>Original Invoice: ${originalReceiptNumber}</span></p>
+            <p><span>Date: ${currentDate}</span><span>Time: ${currentTime}</span></p>
+            ${
+              customerName
+                ? `<p style="justify-content:flex-start;">Customer: ${customerName}</p>`
+                : ""
+            }
           </div>
           
           <div class="receipt-divider"></div>
@@ -279,8 +192,9 @@ export const RefundReceipt: React.FC<RefundReceiptProps> = ({
           <table class="receipt-table">
             <thead>
               <tr>
-                <th class="qty">Qty.</th>
-                <th class="description">Description</th>
+                <th class="qty">#</th>
+                <th class="qty">Qty</th>
+                <th class="description">Item</th>
                 <th class="price">Price</th>
                 <th class="amount">Amount</th>
               </tr>
@@ -288,8 +202,9 @@ export const RefundReceipt: React.FC<RefundReceiptProps> = ({
             <tbody>
               ${displayItems
                 .map(
-                  (item) => `
+                  (item, index) => `
                 <tr>
+                  <td class="qty">${index + 1}</td>
                   <td class="qty">${item.quantity}</td>
                   <td class="description">${formatItemName(item)}</td>
                   <td class="price">${item.price.toFixed(3)}</td>
@@ -312,12 +227,8 @@ export const RefundReceipt: React.FC<RefundReceiptProps> = ({
                 <td class="total-amount">OMR ${subtotal.toFixed(3)}</td>
               </tr>
               <tr>
-                <td>VAT</td>
-                <td class="total-amount">OMR ${vat.toFixed(3)}</td>
-              </tr>
-              <tr>
-                <td class="total-label">TOTAL REFUND:</td>
-                <td class="total-amount" style="font-weight: bold; color: #D9534F;">OMR ${refundAmount.toFixed(
+                <td class="total-label">TOTAL REFUND</td>
+                <td class="total-amount" style="color: #D9534F;">OMR ${refundAmount.toFixed(
                   3
                 )}</td>
               </tr>
@@ -330,8 +241,9 @@ export const RefundReceipt: React.FC<RefundReceiptProps> = ({
               0
             )}</p>
             ${cashier ? `<p>Cashier: ${cashier}</p>` : ""}
-            <div class="receipt-divider"></div>
-            <p>Thank you for shopping with us</p>
+            <p>Thank you for shopping with us.</p>
+            <p class="arabic">شكراً للتسوق معنا</p>
+            <p style="font-weight:bold; margin-top:6px;">WhatsApp 72702537 for latest offers</p>
           </div>
         </div>
       </body>
@@ -350,24 +262,21 @@ export const RefundReceipt: React.FC<RefundReceiptProps> = ({
     }
 
     const htmlContent = generateReceiptHTML();
+    const htmlWithAutoPrint = htmlContent.replace(
+      /<\/body>/,
+      `<script>
+         window.onload = function() {
+           setTimeout(function(){
+             try { window.focus(); window.print(); } catch (e) { }
+           }, 300);
+         };
+       <\/script></body>`
+    );
 
     printWindow.document.open();
-    printWindow.document.write(htmlContent);
+    printWindow.document.write(htmlWithAutoPrint);
     printWindow.document.close();
     printWindow.document.title = "Refund Receipt";
-
-    setTimeout(() => {
-      printWindow.print();
-      // Don't automatically close the print window on mobile devices
-      if (
-        !/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-          navigator.userAgent
-        )
-      ) {
-        // Removed auto close to prevent about:blank text
-        // printWindow.close();
-      }
-    }, 500);
   }, [
     isClient,
     items,
@@ -407,10 +316,16 @@ export const RefundReceipt: React.FC<RefundReceiptProps> = ({
       >
         {/* Receipt Preview */}
         <div className="text-center mb-2">
-          <h3 className="font-bold text-lg">H Automotives</h3>
-          <p className="text-xs text-gray-500">Saham, Sultanate of Oman</p>
-          <p className="text-xs text-gray-500">Ph: 92510750 | 26856848</p>
-          <p className="text-xs text-gray-500">VATIN: OM1100006980</p>
+          <h3 className="font-bold text-lg">{brand.name}</h3>
+          <p className="text-xs text-gray-500">
+            {brand.addressLines.join(" ")}
+          </p>
+          <p className="text-xs text-gray-500">
+            Ph: {brand.phones.join(" | ")}
+          </p>
+          <p className="text-xs text-gray-500">
+            POS ID: {brand.posId || POS_ID_FALLBACK}
+          </p>
         </div>
 
         <div className="border-t border-b border-dashed py-1 mb-3">
@@ -418,14 +333,15 @@ export const RefundReceipt: React.FC<RefundReceiptProps> = ({
             Refund Receipt
           </p>
           <div className="flex justify-between text-xs">
-            <span>Original Receipt: {originalReceiptNumber}</span>
+            <span className="font-medium">Refund: {receiptNumber}</span>
+            <span className="font-medium">POS ID: {POS_ID}</span>
+          </div>
+          <div className="flex justify-between text-xs">
+            <span>Original Invoice: {originalReceiptNumber}</span>
           </div>
           <div className="flex justify-between text-xs">
             <span>Date: {currentDate}</span>
-          </div>
-          <div className="flex justify-between text-xs">
             <span>Time: {currentTime}</span>
-            <span>POS ID: {receiptNumber}</span>
           </div>
           {customerName && (
             <div className="text-xs">
@@ -436,22 +352,24 @@ export const RefundReceipt: React.FC<RefundReceiptProps> = ({
 
         <div className="text-xs mb-3">
           <div className="grid grid-cols-12 gap-1 font-medium mb-1">
-            <span className="col-span-1">Qty.</span>
+            <span className="col-span-1">#</span>
+            <span className="col-span-2">Qty</span>
             <span className="col-span-7">Description</span>
-            <span className="col-span-2 text-right">Price</span>
-            <span className="col-span-2 text-right">Amount</span>
+            <span className="col-span-1 text-right">Price</span>
+            <span className="col-span-1 text-right">Amount</span>
           </div>
 
-          {displayItems.map((item) => (
+          {displayItems.map((item, index) => (
             <div key={item.uniqueId} className="grid grid-cols-12 gap-1 mb-1">
-              <span className="col-span-1">{item.quantity}</span>
+              <span className="col-span-1">{index + 1}</span>
+              <span className="col-span-2">(x{item.quantity})</span>
               <span className="col-span-7 break-words">
                 {formatItemName(item)}
               </span>
-              <span className="col-span-2 text-right">
+              <span className="col-span-1 text-right">
                 {item.price.toFixed(3)}
               </span>
-              <span className="col-span-2 text-right">
+              <span className="col-span-1 text-right">
                 {(item.price * item.quantity).toFixed(3)}
               </span>
             </div>
@@ -463,10 +381,6 @@ export const RefundReceipt: React.FC<RefundReceiptProps> = ({
             <span>Total w/o VAT</span>
             <span>OMR {subtotal.toFixed(3)}</span>
           </div>
-          <div className="flex justify-between text-xs">
-            <span>VAT</span>
-            <span>OMR {vat.toFixed(3)}</span>
-          </div>
           <div className="flex justify-between text-xs font-bold text-red-600">
             <span>Total Refund</span>
             <span>OMR {refundAmount.toFixed(3)}</span>
@@ -476,7 +390,11 @@ export const RefundReceipt: React.FC<RefundReceiptProps> = ({
         <div className="text-center text-xs border-t border-dashed pt-2">
           <p>Number of Items: {itemCount}</p>
           {cashier && <p>Cashier: {cashier}</p>}
-          <p className="text-xs italic mt-2">Thank you for shopping with us</p>
+          <p>Thank you for shopping with us.</p>
+          <p className="text-xs text-right text-gray-600">شكراً للتسوق معنا</p>
+          <p className="font-medium mt-2">
+            WhatsApp 72702537 for latest offers
+          </p>
         </div>
       </div>
 

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useRef, useCallback, useEffect, useState } from "react";
+import { useCompanyInfo } from "@/lib/hooks/useCompanyInfo";
 import { Button } from "@/components/ui/button";
 import { Printer } from "lucide-react";
 import { motion } from "framer-motion";
@@ -29,7 +30,8 @@ interface BillComponentProps {
   isWarrantyClaim?: boolean;
 }
 
-const companyDetails = {
+// Backward-compatible fallback, will be overridden by hook when available
+const fallbackCompanyDetails = {
   name: "AL-TARATH NATIONAL CO.",
   arabicName: "شركة الطارث الوطنية",
   crNumber: "1001886",
@@ -60,6 +62,20 @@ export const BillComponent: React.FC<BillComponentProps> = ({
 }) => {
   const billRef = useRef<HTMLDivElement>(null);
   const [isClient, setIsClient] = useState(false);
+  const { registered } = useCompanyInfo();
+  const companyDetails = {
+    name: registered.name || fallbackCompanyDetails.name,
+    arabicName: registered.arabicName || fallbackCompanyDetails.arabicName,
+    crNumber: registered.crNumber || fallbackCompanyDetails.crNumber,
+    addressLine1:
+      registered.addressLines?.[0] || fallbackCompanyDetails.addressLine1,
+    addressLine2:
+      registered.addressLines?.[1] || fallbackCompanyDetails.addressLine2,
+    addressLine3:
+      registered.addressLines?.[2] || fallbackCompanyDetails.addressLine3,
+    contactNumber:
+      registered.contactNumber || fallbackCompanyDetails.contactNumber,
+  };
 
   useEffect(() => {
     setIsClient(true);

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback, memo } from "react";
-import { Layout } from "@/components/layout";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -29,11 +29,11 @@ import {
   MoreVertical,
   Store,
 } from "lucide-react";
-import { ItemsProvider, useItems, type Item } from "../inventory/items-context";
-import { ItemModal } from "../inventory/item-modal";
+import { ItemsProvider, useItems, type Item } from "../items-context";
+import { ItemModal } from "../item-modal";
 import { toast } from "@/components/ui/use-toast";
-import { CategoryModal } from "../inventory/category-modal";
-import { useUser } from "../user-context";
+import { CategoryModal } from "../category-modal";
+import { useUser } from "../../user-context";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent } from "@/components/ui/card";
@@ -48,21 +48,21 @@ import {
 import { PageHeader } from "@/components/page-title";
 import { BranchProvider, useBranch } from "./branch-context-mock";
 import type { Branch } from "@/lib/services/inventoryService";
-import { useInventoryData } from "../inventory/hooks/useInventoryData";
+import { useInventoryData } from "../inventory-data";
 import { Label } from "@/components/ui/label";
 import {
   OpenBottleBadge,
   ClosedBottleBadge,
 } from "@/components/ui/inventory-bottle-icons";
 import { OpenBottleIcon, ClosedBottleIcon } from "@/components/ui/bottle-icons";
-import BrandModal from "../inventory/brand-modal";
+import BrandModal from "../brand-modal";
 import { useBranchInventoryMockData } from "./hooks/useBranchInventoryMockData";
 import {
   useAbuDhabiInventory,
   ABU_DHABI_BRANCH,
 } from "./hooks/useAbuDhabiInventory";
 import { useHafithInventory, HAFITH_BRANCH } from "./hooks/useHafithInventory";
-import { StockIndicator } from "../inventory/components/stock-indicator";
+import { StockIndicator } from "../components/stock-indicator";
 
 // Define volume type
 interface Volume {
@@ -627,7 +627,7 @@ function BranchInventoryPage() {
   const branches = [ABU_DHABI_BRANCH, HAFITH_BRANCH];
 
   return (
-    <div className="w-full space-y-6">
+    <div className="w-full h-full">
       {isMobile ? (
         <MobileView
           items={branchItems}
@@ -742,36 +742,39 @@ function BranchInventoryPage() {
               <p className="text-muted-foreground">No items found</p>
             </div>
           ) : (
-            <div className="border rounded-lg">
+            <div className="rounded-md border bg-white shadow-sm">
               <div className="overflow-x-auto">
-                <table className="w-full">
+                <table className="w-full min-w-[800px]">
                   <thead>
-                    <tr className="border-b">
-                      <th className="h-12 px-4 text-left align-middle font-medium">
+                    <tr className="border-b bg-muted/50">
+                      <th className="h-14 px-4 text-left align-middle font-medium min-w-[200px]">
                         Item
                       </th>
-                      <th className="h-12 px-4 text-left align-middle font-medium">
+                      <th className="h-14 px-4 text-left align-middle font-medium min-w-[120px]">
                         Category
                       </th>
-                      <th className="h-12 px-4 text-left align-middle font-medium">
+                      <th className="h-14 px-4 text-left align-middle font-medium min-w-[100px]">
                         Brand
                       </th>
-                      <th className="h-12 px-4 text-left align-middle font-medium">
+                      <th className="h-14 px-4 text-left align-middle font-medium min-w-[80px]">
                         Stock
                       </th>
-                      <th className="h-12 px-4 text-left align-middle font-medium">
+                      <th className="h-14 px-4 text-left align-middle font-medium min-w-[100px]">
                         Price
                       </th>
-                      <th className="h-12 px-4 text-left align-middle font-medium">
+                      <th className="h-14 px-4 text-left align-middle font-medium min-w-[160px]">
                         Bottle Inventory
                       </th>
-                      <th className="h-12 w-[40px]"></th>
+                      <th className="h-14 w-16"></th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredItems.map((item) => (
-                      <tr key={item.id} className="border-b">
-                        <td className="p-4">
+                      <tr
+                        key={item.id}
+                        className="border-b hover:bg-muted/30 transition-colors"
+                      >
+                        <td className="h-16 px-4 text-left align-middle">
                           <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-md border overflow-hidden bg-muted flex items-center justify-center">
                               {item.imageUrl || item.image_url ? (
@@ -799,15 +802,21 @@ function BranchInventoryPage() {
                             </div>
                           </div>
                         </td>
-                        <td className="p-4">
+                        <td className="h-16 px-4 text-left align-middle">
                           <Badge variant="secondary">
                             {item.category || "Uncategorized"}
                           </Badge>
                         </td>
-                        <td className="p-4">{item.brand || "-"}</td>
-                        <td className="p-4">{item.stock || 0}</td>
-                        <td className="p-4">OMR {item.price.toFixed(2)}</td>
-                        <td className="p-4">
+                        <td className="h-16 px-4 text-left align-middle">
+                          {item.brand || "-"}
+                        </td>
+                        <td className="h-16 px-4 text-left align-middle">
+                          {item.stock || 0}
+                        </td>
+                        <td className="h-16 px-4 text-left align-middle">
+                          OMR {item.price.toFixed(2)}
+                        </td>
+                        <td className="h-16 px-4 text-left align-middle">
                           {item.isOil && item.bottleStates ? (
                             <div className="flex items-center gap-2">
                               <div className="flex items-center gap-1">
@@ -823,7 +832,7 @@ function BranchInventoryPage() {
                             <span className="text-muted-foreground">-</span>
                           )}
                         </td>
-                        <td className="p-4">
+                        <td className="h-16 px-4 text-right align-middle">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button
@@ -879,14 +888,12 @@ function BranchInventoryPage() {
   );
 }
 
-export default function ItemsPage() {
+export default function BranchInventoryItemsPage() {
   return (
-    <Layout>
-      <BranchProvider>
-        <ItemsProvider>
-          <BranchInventoryPage />
-        </ItemsProvider>
-      </BranchProvider>
-    </Layout>
+    <BranchProvider>
+      <ItemsProvider>
+        <BranchInventoryPage />
+      </ItemsProvider>
+    </BranchProvider>
   );
 }

@@ -302,8 +302,7 @@ export function CustomSidebar({ className }: { className?: string }) {
                 onClick={() => setInventoryOpen(!inventoryOpen)}
                 className={cn(
                   "flex w-full items-center rounded-md px-2 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
-                  (pathname === "/inventory" ||
-                    pathname === "/inventory/branch") &&
+                  pathname.startsWith("/inventory") &&
                     "bg-accent text-accent-foreground"
                 )}
               >
@@ -326,10 +325,10 @@ export function CustomSidebar({ className }: { className?: string }) {
               {inventoryOpen && (
                 <div className="ml-6 mt-1 space-y-1">
                   <Link
-                    href="/inventory"
+                    href="/inventory/main-inventory"
                     className={cn(
                       "flex items-center rounded-md px-2 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
-                      pathname === "/inventory" &&
+                      pathname === "/inventory/main-inventory" &&
                         "bg-accent text-accent-foreground"
                     )}
                   >
@@ -337,10 +336,10 @@ export function CustomSidebar({ className }: { className?: string }) {
                     <span>Main</span>
                   </Link>
                   <Link
-                    href="/inventory/branch"
+                    href="/inventory/branch-inventory"
                     className={cn(
                       "flex items-center rounded-md px-2 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
-                      pathname === "/inventory/branch" &&
+                      pathname === "/inventory/branch-inventory" &&
                         "bg-accent text-accent-foreground"
                     )}
                   >

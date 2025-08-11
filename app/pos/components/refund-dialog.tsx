@@ -434,8 +434,20 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
       alert("Please allow popups to print the receipt.");
       return;
     }
+    // Build thermal-style HTML to match previewed RefundReceipt
+    const POS_ID = "POS-01";
+    const displayItems = selectedRefundItems.filter(
+      (item) => !item.name.toLowerCase().includes("discount")
+    );
+    const itemCount = displayItems.reduce(
+      (sum, item) => sum + item.quantity,
+      0
+    );
+    const subtotal = refundAmount / 1.05; // remove 5% VAT if any
+    const refundId = `R${Math.floor(Math.random() * 10000)
+      .toString()
+      .padStart(4, "0")}`;
 
-    // Generate HTML content for thermal receipt printing
     const htmlContent = `
       <!DOCTYPE html>
       <html lang="en">
@@ -444,92 +456,33 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Refund Receipt</title>
         <style>
-          @page {
-            size: 80mm 297mm;
-            margin: 0;
-          }
-          html, body {
-            font-family: sans-serif !important;
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            font-size: 10pt;
-          }
-          * {
-            font-family: sans-serif !important;
-          }
-          .receipt {
-            width: 76mm;
-            padding: 5mm 2mm;
-            margin: 0 auto;
-          }
-          .receipt-header {
-            text-align: center;
-            margin-bottom: 10px;
-          }
-          .receipt-header h1 {
-            font-size: 14pt;
-            margin: 0;
-            font-weight: bold;
-          }
-          .receipt-header p {
-            font-size: 8pt;
-            margin: 2px 0;
-            color: #555;
-          }
-          .receipt-divider {
-            border-top: 1px dashed #000;
-            margin: 5px 0;
-          }
-          .receipt-info {
-            font-size: 9pt;
-            margin: 5px 0;
-          }
-          .receipt-title {
-            text-align: center;
-            font-weight: bold;
-            margin: 10px 0;
-            font-size: 11pt;
-            color: #D9534F;
-          }
-          .receipt-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 10px 0;
-            font-size: 8pt;
-          }
-          .receipt-table th, .receipt-table td {
-            text-align: left;
-            padding: 2px 0;
-          }
-          .receipt-items {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 10px 0;
-            font-size: 8pt;
-          }
-          .receipt-items th, .receipt-items td {
-            padding: 3px 0;
-          }
-          .receipt-items th {
-            text-align: left;
-            border-bottom: 1px solid #ddd;
-          }
-          .receipt-items td.price {
-            text-align: right;
-          }
-          .receipt-summary {
-            margin: 10px 0;
-            font-size: 9pt;
-          }
-          .receipt-summary table {
-            width: 100%;
-          }
-          .receipt-footer {
-            margin-top: 15px;
-            font-size: 8pt;
-            text-align: center;
-          }
+          body { font-family: sans-serif !important; padding: 0; margin: 0; width: 80mm; font-size: 12px; }
+          * { font-family: sans-serif !important; }
+          .receipt { width: 76mm; padding: 5mm 2mm; margin: 0 auto; }
+          .receipt-header { text-align: center; margin-bottom: 10px; }
+          .receipt-header h1 { font-size: 16px; margin: 0; font-weight: bold; }
+          .receipt-header p { font-size: 12px; margin: 2px 0; color: #555; }
+          .receipt-divider { border-top: 1px dashed #000; margin: 5px 0; }
+          .receipt-info { font-size: 12px; margin: 5px 0; }
+          .receipt-info p { margin: 2px 0; display: flex; justify-content: space-between; align-items: center; }
+          .receipt-title { text-align: center; font-weight: bold; margin: 10px 0; font-size: 13px; color: #D9534F; text-transform: uppercase; }
+          .receipt-table { width: 100%; border-collapse: collapse; margin: 10px 0; table-layout: fixed; }
+          .receipt-table th { text-align: left; font-size: 12px; padding-bottom: 5px; }
+          .receipt-table td { font-size: 12px; padding: 2px 0; word-wrap: break-word; word-break: break-word; }
+          .receipt-table .sno { width: 22px; }
+          .receipt-table .qty { width: 38px; text-align: left; }
+          .receipt-table .description { width: auto; max-width: 100%; }
+          .receipt-table .price { width: 60px; text-align: right; }
+          .receipt-table .amount { width: 70px; text-align: right; }
+          .receipt-summary { margin-top: 10px; border-top: 1px dashed #000; padding-top: 5px; }
+          .receipt-summary table { width: 100%; }
+          .receipt-summary td { font-size: 12px; padding: 2px 0; }
+          .receipt-summary .total-label { font-weight: bold; }
+          .receipt-summary .total-amount { text-align: right; font-weight: bold; }
+          .receipt-footer { margin-top: 10px; text-align: center; font-size: 12px; border-top: 1px dashed #000; padding-top: 5px; }
+          .receipt-footer p { margin: 3px 0; }
+          .arabic { font-size: 11px; direction: rtl; margin: 2px 0; }
+          @media print { body { width: 80mm; margin: 0; padding: 0; } @page { margin: 0; size: 80mm auto; } }
         </style>
       </head>
       <body>
@@ -538,42 +491,53 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
             <h1>H Automotives</h1>
             <p>Saham, Sultanate of Oman</p>
             <p>Ph: 92510750 | 26856848</p>
+            <p>POS ID: ${POS_ID}</p>
           </div>
-          
+
           <div class="receipt-divider"></div>
-          
+
           <div class="receipt-title">REFUND RECEIPT</div>
-          
+
           <div class="receipt-info">
-            <p>Original Receipt: ${currentReceipt?.receiptNumber || ""}</p>
-            <p>Date: ${format(new Date(), "dd/MM/yyyy")}</p>
-            <p>Time: ${format(new Date(), "HH:mm:ss")}</p>
-            <p>Refund ID: R${Math.floor(Math.random() * 10000)
-              .toString()
-              .padStart(4, "0")}</p>
-            ${customerName ? `<p>Customer: ${customerName}</p>` : ""}
+            <p><span>Refund: ${refundId}</span><span>POS ID: ${POS_ID}</span></p>
+            <p><span>Original Invoice: ${
+              currentReceipt?.receiptNumber || ""
+            }</span></p>
+            <p><span>Date: ${format(
+              new Date(),
+              "dd/MM/yyyy"
+            )}</span><span>Time: ${format(new Date(), "HH:mm:ss")}</span></p>
+            ${
+              customerName
+                ? `<p style="justify-content:flex-start;">Customer: ${customerName}</p>`
+                : ""
+            }
           </div>
-          
+
           <div class="receipt-divider"></div>
-          
-          <table class="receipt-items">
+
+          <table class="receipt-table">
             <thead>
               <tr>
-                <th>Item</th>
-                <th>Qty</th>
-                <th style="text-align: right;">Price</th>
+                <th class="sno">#</th>
+                <th class="qty">Qty</th>
+                <th class="description">Description</th>
+                <th class="price">Price</th>
+                <th class="amount">Amount</th>
               </tr>
             </thead>
             <tbody>
-              ${selectedRefundItems
+              ${displayItems
                 .map(
-                  (item) => `
+                  (item, index) => `
                 <tr>
-                  <td>${item.name}${
+                  <td class="sno">${index + 1}</td>
+                  <td class="qty">(x${item.quantity})</td>
+                  <td class="description">${item.name}${
                     item.details ? ` (${item.details})` : ""
                   }</td>
-                  <td>${item.quantity}</td>
-                  <td class="price">OMR ${(item.price * item.quantity).toFixed(
+                  <td class="price">${item.price.toFixed(3)}</td>
+                  <td class="amount">${(item.price * item.quantity).toFixed(
                     3
                   )}</td>
                 </tr>
@@ -582,20 +546,22 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
                 .join("")}
             </tbody>
           </table>
-          
-          <div class="receipt-divider"></div>
-          
+
           <div class="receipt-summary">
             <table>
               <tr>
-                <td style="font-weight: bold;">TOTAL REFUND AMOUNT:</td>
-                <td style="text-align: right; font-weight: bold; color: #D9534F;">
-                  OMR ${refundAmount.toFixed(3)}
-                </td>
+                <td>Total w/o VAT</td>
+                <td class="total-amount">OMR ${subtotal.toFixed(3)}</td>
+              </tr>
+              <tr>
+                <td class="total-label">TOTAL REFUND</td>
+                <td class="total-amount" style="color:#D9534F;">OMR ${refundAmount.toFixed(
+                  3
+                )}</td>
               </tr>
             </table>
           </div>
-          
+
           <div class="receipt-footer">
             ${
               selectedCashier?.name || fetchedCashier?.name
@@ -604,30 +570,30 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
                   }</p>`
                 : ""
             }
-            <div class="receipt-divider"></div>
-            <p>Thank you for shopping with us</p>
+            <p>Number of Items: ${itemCount}</p>
+            <p>Thank you for shopping with us.</p>
+            <p class="arabic">شكراً للتسوق معنا</p>
+            <p style="font-weight:bold; margin-top:6px;">WhatsApp 72702537 for latest offers</p>
           </div>
         </div>
       </body>
       </html>
     `;
 
-    printWindow.document.open();
-    printWindow.document.write(htmlContent);
-    printWindow.document.close();
+    const htmlWithAutoPrint = htmlContent.replace(
+      /<\/body>/,
+      `<script>
+         window.onload = function() {
+           setTimeout(function(){
+             try { window.focus(); window.print(); } catch (e) { }
+           }, 300);
+         };
+       <\/script></body>`
+    );
 
-    setTimeout(() => {
-      printWindow.print();
-      // Don't automatically close the print window on mobile devices
-      if (
-        !/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-          navigator.userAgent
-        )
-      ) {
-        // Removed auto close to prevent about:blank text
-        // printWindow.close();
-      }
-    }, 500);
+    printWindow.document.open();
+    printWindow.document.write(htmlWithAutoPrint);
+    printWindow.document.close();
   };
 
   // Scroll to top when showing the receipt

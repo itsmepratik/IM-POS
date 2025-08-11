@@ -1,6 +1,7 @@
 // A unique name for our cache.
 // IMPORTANT: Change this name every time you deploy a new version.
-const CACHE_NAME = "my-nextjs-app-cache-v1";
+// Increment this when you deploy to bust caches in the field.
+const CACHE_NAME = "pos-app-cache-v3";
 
 // The self object refers to the service worker itself.
 // We are adding an event listener for the 'install' event.
@@ -39,10 +40,21 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Network First Strategy:
-  // We try to fetch the request from the network first.
-  // If the network request is successful, we cache it and return the response.
-  // If the network request fails, we try to serve it from the cache.
+  // Avoid caching Next.js build artifacts and dynamic chunk files to prevent
+  // stale chunk issues (ChunkLoadError) when a new build is deployed.
+  const url = new URL(event.request.url);
+  const isNextChunk =
+    url.pathname.startsWith("/_next/static/") ||
+    url.pathname.includes(".hot-update.") ||
+    url.pathname.endsWith(".map");
+
+  if (isNextChunk) {
+    // Always go to the network for Next.js assets and do not cache
+    event.respondWith(fetch(event.request));
+    return;
+  }
+
+  // Network First Strategy for app/content requests
   event.respondWith(
     fetch(event.request)
       .then((res) => {

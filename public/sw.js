@@ -1,10 +1,10 @@
 // A unique name for our cache.
-// IMPORTANT: Change this name every time you deploy a new version.
-const CACHE_NAME = "my-nextjs-app-cache-v1";
+// IMPORTANT: Bump this version on deploys to clear old caches.
+const CACHE_NAME = "pos-runtime-cache-v3";
 
 // The self object refers to the service worker itself.
 // We are adding an event listener for the 'install' event.
-self.addEventListener("install", (event) => {
+self.addEventListener("install", () => {
   // skipWaiting() forces the waiting service worker to become the active service worker.
   // This is crucial for ensuring updates are applied immediately.
   self.skipWaiting();
@@ -29,36 +29,83 @@ self.addEventListener("activate", (event) => {
     })
   );
   console.log("Service Worker: Activated");
+  // Immediately take control of all pages so new SW applies without a hard refresh
+  self.clients.claim();
 });
 
 // Add an event listener for the 'fetch' event.
 // This event is fired for every network request the page makes.
 self.addEventListener("fetch", (event) => {
-  // We only want to handle GET requests.
-  if (event.request.method !== "GET") {
+  // Only handle GET
+  if (event.request.method !== "GET") return;
+
+  const req = event.request;
+  const url = new URL(req.url);
+
+  // For navigations/HTML, always go to network with no-store to avoid stale HTML
+  const isNavigation =
+    req.mode === "navigate" ||
+    req.destination === "document" ||
+    (req.headers.get("accept") || "").includes("text/html");
+
+  if (isNavigation) {
+    event.respondWith(
+      (async () => {
+        try {
+          const fresh = await fetch(req, { cache: "no-store" });
+          // Optionally cache a copy for offline fallback
+          const cache = await caches.open(CACHE_NAME);
+          cache.put(req, fresh.clone());
+          return fresh;
+        } catch {
+          const cached = await caches.match(req);
+          if (cached) return cached;
+          return new Response("Offline", {
+            status: 503,
+            statusText: "Offline",
+          });
+        }
+      })()
+    );
     return;
   }
 
-  // Network First Strategy:
-  // We try to fetch the request from the network first.
-  // If the network request is successful, we cache it and return the response.
-  // If the network request fails, we try to serve it from the cache.
+  // For same-origin static assets (js/css/img/fonts), use network-first with no-store, fallback to cache
+  if (url.origin === self.location.origin) {
+    event.respondWith(
+      (async () => {
+        try {
+          const fresh = await fetch(req, { cache: "no-store" });
+          const cache = await caches.open(CACHE_NAME);
+          cache.put(req, fresh.clone());
+          return fresh;
+        } catch {
+          const cached = await caches.match(req);
+          if (cached) return cached;
+          throw new Error("Request failed and no cache available");
+        }
+      })()
+    );
+    return;
+  }
+
+  // For cross-origin requests, just pass-through network, fallback to cache
   event.respondWith(
-    fetch(event.request)
-      .then((res) => {
-        // If the fetch was successful, clone the response and cache it.
-        const resClone = res.clone();
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(event.request, resClone);
-        });
-        return res;
-      })
-      .catch((err) => {
-        // If the network request fails, try to find the response in the cache.
-        console.log(
-          `Service Worker: Fetch failed for ${event.request.url}; trying cache.`
-        );
-        return caches.match(event.request).then((res) => res);
-      })
+    (async () => {
+      try {
+        return await fetch(req, { cache: "no-store" });
+      } catch {
+        const cached = await caches.match(req);
+        if (cached) return cached;
+        throw new Error("Request failed and no cache available");
+      }
+    })()
   );
+});
+
+// Optional: allow pages to prompt this SW to skip waiting (if you wire it up in the app)
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
 });

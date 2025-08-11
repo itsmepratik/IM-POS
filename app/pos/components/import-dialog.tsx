@@ -14,11 +14,10 @@ import { Upload } from "lucide-react"
 interface ImportDialogProps {
   isOpen: boolean
   onClose: () => void
-  onImport: (importedData: any[]) => void
+  onImport: (importedData: { id: number; name: string; price: number }[]) => void
 }
 
 export function ImportDialog({ isOpen, onClose, onImport }: ImportDialogProps) {
-  // This is just a mock implementation
   // In a real app, you would implement file uploading and parsing logic here
   
   const handleImport = () => {

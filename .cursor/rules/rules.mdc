@@ -1,12 +1,8 @@
 ---
-description: 
+description: python user prompt
 globs: 
 alwaysApply: true
 ---
----
-description: 
-globs: 
-alwaysApply: true
 ---
 
 ### ✅ Task: Interactive Task Loop with User Feedback

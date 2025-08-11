@@ -8,8 +8,6 @@ import { cn } from "@/lib/utils";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import {
   Home,
-  Package,
-  ClipboardList,
   RefreshCcw,
   Settings,
   ShoppingCart,
@@ -236,9 +234,7 @@ export function MobileNav({ className }: { className?: string }) {
                   onClick={() => setInventoryOpen(!inventoryOpen)}
                   className={cn(
                     "flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
-                    mounted &&
-                      (pathname === "/inventory" ||
-                        pathname === "/branch-inventory")
+                    mounted && pathname.startsWith("/inventory")
                       ? "bg-accent text-accent-foreground"
                       : "transparent"
                   )}
@@ -258,11 +254,11 @@ export function MobileNav({ className }: { className?: string }) {
                 {inventoryOpen && (
                   <div className="ml-6 space-y-1">
                     <Link
-                      href="/inventory"
+                      href="/inventory/main-inventory"
                       onClick={() => setOpen(false)}
                       className={cn(
                         "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
-                        mounted && pathname === "/inventory"
+                        mounted && pathname === "/inventory/main-inventory"
                           ? "bg-accent text-accent-foreground"
                           : "transparent"
                       )}
@@ -271,11 +267,11 @@ export function MobileNav({ className }: { className?: string }) {
                       <span>Main</span>
                     </Link>
                     <Link
-                      href="/branch-inventory"
+                      href="/inventory/branch-inventory"
                       onClick={() => setOpen(false)}
                       className={cn(
                         "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
-                        mounted && pathname === "/branch-inventory"
+                        mounted && pathname === "/inventory/branch-inventory"
                           ? "bg-accent text-accent-foreground"
                           : "transparent"
                       )}

@@ -2,14 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { useInventoryMockData } from "./useInventoryMockData";
-import { redisCache } from "@/lib/services/redisService";
+// Redis import removed
 import { Item } from "@/lib/services/branchInventoryService";
 
-// Cache keys
-const CACHE_KEYS = {
-  INVENTORY_ITEMS: 'inventory:items',
-  CATEGORIES: 'inventory:categories',
-  BRANDS: 'inventory:brands',
+// Local storage keys
+const STORAGE_KEYS = {
+  INVENTORY_ITEMS: "inventory:items",
+  CATEGORIES: "inventory:categories",
+  BRANDS: "inventory:brands",
 };
 
 export function useCachedInventory() {
@@ -21,43 +21,53 @@ export function useCachedInventory() {
   useEffect(() => {
     if (!isInitialLoad) return;
 
-    const loadFromCache = async () => {
+    const loadFromStorage = () => {
       try {
-        // Try to get inventory data from cache
-        const cachedItems = await redisCache.get<Item[]>(CACHE_KEYS.INVENTORY_ITEMS);
-        
+        // Try to get inventory data from localStorage
+        const storedData = localStorage.getItem(STORAGE_KEYS.INVENTORY_ITEMS);
+        const cachedItems = storedData
+          ? (JSON.parse(storedData) as Item[])
+          : null;
+
         if (cachedItems) {
-          console.log('Loaded inventory from cache:', cachedItems.length, 'items');
-          // If we have cached data, update the state directly
+          console.log(
+            "Loaded inventory from localStorage:",
+            cachedItems.length,
+            "items"
+          );
+          // If we have stored data, update the state directly
           inventory.setItems?.(cachedItems);
         }
-        
+
         setIsCacheLoaded(true);
         setIsInitialLoad(false);
       } catch (error) {
-        console.error('Error loading from cache:', error);
+        console.error("Error loading from localStorage:", error);
         setIsCacheLoaded(true);
         setIsInitialLoad(false);
       }
     };
 
-    loadFromCache();
+    loadFromStorage();
   }, [isInitialLoad, inventory]);
 
   // Cache items when they change
   useEffect(() => {
     if (!isCacheLoaded) return;
 
-    const cacheInventory = async () => {
+    const storeInventory = () => {
       try {
-        await redisCache.set(CACHE_KEYS.INVENTORY_ITEMS, inventory.items);
-        console.log('Cached', inventory.items.length, 'inventory items');
+        localStorage.setItem(
+          STORAGE_KEYS.INVENTORY_ITEMS,
+          JSON.stringify(inventory.items)
+        );
+        console.log("Stored", inventory.items.length, "inventory items");
       } catch (error) {
-        console.error('Error caching inventory:', error);
+        console.error("Error storing inventory:", error);
       }
     };
 
-    cacheInventory();
+    storeInventory();
   }, [inventory.items, isCacheLoaded]);
 
   // Enhanced methods that update cache
@@ -65,8 +75,11 @@ export function useCachedInventory() {
     handleDelete: async (id: string): Promise<boolean> => {
       const result = await inventory.handleDelete(id);
       if (result) {
-        // Only update cache if operation was successful
-        await redisCache.set(CACHE_KEYS.INVENTORY_ITEMS, inventory.items);
+        // Only update localStorage if operation was successful
+        localStorage.setItem(
+          STORAGE_KEYS.INVENTORY_ITEMS,
+          JSON.stringify(inventory.items)
+        );
       }
       return result;
     },
@@ -74,8 +87,11 @@ export function useCachedInventory() {
     handleDuplicate: async (id: string): Promise<Item | null> => {
       const result = await inventory.handleDuplicate(id);
       if (result) {
-        // Only update cache if operation was successful
-        await redisCache.set(CACHE_KEYS.INVENTORY_ITEMS, inventory.items);
+        // Only update localStorage if operation was successful
+        localStorage.setItem(
+          STORAGE_KEYS.INVENTORY_ITEMS,
+          JSON.stringify(inventory.items)
+        );
       }
       return result;
     },
@@ -87,7 +103,7 @@ export function useCachedInventory() {
   return {
     ...inventory,
     ...enhancedHandlers,
-    isCacheReady: isCacheLoaded
+    isCacheReady: isCacheLoaded,
   };
 }
 
@@ -96,4 +112,4 @@ declare module "./useInventoryMockData" {
   interface UseInventoryMockDataReturn {
     setItems?: (items: Item[]) => void;
   }
-} 
+}

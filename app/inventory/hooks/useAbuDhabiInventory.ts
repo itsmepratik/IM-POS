@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { Item } from "@/lib/services/branchInventoryService";
-import { redisCache } from "@/lib/services/redisService";
+// Redis import removed
 
 // Branch specific constants
 export const ABU_DHABI_BRANCH = {
@@ -33,8 +33,22 @@ export const ABU_DHABI_INVENTORY: Item[] = [
     imageUrl: "/placeholders/oil.jpg",
     image_url: "/placeholders/oil.jpg",
     volumes: [
-      { id: "v1", item_id: "ad1", size: "1L", price: 14.99, created_at: "", updated_at: "" },
-      { id: "v2", item_id: "ad1", size: "4L", price: 32.99, created_at: "", updated_at: "" },
+      {
+        id: "v1",
+        item_id: "ad1",
+        size: "1L",
+        price: 14.99,
+        created_at: "",
+        updated_at: "",
+      },
+      {
+        id: "v2",
+        item_id: "ad1",
+        size: "4L",
+        price: 32.99,
+        created_at: "",
+        updated_at: "",
+      },
     ],
     bottleStates: { open: 3, closed: 42 },
     created_at: new Date().toISOString(),
@@ -51,14 +65,29 @@ export const ABU_DHABI_INVENTORY: Item[] = [
     category_id: "4",
     type: "Transmission",
     sku: "FLD-NSN-CVT",
-    description: "Nissan CVT transmission fluid for continuous variable transmissions",
+    description:
+      "Nissan CVT transmission fluid for continuous variable transmissions",
     is_oil: true,
     isOil: true,
     imageUrl: "/placeholders/fluid.jpg",
     image_url: "/placeholders/fluid.jpg",
     volumes: [
-      { id: "v3", item_id: "ad2", size: "1L", price: 16.99, created_at: "", updated_at: "" },
-      { id: "v4", item_id: "ad2", size: "4L", price: 39.99, created_at: "", updated_at: "" },
+      {
+        id: "v3",
+        item_id: "ad2",
+        size: "1L",
+        price: 16.99,
+        created_at: "",
+        updated_at: "",
+      },
+      {
+        id: "v4",
+        item_id: "ad2",
+        size: "4L",
+        price: 39.99,
+        created_at: "",
+        updated_at: "",
+      },
     ],
     bottleStates: { open: 2, closed: 16 },
     created_at: new Date().toISOString(),
@@ -81,8 +110,22 @@ export const ABU_DHABI_INVENTORY: Item[] = [
     imageUrl: "/placeholders/oil.jpg",
     image_url: "/placeholders/oil.jpg",
     volumes: [
-      { id: "v5", item_id: "ad3", size: "1L", price: 18.99, created_at: "", updated_at: "" },
-      { id: "v6", item_id: "ad3", size: "5L", price: 42.99, created_at: "", updated_at: "" },
+      {
+        id: "v5",
+        item_id: "ad3",
+        size: "1L",
+        price: 18.99,
+        created_at: "",
+        updated_at: "",
+      },
+      {
+        id: "v6",
+        item_id: "ad3",
+        size: "5L",
+        price: 42.99,
+        created_at: "",
+        updated_at: "",
+      },
     ],
     bottleStates: { open: 5, closed: 18 },
     created_at: new Date().toISOString(),
@@ -90,9 +133,9 @@ export const ABU_DHABI_INVENTORY: Item[] = [
   },
 ];
 
-// Cache keys
-const CACHE_KEYS = {
-  ABU_DHABI_ITEMS: 'branch:abudhabi:items',
+// Local storage keys
+const STORAGE_KEYS = {
+  ABU_DHABI_ITEMS: "branch:abudhabi:items",
 };
 
 // Interface for the returned data
@@ -101,7 +144,7 @@ interface UseAbuDhabiInventoryReturn {
   items: Item[];
   filteredItems: Item[];
   branch: typeof ABU_DHABI_BRANCH;
-  
+
   // Filter states
   searchQuery: string;
   setSearchQuery: (query: string) => void;
@@ -109,16 +152,16 @@ interface UseAbuDhabiInventoryReturn {
   setSelectedCategory: (category: string) => void;
   showLowStock: boolean;
   setShowLowStock: (show: boolean) => void;
-  
+
   // Oil-specific data
   oilItems: Item[];
   nonOilItems: Item[];
-  
+
   // Operations
   addItem: (item: Omit<Item, "id">) => Promise<Item>;
   updateItem: (id: string, updates: Partial<Item>) => Promise<Item | null>;
   deleteItem: (id: string) => Promise<boolean>;
-  
+
   // Cache state
   isCacheReady: boolean;
 }
@@ -127,13 +170,13 @@ export function useAbuDhabiInventory(): UseAbuDhabiInventoryReturn {
   // State for items (starting with mock data)
   const [items, setItems] = useState<Item[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  
+
   // Filter states
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [showLowStock, setShowLowStock] = useState(false);
   const [isCacheReady, setIsCacheReady] = useState(false);
-  
+
   // Categories derived from items
   const categories = useMemo(() => {
     const uniqueCategories = Array.from(
@@ -141,88 +184,109 @@ export function useAbuDhabiInventory(): UseAbuDhabiInventoryReturn {
     );
     return ["All", ...uniqueCategories];
   }, [items]);
-  
+
   // Oil-specific data
-  const oilItems = useMemo(() => items.filter(item => item.isOil), [items]);
-  const nonOilItems = useMemo(() => items.filter(item => !item.isOil), [items]);
-  
-  // Load data from cache or initialize with mock data
+  const oilItems = useMemo(() => items.filter((item) => item.isOil), [items]);
+  const nonOilItems = useMemo(
+    () => items.filter((item) => !item.isOil),
+    [items]
+  );
+
+  // Load data from localStorage or initialize with mock data
   useEffect(() => {
-    const initializeData = async () => {
+    const initializeData = () => {
       try {
-        // Try to load from cache first
-        const cachedItems = await redisCache.get<Item[]>(CACHE_KEYS.ABU_DHABI_ITEMS);
-        
+        // Try to load from localStorage first
+        const storedData = localStorage.getItem(STORAGE_KEYS.ABU_DHABI_ITEMS);
+        const cachedItems = storedData
+          ? (JSON.parse(storedData) as Item[])
+          : null;
+
         if (cachedItems && cachedItems.length > 0) {
-          console.log('Loaded Abu Dhabi items from cache:', cachedItems.length, 'items');
+          console.log(
+            "Loaded Abu Dhabi items from localStorage:",
+            cachedItems.length,
+            "items"
+          );
           setItems(cachedItems);
         } else {
-          // If not cached yet, use the mock data
-          console.log('Using mock Abu Dhabi data');
+          // If not stored yet, use the mock data
+          console.log("Using mock Abu Dhabi data");
           setItems(ABU_DHABI_INVENTORY);
-          
-          // Cache the initial data
-          await redisCache.set(CACHE_KEYS.ABU_DHABI_ITEMS, ABU_DHABI_INVENTORY);
+
+          // Store the initial data
+          localStorage.setItem(
+            STORAGE_KEYS.ABU_DHABI_ITEMS,
+            JSON.stringify(ABU_DHABI_INVENTORY)
+          );
         }
-        
+
         setIsLoading(false);
         setIsCacheReady(true);
       } catch (error) {
-        console.error('Error initializing Abu Dhabi inventory:', error);
+        console.error("Error initializing Abu Dhabi inventory:", error);
         // Fallback to mock data in case of error
         setItems(ABU_DHABI_INVENTORY);
         setIsLoading(false);
         setIsCacheReady(false);
       }
     };
-    
+
     initializeData();
   }, []);
-  
-  // Update cache when items change
+
+  // Update localStorage when items change
   useEffect(() => {
     if (!isCacheReady || isLoading) return;
-    
-    const updateCache = async () => {
+
+    const updateStorage = () => {
       try {
-        await redisCache.set(CACHE_KEYS.ABU_DHABI_ITEMS, items);
-        console.log('Updated Abu Dhabi cache with', items.length, 'items');
+        localStorage.setItem(
+          STORAGE_KEYS.ABU_DHABI_ITEMS,
+          JSON.stringify(items)
+        );
+        console.log(
+          "Updated Abu Dhabi localStorage with",
+          items.length,
+          "items"
+        );
       } catch (error) {
-        console.error('Error updating Abu Dhabi cache:', error);
+        console.error("Error updating Abu Dhabi localStorage:", error);
       }
     };
-    
-    updateCache();
+
+    updateStorage();
   }, [items, isCacheReady, isLoading]);
-  
+
   // Filtered items based on search, category, and stock filters
   const filteredItems = useMemo(() => {
     return items.filter((item) => {
       // Search query filter
-      const matchesSearch = 
+      const matchesSearch =
         (item.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (item.category || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (item.category || "")
+          .toLowerCase()
+          .includes(searchQuery.toLowerCase()) ||
         (item.brand || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
         (item.sku || "").toLowerCase().includes(searchQuery.toLowerCase());
-      
+
       // Category filter
-      const matchesCategory = 
-        selectedCategory === "All" || 
-        item.category === selectedCategory;
-      
+      const matchesCategory =
+        selectedCategory === "All" || item.category === selectedCategory;
+
       // Low stock filter
       const matchesLowStock = !showLowStock || (item.stock || 0) < 10;
-      
+
       return matchesSearch && matchesCategory && matchesLowStock;
     });
   }, [items, searchQuery, selectedCategory, showLowStock]);
-  
+
   // CRUD operations that also update the cache
   const addItem = async (itemData: Omit<Item, "id">): Promise<Item> => {
     try {
       // Create new ID (in a real app this would come from the backend)
       const newId = `ad${items.length + 1}`;
-      
+
       // Create new item
       const newItem: Item = {
         ...itemData,
@@ -230,76 +294,88 @@ export function useAbuDhabiInventory(): UseAbuDhabiInventoryReturn {
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
-      
+
       // Update state
       const updatedItems = [...items, newItem];
       setItems(updatedItems);
-      
-      // Update cache
-      await redisCache.set(CACHE_KEYS.ABU_DHABI_ITEMS, updatedItems);
-      
+
+      // Update localStorage
+      localStorage.setItem(
+        STORAGE_KEYS.ABU_DHABI_ITEMS,
+        JSON.stringify(updatedItems)
+      );
+
       return newItem;
     } catch (error) {
-      console.error('Error adding item:', error);
-      throw new Error('Failed to add item');
+      console.error("Error adding item:", error);
+      throw new Error("Failed to add item");
     }
   };
-  
-  const updateItem = async (id: string, updates: Partial<Item>): Promise<Item | null> => {
+
+  const updateItem = async (
+    id: string,
+    updates: Partial<Item>
+  ): Promise<Item | null> => {
     try {
       // Find the item
-      const itemIndex = items.findIndex(item => item.id === id);
+      const itemIndex = items.findIndex((item) => item.id === id);
       if (itemIndex === -1) return null;
-      
+
       // Create updated item
       const updatedItem: Item = {
         ...items[itemIndex],
         ...updates,
         updated_at: new Date().toISOString(),
       };
-      
+
       // Update state
       const updatedItems = [...items];
       updatedItems[itemIndex] = updatedItem;
       setItems(updatedItems);
-      
-      // Update cache
-      await redisCache.set(CACHE_KEYS.ABU_DHABI_ITEMS, updatedItems);
-      
+
+      // Update localStorage
+      localStorage.setItem(
+        STORAGE_KEYS.ABU_DHABI_ITEMS,
+        JSON.stringify(updatedItems)
+      );
+
       return updatedItem;
     } catch (error) {
-      console.error('Error updating item:', error);
+      console.error("Error updating item:", error);
       return null;
     }
   };
-  
+
   const deleteItem = async (id: string): Promise<boolean> => {
     try {
       // Filter out the item
-      const updatedItems = items.filter(item => item.id !== id);
-      
+      const updatedItems = items.filter((item) => item.id !== id);
+
       // If no items were removed, the item wasn't found
       if (updatedItems.length === items.length) return false;
-      
+
       // Update state
       setItems(updatedItems);
-      
-      // Update cache
-      await redisCache.set(CACHE_KEYS.ABU_DHABI_ITEMS, updatedItems);
-      
+
+      // Update localStorage
+      localStorage.setItem(
+        STORAGE_KEYS.ABU_DHABI_ITEMS,
+        JSON.stringify(updatedItems)
+      );
+
       return true;
     } catch (error) {
-      console.error('Error deleting item:', error);
+      console.error("Error deleting item:", error);
       return false;
     }
   };
-  
+
   return {
     // Basic data
     items,
     filteredItems,
     branch: ABU_DHABI_BRANCH,
-    
+
     // Filter states
     searchQuery,
     setSearchQuery,
@@ -307,17 +383,17 @@ export function useAbuDhabiInventory(): UseAbuDhabiInventoryReturn {
     setSelectedCategory,
     showLowStock,
     setShowLowStock,
-    
+
     // Oil data
     oilItems,
     nonOilItems,
-    
+
     // Operations
     addItem,
     updateItem,
     deleteItem,
-    
+
     // Cache state
-    isCacheReady
+    isCacheReady,
   };
-} 
+}

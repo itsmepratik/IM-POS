@@ -52,7 +52,7 @@ export function Layout({ children, pageTitle }: LayoutProps) {
     if (pathname === "/pos") return "Point of Sale";
     if (pathname === "/reports") return "Reports";
     if (pathname === "/customers") return "Customers";
-    if (pathname === "/inventory") return "Inventory";
+    if (pathname.startsWith("/inventory")) return "Inventory";
     if (pathname === "/orders") return "Orders";
     if (pathname === "/transfer") return "Transfer Stock";
     if (pathname === "/restock") return "Restock Orders";

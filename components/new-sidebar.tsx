@@ -122,12 +122,12 @@ export function Sidebar({
   const inventoryItems = [
     {
       title: "Main",
-      href: "/inventory",
+      href: "/inventory/main-inventory",
       icon: <Warehouse className="h-4 w-4" />,
     },
     {
       title: "Branch",
-      href: "/branch-inventory",
+      href: "/inventory/branch-inventory",
       icon: <Building className="h-4 w-4" />,
     },
   ];
@@ -273,11 +273,10 @@ export function Sidebar({
             {isCollapsed && (
               <div className="flex justify-center py-1">
                 <Link
-                  href="/inventory"
+                  href="/inventory/main-inventory"
                   className={cn(
                     "flex items-center justify-center rounded-md p-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
-                    (pathname === "/inventory" ||
-                      pathname === "/branch-inventory") &&
+                    pathname.startsWith("/inventory") &&
                       "bg-accent text-accent-foreground"
                   )}
                   title="Inventory"

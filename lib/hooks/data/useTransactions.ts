@@ -1,51 +1,53 @@
-"use client"
+"use client";
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback } from "react";
 
 export interface Transaction {
-  id: string
-  time: string
-  amount: number
-  paymentMethod: string
-  customer?: string
-  items: number
-  cashier: string
-  status: "completed" | "refunded" | "pending"
+  id: string;
+  time: string;
+  amount: number;
+  paymentMethod: string;
+  customer?: string;
+  items: number;
+  cashier: string;
+  status: "completed" | "refunded" | "pending";
 }
 
 export interface AllTransactions {
   today: {
-    morning: Transaction[]
-    evening: Transaction[]
-  }
-  yesterday: Transaction[]
-  thisWeek: Transaction[]
-  thisMonth: Transaction[]
+    morning: Transaction[];
+    evening: Transaction[];
+  };
+  yesterday: Transaction[];
+  thisWeek: Transaction[];
+  thisMonth: Transaction[];
 }
 
 export function useTransactions() {
-  const [transactions, setTransactions] = useState<AllTransactions | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<Error | null>(null)
+  const [transactions, setTransactions] = useState<AllTransactions | null>(
+    null
+  );
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
 
   // Function to fetch transactions
   const fetchTransactions = useCallback(async () => {
-    setIsLoading(true)
-    setError(null)
-    
+    setIsLoading(true);
+    setError(null);
+
     try {
       // First try to load from localStorage
-      const savedTransactions = localStorage.getItem("transactions")
-      
+      const savedTransactions = localStorage.getItem("transactions");
+
       if (savedTransactions) {
-        setTransactions(JSON.parse(savedTransactions))
-        setIsLoading(false)
-        return
+        setTransactions(JSON.parse(savedTransactions));
+        setIsLoading(false);
+        return;
       }
-      
+
       // If no localStorage data, simulate a fetch from future DB
-      await new Promise(resolve => setTimeout(resolve, 300))
-      
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
       // Initial transactions data - this would be replaced with real API call later
       const initialData: AllTransactions = {
         today: {
@@ -63,7 +65,7 @@ export function useTransactions() {
             {
               id: "TRX-0013",
               time: "10:22 AM",
-              amount: 132.50,
+              amount: 132.5,
               paymentMethod: "Cash",
               items: 5,
               cashier: "Mohammed Al-Farsi",
@@ -85,7 +87,7 @@ export function useTransactions() {
               amount: 42.75,
               paymentMethod: "Cash",
               items: 3,
-              cashier: "Hossan",
+              cashier: "Adnan",
               status: "completed",
             },
             {
@@ -95,7 +97,7 @@ export function useTransactions() {
               paymentMethod: "Card",
               customer: "Omar Al-Rashdi",
               items: 4,
-              cashier: "Hossan",
+              cashier: "Adnan",
               status: "completed",
             },
           ],
@@ -122,11 +124,11 @@ export function useTransactions() {
             {
               id: "TRX-0019",
               time: "02:45 PM",
-              amount: 156.50,
+              amount: 156.5,
               paymentMethod: "Card",
               customer: "Zainab Al-Balushi",
               items: 6,
-              cashier: "Hossan",
+              cashier: "Adnan",
               status: "completed",
             },
             {
@@ -135,7 +137,7 @@ export function useTransactions() {
               amount: 32.99,
               paymentMethod: "Cash",
               items: 2,
-              cashier: "Hossan",
+              cashier: "Adnan",
               status: "refunded",
             },
             {
@@ -163,7 +165,7 @@ export function useTransactions() {
           {
             id: "TRX-0008",
             time: "11:15 AM",
-            amount: 78.50,
+            amount: 78.5,
             paymentMethod: "Card",
             customer: "Salem Al-Siyabi",
             items: 3,
@@ -213,7 +215,7 @@ export function useTransactions() {
           {
             id: "TRX-0002",
             time: "Tue 02:30 PM",
-            amount: 65.50,
+            amount: 65.5,
             paymentMethod: "Cash",
             items: 2,
             cashier: "Ahmed Al-Balushi",
@@ -260,11 +262,11 @@ export function useTransactions() {
           {
             id: "TRX-0022",
             time: "Sat 09:45 AM",
-            amount: 76.50,
+            amount: 76.5,
             paymentMethod: "Card",
             customer: "Haitham Al-Lawati",
             items: 3,
-            cashier: "Hossan",
+            cashier: "Adnan",
             status: "completed",
           },
           {
@@ -283,7 +285,7 @@ export function useTransactions() {
             amount: 49.99,
             paymentMethod: "Cash",
             items: 2,
-            cashier: "Hossan",
+            cashier: "Adnan",
             status: "refunded",
           },
         ],
@@ -301,7 +303,7 @@ export function useTransactions() {
           {
             id: "TRX-M002",
             time: "Jan 08",
-            amount: 45.50,
+            amount: 45.5,
             paymentMethod: "Cash",
             items: 2,
             cashier: "Mohammed Al-Farsi",
@@ -329,7 +331,7 @@ export function useTransactions() {
           {
             id: "TRX-M005",
             time: "Jan 19",
-            amount: 245.50,
+            amount: 245.5,
             paymentMethod: "Bank Transfer",
             customer: "Yasmin Al-Maamari",
             items: 8,
@@ -367,11 +369,11 @@ export function useTransactions() {
           {
             id: "TRX-M009",
             time: "Jan 31",
-            amount: 134.50,
+            amount: 134.5,
             paymentMethod: "Card",
             customer: "Abdullah Al-Rawahi",
             items: 4,
-            cashier: "Hossan",
+            cashier: "Adnan",
             status: "completed",
           },
           {
@@ -390,117 +392,144 @@ export function useTransactions() {
             paymentMethod: "Bank Transfer",
             customer: "Noura Al-Abri",
             items: 7,
-            cashier: "Hossan",
+            cashier: "Adnan",
             status: "completed",
           },
         ],
-      }
-      
-      setTransactions(initialData)
-      
+      };
+
+      setTransactions(initialData);
+
       // Save to localStorage
-      localStorage.setItem("transactions", JSON.stringify(initialData))
+      localStorage.setItem("transactions", JSON.stringify(initialData));
     } catch (err) {
-      setError(err instanceof Error ? err : new Error('Unknown error occurred'))
+      setError(
+        err instanceof Error ? err : new Error("Unknown error occurred")
+      );
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }, [])
+  }, []);
 
   // Fetch data on mount
   useEffect(() => {
-    fetchTransactions()
-  }, [fetchTransactions])
-  
+    fetchTransactions();
+  }, [fetchTransactions]);
+
   // Function to add a transaction
-  const addTransaction = useCallback(async (transaction: Omit<Transaction, 'id'>, period: keyof AllTransactions | 'today.morning' | 'today.evening') => {
-    try {
-      if (!transactions) {
-        return null
+  const addTransaction = useCallback(
+    async (
+      transaction: Omit<Transaction, "id">,
+      period: keyof AllTransactions | "today.morning" | "today.evening"
+    ) => {
+      try {
+        if (!transactions) {
+          return null;
+        }
+
+        const newTransaction: Transaction = {
+          ...transaction,
+          id: `TRX-${Date.now().toString().substring(7)}`,
+        };
+
+        const updatedTransactions = { ...transactions };
+
+        // Handle the special case for today's morning/evening
+        if (period === "today.morning") {
+          updatedTransactions.today.morning = [
+            ...updatedTransactions.today.morning,
+            newTransaction,
+          ];
+        } else if (period === "today.evening") {
+          updatedTransactions.today.evening = [
+            ...updatedTransactions.today.evening,
+            newTransaction,
+          ];
+        } else {
+          // For other periods
+          updatedTransactions[period as keyof AllTransactions] = [
+            ...(updatedTransactions[
+              period as keyof AllTransactions
+            ] as Transaction[]),
+            newTransaction,
+          ];
+        }
+
+        setTransactions(updatedTransactions);
+
+        // Save to localStorage
+        localStorage.setItem(
+          "transactions",
+          JSON.stringify(updatedTransactions)
+        );
+        return newTransaction;
+      } catch (err) {
+        setError(
+          err instanceof Error ? err : new Error("Failed to add transaction")
+        );
+        return null;
       }
-      
-      const newTransaction: Transaction = {
-        ...transaction,
-        id: `TRX-${Date.now().toString().substring(7)}`
-      }
-      
-      const updatedTransactions = { ...transactions }
-      
-      // Handle the special case for today's morning/evening
-      if (period === 'today.morning') {
-        updatedTransactions.today.morning = [
-          ...updatedTransactions.today.morning,
-          newTransaction
-        ]
-      } else if (period === 'today.evening') {
-        updatedTransactions.today.evening = [
-          ...updatedTransactions.today.evening,
-          newTransaction
-        ]
-      } else {
-        // For other periods
-        updatedTransactions[period as keyof AllTransactions] = [
-          ...(updatedTransactions[period as keyof AllTransactions] as Transaction[]),
-          newTransaction
-        ]
-      }
-      
-      setTransactions(updatedTransactions)
-      
-      // Save to localStorage
-      localStorage.setItem("transactions", JSON.stringify(updatedTransactions))
-      return newTransaction
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error('Failed to add transaction'))
-      return null
-    }
-  }, [transactions])
-  
+    },
+    [transactions]
+  );
+
   // Function to update a transaction
-  const updateTransaction = useCallback(async (
-    transaction: Transaction, 
-    period: keyof AllTransactions | 'today.morning' | 'today.evening'
-  ) => {
-    try {
-      if (!transactions) {
-        return false
+  const updateTransaction = useCallback(
+    async (
+      transaction: Transaction,
+      period: keyof AllTransactions | "today.morning" | "today.evening"
+    ) => {
+      try {
+        if (!transactions) {
+          return false;
+        }
+
+        const updatedTransactions = { ...transactions };
+
+        // Handle the special case for today's morning/evening
+        if (period === "today.morning") {
+          updatedTransactions.today.morning =
+            updatedTransactions.today.morning.map((t) =>
+              t.id === transaction.id ? transaction : t
+            );
+        } else if (period === "today.evening") {
+          updatedTransactions.today.evening =
+            updatedTransactions.today.evening.map((t) =>
+              t.id === transaction.id ? transaction : t
+            );
+        } else {
+          // For other periods
+          updatedTransactions[period as keyof AllTransactions] = (
+            updatedTransactions[
+              period as keyof AllTransactions
+            ] as Transaction[]
+          ).map((t) => (t.id === transaction.id ? transaction : t));
+        }
+
+        setTransactions(updatedTransactions);
+
+        // Save to localStorage
+        localStorage.setItem(
+          "transactions",
+          JSON.stringify(updatedTransactions)
+        );
+        return true;
+      } catch (err) {
+        setError(
+          err instanceof Error ? err : new Error("Failed to update transaction")
+        );
+        return false;
       }
-      
-      const updatedTransactions = { ...transactions }
-      
-      // Handle the special case for today's morning/evening
-      if (period === 'today.morning') {
-        updatedTransactions.today.morning = updatedTransactions.today.morning.map(t => 
-          t.id === transaction.id ? transaction : t
-        )
-      } else if (period === 'today.evening') {
-        updatedTransactions.today.evening = updatedTransactions.today.evening.map(t => 
-          t.id === transaction.id ? transaction : t
-        )
-      } else {
-        // For other periods
-        updatedTransactions[period as keyof AllTransactions] = (
-          updatedTransactions[period as keyof AllTransactions] as Transaction[]
-        ).map(t => t.id === transaction.id ? transaction : t)
-      }
-      
-      setTransactions(updatedTransactions)
-      
-      // Save to localStorage
-      localStorage.setItem("transactions", JSON.stringify(updatedTransactions))
-      return true
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error('Failed to update transaction'))
-      return false
-    }
-  }, [transactions])
-  
+    },
+    [transactions]
+  );
+
   return {
     transactions,
     isLoading,
     error,
     fetchTransactions,
     addTransaction,
-    updateTransaction
-  }
-} 
+    updateTransaction,
+  };
+}

@@ -78,6 +78,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
+import { useCompanyInfo } from "@/lib/hooks/useCompanyInfo";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Accordion,
@@ -1509,6 +1510,7 @@ export default function POSPage() {
     "card" | "cash" | "mobile" | "voucher" | null
   >(null);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [showReceiptDialog, setShowReceiptDialog] = useState(false);
   const [showOtherOptions, setShowOtherOptions] = useState(false);
   const [isRefundDialogOpen, setIsRefundDialogOpen] = useState(false);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
@@ -2125,6 +2127,21 @@ export default function POSPage() {
 
   const isMobile = useIsMobile();
 
+  // Keep cart view scrolled to the latest added item (desktop and mobile carts)
+  const desktopCartEndRef = useRef<HTMLDivElement | null>(null);
+  const mobileCartEndRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    // Smoothly scroll to the end sentinels when cart updates
+    desktopCartEndRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "end",
+    });
+    mobileCartEndRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "end",
+    });
+  }, [cart]);
+
   // Add new state for customer form
   const [isCustomerFormOpen, setIsCustomerFormOpen] = useState(false);
   const [currentCustomer, setCurrentCustomer] = useState<Omit<
@@ -2134,6 +2151,11 @@ export default function POSPage() {
 
   // Add new state for customer add success animation
   const [showCustomerSuccess, setShowCustomerSuccess] = useState(false);
+
+  // Total quantity of items in cart (for mobile badge)
+  const totalCartQuantity = useMemo(() => {
+    return cart.reduce((sum, item) => sum + item.quantity, 0);
+  }, [cart]);
 
   // Handle customer form submission
   const handleAddCustomer = (
@@ -2199,12 +2221,12 @@ export default function POSPage() {
                     onClick={() => setShowCart(true)}
                   >
                     <ShoppingCart className="h-5 w-5" />
-                    {cart.length > 0 && (
+                    {totalCartQuantity > 0 && (
                       <Badge
                         className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0"
                         variant="destructive"
                       >
-                        {cart.length}
+                        {totalCartQuantity}
                       </Badge>
                     )}
                   </Button>
@@ -2576,6 +2598,8 @@ export default function POSPage() {
                         removeFromCart={removeFromCart}
                       />
                     ))}
+                    {/* Sentinel to auto-scroll to latest item */}
+                    <div ref={desktopCartEndRef} />
                   </div>
                 </ScrollArea>
                 <div className="pt-3 mt-auto border-t">
@@ -2721,6 +2745,8 @@ export default function POSPage() {
                           removeFromCart={removeFromCart}
                         />
                       ))}
+                      {/* Sentinel to auto-scroll to latest item */}
+                      <div ref={mobileCartEndRef} />
                     </div>
                   </ScrollArea>
                   <div className="mt-2 space-y-2 border-t pt-3 sticky bottom-0 bg-background w-full">
@@ -3412,15 +3438,7 @@ export default function POSPage() {
         <Dialog
           open={showSuccess}
           onOpenChange={(open) => {
-            if (!open) {
-              console.log(
-                "Closing success dialog, current discount:",
-                appliedDiscount
-              );
-              setShowSuccess(false);
-              // Use our resetPOSState function to completely reset all state
-              resetPOSState();
-            }
+            setShowSuccess(open);
           }}
         >
           <DialogContentWithoutClose
@@ -3445,7 +3463,7 @@ export default function POSPage() {
               initial={{ scale: 0.5, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.5, opacity: 0 }}
-              className="flex flex-col items-center justify-center py-2"
+              className="flex flex-col items-center justify-center py-6"
             >
               {!cartContainsOnlyBatteries(cart) && (
                 <motion.div
@@ -3468,53 +3486,96 @@ export default function POSPage() {
                   : "Payment Successful!"}
               </motion.p>
 
-              {/* Receipt/Bill will appear after 1 second (handled internally by components) */}
-              <div className="w-full">
-                {cartContainsOnlyBatteries(cart) ? (
-                  <BillComponent
-                    key={`bill-${transactionData.receiptNumber}`}
-                    cart={cart}
-                    billNumber={transactionData.receiptNumber}
-                    currentDate={transactionData.currentDate}
-                    currentTime={transactionData.currentTime}
-                    cashier={selectedCashier ?? undefined}
-                    appliedDiscount={appliedDiscount} // Pass general discount
-                    appliedTradeInAmount={appliedTradeInAmount} // Pass trade-in amount
-                    customerName={currentCustomer?.name || ""} // Use customer name from form or empty if skipped
-                  />
-                ) : (
-                  <ReceiptComponent
-                    key={`receipt-${transactionData.receiptNumber}`}
-                    cart={cart}
-                    paymentMethod={selectedPaymentMethod || "cash"}
-                    cashier={selectedCashier ?? undefined}
-                    discount={appliedDiscount}
-                    paymentRecipient={
-                      selectedPaymentMethod === "mobile"
-                        ? paymentRecipient
-                        : undefined
-                    }
-                    // Pass transaction data to ReceiptComponent
-                    receiptNumber={transactionData.receiptNumber}
-                    currentDate={transactionData.currentDate}
-                    currentTime={transactionData.currentTime}
-                  />
-                )}
-
+              <div className="w-full flex flex-col gap-2">
+                <Button
+                  onClick={() => {
+                    setShowSuccess(false);
+                    setShowReceiptDialog(true);
+                  }}
+                  className="w-full"
+                >
+                  View Receipt
+                </Button>
                 <Button
                   variant="outline"
                   onClick={() => {
-                    console.log("Close button clicked, resetting state");
                     setShowSuccess(false);
                     resetPOSState();
                   }}
-                  className="w-full mt-4"
+                  className="w-full"
                 >
                   Close
                 </Button>
               </div>
             </motion.div>
           </DialogContentWithoutClose>
+        </Dialog>
+      )}
+
+      {/* Separate receipt/bill dialog */}
+      {showReceiptDialog && (
+        <Dialog
+          open={showReceiptDialog}
+          onOpenChange={(open) => {
+            setShowReceiptDialog(open);
+            if (!open) {
+              resetPOSState();
+            }
+          }}
+        >
+          <DialogContent className="w-[95%] max-w-[520px] p-4 rounded-lg max-h-[90vh] overflow-auto">
+            <DialogHeader>
+              <DialogTitle className="text-center text-xl">
+                {cartContainsOnlyBatteries(cart)
+                  ? "Bill Preview"
+                  : "Receipt Preview"}
+              </DialogTitle>
+            </DialogHeader>
+
+            <div className="mt-2">
+              {cartContainsOnlyBatteries(cart) ? (
+                <BillComponent
+                  key={`bill-${transactionData.receiptNumber}`}
+                  cart={cart}
+                  billNumber={transactionData.receiptNumber}
+                  currentDate={transactionData.currentDate}
+                  currentTime={transactionData.currentTime}
+                  cashier={selectedCashier ?? undefined}
+                  appliedDiscount={appliedDiscount}
+                  appliedTradeInAmount={appliedTradeInAmount}
+                  customerName={currentCustomer?.name || ""}
+                />
+              ) : (
+                <ReceiptComponent
+                  key={`receipt-${transactionData.receiptNumber}`}
+                  cart={cart}
+                  paymentMethod={selectedPaymentMethod || "cash"}
+                  cashier={selectedCashier ?? undefined}
+                  discount={appliedDiscount}
+                  paymentRecipient={
+                    selectedPaymentMethod === "mobile"
+                      ? paymentRecipient
+                      : undefined
+                  }
+                  receiptNumber={transactionData.receiptNumber}
+                  currentDate={transactionData.currentDate}
+                  currentTime={transactionData.currentTime}
+                />
+              )}
+            </div>
+
+            <DialogFooter className="mt-4">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowReceiptDialog(false);
+                }}
+                className="w-full"
+              >
+                Close
+              </Button>
+            </DialogFooter>
+          </DialogContent>
         </Dialog>
       )}
 
@@ -3921,6 +3982,9 @@ const ReceiptComponent = ({
   currentDate: string;
   currentTime: string;
 }) => {
+  const { brand } = useCompanyInfo();
+  // POS terminal identifier (used where VATIN used to be)
+  const POS_ID = brand.posId || "POS-01";
   console.log("ReceiptComponent mounted with discount:", discount);
   console.log("Payment recipient:", paymentRecipient);
 
@@ -3999,7 +4063,6 @@ const ReceiptComponent = ({
       discount: localDiscount,
     });
 
-    // No VAT in this example (0%)
     const vat = 0;
     const total = subtotal - discountAmount;
 
@@ -4062,21 +4125,12 @@ const ReceiptComponent = ({
               word-wrap: break-word;
               word-break: break-word;
             }
-            .receipt-table .qty {
-              width: 30px;
-            }
-            .receipt-table .description {
-              width: auto;
-              max-width: 180px;
-            }
-            .receipt-table .price {
-              width: 60px;
-              text-align: right;
-            }
-            .receipt-table .amount {
-              width: 70px;
-              text-align: right;
-            }
+            .receipt-table .sno { width: 22px; }
+            .receipt-table .qty { width: 38px; text-align: left; }
+            .receipt-table .description { width: auto; max-width: 100%; }
+            .receipt-table .description .name { display:inline-block; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+            .receipt-table .price { width: 60px; text-align: right; }
+            .receipt-table .amount { width: 70px; text-align: right; }
             .receipt-table .total {
               width: 70px;
               text-align: right;
@@ -4148,22 +4202,27 @@ const ReceiptComponent = ({
         <body>
           <div class="receipt-container">
             <div class="receipt-header">
-              <h2>H Automotives</h2>
-              <p>Saham, Sultanate of Oman</p>
-              <p>Ph: 92510750 | 26856848</p>
-              <p>VATIN: OM1100006980</p>
+              <h2>${brand.name}</h2>
+              <p>${brand.addressLines.join(" ")}</p>
+              <p>Ph: ${brand.phones.join(" | ")}</p>
             </div>
             
             <div class="receipt-info">
-              <p>INVOICE</p>
-              <p>Date: ${currentDate}</p>
-              <p>Time: ${currentTime}    POS ID: ${receiptNumber}</p>
+              <p style="display:flex;justify-content:space-between;align-items:center;">
+                <span>Invoice: ${receiptNumber}</span>
+                <span>POS ID: ${POS_ID}</span>
+              </p>
+              <p style="display:flex;justify-content:space-between;align-items:center;">
+                <span>Date: ${currentDate}</span>
+                <span>Time: ${currentTime}</span>
+              </p>
             </div>
             
             <table class="receipt-table">
               <thead>
                 <tr>
-                  <th class="qty">Qty.</th>
+                  <th class="sno">#</th>
+                  <th class="qty">Qty</th>
                   <th class="description">Description</th>
                   <th class="price">Price</th>
                   <th class="amount">Amount</th>
@@ -4174,7 +4233,8 @@ const ReceiptComponent = ({
                   .map(
                     (item, _index) => `
                   <tr>
-                    <td class="qty">${item.quantity}</td>
+                    <td class="sno">${_index + 1}</td>
+                    <td class="qty">(x${item.quantity})</td>
                     <td class="description">${item.name}${
                       item.details ? ` (${item.details})` : ""
                     }</td>
@@ -4247,32 +4307,27 @@ const ReceiptComponent = ({
               WhatsApp 72702537 for latest offers
             </div>
             
-            <div class="barcode">
-              <!-- Barcode would go here in a real implementation -->
-              ${receiptNumber}
-            </div>
+            <!-- Removed duplicate receipt number from footer -->
           </div>
         </body>
       </html>
     `;
 
-    printWindow.document.open();
-    printWindow.document.write(htmlContent);
-    printWindow.document.close();
+    // Inject onload print script into the content for reliable printing
+    const htmlWithAutoPrint = htmlContent.replace(
+      /<\/body>/,
+      `<script>
+         window.onload = function() {
+           setTimeout(function(){
+             try { window.focus(); window.print(); } catch (e) { }
+           }, 300);
+         };
+       <\/script></body>`
+    );
 
-    // On mobile, we need a slight delay before printing
-    setTimeout(() => {
-      printWindow.print();
-      // Close the window after print on desktop, but keep it open on mobile
-      // as mobile browsers handle print differently
-      if (
-        !/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-          navigator.userAgent
-        )
-      ) {
-        printWindow.close();
-      }
-    }, 500);
+    printWindow.document.open();
+    printWindow.document.write(htmlWithAutoPrint);
+    printWindow.document.close();
   }, [
     cart,
     paymentMethod,
@@ -4327,49 +4382,59 @@ const ReceiptComponent = ({
       transition={{ duration: 0.5 }}
       className="w-full"
     >
-      <div className="max-h-[40vh] overflow-auto mb-4">
+      <div className="max-h-[55vh] md:max-h-[65vh] overflow-auto mb-4">
         <div
-          className="bg-white border rounded-lg p-4 w-full max-w-[300px] mx-auto"
+          className="bg-white border rounded-xl p-3 sm:p-4 w-full max-w-[340px] sm:max-w-[380px] md:max-w-[420px] mx-auto shadow-md"
           ref={receiptRef}
         >
           {/* Receipt Preview */}
           <div className="text-center mb-2">
-            <h3 className="font-bold text-lg">H Automotives</h3>
-            <p className="text-xs text-gray-500">Saham, Sultanate of Oman</p>
-            <p className="text-xs text-gray-500">Ph: 92510750 | 26856848</p>
-            <p className="text-xs text-gray-500">VATIN: OM1100006980</p>
+            <h3 className="font-bold text-base sm:text-lg tracking-tight">
+              {brand.name}
+            </h3>
+            <p className="text-[11px] sm:text-xs text-gray-500 leading-tight">
+              {brand.addressLines.join(" ")}
+            </p>
+            <p className="text-[11px] sm:text-xs text-gray-500 leading-tight">
+              Ph: {brand.phones.join(" | ")}
+            </p>
+            <p className="text-[11px] sm:text-xs text-gray-500 leading-tight">
+              POS ID: {POS_ID}
+            </p>
           </div>
 
-          <div className="border-t border-b border-dashed py-1 mb-3">
-            <p className="text-xs font-medium text-center">INVOICE</p>
-            <div className="flex justify-between text-xs">
+          <div className="border-t border-b border-dashed py-1.5 mb-2 sm:mb-3">
+            <div className="flex justify-between text-[11px] sm:text-xs">
+              <span className="font-medium">Invoice: {receiptNumber}</span>
+              <span className="font-medium">POS ID: {POS_ID}</span>
+            </div>
+            <div className="flex justify-between text-[11px] sm:text-xs">
               <span>Date: {currentDate}</span>
-            </div>
-            <div className="flex justify-between text-xs">
               <span>Time: {currentTime}</span>
-              <span>POS ID: {receiptNumber}</span>
             </div>
           </div>
 
-          <div className="text-xs mb-3">
+          <div className="text-[11px] sm:text-xs mb-3">
             <div className="grid grid-cols-12 gap-1 font-medium mb-1">
-              <span className="col-span-1">Qty.</span>
+              <span className="col-span-1">#</span>
+              <span className="col-span-2">Qty</span>
               <span className="col-span-7">Description</span>
-              <span className="col-span-2 text-right">Price</span>
-              <span className="col-span-2 text-right">Amount</span>
+              <span className="col-span-1 text-right">Price</span>
+              <span className="col-span-1 text-right">Amount</span>
             </div>
 
-            {cart.map((item) => (
+            {cart.map((item, index) => (
               <div key={item.uniqueId} className="grid grid-cols-12 gap-1 mb-1">
-                <span className="col-span-1">{item.quantity}</span>
+                <span className="col-span-1">{index + 1}</span>
+                <span className="col-span-2">(x{item.quantity})</span>
                 <span className="col-span-7 break-words">
                   {item.name}
                   {item.details ? ` (${item.details})` : ""}
                 </span>
-                <span className="col-span-2 text-right">
+                <span className="col-span-1 text-right">
                   {item.price.toFixed(3)}
                 </span>
-                <span className="col-span-2 text-right">
+                <span className="col-span-1 text-right">
                   {(item.price * item.quantity).toFixed(3)}
                 </span>
               </div>
@@ -4377,12 +4442,12 @@ const ReceiptComponent = ({
           </div>
 
           <div className="border-t border-dashed pt-2 mb-3">
-            <div className="flex justify-between text-xs">
+            <div className="flex justify-between text-[11px] sm:text-xs">
               <span>Total w/o VAT</span>
               <span>OMR {subtotal.toFixed(3)}</span>
             </div>
             {localDiscount && (
-              <div className="flex justify-between items-center border-t pt-2">
+              <div className="flex justify-between items-center border-t pt-2 text-[11px] sm:text-xs">
                 <span>
                   Discount{" "}
                   {localDiscount.type === "percentage"
@@ -4392,17 +4457,13 @@ const ReceiptComponent = ({
                 <span>- OMR {discountAmount.toFixed(3)}</span>
               </div>
             )}
-            <div className="flex justify-between text-xs">
-              <span>VAT</span>
-              <span>OMR {vat.toFixed(3)}</span>
-            </div>
-            <div className="flex justify-between text-xs font-bold">
-              <span>Total with VAT</span>
+            <div className="flex justify-between text-[11px] sm:text-xs font-bold">
+              <span>Total</span>
               <span>OMR {total.toFixed(3)}</span>
             </div>
           </div>
 
-          <div className="text-center text-xs text-gray-600 border-t border-dashed pt-2">
+          <div className="text-center text-[11px] sm:text-xs text-gray-600 border-t border-dashed pt-2">
             <p>Number of Items: {itemCount}</p>
             <p>Payment Method: {getFormattedPaymentMethod(paymentMethod)}</p>
             {paymentMethod === "mobile" && paymentRecipient && (
@@ -4410,21 +4471,21 @@ const ReceiptComponent = ({
             )}
             {cashier && <p>Cashier: {cashier}</p>}
             <p>Keep this Invoice for your Exchanges</p>
-            <p className="text-xs text-right text-gray-600">
+            <p className="text-[11px] sm:text-xs text-right text-gray-600">
               احتفظ بهذه الفاتورة للتبديل
             </p>
             <p>Exchange with in 15 Days</p>
-            <p className="text-xs text-right text-gray-600">
+            <p className="text-[11px] sm:text-xs text-right text-gray-600">
               التبديل خلال 15 يوم
             </p>
             <p>Thank you for shopping with us.</p>
-            <p className="text-xs text-right text-gray-600">
+            <p className="text-[11px] sm:text-xs text-right text-gray-600">
               شكراً للتسوق معنا
             </p>
             <p className="font-medium mt-2">
               WhatsApp 72702537 for latest offers
             </p>
-            <p className="font-mono">{receiptNumber}</p>
+            {/* Removed bottom receipt number to avoid duplication */}
           </div>
         </div>
       </div>

@@ -6,18 +6,41 @@ export default function ServiceWorkerRegistration() {
   useEffect(() => {
     // This code runs only on the client-side, after the component mounts
     if ("serviceWorker" in navigator) {
-      // Register immediately instead of waiting for load event
-      navigator.serviceWorker
-        .register("/service-worker.js")
-        .then((registration) => {
+      const register = async () => {
+        try {
+          const registration = await navigator.serviceWorker.register(
+            "/sw.js",
+            {
+              scope: "/",
+            }
+          );
           console.log(
             "ServiceWorker registration successful with scope:",
             registration.scope
           );
-        })
-        .catch((error) => {
+
+          // If there's an updated worker waiting, activate it immediately
+          if (registration.waiting) {
+            registration.waiting.postMessage({ type: "SKIP_WAITING" });
+          }
+
+          registration.addEventListener("updatefound", () => {
+            const newWorker = registration.installing;
+            if (!newWorker) return;
+            newWorker.addEventListener("statechange", () => {
+              if (
+                newWorker.state === "installed" &&
+                navigator.serviceWorker.controller
+              ) {
+                newWorker.postMessage({ type: "SKIP_WAITING" });
+              }
+            });
+          });
+        } catch (error) {
           console.error("ServiceWorker registration failed:", error);
-        });
+        }
+      };
+      register();
     }
   }, []);
 
