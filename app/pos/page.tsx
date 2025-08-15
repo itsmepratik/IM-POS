@@ -4035,11 +4035,14 @@ const ReceiptComponent = ({
     const content = receiptRef.current;
     if (!content) return;
 
-    const printWindow = window.open("", "_blank");
-    if (!printWindow) {
-      alert("Please allow popups to print receipt");
-      return;
-    }
+    const iframe = document.createElement("iframe");
+    iframe.style.position = "fixed";
+    iframe.style.right = "0";
+    iframe.style.bottom = "0";
+    iframe.style.width = "0";
+    iframe.style.height = "0";
+    iframe.style.border = "0";
+    document.body.appendChild(iframe);
 
     // Calculate subtotal
     const subtotal = cart.reduce(
@@ -4081,8 +4084,7 @@ const ReceiptComponent = ({
               font-family: sans-serif !important;
             }
             .receipt-container {
-              /* Reduced top padding, increased bottom padding, smaller side spacing */
-              padding: 1.5mm 1mm 10mm 1mm;
+              padding: 2mm 1mm 2mm 1mm;
             }
             .receipt-header {
               text-align: center;
@@ -4124,7 +4126,7 @@ const ReceiptComponent = ({
               word-break: break-word;
             }
             .receipt-table .sno { width: 20px; }
-            .receipt-table .qty { width: 12px; text-align: center; padding-left: 8px; padding-right: 3px; border-spacing: 0; }
+            .receipt-table .qty { width: 12px; text-align: center; padding-left: 8px; padding-right: 0px; border-spacing: 0; }
             .receipt-table .description { width: auto; max-width: 100%; }
             .receipt-table .description .name { display:inline-block; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
             .receipt-table .price { width: 44px; text-align: right; padding-right: 3px; }
@@ -4193,11 +4195,10 @@ const ReceiptComponent = ({
                 margin: 0;
                 padding: 0;
               }
-              @page {
-                /* Reduce top margin, increase bottom margin */
-                margin: 2mm 0 10mm 0;
-                size: 80mm auto;
-              }
+            }
+            @page {
+              margin: 0;
+              size: 80mm auto;
             }
             .receipt-summary .discount-row {
               color: #22c55e;
@@ -4330,21 +4331,29 @@ const ReceiptComponent = ({
       </html>
     `;
 
-    // Inject onload print script into the content for reliable printing
-    const htmlWithAutoPrint = htmlContent.replace(
-      /<\/body>/,
-      `<script>
-         window.onload = function() {
-           setTimeout(function(){
-             try { window.focus(); window.print(); } catch (e) { }
-           }, 300);
-         };
-       <\/script></body>`
-    );
-
-    printWindow.document.open();
-    printWindow.document.write(htmlWithAutoPrint);
-    printWindow.document.close();
+    iframe.onload = () => {
+      try {
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+      } finally {
+        setTimeout(() => {
+          document.body.removeChild(iframe);
+        }, 500);
+      }
+    };
+    const doc = iframe.contentWindow?.document;
+    if (!doc) return;
+    doc.open();
+    doc.write(htmlContent);
+    doc.close();
+    setTimeout(() => {
+      if (document.body.contains(iframe)) {
+        try {
+          iframe.contentWindow?.focus();
+          iframe.contentWindow?.print();
+        } catch {}
+      }
+    }, 500);
   }, [
     cart,
     paymentMethod,
