@@ -33,8 +33,8 @@ const defaultCompanyInfo: CompanyInfo = {
   brand: {
     name: " Service Center",
     addressLines: ["Saham, Sultanate of Oman"],
-    phones: ["92510750", "26856848"],
-    whatsapp: "72702537",
+    phones: ["99768459", "79774645"],
+    whatsapp: "771170805",
     posId: "POS-01",
   },
   registered: {

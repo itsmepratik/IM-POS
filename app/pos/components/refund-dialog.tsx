@@ -34,6 +34,7 @@ import { BillComponent } from "./bill-component";
 import { RefundReceipt } from "./refund-receipt";
 import { format } from "date-fns";
 import { useStaffIDs } from "@/lib/hooks/useStaffIDs";
+import { useCompanyInfo } from "@/lib/hooks/useCompanyInfo";
 
 interface CartItem {
   id: number;
@@ -246,6 +247,7 @@ const mockReceipts: Receipt[] = [
 export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
   const { toast } = useToast();
   const { staffMembers } = useStaffIDs();
+  const { brand, registered } = useCompanyInfo();
   const [receiptNumber, setReceiptNumber] = useState("");
   const [currentReceipt, setCurrentReceipt] = useState<Receipt | null>(null);
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
@@ -435,7 +437,6 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
       return;
     }
     // Build thermal-style HTML to match previewed RefundReceipt
-    const POS_ID = "POS-01";
     const displayItems = selectedRefundItems.filter(
       (item) => !item.name.toLowerCase().includes("discount")
     );
@@ -456,9 +457,10 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Refund Receipt</title>
         <style>
+          @page { margin: 1.5mm 0 10mm 0; }
           body { font-family: sans-serif !important; padding: 0; margin: 0; width: 80mm; font-size: 12px; }
           * { font-family: sans-serif !important; }
-          .receipt { width: 76mm; padding: 5mm 2mm; margin: 0 auto; }
+          .receipt-container { width: 76mm; padding: 1.5mm 1mm 10mm 1mm; margin: 0 auto; }
           .receipt-header { text-align: center; margin-bottom: 10px; }
           .receipt-header h1 { font-size: 16px; margin: 0; font-weight: bold; }
           .receipt-header p { font-size: 12px; margin: 2px 0; color: #555; }
@@ -467,13 +469,15 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
           .receipt-info p { margin: 2px 0; display: flex; justify-content: space-between; align-items: center; }
           .receipt-title { text-align: center; font-weight: bold; margin: 10px 0; font-size: 13px; color: #D9534F; text-transform: uppercase; }
           .receipt-table { width: 100%; border-collapse: collapse; margin: 10px 0; table-layout: fixed; }
-          .receipt-table th { text-align: left; font-size: 12px; padding-bottom: 5px; }
-          .receipt-table td { font-size: 12px; padding: 2px 0; word-wrap: break-word; word-break: break-word; }
-          .receipt-table .sno { width: 22px; }
-          .receipt-table .qty { width: 38px; text-align: left; }
-          .receipt-table .description { width: auto; max-width: 100%; }
-          .receipt-table .price { width: 60px; text-align: right; }
-          .receipt-table .amount { width: 70px; text-align: right; }
+          .receipt-table th { font-size: 12px; padding: 2px 0; }
+          .receipt-table td { font-size: 12px; padding: 2px 0; }
+          .receipt-table .sno { width: 20px; }
+          .receipt-table .description { width: auto; }
+          .receipt-table .price { width: 44px; text-align: right; padding-right: 3px; white-space: nowrap; word-break: keep-all; font-variant-numeric: tabular-nums; }
+          .receipt-table .qty { width: 14px; text-align: center; padding-left: 8px; padding-right: 0px; white-space: nowrap; word-break: keep-all; font-variant-numeric: tabular-nums; }
+          .receipt-table .amount { width: 64px; text-align: right; padding-left: 21px; white-space: nowrap; word-break: keep-all; font-variant-numeric: tabular-nums; }
+          .receipt-table .row-top td { padding-bottom: 0; }
+          .receipt-table .row-bottom td { padding-top: 0; }
           .receipt-summary { margin-top: 10px; border-top: 1px dashed #000; padding-top: 5px; }
           .receipt-summary table { width: 100%; }
           .receipt-summary td { font-size: 12px; padding: 2px 0; }
@@ -482,16 +486,23 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
           .receipt-footer { margin-top: 10px; text-align: center; font-size: 12px; border-top: 1px dashed #000; padding-top: 5px; }
           .receipt-footer p { margin: 3px 0; }
           .arabic { font-size: 11px; direction: rtl; margin: 2px 0; }
-          @media print { body { width: 80mm; margin: 0; padding: 0; } @page { margin: 0; size: 80mm auto; } }
+          @media print { body { width: 80mm; margin: 0; padding: 0; } @page { margin: 1.5mm 0 10mm 0; size: 80mm auto; } }
         </style>
       </head>
       <body>
-        <div class="receipt">
+        <div class="receipt-container">
           <div class="receipt-header">
-            <h1>H Automotives</h1>
-            <p>Saham, Sultanate of Oman</p>
-            <p>Ph: 92510750 | 26856848</p>
-            <p>POS ID: ${POS_ID}</p>
+            <h1>${brand.name || ""}</h1>
+            ${
+              Array.isArray(brand.addressLines) && brand.addressLines.length
+                ? `<p>${brand.addressLines.filter(Boolean).join(", ")}</p>`
+                : ""
+            }
+            ${
+              Array.isArray(brand.phones) && brand.phones.length
+                ? `<p>Ph: ${brand.phones.filter(Boolean).join(" | ")}</p>`
+                : ""
+            }
           </div>
 
           <div class="receipt-divider"></div>
@@ -499,7 +510,7 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
           <div class="receipt-title">REFUND RECEIPT</div>
 
           <div class="receipt-info">
-            <p><span>Refund: ${refundId}</span><span>POS ID: ${POS_ID}</span></p>
+            <p><span>Refund: ${refundId}</span></p>
             <p><span>Original Invoice: ${
               currentReceipt?.receiptNumber || ""
             }</span></p>
@@ -520,23 +531,30 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
             <thead>
               <tr>
                 <th class="sno">#</th>
-                <th class="qty">Qty</th>
                 <th class="description">Description</th>
                 <th class="price">Price</th>
-                <th class="amount">Amount</th>
+                <th class="qty">Qty</th>
+                <th class="amount">Amt</th>
               </tr>
             </thead>
             <tbody>
               ${displayItems
                 .map(
                   (item, index) => `
-                <tr>
+                <tr class="row-top">
                   <td class="sno">${index + 1}</td>
-                  <td class="qty">(x${item.quantity})</td>
-                  <td class="description">${item.name}${
+                  <td class="description" colspan="4">${item.name}${
                     item.details ? ` (${item.details})` : ""
                   }</td>
+                  <td class="price" style="display:none;"></td>
+                  <td class="qty" style="display:none;"></td>
+                  <td class="amount" style="display:none;"></td>
+                </tr>
+                <tr class="row-bottom">
+                  <td class="sno"></td>
+                  <td class="description"></td>
                   <td class="price">${item.price.toFixed(3)}</td>
+                  <td class="qty">(x${item.quantity})</td>
                   <td class="amount">${(item.price * item.quantity).toFixed(
                     3
                   )}</td>
@@ -573,7 +591,11 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
             <p>Number of Items: ${itemCount}</p>
             <p>Thank you for shopping with us.</p>
             <p class="arabic">شكراً للتسوق معنا</p>
-            <p style="font-weight:bold; margin-top:6px;">WhatsApp 72702537 for latest offers</p>
+            ${
+              brand.whatsapp
+                ? `<p style="font-weight:bold; margin-top:6px;">WhatsApp ${brand.whatsapp}</p>`
+                : ""
+            }
           </div>
         </div>
       </body>
@@ -1185,6 +1207,7 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
 export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
   const { toast } = useToast();
   const { staffMembers } = useStaffIDs();
+  const { brand, registered } = useCompanyInfo();
   const [receiptNumber, setReceiptNumber] = useState("");
   const [currentReceipt, setCurrentReceipt] = useState<Receipt | null>(null);
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
@@ -1549,20 +1572,62 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
           <table class="header-table">
             <tr>
               <td class="left-header">
-                <div>C.R. No.: 1001886</div>
-                <div>W.Saham</div>
-                <div>Al-Sanaiya</div>
-                <div>Sultanate of Oman</div>
+                ${
+                  registered.crNumber
+                    ? `<div>C.R. No.: ${registered.crNumber}</div>`
+                    : ""
+                }
+                ${
+                  Array.isArray(registered.addressLines) &&
+                  registered.addressLines[0]
+                    ? `<div>${registered.addressLines[0]}</div>`
+                    : ""
+                }
+                ${
+                  Array.isArray(registered.addressLines) &&
+                  registered.addressLines[1]
+                    ? `<div>${registered.addressLines[1]}</div>`
+                    : ""
+                }
+                ${
+                  Array.isArray(registered.addressLines) &&
+                  registered.addressLines[2]
+                    ? `<div>${registered.addressLines[2]}</div>`
+                    : ""
+                }
               </td>
               <td class="center-header">
-                <div class="company-name">AL-TARATH NATIONAL CO.</div>
-                <div class="company-arabic-name">شركة الطارث الوطنية</div>
+                <div class="company-name">${registered.name || ""}</div>
+                ${
+                  registered.arabicName
+                    ? `<div class="company-arabic-name">${registered.arabicName}</div>`
+                    : ""
+                }
               </td>
               <td class="right-header">
-                <div class="cr-number">السجل التجاري: 1001886</div>
-                <div>ولاية صحم</div>
-                <div>الصناعية</div>
-                <div>سلطنة عمان</div>
+                ${
+                  registered.crNumber
+                    ? `<div class="cr-number">السجل التجاري: ${registered.crNumber}</div>`
+                    : ""
+                }
+                ${
+                  Array.isArray(registered.addressLines) &&
+                  registered.addressLines[0]
+                    ? `<div>ولاية ${registered.addressLines[0]}</div>`
+                    : ""
+                }
+                ${
+                  Array.isArray(registered.addressLines) &&
+                  registered.addressLines[1]
+                    ? `<div>${registered.addressLines[1]}</div>`
+                    : ""
+                }
+                ${
+                  Array.isArray(registered.addressLines) &&
+                  registered.addressLines[2]
+                    ? `<div>${registered.addressLines[2]}</div>`
+                    : ""
+                }
               </td>
             </tr>
           </table>
@@ -1650,8 +1715,11 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
 
           <hr style="width: 100%; border: none; border-top: 1px solid #ccc; margin: 5px 0 2px 0;" />
           <div class="footer" style="border-top: none;">
-            <div class="footer-contact">Contact no.: 71170805</div>
-            <div class="footer-phone-numbers" style="direction: rtl;">رقم الاتصال: ٧١١٧٠٨٠٥</div>
+            ${
+              registered.contactNumber
+                ? `<div class="footer-contact">Contact no.: ${registered.contactNumber}</div>`
+                : ""
+            }
             <div class="footer-thank-you" style="white-space: pre-line;">Thank you for trusting us with your warranty claim\nشكراً لثقتكم بنا</div>
           </div>
         </div>

@@ -145,11 +145,14 @@ export const RefundReceipt: React.FC<RefundReceiptProps> = ({
           .receipt-table { width: 100%; border-collapse: collapse; margin: 10px 0; table-layout: fixed; }
           .receipt-table th { text-align: left; font-size: 12px; padding-bottom: 5px; }
           .receipt-table td { font-size: 12px; padding: 2px 0; word-wrap: break-word; word-break: break-word; }
-          .receipt-table .sno { width: 22px; }
-          .receipt-table .qty { width: 38px; text-align: left; }
-          .receipt-table .description { width: auto; max-width: 100%; }
-          .receipt-table .price { width: 60px; text-align: right; }
-          .receipt-table .amount { width: 70px; text-align: right; }
+          .receipt-table .sno { width: 20px; }
+          .receipt-table .description { width: auto; }
+          .receipt-table .price { width: 44px; text-align: right; padding-right: 3px; }
+          .receipt-table .qty { width: 24px; text-align: center; padding-left: 8px; padding-right: 3px; }
+          .receipt-table .amount { width: 64px; text-align: right; padding-left: 21px; }
+          .receipt-table .row-top td { padding-bottom: 0; }
+          .receipt-table .row-bottom td { padding-top: 0; }
+          .receipt-table .price, .receipt-table .amount, .receipt-table .qty { white-space: nowrap; word-break: keep-all; font-variant-numeric: tabular-nums; }
           .receipt-summary { margin-top: 10px; border-top: 1px dashed #000; padding-top: 5px; }
           .receipt-summary table { width: 100%; }
           .receipt-summary td { font-size: 12px; padding: 2px 0; }
@@ -167,7 +170,6 @@ export const RefundReceipt: React.FC<RefundReceiptProps> = ({
             <h1>${brand.name}</h1>
             <p>${brand.addressLines.join(" ")}</p>
             <p>Ph: ${brand.phones.join(" | ")}</p>
-            <p>POS ID: ${brand.posId || POS_ID_FALLBACK}</p>
           </div>
           
           <div class="receipt-divider"></div>
@@ -175,9 +177,7 @@ export const RefundReceipt: React.FC<RefundReceiptProps> = ({
           <div class="receipt-title">REFUND RECEIPT</div>
           
           <div class="receipt-info">
-            <p><span>Refund: ${receiptNumber}</span><span>POS ID: ${
-      brand.posId || POS_ID_FALLBACK
-    }</span></p>
+            <p><span>Refund: ${receiptNumber}</span></p>
             <p><span>Original Invoice: ${originalReceiptNumber}</span></p>
             <p><span>Date: ${currentDate}</span><span>Time: ${currentTime}</span></p>
             ${
@@ -192,22 +192,31 @@ export const RefundReceipt: React.FC<RefundReceiptProps> = ({
           <table class="receipt-table">
             <thead>
               <tr>
-                <th class="qty">#</th>
-                <th class="qty">Qty</th>
-                <th class="description">Item</th>
+                <th class="sno">#</th>
+                <th class="description">Description</th>
                 <th class="price">Price</th>
-                <th class="amount">Amount</th>
+                <th class="qty">Qty</th>
+                <th class="amount">Amt</th>
               </tr>
             </thead>
             <tbody>
               ${displayItems
                 .map(
                   (item, index) => `
-                <tr>
-                  <td class="qty">${index + 1}</td>
-                  <td class="qty">${item.quantity}</td>
-                  <td class="description">${formatItemName(item)}</td>
+                <tr class="row-top">
+                  <td class="sno">${index + 1}</td>
+                  <td class="description" colspan="4">${formatItemName(
+                    item
+                  )}</td>
+                  <td class="price" style="display:none;"></td>
+                  <td class="qty" style="display:none;"></td>
+                  <td class="amount" style="display:none;"></td>
+                </tr>
+                <tr class="row-bottom">
+                  <td class="sno"></td>
+                  <td class="description"></td>
                   <td class="price">${item.price.toFixed(3)}</td>
+                  <td class="qty">(x${item.quantity})</td>
                   <td class="amount">${(item.price * item.quantity).toFixed(
                     3
                   )}</td>
@@ -323,9 +332,6 @@ export const RefundReceipt: React.FC<RefundReceiptProps> = ({
           <p className="text-xs text-gray-500">
             Ph: {brand.phones.join(" | ")}
           </p>
-          <p className="text-xs text-gray-500">
-            POS ID: {brand.posId || POS_ID_FALLBACK}
-          </p>
         </div>
 
         <div className="border-t border-b border-dashed py-1 mb-3">
@@ -334,7 +340,6 @@ export const RefundReceipt: React.FC<RefundReceiptProps> = ({
           </p>
           <div className="flex justify-between text-xs">
             <span className="font-medium">Refund: {receiptNumber}</span>
-            <span className="font-medium">POS ID: {POS_ID}</span>
           </div>
           <div className="flex justify-between text-xs">
             <span>Original Invoice: {originalReceiptNumber}</span>
@@ -353,25 +358,33 @@ export const RefundReceipt: React.FC<RefundReceiptProps> = ({
         <div className="text-xs mb-3">
           <div className="grid grid-cols-12 gap-1 font-medium mb-1">
             <span className="col-span-1">#</span>
-            <span className="col-span-2">Qty</span>
-            <span className="col-span-7">Description</span>
+            <span className="col-span-9">Description</span>
             <span className="col-span-1 text-right">Price</span>
-            <span className="col-span-1 text-right">Amount</span>
+            <span className="col-span-1 text-right">Qty</span>
+            <span className="col-span-1 text-right">Amt</span>
           </div>
 
           {displayItems.map((item, index) => (
-            <div key={item.uniqueId} className="grid grid-cols-12 gap-1 mb-1">
-              <span className="col-span-1">{index + 1}</span>
-              <span className="col-span-2">(x{item.quantity})</span>
-              <span className="col-span-7 break-words">
-                {formatItemName(item)}
-              </span>
-              <span className="col-span-1 text-right">
-                {item.price.toFixed(3)}
-              </span>
-              <span className="col-span-1 text-right">
-                {(item.price * item.quantity).toFixed(3)}
-              </span>
+            <div key={item.uniqueId} className="mb-1">
+              <div className="grid grid-cols-12 gap-1">
+                <span className="col-span-1">{index + 1}</span>
+                <span className="col-span-11 break-words">
+                  {formatItemName(item)}
+                </span>
+              </div>
+              <div className="grid grid-cols-12 gap-1">
+                <span className="col-span-1"></span>
+                <span className="col-span-9"></span>
+                <span className="col-span-1 text-right">
+                  {item.price.toFixed(3)}
+                </span>
+                <span className="col-span-1 text-right">
+                  (x{item.quantity})
+                </span>
+                <span className="col-span-1 text-right">
+                  {(item.price * item.quantity).toFixed(3)}
+                </span>
+              </div>
             </div>
           ))}
         </div>

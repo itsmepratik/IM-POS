@@ -2516,12 +2516,9 @@ export default function POSPage() {
                                         variant="outline"
                                         className="border-2 rounded-[33px] flex flex-col items-center justify-between p-4 h-auto min-h-[150px] transition-all hover:shadow-md overflow-hidden"
                                         onClick={() => {
-                                          const brandedName = product.brand
-                                            ? `${product.brand} ${product.name}`
-                                            : product.name;
                                           addToCart({
                                             id: product.id,
-                                            name: brandedName,
+                                            name: product.name,
                                             price: product.price,
                                           });
                                         }}
@@ -4084,7 +4081,8 @@ const ReceiptComponent = ({
               font-family: sans-serif !important;
             }
             .receipt-container {
-              padding: 5mm;
+              /* Reduced top padding, increased bottom padding, smaller side spacing */
+              padding: 1.5mm 1mm 10mm 1mm;
             }
             .receipt-header {
               text-align: center;
@@ -4121,16 +4119,27 @@ const ReceiptComponent = ({
             }
             .receipt-table td {
               font-size: 12px;
-              padding: 2px 0;
+              padding: 2px 0; /* remove horizontal padding for tightest spacing */
               word-wrap: break-word;
               word-break: break-word;
             }
-            .receipt-table .sno { width: 22px; }
-            .receipt-table .qty { width: 38px; text-align: left; }
+            .receipt-table .sno { width: 20px; }
+            .receipt-table .qty { width: 12px; text-align: center; padding-left: 8px; padding-right: 3px; border-spacing: 0; }
             .receipt-table .description { width: auto; max-width: 100%; }
             .receipt-table .description .name { display:inline-block; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-            .receipt-table .price { width: 60px; text-align: right; }
-            .receipt-table .amount { width: 70px; text-align: right; }
+            .receipt-table .price { width: 44px; text-align: right; padding-right: 3px; }
+            .receipt-table .amount { width: 64px; text-align: right; padding-left: 21px; }
+            /* Prevent numeric cells from wrapping across lines */
+            .receipt-table .price,
+            .receipt-table .amount,
+            .receipt-table .qty {
+              white-space: nowrap;
+              word-break: keep-all;
+              font-variant-numeric: tabular-nums;
+            }
+            /* Tighten spacing between the two-line item rows */
+            .receipt-table .row-top td { padding-bottom: 0; }
+            .receipt-table .row-bottom td { padding-top: 0; }
             .receipt-table .total {
               width: 70px;
               text-align: right;
@@ -4185,7 +4194,8 @@ const ReceiptComponent = ({
                 padding: 0;
               }
               @page {
-                margin: 0;
+                /* Reduce top margin, increase bottom margin */
+                margin: 2mm 0 10mm 0;
                 size: 80mm auto;
               }
             }
@@ -4222,25 +4232,32 @@ const ReceiptComponent = ({
               <thead>
                 <tr>
                   <th class="sno">#</th>
-                  <th class="qty">Qty</th>
                   <th class="description">Description</th>
                   <th class="price">Price</th>
-                  <th class="amount">Amount</th>
+                  <th class="qty">Qty</th>
+                  <th class="amount">Amt</th>
                 </tr>
               </thead>
               <tbody>
                 ${cart
                   .map(
                     (item, _index) => `
-                  <tr>
+                  <tr class="row-top">
                     <td class="sno">${_index + 1}</td>
-                    <td class="qty">(x${item.quantity})</td>
-                    <td class="description">${item.name}${
+                    <td class="description" colspan="4">${item.name}${
                       item.details ? ` (${item.details})` : ""
                     }</td>
+                    <td class="price" style="display:none;"></td>
+                    <td class="qty" style="display:none;"></td>
+                    <td class="amount" style="display:none;"></td>
+                  </tr>
+                  <tr class="row-bottom">
+                    <td class="sno"></td>
+                    <td class="description"></td>
                     <td class="price">${item.price.toFixed(3)}</td>
+                    <td class="qty">(x${item.quantity})</td>
                     <td class="amount">${(item.price * item.quantity).toFixed(
-                      2
+                      3
                     )}</td>
                   </tr>
                 `

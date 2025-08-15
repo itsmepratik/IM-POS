@@ -172,8 +172,8 @@ export function Sidebar({
                 <span
                   className="text-base font-wide"
                   style={{
-                    fontWeight: 750,
-                    color: "#6e6a6a",
+                    fontWeight: 700,
+                    color: "#000000",
                     letterSpacing: "0px",
                   }}
                 >
