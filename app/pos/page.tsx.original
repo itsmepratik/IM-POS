@@ -79,7 +79,6 @@ import { useToast } from "@/components/ui/use-toast";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { useCompanyInfo } from "@/lib/hooks/useCompanyInfo";
-// Removed unused hooks
 import { Textarea } from "@/components/ui/textarea";
 import {
   Accordion,
@@ -98,7 +97,6 @@ import {
 } from "@/lib/hooks/data/usePOSMockData";
 import { FilterModal } from "./components/filter-modal";
 import { PartsModal } from "./components/parts-modal";
-import { VolumeModal } from "./components/volume-modal";
 import { BrandCard } from "./components/brand-card";
 import { BrandLogo } from "./components/brand-logo";
 
@@ -107,12 +105,6 @@ import { BillComponent } from "./components/bill-component";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useStaffIDs } from "@/lib/hooks/useStaffIDs";
 import { Vehicle, CustomerData } from "@/app/customers/customer-form";
-import { CategoryProvider } from "./context/CategoryContext";
-import { CartProvider } from "./context/CartContext";
-import { LubricantCategory } from "./components/categories/LubricantCategory";
-import { FiltersCategory } from "./components/categories/FiltersCategory";
-import { PartsCategory } from "./components/categories/PartsCategory";
-import { AdditivesFluidsCategory } from "./components/categories/AdditivesFluidsCategory";
 
 // Types are now imported from usePOSMockData hook
 
@@ -720,7 +712,7 @@ function POSCustomerForm({
   );
 }
 
-function POSPageContent() {
+export default function POSPage() {
   const {
     lubricantProducts,
     products,
@@ -731,8 +723,6 @@ function POSPageContent() {
     lubricantBrands,
   } = usePOSMockData();
 
-  // Category hooks removed - functionality integrated into main component
-
   const [cart, setCart] = useState<CartItem[]>([]);
   const [activeCategory, setActiveCategory] = useState<string>("Lubricants");
   const [searchQuery, setSearchQuery] = useState("");
@@ -740,6 +730,18 @@ function POSPageContent() {
   const [showClearCartDialog, setShowClearCartDialog] = useState(false);
   const [expandedBrand, setExpandedBrand] = useState<string | null>(null);
   const [selectedOil, setSelectedOil] = useState<LubricantProduct | null>(null);
+  const [isVolumeModalOpen, setIsVolumeModalOpen] = useState(false);
+  const [selectedVolumes, setSelectedVolumes] = useState<SelectedVolume[]>([]);
+  const [selectedFilterBrand, setSelectedFilterBrand] = useState<string | null>(
+    null
+  );
+  const [selectedFilterType, setSelectedFilterType] = useState<string | null>(
+    null
+  );
+  const [isFilterBrandModalOpen, setIsFilterBrandModalOpen] = useState(false);
+  const [selectedFilters, setSelectedFilters] = useState<
+    Array<{ id: number; name: string; price: number; quantity: number }>
+  >([]);
   const [filterImageError, setFilterImageError] = useState(false);
   const [lubricantImageError, setLubricantImageError] = useState(false);
   const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
@@ -781,49 +783,6 @@ function POSPageContent() {
     string | null
   >(null);
 
-  // Volume modal states
-  const [isVolumeModalOpen, setIsVolumeModalOpen] = useState(false);
-  const [selectedVolumes, setSelectedVolumes] = useState<
-    Array<{
-      size: string;
-      price: number;
-      quantity: number;
-      bottleType?: "open" | "closed";
-    }>
-  >([]);
-
-  // Filter modal states
-  const [isFilterBrandModalOpen, setIsFilterBrandModalOpen] = useState(false);
-  const [selectedFilterType, setSelectedFilterType] = useState<string | null>(
-    null
-  );
-  const [selectedFilterBrand, setSelectedFilterBrand] = useState<string | null>(
-    null
-  );
-  const [selectedFilters, setSelectedFilters] = useState<
-    Array<{
-      id: number;
-      name: string;
-      price: number;
-      quantity: number;
-    }>
-  >([]);
-
-  // Parts modal states
-  const [isPartBrandModalOpen, setIsPartBrandModalOpen] = useState(false);
-  const [selectedPartType, setSelectedPartType] = useState<string | null>(null);
-  const [selectedPartBrand, setSelectedPartBrand] = useState<string | null>(
-    null
-  );
-  const [selectedParts, setSelectedParts] = useState<
-    Array<{
-      id: number;
-      name: string;
-      price: number;
-      quantity: number;
-    }>
-  >([]);
-
   // New state for cashiers with proper type
   const [isCashierSelectOpen, setIsCashierSelectOpen] = useState(false);
   const [enteredCashierId, setEnteredCashierId] = useState<string>("");
@@ -834,7 +793,15 @@ function POSPageContent() {
   const [cashierIdError, setCashierIdError] = useState<string | null>(null);
   const [selectedCashier, setSelectedCashier] = useState<string | null>(null);
 
-  // Parts state handled locally
+  // Add new state variables for parts
+  const [isPartBrandModalOpen, setIsPartBrandModalOpen] = useState(false);
+  const [selectedPartBrand, setSelectedPartBrand] = useState<string | null>(
+    null
+  );
+  const [selectedPartType, setSelectedPartType] = useState<string | null>(null);
+  const [selectedParts, setSelectedParts] = useState<
+    Array<{ id: number; name: string; price: number; quantity: number }>
+  >([]);
 
   // Add state for payment recipient
   const [paymentRecipient, setPaymentRecipient] = useState<string | null>(null);
@@ -1509,37 +1476,284 @@ function POSPageContent() {
                   <ScrollArea className="flex-1 mt-4 -mx-2 px-2">
                     <div className="grid grid-cols-1 gap-4">
                       {activeCategory === "Lubricants" ? (
-                        <LubricantCategory
-                          searchQuery={searchQuery}
-                          expandedBrand={expandedBrand}
-                          setExpandedBrand={setExpandedBrand}
-                          onLubricantSelect={handleLubricantSelect}
-                        />
+                        // Show lubricant brands with dropdown
+                        filteredLubricantBrands.map((brand) => (
+                          <div
+                            key={brand}
+                            className="border rounded-lg overflow-hidden"
+                          >
+                            <Button
+                              variant="ghost"
+                              className="w-full p-4 flex items-center justify-between hover:bg-accent"
+                              onClick={() =>
+                                setExpandedBrand(
+                                  expandedBrand === brand ? null : brand
+                                )
+                              }
+                            >
+                              <span className="font-semibold text-lg">
+                                {brand}
+                              </span>
+                              {expandedBrand === brand ? (
+                                <ChevronUp className="h-5 w-5" />
+                              ) : (
+                                <ChevronDown className="h-5 w-5" />
+                              )}
+                            </Button>
+                            {expandedBrand === brand && (
+                              <div className="p-4 bg-muted/50 grid grid-cols-2 sm:grid-cols-3 gap-4">
+                                {lubricantProducts
+                                  .filter(
+                                    (lubricant) => lubricant.brand === brand
+                                  )
+                                  .map((lubricant) => (
+                                    <Button
+                                      key={lubricant.id}
+                                      variant="outline"
+                                      className="border-2 rounded-[33px] flex flex-col items-center justify-between p-3 sm:p-4 h-[160px] sm:h-[180px] md:h-[200px] overflow-hidden"
+                                      onClick={() =>
+                                        handleLubricantSelect(lubricant)
+                                      }
+                                    >
+                                      <div className="relative w-16 h-16 sm:w-24 sm:h-24 mt-1 mb-1">
+                                        {lubricant.image ? (
+                                          <Image
+                                            src={lubricant.image}
+                                            alt={`${lubricant.brand} ${lubricant.type}`}
+                                            className="object-contain"
+                                            fill
+                                            sizes="(max-width: 768px) 64px, 96px"
+                                            onError={(e) => {
+                                              // Prevent the default error behavior which would hide the image
+                                              e.currentTarget.onerror = null;
+                                              // Keep showing the image even if there's an error
+                                              console.log(
+                                                `Error loading image for ${lubricant.brand} ${lubricant.type}`
+                                              );
+                                            }}
+                                          />
+                                        ) : (
+                                          <div className="w-full h-full flex items-center justify-center bg-muted rounded-md">
+                                            <ImageIcon className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground" />
+                                          </div>
+                                        )}
+                                      </div>
+                                      <div className="text-center flex-1 flex flex-col justify-between">
+                                        <span
+                                          className="text-center font-medium text-xs sm:text-sm w-full px-1 word-wrap whitespace-normal leading-tight hyphens-auto"
+                                          style={{ lineHeight: 1.1 }}
+                                        >
+                                          {lubricant.type}
+                                        </span>
+                                        <span className="block text-sm text-primary mt-2">
+                                          OMR {lubricant.basePrice.toFixed(3)}
+                                        </span>
+                                      </div>
+                                    </Button>
+                                  ))}
+                              </div>
+                            )}
+                          </div>
+                        ))
                       ) : activeCategory === "Filters" ? (
-                        <FiltersCategory
-                          searchQuery={searchQuery}
-                          selectedFilterType={selectedFilterType}
-                          setSelectedFilterType={setSelectedFilterType}
-                          setSelectedFilterBrand={setSelectedFilterBrand}
-                          setSelectedFilters={setSelectedFilters}
-                          setIsFilterBrandModalOpen={setIsFilterBrandModalOpen}
-                        />
+                        // Show filter types with dropdown
+                        <div className="grid grid-cols-1 gap-4">
+                          {filterTypes
+                            .filter((type) =>
+                              type
+                                .toLowerCase()
+                                .includes(searchQuery.toLowerCase())
+                            )
+                            .map((type) => (
+                              <div
+                                key={type}
+                                className="border rounded-lg overflow-hidden"
+                              >
+                                <Button
+                                  variant="ghost"
+                                  className="w-full p-4 flex items-center justify-between hover:bg-accent"
+                                  onClick={() =>
+                                    setSelectedFilterType(
+                                      selectedFilterType === type ? null : type
+                                    )
+                                  }
+                                >
+                                  <span className="font-semibold text-lg">
+                                    {type}
+                                  </span>
+                                  {selectedFilterType === type ? (
+                                    <ChevronUp className="h-5 w-5" />
+                                  ) : (
+                                    <ChevronDown className="h-5 w-5" />
+                                  )}
+                                </Button>
+                                {selectedFilterType === type && (
+                                  <div
+                                    className="p-4 bg-muted/50 grid gap-4"
+                                    style={{
+                                      gridTemplateColumns:
+                                        "repeat(auto-fit, minmax(120px, 1fr))",
+                                    }}
+                                  >
+                                    {filterBrands.map((brand) => (
+                                      <BrandCard
+                                        key={brand}
+                                        brand={brand}
+                                        onClick={() => {
+                                          setSelectedFilterBrand(brand);
+                                          setSelectedFilters([]);
+                                          setIsFilterBrandModalOpen(true);
+                                        }}
+                                      />
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                        </div>
                       ) : activeCategory === "Parts" ? (
-                        <PartsCategory
-                          searchQuery={searchQuery}
-                          selectedPartType={selectedPartType}
-                          setSelectedPartType={setSelectedPartType}
-                          setSelectedPartBrand={setSelectedPartBrand}
-                          setSelectedParts={setSelectedParts}
-                          setIsPartBrandModalOpen={setIsPartBrandModalOpen}
-                        />
+                        // Show part types with dropdown (similar to Filters)
+                        <div className="grid grid-cols-1 gap-4">
+                          {partTypes
+                            .filter((type) =>
+                              type
+                                .toLowerCase()
+                                .includes(searchQuery.toLowerCase())
+                            )
+                            .map((type) => (
+                              <div
+                                key={type}
+                                className="border rounded-lg overflow-hidden"
+                              >
+                                <Button
+                                  variant="ghost"
+                                  className="w-full p-4 flex items-center justify-between hover:bg-accent"
+                                  onClick={() =>
+                                    setSelectedPartType(
+                                      selectedPartType === type ? null : type
+                                    )
+                                  }
+                                >
+                                  <span className="font-semibold text-lg">
+                                    {type}
+                                  </span>
+                                  {selectedPartType === type ? (
+                                    <ChevronUp className="h-5 w-5" />
+                                  ) : (
+                                    <ChevronDown className="h-5 w-5" />
+                                  )}
+                                </Button>
+                                {selectedPartType === type && (
+                                  <div
+                                    className="p-4 bg-muted/50 grid gap-4"
+                                    style={{
+                                      gridTemplateColumns:
+                                        "repeat(auto-fit, minmax(120px, 1fr))",
+                                    }}
+                                  >
+                                    {partBrands.map((brand) => (
+                                      <BrandCard
+                                        key={brand}
+                                        brand={brand}
+                                        onClick={() => {
+                                          setSelectedPartBrand(brand);
+                                          setSelectedParts([]);
+                                          setIsPartBrandModalOpen(true);
+                                        }}
+                                      />
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                        </div>
                       ) : activeCategory === "Additives & Fluids" ? (
-                        <AdditivesFluidsCategory
-                          searchQuery={searchQuery}
-                          expandedBrand={expandedBrand}
-                          setExpandedBrand={setExpandedBrand}
-                          addToCart={addToCart}
-                        />
+                        // Show additives brands with dropdown (similar to Lubricants)
+                        Array.from(
+                          new Set(
+                            products
+                              .filter(
+                                (p) => p.category === "Additives & Fluids"
+                              )
+                              .map((p) => p.brand || "Other") // Use "Other" for undefined brands
+                          )
+                        )
+                          .filter((brand) =>
+                            brand
+                              .toLowerCase()
+                              .includes(searchQuery.toLowerCase())
+                          )
+                          .map((brand) => (
+                            <div
+                              key={brand}
+                              className="border rounded-lg overflow-hidden"
+                            >
+                              <Button
+                                variant="ghost"
+                                className="w-full p-4 flex items-center justify-between hover:bg-accent"
+                                onClick={() =>
+                                  setExpandedBrand(
+                                    expandedBrand === brand ? null : brand
+                                  )
+                                }
+                              >
+                                <span className="font-semibold text-lg">
+                                  {brand}
+                                </span>
+                                {expandedBrand === brand ? (
+                                  <ChevronUp className="h-5 w-5" />
+                                ) : (
+                                  <ChevronDown className="h-5 w-5" />
+                                )}
+                              </Button>
+                              {expandedBrand === brand && (
+                                <div className="p-4 bg-muted/50 grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 gap-4">
+                                  {products
+                                    .filter(
+                                      (p) =>
+                                        p.category === "Additives & Fluids" &&
+                                        (p.brand || "Other") === brand // Handle null/undefined brands
+                                    )
+                                    .map((product) => (
+                                      <Button
+                                        key={product.id}
+                                        variant="outline"
+                                        className="border-2 rounded-[33px] flex flex-col items-center justify-between p-4 h-auto min-h-[150px] transition-all hover:shadow-md overflow-hidden"
+                                        onClick={() => {
+                                          addToCart({
+                                            id: product.id,
+                                            name: product.name,
+                                            price: product.price,
+                                          });
+                                        }}
+                                      >
+                                        {/* Product icon with fixed dimensions */}
+                                        <div className="w-12 h-12 mb-3 flex-shrink-0 flex items-center justify-center rounded-md bg-muted/80">
+                                          <Droplet className="h-6 w-6 text-primary/70" />
+                                        </div>
+
+                                        {/* Product information with proper text handling */}
+                                        <div className="w-full flex flex-col items-center space-y-2">
+                                          {/* Product name with line clamping */}
+                                          <div className="text-center w-full">
+                                            <p className="text-sm font-medium line-clamp-2 leading-tight">
+                                              {product.name}
+                                            </p>
+                                          </div>
+
+                                          {/* Price with consistent formatting */}
+                                          <div className="mt-auto">
+                                            <span className="text-sm text-primary font-medium">
+                                              OMR {product.price.toFixed(3)}
+                                            </span>
+                                          </div>
+                                        </div>
+                                      </Button>
+                                    ))}
+                                </div>
+                              )}
+                            </div>
+                          ))
                       ) : (
                         // Show other category products
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -3516,14 +3730,3 @@ const ReceiptComponent = ({
     </motion.div>
   );
 };
-
-// Main POS Page with Context Providers
-export default function POSPage() {
-  return (
-    <CategoryProvider initialCategory="Lubricants">
-      <CartProvider>
-        <POSPageContent />
-      </CartProvider>
-    </CategoryProvider>
-  );
-}

@@ -1,4 +1,4 @@
-import { BrandLogo } from "./brand-logo";
+import { BrandLogo } from "../brand-logo";
 
 interface BrandCardProps {
   brand: string;
@@ -30,3 +30,6 @@ export function BrandCard({ brand, onClick, productCount }: BrandCardProps) {
     </button>
   );
 }
+
+
+

@@ -1,6 +1,6 @@
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { ProductModal } from "../components/product-modal"
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { ProductModal } from "../components/product-modal";
 
 // Sample data for demonstration
 const oilData = {
@@ -12,7 +12,7 @@ const oilData = {
     { id: 3, name: "1L", price: 11.99 },
     { id: 4, name: "500ml", price: 6.99 },
     { id: 5, name: "250ml", price: 3.99 },
-  ]
+  ],
 };
 
 const filterData = {
@@ -21,7 +21,7 @@ const filterData = {
   variants: [
     { id: 1, name: "Oil Filter - Standard", price: 12.99 },
     { id: 2, name: "Oil Filter - Premium", price: 19.99 },
-  ]
+  ],
 };
 
 export default function ProductModalExample() {
@@ -32,19 +32,19 @@ export default function ProductModalExample() {
   const handleAddToCart = (selectedVariants: any[]) => {
     // In a real implementation, you would add these to your cart state
     console.log("Adding to cart:", selectedVariants);
-    
+
     // For this example, we'll just append to our cartItems array
-    setCartItems(prev => [
-      ...prev, 
-      ...selectedVariants.map(variant => ({
+    setCartItems((prev) => [
+      ...prev,
+      ...selectedVariants.map((variant) => ({
         id: `${Date.now()}-${variant.id}`,
         productName: isOilModalOpen ? oilData.name : filterData.name,
         productType: isOilModalOpen ? oilData.type : filterData.type,
         variantName: variant.name,
         price: variant.price,
         quantity: variant.quantity,
-        isOpenBottle: variant.isOpenBottle
-      }))
+        isOpenBottle: variant.isOpenBottle,
+      })),
     ]);
   };
 
@@ -52,9 +52,9 @@ export default function ProductModalExample() {
     <div className="p-4">
       <div className="flex gap-4 mb-8">
         <Button onClick={() => setIsOilModalOpen(true)}>
-          Open Oil Product Modal
+          Open Lubricants Product Modal
         </Button>
-        
+
         <Button onClick={() => setIsFilterModalOpen(true)}>
           Open Filter Product Modal
         </Button>
@@ -66,13 +66,17 @@ export default function ProductModalExample() {
           <h3 className="text-lg font-semibold mb-2">Cart Items:</h3>
           <div className="border rounded-md p-4">
             {cartItems.map((item) => (
-              <div key={item.id} className="flex justify-between py-2 border-b last:border-b-0">
+              <div
+                key={item.id}
+                className="flex justify-between py-2 border-b last:border-b-0"
+              >
                 <div>
-                  <div className="font-medium">{item.productName} - {item.productType}</div>
+                  <div className="font-medium">
+                    {item.productName} - {item.productType}
+                  </div>
                   <div className="text-sm text-gray-600">
-                    {item.variantName} 
-                    {item.isOpenBottle && " (Open Bottle)"} 
-                    x {item.quantity}
+                    {item.variantName}
+                    {item.isOpenBottle && " (Open Bottle)"}x {item.quantity}
                   </div>
                 </div>
                 <div className="font-medium">
@@ -104,4 +108,4 @@ export default function ProductModalExample() {
       />
     </div>
   );
-} 
+}

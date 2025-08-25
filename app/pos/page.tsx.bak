@@ -1053,7 +1053,7 @@ export default function POSPage() {
   console.log("--- VERCEL DEBUG END ---");
 
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [activeCategory, setActiveCategory] = useState<string>("Oil");
+  const [activeCategory, setActiveCategory] = useState<string>("Lubricants");
   const [searchQuery, setSearchQuery] = useState("");
   const [showCart, setShowCart] = useState(false);
   const [showClearCartDialog, setShowClearCartDialog] = useState(false);
@@ -1340,7 +1340,7 @@ export default function POSPage() {
 
   const filteredProducts = useMemo(
     () =>
-      activeCategory === "Oil"
+      activeCategory === "Lubricants"
         ? []
         : products.filter((product) => {
             const matchesCategory = product.category === activeCategory;
