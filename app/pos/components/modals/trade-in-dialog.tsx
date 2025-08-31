@@ -127,7 +127,7 @@ export function TradeInDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="w-[95%] max-w-[600px] p-4 sm:p-5 md:p-6 rounded-xl max-h-[90dvh] flex flex-col overflow-hidden"
+        className="w-[95%] max-w-[600px] p-4 sm:p-5 md:p-6 rounded-xl max-h-[98vh] sm:max-h-[90dvh] flex flex-col overflow-hidden"
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
         <DialogHeader className="flex-shrink-0">
@@ -255,7 +255,7 @@ export function TradeInDialog({
                 </h4>
                 {/* Fixed height scrollable container with responsive heights */}
                 <div className="border rounded-lg bg-muted/30 w-full max-w-full">
-                  <ScrollArea className="h-[180px] sm:h-[220px] md:h-[240px] px-1 py-2 w-full max-w-full">
+                  <ScrollArea className="h-[180px] xs:h-[200px] sm:h-[220px] md:h-[240px] px-1 py-2 w-full max-w-full">
                     <div className="space-y-2 sm:space-y-3 pr-2 py-1">
                       <AnimatePresence mode="popLayout">
                         {batteries.map((b) => (
@@ -334,7 +334,7 @@ export function TradeInDialog({
           </div>
 
           {batteries.length > 0 && (
-            <div className="flex-shrink-0 border rounded-lg bg-primary/5 border-primary/20 p-3 sm:p-4">
+            <div className="flex-shrink-0 border rounded-lg bg-primary/5 border-primary/20 p-3 sm:p-4 sticky bottom-0 z-10">
               <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1 sm:gap-0">
                 <span className="text-sm sm:text-base font-medium text-foreground">
                   Total Trade-In Amount:
