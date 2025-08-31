@@ -37,6 +37,7 @@ import {
   Wrench,
   Car,
   Eraser,
+  Edit2,
 } from "lucide-react";
 import {
   Dialog,
@@ -98,6 +99,7 @@ import {
 } from "@/lib/hooks/data/usePOSMockData";
 import { FilterModal } from "./components/filter-modal";
 import { PartsModal } from "./components/parts-modal";
+import { TradeInDialog } from "./components/modals/trade-in-dialog";
 import { VolumeModal } from "./components/volume-modal";
 import { BrandCard } from "./components/brand-card";
 import { BrandLogo } from "./components/brand-logo";
@@ -763,9 +765,8 @@ function POSPageContent() {
     value: number;
   } | null>(null);
 
-  // State for Trade-In
+  // Trade-In Dialog State
   const [isTradeInDialogOpen, setIsTradeInDialogOpen] = useState(false);
-  const [tradeInAmount, setTradeInAmount] = useState<number>(0);
   const [appliedTradeInAmount, setAppliedTradeInAmount] = useState<number>(0);
 
   // State for receipt/bill number, date, time - to be generated before showing success dialog
@@ -841,6 +842,96 @@ function POSPageContent() {
 
   // Get cashier data from the hook
   const { staffMembers } = useStaffIDs();
+
+  // Trade-in helper functions
+  const calculateTotalTradeInAmount = () => {
+    return tradeinBatteries.reduce(
+      (total, battery) => total + battery.amount,
+      0
+    );
+  };
+
+  const validateCurrentBatteryEntry = () => {
+    const errors = {
+      size: !currentBatteryEntry.size,
+      status: !currentBatteryEntry.status,
+      amount: currentBatteryEntry.amount <= 0,
+    };
+    setTradeinFormErrors(errors);
+    return !errors.size && !errors.status && !errors.amount;
+  };
+
+  const addBatteryToTradein = () => {
+    if (!validateCurrentBatteryEntry()) return;
+
+    const newBattery: TradeinBattery = {
+      id: `battery-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      size: currentBatteryEntry.size,
+      status: currentBatteryEntry.status as "scrap" | "resellable",
+      amount: currentBatteryEntry.amount,
+    };
+
+    setTradeinBatteries((prev) => [...prev, newBattery]);
+    setCurrentBatteryEntry({ size: "", status: "", amount: 0 });
+    setTradeinFormErrors({ size: false, status: false, amount: false });
+  };
+
+  const editBattery = (batteryId: string) => {
+    const battery = tradeinBatteries.find((b) => b.id === batteryId);
+    if (battery) {
+      setCurrentBatteryEntry({
+        size: battery.size,
+        status: battery.status,
+        amount: battery.amount,
+      });
+      setEditingBatteryId(batteryId);
+    }
+  };
+
+  const updateEditedBattery = () => {
+    if (!validateCurrentBatteryEntry() || !editingBatteryId) return;
+
+    setTradeinBatteries((prev) =>
+      prev.map((battery) =>
+        battery.id === editingBatteryId
+          ? {
+              ...battery,
+              size: currentBatteryEntry.size,
+              status: currentBatteryEntry.status as "scrap" | "resellable",
+              amount: currentBatteryEntry.amount,
+            }
+          : battery
+      )
+    );
+
+    setCurrentBatteryEntry({ size: "", status: "", amount: 0 });
+    setEditingBatteryId(null);
+    setTradeinFormErrors({ size: false, status: false, amount: false });
+  };
+
+  const removeBatteryFromTradein = (batteryId: string) => {
+    setTradeinBatteries((prev) =>
+      prev.filter((battery) => battery.id !== batteryId)
+    );
+    if (editingBatteryId === batteryId) {
+      setEditingBatteryId(null);
+      setCurrentBatteryEntry({ size: "", status: "", amount: 0 });
+      setTradeinFormErrors({ size: false, status: false, amount: false });
+    }
+  };
+
+  const cancelBatteryEdit = () => {
+    setEditingBatteryId(null);
+    setCurrentBatteryEntry({ size: "", status: "", amount: 0 });
+    setTradeinFormErrors({ size: false, status: false, amount: false });
+  };
+
+  const resetTradeInDialog = () => {
+    setTradeinBatteries([]);
+    setCurrentBatteryEntry({ size: "", status: "", amount: 0 });
+    setEditingBatteryId(null);
+    setTradeinFormErrors({ size: false, status: false, amount: false });
+  };
   // Memoize handlers
   const removeFromCart = useCallback((productId: number, uniqueId?: string) => {
     setCart((prevCart) => {
@@ -1199,7 +1290,7 @@ function POSPageContent() {
 
     // Reset trade-in amounts
     setAppliedTradeInAmount(0);
-    setTradeInAmount(0);
+    resetTradeInDialog();
 
     // Reset cashier info - this is the important part for fixing the ID persistence issue
     setSelectedCashier(null);
@@ -1652,11 +1743,15 @@ function POSPageContent() {
                           variant="outline"
                           className="h-9 flex-1 flex items-center justify-center gap-2 bg-orange-100 hover:bg-orange-200 text-orange-800 border-orange-300"
                           onClick={() => {
-                            setTradeInAmount(
-                              appliedTradeInAmount > 0
-                                ? appliedTradeInAmount
-                                : 0
-                            ); // Pre-fill with current applied amount or 0
+                            // Pre-populate with existing trade-in data if available
+                            if (appliedTradeInAmount > 0) {
+                              // If there's already an applied trade-in, show it as the first entry
+                              setCurrentBatteryEntry({
+                                size: "",
+                                status: "",
+                                amount: appliedTradeInAmount,
+                              });
+                            }
                             setIsTradeInDialogOpen(true);
                           }}
                         >
@@ -1797,11 +1892,15 @@ function POSPageContent() {
                             variant="outline"
                             className="h-9 flex-1 flex items-center justify-center gap-2 bg-orange-100 hover:bg-orange-200 text-orange-800 border-orange-300"
                             onClick={() => {
-                              setTradeInAmount(
-                                appliedTradeInAmount > 0
-                                  ? appliedTradeInAmount
-                                  : 0
-                              );
+                              // Pre-populate with existing trade-in data if available
+                              if (appliedTradeInAmount > 0) {
+                                // If there's already an applied trade-in, show it as the first entry
+                                setCurrentBatteryEntry({
+                                  size: "",
+                                  status: "",
+                                  amount: appliedTradeInAmount,
+                                });
+                              }
                               setIsTradeInDialogOpen(true);
                             }}
                           >
@@ -2684,57 +2783,13 @@ function POSPageContent() {
         onNext={handleNextPartItem}
       />
 
-      {/* Trade-In Dialog */}
-      <Dialog open={isTradeInDialogOpen} onOpenChange={setIsTradeInDialogOpen}>
-        <DialogContent className="w-[90%] max-w-[400px] p-6 rounded-lg">
-          <DialogHeader>
-            <DialogTitle className="text-center text-xl">
-              Enter Trade-In Amount
-            </DialogTitle>
-            <DialogDescription className="text-center">
-              Enter the value of the trade-in in OMR.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-6 py-4">
-            <div className="space-y-3">
-              <Label htmlFor="trade-in-amount">Trade-In Amount (OMR)</Label>
-              <Input
-                id="trade-in-amount"
-                type="number"
-                placeholder="e.g. 5.000"
-                min="0"
-                step="0.001" // Allow for 3 decimal places as in example bill
-                value={tradeInAmount === 0 ? "" : tradeInAmount}
-                onChange={(e) =>
-                  setTradeInAmount(parseFloat(e.target.value) || 0)
-                }
-                autoFocus
-              />
-            </div>
-          </div>
-
-          <DialogFooter className="flex flex-col gap-2 sm:flex-row">
-            <Button
-              variant="outline"
-              className="flex-1"
-              onClick={() => setIsTradeInDialogOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              className="flex-1"
-              onClick={() => {
-                setAppliedTradeInAmount(tradeInAmount);
-                setIsTradeInDialogOpen(false);
-              }}
-              disabled={tradeInAmount <= 0}
-            >
-              Apply Trade-In
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Enhanced Trade-In Dialog */}
+      <TradeInDialog
+        open={isTradeInDialogOpen}
+        onOpenChange={setIsTradeInDialogOpen}
+        initialAmount={appliedTradeInAmount}
+        onApply={(total) => setAppliedTradeInAmount(total)}
+      />
 
       {/* Dispute Dialog */}
       <Dialog open={isDisputeDialogOpen} onOpenChange={setIsDisputeDialogOpen}>

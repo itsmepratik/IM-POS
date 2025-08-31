@@ -28,6 +28,11 @@ import {
   ImageIcon,
   MoreVertical,
   Store,
+  Filter,
+  X,
+  AlertTriangle,
+  PackageX,
+  ChevronDown,
 } from "lucide-react";
 import { ItemsProvider, useItems, type Item } from "../items-context";
 import { ItemModal } from "../item-modal";
@@ -309,6 +314,7 @@ function MobileView({
   const [showLowStockOnly, setShowLowStockOnly] = useState(false);
   const [showOutOfStockOnly, setShowOutOfStockOnly] = useState(false);
   const [branchId, setBranchId] = useState(selectedBranch.id);
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   // Get available branches
   const branches = [ABU_DHABI_BRANCH, HAFITH_BRANCH];
@@ -423,21 +429,57 @@ function MobileView({
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          <StockIndicator
-            lowStockCount={lowStockCount}
-            outOfStockCount={outOfStockCount}
-            onLowStockClick={handleLowStockClick}
-            onOutOfStockClick={handleOutOfStockClick}
-          />
           <Button
-            onClick={handleAddItem}
+            variant="outline"
             size="sm"
-            className="shrink-0"
-            type="button"
+            className="p-2 shrink-0"
+            onClick={() => setFiltersOpen(true)}
           >
-            <Plus className="h-4 w-4 mr-1" />
-            Add
+            <Filter className="h-4 w-4" />
           </Button>
+        </div>
+
+        {/* Buttons row below search */}
+        <div className="flex items-center gap-2 justify-between">
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={handleAddItem}
+              size="sm"
+              className="shrink-0"
+              type="button"
+            >
+              <Plus className="h-4 w-4 mr-1" />
+              Add
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="shrink-0">
+                  More Options
+                  <ChevronDown className="h-4 w-4 ml-1" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-40">
+                <DropdownMenuItem
+                  onClick={() => {
+                    setIsCategoryModalOpen(true);
+                    setFiltersOpen(false);
+                  }}
+                  className="cursor-pointer"
+                >
+                  Manage Categories
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => {
+                    setIsBrandModalOpen(true);
+                    setFiltersOpen(false);
+                  }}
+                  className="cursor-pointer"
+                >
+                  Manage Brands
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </div>
 
@@ -500,6 +542,87 @@ function MobileView({
         onOpenChange={setItemModalOpen}
         item={editingItem || undefined}
       />
+
+      {/* Mobile Filters Sheet */}
+      <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
+        <SheetContent side="right" className="w-[280px] sm:w-[380px]">
+          <SheetHeader>
+            <SheetTitle>Filters</SheetTitle>
+          </SheetHeader>
+          <div className="py-4 space-y-4">
+            <div className="space-y-4">
+              <h3 className="text-sm font-medium">Categories</h3>
+              <Select
+                value={selectedCategory}
+                onValueChange={setSelectedCategory}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="All Categories" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="All">All Categories</SelectItem>
+                  {categories.map((category) => (
+                    <SelectItem key={category} value={category}>
+                      {category}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <h3 className="text-sm font-medium">Brands</h3>
+              <Select value={brandFilter} onValueChange={setBrandFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All Brands" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Brands</SelectItem>
+                  <SelectItem value="none">No Brand</SelectItem>
+                  {brands.map((brand) => (
+                    <SelectItem key={brand} value={brand}>
+                      {brand}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* Stock Status Options */}
+              <div className="space-y-3 pt-2">
+                <h3 className="text-sm font-medium">Stock Status</h3>
+                <div className="space-y-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setShowOutOfStockOnly(false);
+                      setShowLowStockOnly(!showLowStockOnly);
+                    }}
+                    className={`justify-start w-full ${
+                      showLowStockOnly ? "bg-amber-100 text-amber-800" : ""
+                    }`}
+                  >
+                    <AlertTriangle className="h-4 w-4 mr-2" />
+                    Low Stock
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setShowLowStockOnly(false);
+                      setShowOutOfStockOnly(!showOutOfStockOnly);
+                    }}
+                    className={`justify-start w-full ${
+                      showOutOfStockOnly ? "bg-red-100 text-red-800" : ""
+                    }`}
+                  >
+                    <PackageX className="h-4 w-4 mr-2" />
+                    Out of Stock
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
@@ -509,6 +632,13 @@ function BranchInventoryPage() {
   const [selectedBranchId, setSelectedBranchId] = useState("1"); // Default to Abu Dhurus
   const [showLowStockOnly, setShowLowStockOnly] = useState(false);
   const [showOutOfStockOnly, setShowOutOfStockOnly] = useState(false);
+
+  // Filter states
+  const [showFilters, setShowFilters] = useState(false);
+  const [minPrice, setMinPrice] = useState("");
+  const [maxPrice, setMaxPrice] = useState("");
+  const [stockStatus, setStockStatus] = useState("all");
+  const [brandFilter, setBrandFilter] = useState("all");
 
   // Branch specific hooks
   const abuDhabiInventory = useAbuDhabiInventory();
@@ -660,49 +790,54 @@ function BranchInventoryPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
-            <div className="relative flex-1 max-w-sm">
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1 min-w-0">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 type="search"
                 placeholder="Search items..."
-                className="pl-9"
+                className="pl-9 pr-4 w-full rounded-[2.0625rem] border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
-            <StockIndicator
-              lowStockCount={lowStockCount}
-              outOfStockCount={outOfStockCount}
-              onLowStockClick={handleLowStockClick}
-              onOutOfStockClick={handleOutOfStockClick}
-            />
-            <Select
-              value={selectedCategory}
-              onValueChange={setSelectedCategory}
-            >
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="All Categories" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="All">All Categories</SelectItem>
-                {categories.map((category) => (
-                  <SelectItem key={category} value={category}>
-                    {category}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <div className="flex-1 text-right space-x-2">
+            <div className="flex-shrink-0 space-x-2">
               <Button
                 variant="outline"
-                onClick={() => setIsCategoryModalOpen(true)}
+                onClick={() => setShowFilters(!showFilters)}
+                className="rounded-[2.0625rem] p-2"
+                size="sm"
               >
-                Categories
+                <Filter className="h-4 w-4" />
               </Button>
-              <Button variant="ghost" onClick={() => setIsBrandModalOpen(true)}>
-                Brands
-              </Button>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="rounded-[2.0625rem]"
+                    size="sm"
+                  >
+                    More Options
+                    <ChevronDown className="h-4 w-4 ml-1" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-32">
+                  <DropdownMenuItem
+                    onClick={() => setIsCategoryModalOpen(true)}
+                    className="cursor-pointer"
+                  >
+                    Categories
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => setIsBrandModalOpen(true)}
+                    className="cursor-pointer"
+                  >
+                    Brands
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
               <Button onClick={() => setIsModalOpen(true)}>
                 <Plus className="h-4 w-4 mr-1" />
                 Add Item
@@ -731,6 +866,177 @@ function BranchInventoryPage() {
             </div>
           )}
 
+          {/* Awesome Filter Section - Desktop Only */}
+          {showFilters && !isMobile && (
+            <div className="bg-gradient-to-r from-blue-50/50 via-white to-purple-50/50 backdrop-blur-sm border border-blue-200/50 rounded-[1.125rem] p-6 shadow-lg">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-blue-100 rounded-full">
+                    <Filter className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      Advanced Filters
+                    </h3>
+                    <p className="text-sm text-gray-600">
+                      Refine your inventory search
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setMinPrice("");
+                    setMaxPrice("");
+                    setStockStatus("all");
+                    setBrandFilter("all");
+                    setShowLowStockOnly(false);
+                    setShowOutOfStockOnly(false);
+                  }}
+                  className="rounded-[2.0625rem] text-gray-600 hover:bg-gray-100"
+                >
+                  <X className="h-4 w-4 mr-1" />
+                  Clear All
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {/* Price Range Filter */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                    <span className="text-green-600">💰</span>
+                    Price Range
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="number"
+                      placeholder="Min"
+                      value={minPrice}
+                      onChange={(e) => setMinPrice(e.target.value)}
+                      className="flex-1 rounded-[2.0625rem] border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                    />
+                    <span className="text-gray-400">-</span>
+                    <Input
+                      type="number"
+                      placeholder="Max"
+                      value={maxPrice}
+                      onChange={(e) => setMaxPrice(e.target.value)}
+                      className="flex-1 rounded-[2.0625rem] border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Category Filter */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                    <span className="text-blue-600">📂</span>
+                    Category
+                  </label>
+                  <Select
+                    value={selectedCategory}
+                    onValueChange={setSelectedCategory}
+                  >
+                    <SelectTrigger className="w-full rounded-[2.0625rem] border-gray-300 focus:border-blue-500 focus:ring-blue-500">
+                      <SelectValue placeholder="All Categories" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="All">All Categories</SelectItem>
+                      {categories.map((category) => (
+                        <SelectItem key={category} value={category}>
+                          {category}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Brand Filter */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                    <span className="text-purple-600">🏷️</span>
+                    Brand
+                  </label>
+                  <Select value={brandFilter} onValueChange={setBrandFilter}>
+                    <SelectTrigger className="w-full rounded-[2.0625rem] border-gray-300 focus:border-blue-500 focus:ring-blue-500">
+                      <SelectValue placeholder="All Brands" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Brands</SelectItem>
+                      <SelectItem value="none">No Brand</SelectItem>
+                      {brands.map((brand) => (
+                        <SelectItem key={brand} value={brand}>
+                          {brand}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Stock Status Filter */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                    <span className="text-orange-600">📦</span>
+                    Stock Status
+                  </label>
+                  <Select value={stockStatus} onValueChange={setStockStatus}>
+                    <SelectTrigger className="w-full rounded-[2.0625rem] border-gray-300 focus:border-blue-500 focus:ring-blue-500">
+                      <SelectValue placeholder="All Stock" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Stock</SelectItem>
+                      <SelectItem value="in-stock">In Stock</SelectItem>
+                      <SelectItem value="low-stock">Low Stock</SelectItem>
+                      <SelectItem value="out-of-stock">Out of Stock</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Quick Actions */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                    <span className="text-red-600">⚡</span>
+                    Quick Filters
+                  </label>
+                  <div className="flex flex-col gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setShowOutOfStockOnly(false);
+                        setShowLowStockOnly(!showLowStockOnly);
+                      }}
+                      className={`justify-start rounded-[2.0625rem] ${
+                        showLowStockOnly
+                          ? "bg-amber-100 text-amber-800 border border-amber-300"
+                          : "hover:bg-amber-50"
+                      }`}
+                    >
+                      <AlertTriangle className="h-4 w-4 mr-2" />
+                      Low Stock
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setShowLowStockOnly(false);
+                        setShowOutOfStockOnly(!showOutOfStockOnly);
+                      }}
+                      className={`justify-start rounded-[2.0625rem] ${
+                        showOutOfStockOnly
+                          ? "bg-red-100 text-red-800 border border-red-300"
+                          : "hover:bg-red-50"
+                      }`}
+                    >
+                      <PackageX className="h-4 w-4 mr-2" />
+                      Out of Stock
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {isLoading ? (
             <div className="flex justify-center py-8">
               <div className="animate-pulse text-center">
@@ -742,7 +1048,7 @@ function BranchInventoryPage() {
               <p className="text-muted-foreground">No items found</p>
             </div>
           ) : (
-            <div className="rounded-md border bg-white shadow-sm">
+            <div className="rounded-[1.125rem] border bg-white shadow-sm">
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[800px]">
                   <thead>

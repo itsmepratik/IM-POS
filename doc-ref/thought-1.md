@@ -15,15 +15,15 @@ useSalesInfo() - sales data with mock implementation
 Other Business Logic:
 useTransferLocations(), useRestockOrders(), useTransactions()
 
-❌ Critical Issues - Hardcoded Data
-1. POS System (Major Issue):
-app/pos/page.tsx contains massive hardcoded arrays:
-lubricantProducts[] - 16 hardcoded lubricant products (lines 150-316)
-products[] - 800+ hardcoded products (lines 318-891)
-Payment methods hardcoded in component logic
-2. Navigation Components:
-components/app-sidebar.tsx, components/mobile-nav.tsx, components/new-sidebar.tsx
-Navigation items hardcoded directly in components instead of using configuration hooks
+  ❌ Critical Issues - Hardcoded Data
+  1. POS System (Major Issue):
+  app/pos/page.tsx contains massive hardcoded arrays:
+  lubricantProducts[] - 16 hardcoded lubricant products (lines 150-316)
+  products[] - 800+ hardcoded products (lines 318-891)
+  Payment methods hardcoded in component logic
+  2. Navigation Components:
+  components/app-sidebar.tsx, components/mobile-nav.tsx, components/new-sidebar.tsx
+  Navigation items hardcoded directly in components instead of using configuration hooks
 3. Customer Data:
 app/customers/customers-context.tsx has hardcoded initial customer data (lines 7-136)
 🔄 Mixed Implementation (Partially Ready)

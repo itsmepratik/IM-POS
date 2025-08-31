@@ -20,6 +20,12 @@ export const useInventoryData = () => {
   const [showLowStockOnly, setShowLowStockOnly] = useState(false);
   const [showOutOfStockOnly, setShowOutOfStockOnly] = useState(false);
 
+  // Advanced filter states
+  const [showFilters, setShowFilters] = useState(false);
+  const [minPrice, setMinPrice] = useState("");
+  const [maxPrice, setMaxPrice] = useState("");
+  const [stockStatus, setStockStatus] = useState("all");
+
   // Item selection for bulk actions
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
 
@@ -234,6 +240,16 @@ export const useInventoryData = () => {
     setShowLowStockOnly,
     showOutOfStockOnly,
     setShowOutOfStockOnly,
+
+    // Advanced filter states
+    showFilters,
+    setShowFilters,
+    minPrice,
+    setMinPrice,
+    maxPrice,
+    setMaxPrice,
+    stockStatus,
+    setStockStatus,
 
     // Selection states
     selectedItems,
