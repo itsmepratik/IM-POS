@@ -24,6 +24,10 @@ import {
   ChevronDown,
   RefreshCw,
   ShoppingCart,
+  Package,
+  CheckCircle,
+  XCircle,
+  MoreHorizontal,
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -39,6 +43,22 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import Link from "next/link";
 import { useTransfer } from "@/hooks/use-transfer";
 import { useTransferLocations } from "@/lib/hooks/data/useTransferLocations";
@@ -83,6 +103,22 @@ interface SaleItem {
   volume: string;
 }
 
+// Interface for submitted transfer orders
+interface SubmittedTransferOrder {
+  id: string;
+  orderNumber: string;
+  date: string;
+  time: string;
+  sourceLocation: string;
+  destinationLocation: string;
+  items: SaleItem[];
+  itemCount: number;
+  status: "pending" | "partially_received" | "completed";
+  totalAmount: number;
+  receivedItems: string[]; // IDs of items that have been received
+  unreceived_items?: SaleItem[]; // Items that haven't been received yet
+}
+
 export default function TransferPage() {
   const { toast } = useToast();
   const { items, refreshItems } = useTransfer(); // Get items from the hook
@@ -124,6 +160,13 @@ export default function TransferPage() {
   ); // Today's date by default
   const [transferId, setTransferId] = useState<string>("");
   const [generateSuccess, setGenerateSuccess] = useState(false);
+  
+  // State for submitted transfer orders
+  const [submittedOrders, setSubmittedOrders] = useState<SubmittedTransferOrder[]>([]);
+  const [confirmSubmitDialogOpen, setConfirmSubmitDialogOpen] = useState(false);
+  const [reviewModalOpen, setReviewModalOpen] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<SubmittedTransferOrder | null>(null);
+  const [verifiedItems, setVerifiedItems] = useState<Record<string, boolean>>({});
 
   // Use useEffect to set hasMounted to true after component mounts
   useEffect(() => {
@@ -133,7 +176,20 @@ export default function TransferPage() {
         .toString()
         .padStart(4, "0")}`
     );
+    
+    // Load submitted orders from localStorage
+    const savedOrders = localStorage.getItem("submittedTransferOrders");
+    if (savedOrders) {
+      setSubmittedOrders(JSON.parse(savedOrders));
+    }
   }, []);
+
+  // Save orders to localStorage whenever submittedOrders changes
+  useEffect(() => {
+    if (submittedOrders.length > 0) {
+      localStorage.setItem("submittedTransferOrders", JSON.stringify(submittedOrders));
+    }
+  }, [submittedOrders]);
 
   // Generate sales based on day's transactions
   const generateSales = () => {
@@ -243,6 +299,129 @@ export default function TransferPage() {
     });
   };
 
+  // Handle submit transfer order
+  const handleSubmitTransfer = () => {
+    if (generatedSales.length === 0) return;
+
+    const newOrder: SubmittedTransferOrder = {
+      id: transferId,
+      orderNumber: transferId,
+      date: new Date().toLocaleDateString("en-GB", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      }),
+      time: new Date().toLocaleTimeString("en-GB", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+      }),
+      sourceLocation: locations.find(l => l.id === sourceLocation)?.name || "Sanaiya (Main)",
+      destinationLocation: locations.find(l => l.id === destinationLocation)?.name || "",
+      items: generatedSales,
+      itemCount: generatedSales.length,
+      status: "pending",
+      totalAmount: generatedSales.reduce((sum, item) => sum + (item.price * item.quantitySold), 0),
+      receivedItems: [],
+    };
+
+    setSubmittedOrders(prev => [newOrder, ...prev]);
+    setGeneratedSales([]);
+    setConfirmSubmitDialogOpen(false);
+    
+    // Generate new transfer ID for next order
+    setTransferId(
+      `TO-${Math.floor(Math.random() * 10000)
+        .toString()
+        .padStart(4, "0")}`
+    );
+
+    toast({
+      title: "Transfer Submitted",
+      description: "Your transfer order has been successfully submitted and is now being tracked",
+    });
+  };
+
+  // Open review modal
+  const openReviewModal = (order: SubmittedTransferOrder) => {
+    setSelectedOrder(order);
+    // Initialize verification state
+    const initialVerifications: Record<string, boolean> = {};
+    order.items.forEach(item => {
+      initialVerifications[item.id] = order.receivedItems.includes(item.id);
+    });
+    setVerifiedItems(initialVerifications);
+    setReviewModalOpen(true);
+  };
+
+  // Toggle item verification
+  const toggleItemVerification = (itemId: string) => {
+    setVerifiedItems(prev => ({
+      ...prev,
+      [itemId]: !prev[itemId],
+    }));
+  };
+
+  // Confirm received items
+  const confirmReceivedItems = () => {
+    if (!selectedOrder) return;
+
+    const receivedItemIds = Object.entries(verifiedItems)
+      .filter(([_, received]) => received)
+      .map(([itemId]) => itemId);
+
+    const unreceivedItems = selectedOrder.items.filter(
+      item => !receivedItemIds.includes(item.id)
+    );
+
+    // Update order status
+    let newStatus: "pending" | "partially_received" | "completed" = "completed";
+    if (receivedItemIds.length === 0) {
+      newStatus = "pending";
+    } else if (unreceivedItems.length > 0) {
+      newStatus = "partially_received";
+    }
+
+    // Update the order
+    setSubmittedOrders(prev => prev.map(order => 
+      order.id === selectedOrder.id 
+        ? { 
+            ...order, 
+            receivedItems: receivedItemIds,
+            status: newStatus,
+            unreceived_items: unreceivedItems,
+          }
+        : order
+    ));
+
+    // If there are unreceived items, add them to next transfer automatically
+    if (unreceivedItems.length > 0) {
+      toast({
+        title: "Partial Delivery Confirmed",
+        description: `${receivedItemIds.length} items confirmed. ${unreceivedItems.length} items will be added to the next transfer order.`,
+      });
+    } else {
+      toast({
+        title: "Delivery Completed",
+        description: "All items have been confirmed as received.",
+      });
+    }
+
+    setReviewModalOpen(false);
+    setSelectedOrder(null);
+  };
+
+  // Mark all items as received
+  const markAllAsReceived = () => {
+    if (!selectedOrder) return;
+    
+    const allVerified: Record<string, boolean> = {};
+    selectedOrder.items.forEach(item => {
+      allVerified[item.id] = true;
+    });
+    setVerifiedItems(allVerified);
+  };
+
   return (
     <Layout>
       <div className="space-y-4 print:hidden">
@@ -257,7 +436,7 @@ export default function TransferPage() {
               <div className="space-y-2">
                 <label className="text-sm font-medium">Source Location</label>
                 {hasMounted ? (
-                  <div className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background flex items-center">
+                  <div className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background items-center">
                     <span>Sanaiya (Main)</span>
                   </div>
                 ) : (
@@ -453,13 +632,7 @@ export default function TransferPage() {
                   <Button
                     variant="default"
                     className="gap-2 w-full"
-                    onClick={() => {
-                      toast({
-                        title: "Transfer Submitted",
-                        description:
-                          "Your transfer has been successfully submitted",
-                      });
-                    }}
+                    onClick={() => setConfirmSubmitDialogOpen(true)}
                   >
                     <ShoppingCart className="h-4 w-4" />
                     Submit
@@ -467,6 +640,161 @@ export default function TransferPage() {
                 </div>
               </CardContent>
             </Card>
+          )}
+
+          {/* Submitted Transfer Orders */}
+          {submittedOrders.length > 0 && (
+            <div className="lg:col-span-2 space-y-4">
+              <h3 className="text-lg font-semibold">Transfer Orders</h3>
+              {submittedOrders.map((order) => (
+                <Card
+                  key={order.id}
+                  className={`${
+                    order.status === "completed"
+                      ? "bg-green-50 border-green-200"
+                      : order.status === "partially_received"
+                      ? "bg-yellow-50 border-yellow-200"
+                      : "bg-blue-50 border-blue-200"
+                  }`}
+                >
+                  <CardContent className="p-3 sm:p-4">
+                    <div className="flex flex-col gap-3">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div className="flex flex-col">
+                          <h4 className="text-base sm:text-lg font-semibold">
+                            Transfer {order.orderNumber}
+                          </h4>
+                          <p className="text-xs sm:text-sm text-gray-500">
+                            {order.date}, {order.time}
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2 mt-1 sm:mt-0">
+                          {order.status === "pending" && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="border-blue-500 text-blue-500 hover:bg-blue-50 h-8 px-2 text-xs sm:text-sm"
+                              onClick={() => openReviewModal(order)}
+                            >
+                              <Package className="h-3.5 w-3.5 mr-1" />
+                              Review Items
+                            </Button>
+                          )}
+                          {order.status === "completed" && (
+                            <div className="px-2 py-1 bg-green-100 text-green-800 rounded-md font-medium text-xs">
+                              Completed
+                            </div>
+                          )}
+                          {order.status === "partially_received" && (
+                            <div className="flex items-center gap-2">
+                              <div className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-md font-medium text-xs">
+                                Partially Received
+                              </div>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="border-yellow-500 text-yellow-600 hover:bg-yellow-50 h-8 px-2 text-xs sm:text-sm"
+                                onClick={() => openReviewModal(order)}
+                              >
+                                <Package className="h-3.5 w-3.5 mr-1" />
+                                Review
+                              </Button>
+                            </div>
+                          )}
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                              >
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-[160px]">
+                              <DropdownMenuItem
+                                onClick={() => openReviewModal(order)}
+                              >
+                                <Package className="h-4 w-4 mr-2" />
+                                Review Items
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs sm:text-sm">
+                        <div className="flex items-center gap-2">
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="text-gray-500"
+                          >
+                            <path d="M3 9h18v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9Z"></path>
+                            <path d="M3 9V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4"></path>
+                          </svg>
+                          <span>From: {order.sourceLocation}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="text-gray-500"
+                          >
+                            <path d="M20 9v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V9"></path>
+                            <path d="M9 22V12h6v10"></path>
+                            <path d="M2 10.6L12 2l10 8.6"></path>
+                          </svg>
+                          <span>To: {order.destinationLocation}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between text-xs sm:text-sm">
+                        <div className="flex items-center gap-4">
+                          <div className="flex items-center gap-2">
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              width="14"
+                              height="14"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              className="text-gray-500"
+                            >
+                              <rect width="20" height="14" x="2" y="5" rx="2"></rect>
+                              <line x1="2" x2="22" y1="10" y2="10"></line>
+                            </svg>
+                            <span>
+                              {order.receivedItems.length}/{order.itemCount} items received
+                            </span>
+                          </div>
+                          <div className="text-gray-600 font-medium">
+                            OMR {order.totalAmount.toFixed(2)}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           )}
         </div>
       </div>
@@ -706,6 +1034,167 @@ export default function TransferPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Submit Confirmation Dialog */}
+      <AlertDialog open={confirmSubmitDialogOpen} onOpenChange={setConfirmSubmitDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Transfer Order Submission</AlertDialogTitle>
+            <AlertDialogDescription>
+              You are about to submit a transfer order from{" "}
+              {locations.find((l) => l.id === sourceLocation)?.name || "Sanaiya (Main)"}{" "}
+              to{" "}
+              {locations.find((l) => l.id === destinationLocation)?.name || "destination"}{" "}
+              with {generatedSales.length} items totaling OMR{" "}
+              {generatedSales.reduce((sum, item) => sum + (item.price * item.quantitySold), 0).toFixed(2)}.
+              <br/><br/>
+              Once submitted, this order will be tracked and you can review item deliveries as they arrive.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleSubmitTransfer}
+              className="bg-primary hover:bg-primary/90"
+            >
+              Submit Transfer Order
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Review Items Modal */}
+      <Dialog open={reviewModalOpen} onOpenChange={setReviewModalOpen}>
+        <DialogContent className="sm:max-w-[700px] w-[95vw] max-h-[90vh] p-0 overflow-hidden flex flex-col">
+          <DialogHeader className="pb-2 px-4 sm:px-6 pt-4 sm:pt-6 shrink-0 border-b">
+            <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <Package className="h-5 w-5 text-primary" />
+              Review Order #{selectedOrder?.orderNumber}
+            </DialogTitle>
+          </DialogHeader>
+
+          {selectedOrder && (
+            <>
+              <div className="px-4 sm:px-6 py-3 shrink-0 border-b">
+                <div className="flex flex-col sm:flex-row justify-between text-xs sm:text-sm gap-1 sm:gap-2">
+                  <div className="flex flex-wrap items-center gap-1">
+                    <span className="font-medium">From:</span>{" "}
+                    <span className="text-muted-foreground">
+                      {selectedOrder.sourceLocation}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1">
+                    <span className="font-medium">To:</span>{" "}
+                    <span className="text-muted-foreground">
+                      {selectedOrder.destinationLocation}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1">
+                    <span className="font-medium">Date:</span>{" "}
+                    <span className="text-muted-foreground">
+                      {selectedOrder.date}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="px-4 sm:px-6 py-2 flex items-center justify-between shrink-0 border-b">
+                <div className="text-xs text-muted-foreground">
+                  {Object.values(verifiedItems).filter(Boolean).length} of{" "}
+                  {selectedOrder.items.length} items marked as received
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs px-2 py-1"
+                  onClick={markAllAsReceived}
+                >
+                  <CheckCircle className="h-3 w-3 mr-1" />
+                  Mark All Received
+                </Button>
+              </div>
+
+              {/* Scrollable items area */}
+              <div className="flex-1 overflow-auto min-h-0 py-2">
+                <div className="space-y-2 sm:space-y-3 px-4 sm:px-6">
+                  {selectedOrder.items.map((item) => (
+                    <div
+                      key={item.id}
+                      className={`flex items-center space-x-2 sm:space-x-3 p-2 rounded-md border ${
+                        verifiedItems[item.id] 
+                          ? "bg-green-50 border-green-200" 
+                          : "bg-background"
+                      }`}
+                    >
+                      <Checkbox
+                        id={`item-${item.id}`}
+                        checked={verifiedItems[item.id] || false}
+                        onCheckedChange={() => toggleItemVerification(item.id)}
+                        className="h-3.5 w-3.5 sm:h-4 sm:w-4"
+                      />
+                      <div className="flex flex-1 justify-between items-center gap-2 flex-wrap sm:flex-nowrap">
+                        <label
+                          htmlFor={`item-${item.id}`}
+                          className="text-xs sm:text-sm font-medium cursor-pointer line-clamp-2"
+                        >
+                          {item.name}
+                          {item.isOil && item.volume && (
+                            <span className="text-muted-foreground ml-1">({item.volume})</span>
+                          )}
+                        </label>
+                        <div className="flex items-center ml-auto gap-2 sm:gap-4 text-xs sm:text-sm flex-shrink-0">
+                          <div className="px-1.5 py-0.5 sm:px-2 sm:py-1 bg-blue-50 text-blue-700 rounded whitespace-nowrap">
+                            {item.quantitySold} units
+                          </div>
+                          <div className="text-muted-foreground whitespace-nowrap text-right">
+                            OMR {(item.price * item.quantitySold).toFixed(2)}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Fixed footer with total and buttons */}
+              <div className="px-4 sm:px-6 py-3 border-t shrink-0 bg-muted/20">
+                <div className="flex justify-between text-xs sm:text-sm mb-3">
+                  <span className="font-semibold">Total Cost:</span>
+                  <span className="font-semibold">
+                    OMR {selectedOrder.totalAmount.toFixed(2)}
+                  </span>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-2 sm:space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full sm:w-auto text-xs sm:text-sm"
+                    onClick={() => setReviewModalOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    className="bg-green-600 hover:bg-green-700 w-full sm:w-auto text-xs sm:text-sm"
+                    size="sm"
+                    onClick={confirmReceivedItems}
+                  >
+                    <CheckCircle className="h-3.5 w-3.5 mr-1.5" />
+                    Confirm Received Items
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
+
+          {selectedOrder?.items.length === 0 && (
+            <div className="flex-1 flex flex-col items-center justify-center py-6 text-muted-foreground">
+              <Package className="h-10 w-10 mb-2 opacity-40" />
+              <p className="text-sm">No items found in this transfer order.</p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 }

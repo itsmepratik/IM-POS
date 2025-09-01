@@ -1220,6 +1220,12 @@ function POSPageContent() {
 
   const clearCart = () => {
     setCart([]);
+    setAppliedTradeInAmount(0);
+    // Reset trade-in dialog state directly instead of calling resetTradeInDialog()
+    // which relies on setTradeinBatteries that seems to be out of scope
+    setCurrentBatteryEntry({ size: "", status: "", amount: 0 });
+    setEditingBatteryId(null);
+    setTradeinFormErrors({ size: false, status: false, amount: false });
     setShowClearCartDialog(false);
   };
 
