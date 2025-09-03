@@ -9,7 +9,6 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -17,7 +16,7 @@ import { EyeIcon, EyeOffIcon } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
-export default function AuthPage() {
+export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -103,7 +102,7 @@ export default function AuthPage() {
               lineHeight: "clamp(1.25rem, 3vw, 1.25rem)",
             }}
           >
-            Sign in to initiate authentication
+            Sign in to your account
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -180,17 +179,6 @@ export default function AuthPage() {
             </Button>
           </form>
         </CardContent>
-        <CardFooter>
-          <p
-            className="text-muted-foreground text-center w-full"
-            style={{
-              fontSize: "clamp(0.75rem, 2vw, 0.875rem)",
-              lineHeight: "clamp(1rem, 2.5vw, 1.25rem)",
-            }}
-          >
-            By continuing, you agree to our Terms of Service and Privacy Policy.
-          </p>
-        </CardFooter>
       </Card>
     </div>
   );

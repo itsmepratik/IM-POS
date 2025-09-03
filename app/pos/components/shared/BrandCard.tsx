@@ -30,6 +30,3 @@ export function BrandCard({ brand, onClick, productCount }: BrandCardProps) {
     </button>
   );
 }
-
-
-

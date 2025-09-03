@@ -376,7 +376,7 @@ export function Sidebar({
 }
 
 function ProfileMenu({ isCollapsed }: { isCollapsed: boolean }) {
-  const { currentUser } = useUser();
+  const { currentUser, signOut } = useUser();
   const router = useRouter();
   const [darkMode, setDarkMode] = React.useState(false);
 
@@ -384,8 +384,15 @@ function ProfileMenu({ isCollapsed }: { isCollapsed: boolean }) {
     router.push("/settings");
   };
 
-  const handleLogout = () => {
-    router.push("/auth");
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      router.push("/login");
+    } catch (error) {
+      console.error("Logout error:", error);
+      // Fallback: still redirect even if logout fails
+      router.push("/login");
+    }
   };
 
   const toggleDarkMode = () => {

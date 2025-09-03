@@ -145,16 +145,21 @@ function NavItem({ href, icon, children, collapsed, className }: NavItemProps) {
 
 function ProfileMenu() {
   const router = useRouter();
+  const { signOut } = useUser();
 
   const handleSettingsClick = () => {
     router.push("/settings");
   };
 
-  const handleLogout = () => {
-    // Here you would typically handle the logout process
-    // For example, clearing the authentication token from storage
-    // Then redirect to the auth page
-    router.push("/auth");
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      router.push("/login");
+    } catch (error) {
+      console.error("Logout error:", error);
+      // Fallback: still redirect even if logout fails
+      router.push("/login");
+    }
   };
 
   return (

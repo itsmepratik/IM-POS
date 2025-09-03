@@ -160,13 +160,18 @@ export default function TransferPage() {
   ); // Today's date by default
   const [transferId, setTransferId] = useState<string>("");
   const [generateSuccess, setGenerateSuccess] = useState(false);
-  
+
   // State for submitted transfer orders
-  const [submittedOrders, setSubmittedOrders] = useState<SubmittedTransferOrder[]>([]);
+  const [submittedOrders, setSubmittedOrders] = useState<
+    SubmittedTransferOrder[]
+  >([]);
   const [confirmSubmitDialogOpen, setConfirmSubmitDialogOpen] = useState(false);
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
-  const [selectedOrder, setSelectedOrder] = useState<SubmittedTransferOrder | null>(null);
-  const [verifiedItems, setVerifiedItems] = useState<Record<string, boolean>>({});
+  const [selectedOrder, setSelectedOrder] =
+    useState<SubmittedTransferOrder | null>(null);
+  const [verifiedItems, setVerifiedItems] = useState<Record<string, boolean>>(
+    {}
+  );
 
   // Use useEffect to set hasMounted to true after component mounts
   useEffect(() => {
@@ -176,7 +181,7 @@ export default function TransferPage() {
         .toString()
         .padStart(4, "0")}`
     );
-    
+
     // Load submitted orders from localStorage
     const savedOrders = localStorage.getItem("submittedTransferOrders");
     if (savedOrders) {
@@ -187,7 +192,10 @@ export default function TransferPage() {
   // Save orders to localStorage whenever submittedOrders changes
   useEffect(() => {
     if (submittedOrders.length > 0) {
-      localStorage.setItem("submittedTransferOrders", JSON.stringify(submittedOrders));
+      localStorage.setItem(
+        "submittedTransferOrders",
+        JSON.stringify(submittedOrders)
+      );
     }
   }, [submittedOrders]);
 
@@ -316,19 +324,25 @@ export default function TransferPage() {
         minute: "2-digit",
         hour12: true,
       }),
-      sourceLocation: locations.find(l => l.id === sourceLocation)?.name || "Sanaiya (Main)",
-      destinationLocation: locations.find(l => l.id === destinationLocation)?.name || "",
+      sourceLocation:
+        locations.find((l) => l.id === sourceLocation)?.name ||
+        "Sanaiya (Main)",
+      destinationLocation:
+        locations.find((l) => l.id === destinationLocation)?.name || "",
       items: generatedSales,
       itemCount: generatedSales.length,
       status: "pending",
-      totalAmount: generatedSales.reduce((sum, item) => sum + (item.price * item.quantitySold), 0),
+      totalAmount: generatedSales.reduce(
+        (sum, item) => sum + item.price * item.quantitySold,
+        0
+      ),
       receivedItems: [],
     };
 
-    setSubmittedOrders(prev => [newOrder, ...prev]);
+    setSubmittedOrders((prev) => [newOrder, ...prev]);
     setGeneratedSales([]);
     setConfirmSubmitDialogOpen(false);
-    
+
     // Generate new transfer ID for next order
     setTransferId(
       `TO-${Math.floor(Math.random() * 10000)
@@ -338,7 +352,8 @@ export default function TransferPage() {
 
     toast({
       title: "Transfer Submitted",
-      description: "Your transfer order has been successfully submitted and is now being tracked",
+      description:
+        "Your transfer order has been successfully submitted and is now being tracked",
     });
   };
 
@@ -347,7 +362,7 @@ export default function TransferPage() {
     setSelectedOrder(order);
     // Initialize verification state
     const initialVerifications: Record<string, boolean> = {};
-    order.items.forEach(item => {
+    order.items.forEach((item) => {
       initialVerifications[item.id] = order.receivedItems.includes(item.id);
     });
     setVerifiedItems(initialVerifications);
@@ -356,7 +371,7 @@ export default function TransferPage() {
 
   // Toggle item verification
   const toggleItemVerification = (itemId: string) => {
-    setVerifiedItems(prev => ({
+    setVerifiedItems((prev) => ({
       ...prev,
       [itemId]: !prev[itemId],
     }));
@@ -371,7 +386,7 @@ export default function TransferPage() {
       .map(([itemId]) => itemId);
 
     const unreceivedItems = selectedOrder.items.filter(
-      item => !receivedItemIds.includes(item.id)
+      (item) => !receivedItemIds.includes(item.id)
     );
 
     // Update order status
@@ -383,16 +398,18 @@ export default function TransferPage() {
     }
 
     // Update the order
-    setSubmittedOrders(prev => prev.map(order => 
-      order.id === selectedOrder.id 
-        ? { 
-            ...order, 
-            receivedItems: receivedItemIds,
-            status: newStatus,
-            unreceived_items: unreceivedItems,
-          }
-        : order
-    ));
+    setSubmittedOrders((prev) =>
+      prev.map((order) =>
+        order.id === selectedOrder.id
+          ? {
+              ...order,
+              receivedItems: receivedItemIds,
+              status: newStatus,
+              unreceived_items: unreceivedItems,
+            }
+          : order
+      )
+    );
 
     // If there are unreceived items, add them to next transfer automatically
     if (unreceivedItems.length > 0) {
@@ -414,9 +431,9 @@ export default function TransferPage() {
   // Mark all items as received
   const markAllAsReceived = () => {
     if (!selectedOrder) return;
-    
+
     const allVerified: Record<string, boolean> = {};
-    selectedOrder.items.forEach(item => {
+    selectedOrder.items.forEach((item) => {
       allVerified[item.id] = true;
     });
     setVerifiedItems(allVerified);
@@ -711,12 +728,27 @@ export default function TransferPage() {
                                 <MoreHorizontal className="h-4 w-4" />
                               </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-[160px]">
+                            <DropdownMenuContent
+                              align="end"
+                              className="w-[160px]"
+                            >
                               <DropdownMenuItem
-                                onClick={() => openReviewModal(order)}
+                                onClick={() => {
+                                  // Remove the order from submittedOrders
+                                  setSubmittedOrders((prev) =>
+                                    prev.filter((o) => o.id !== order.id)
+                                  );
+                                  toast({
+                                    title: "Order Cancelled",
+                                    description:
+                                      "Transfer order has been cancelled and removed.",
+                                    variant: "destructive",
+                                  });
+                                }}
+                                className="text-red-600 focus:text-red-600"
                               >
-                                <Package className="h-4 w-4 mr-2" />
-                                Review Items
+                                <XCircle className="h-4 w-4 mr-2" />
+                                Cancel Order
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
@@ -778,11 +810,18 @@ export default function TransferPage() {
                               strokeLinejoin="round"
                               className="text-gray-500"
                             >
-                              <rect width="20" height="14" x="2" y="5" rx="2"></rect>
+                              <rect
+                                width="20"
+                                height="14"
+                                x="2"
+                                y="5"
+                                rx="2"
+                              ></rect>
                               <line x1="2" x2="22" y1="10" y2="10"></line>
                             </svg>
                             <span>
-                              {order.receivedItems.length}/{order.itemCount} items received
+                              {order.receivedItems.length}/{order.itemCount}{" "}
+                              items received
                             </span>
                           </div>
                           <div className="text-gray-600 font-medium">
@@ -1036,19 +1075,31 @@ export default function TransferPage() {
       </AlertDialog>
 
       {/* Submit Confirmation Dialog */}
-      <AlertDialog open={confirmSubmitDialogOpen} onOpenChange={setConfirmSubmitDialogOpen}>
+      <AlertDialog
+        open={confirmSubmitDialogOpen}
+        onOpenChange={setConfirmSubmitDialogOpen}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Confirm Transfer Order Submission</AlertDialogTitle>
+            <AlertDialogTitle>
+              Confirm Transfer Order Submission
+            </AlertDialogTitle>
             <AlertDialogDescription>
               You are about to submit a transfer order from{" "}
-              {locations.find((l) => l.id === sourceLocation)?.name || "Sanaiya (Main)"}{" "}
+              {locations.find((l) => l.id === sourceLocation)?.name ||
+                "Sanaiya (Main)"}{" "}
               to{" "}
-              {locations.find((l) => l.id === destinationLocation)?.name || "destination"}{" "}
+              {locations.find((l) => l.id === destinationLocation)?.name ||
+                "destination"}{" "}
               with {generatedSales.length} items totaling OMR{" "}
-              {generatedSales.reduce((sum, item) => sum + (item.price * item.quantitySold), 0).toFixed(2)}.
-              <br/><br/>
-              Once submitted, this order will be tracked and you can review item deliveries as they arrive.
+              {generatedSales
+                .reduce((sum, item) => sum + item.price * item.quantitySold, 0)
+                .toFixed(2)}
+              .
+              <br />
+              <br />
+              Once submitted, this order will be tracked and you can review item
+              deliveries as they arrive.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1121,8 +1172,8 @@ export default function TransferPage() {
                     <div
                       key={item.id}
                       className={`flex items-center space-x-2 sm:space-x-3 p-2 rounded-md border ${
-                        verifiedItems[item.id] 
-                          ? "bg-green-50 border-green-200" 
+                        verifiedItems[item.id]
+                          ? "bg-green-50 border-green-200"
                           : "bg-background"
                       }`}
                     >
@@ -1139,7 +1190,9 @@ export default function TransferPage() {
                         >
                           {item.name}
                           {item.isOil && item.volume && (
-                            <span className="text-muted-foreground ml-1">({item.volume})</span>
+                            <span className="text-muted-foreground ml-1">
+                              ({item.volume})
+                            </span>
                           )}
                         </label>
                         <div className="flex items-center ml-auto gap-2 sm:gap-4 text-xs sm:text-sm flex-shrink-0">
@@ -1157,26 +1210,24 @@ export default function TransferPage() {
               </div>
 
               {/* Fixed footer with total and buttons */}
-              <div className="px-4 sm:px-6 py-3 border-t shrink-0 bg-muted/20">
-                <div className="flex justify-between text-xs sm:text-sm mb-3">
+              <div className="px-4 sm:px-6 py-4 pb-6 border-t shrink-0 bg-muted/20">
+                <div className="flex justify-between text-xs sm:text-sm mb-4">
                   <span className="font-semibold">Total Cost:</span>
                   <span className="font-semibold">
                     OMR {selectedOrder.totalAmount.toFixed(2)}
                   </span>
                 </div>
 
-                <div className="flex flex-col sm:flex-row gap-2 sm:space-x-2">
+                <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                   <Button
                     variant="outline"
-                    size="sm"
-                    className="w-full sm:w-auto text-xs sm:text-sm"
+                    className="w-full sm:w-auto text-xs sm:text-sm rounded-full"
                     onClick={() => setReviewModalOpen(false)}
                   >
                     Cancel
                   </Button>
                   <Button
-                    className="bg-green-600 hover:bg-green-700 w-full sm:w-auto text-xs sm:text-sm"
-                    size="sm"
+                    className="bg-green-600 hover:bg-green-700 w-full sm:w-auto text-xs sm:text-sm rounded-full"
                     onClick={confirmReceivedItems}
                   >
                     <CheckCircle className="h-3.5 w-3.5 mr-1.5" />

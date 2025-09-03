@@ -10,6 +10,7 @@ import { NotificationDemo } from "./notification-demo";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import ServiceWorkerRegistration from "../components/service-worker-registration";
+import { Toaster } from "@/components/ui/toaster";
 
 // Load Formula 1 fonts with optimized settings
 const formula1 = localFont({
@@ -177,6 +178,7 @@ export default function RootLayout({
                 {children}
               </div>
               <NotificationDemo />
+              <Toaster />
             </NotificationProvider>
           </BranchProvider>
         </UserProvider>
