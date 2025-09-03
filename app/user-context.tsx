@@ -240,6 +240,13 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_OUT' || !session?.user) {
+        setSupabaseUser(null);
+        setCurrentUser(null);
+        setIsLoading(false);
+        return;
+      }
+      
       if (session?.user) {
         setSupabaseUser(session.user);
 
@@ -380,11 +387,21 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const signOut = async () => {
     try {
-      await supabase.auth.signOut();
+      setIsLoading(true);
+      // Clear local state immediately
       setCurrentUser(null);
       setSupabaseUser(null);
+      
+      // Sign out from Supabase
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error("Supabase signout error:", error);
+        // Don't throw - we still want to clear local state
+      }
     } catch (error) {
       console.error("Error signing out:", error);
+    } finally {
+      setIsLoading(false);
     }
   };
 

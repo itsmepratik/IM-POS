@@ -418,22 +418,30 @@ export function Sidebar({
 }
 
 function ProfileMenu({ isCollapsed }: { isCollapsed: boolean }) {
-  const { currentUser, signOut } = useUser();
+  const { currentUser, signOut, isLoading } = useUser();
   const router = useRouter();
   const [darkMode, setDarkMode] = React.useState(false);
+  const [isLoggingOut, setIsLoggingOut] = React.useState(false);
 
   const handleSettingsClick = () => {
     router.push("/settings");
   };
 
   const handleLogout = async () => {
+    if (isLoggingOut) return; // Prevent double clicks
+    
+    setIsLoggingOut(true);
     try {
       await signOut();
-      router.push("/login");
+      // Use replace instead of push to avoid back navigation issues
+      router.replace("/login");
     } catch (error) {
       console.error("Logout error:", error);
-      // Fallback: still redirect even if logout fails
-      router.push("/login");
+      // Still redirect even if logout fails
+      router.replace("/login");
+    } finally {
+      // Reset after a delay to prevent immediate re-clicks
+      setTimeout(() => setIsLoggingOut(false), 2000);
     }
   };
 
@@ -492,9 +500,13 @@ function ProfileMenu({ isCollapsed }: { isCollapsed: boolean }) {
             <Switch checked={darkMode} onCheckedChange={toggleDarkMode} />
           </DropdownMenuItem>
           <DropdownMenuSeparator className="my-2" />
-          <DropdownMenuItem className="rounded-lg py-2" onSelect={handleLogout}>
+          <DropdownMenuItem 
+            className="rounded-lg py-2" 
+            onSelect={handleLogout}
+            disabled={isLoggingOut || isLoading}
+          >
             <LogOut className="mr-2 h-5 w-5 stroke-[1.5]" />
-            <span>Log out</span>
+            <span>{isLoggingOut ? "Logging out..." : "Log out"}</span>
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -561,9 +573,13 @@ function ProfileMenu({ isCollapsed }: { isCollapsed: boolean }) {
           <Switch checked={darkMode} onCheckedChange={toggleDarkMode} />
         </DropdownMenuItem>
         <DropdownMenuSeparator className="my-2" />
-        <DropdownMenuItem className="rounded-lg py-2" onSelect={handleLogout}>
+        <DropdownMenuItem 
+          className="rounded-lg py-2" 
+          onSelect={handleLogout}
+          disabled={isLoggingOut || isLoading}
+        >
           <LogOut className="mr-2 h-5 w-5 stroke-[1.5]" />
-          <span>Log out</span>
+          <span>{isLoggingOut ? "Logging out..." : "Log out"}</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
