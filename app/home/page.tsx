@@ -36,6 +36,7 @@ import { BranchProvider } from "@/app/branch-context";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { useUser } from "@/app/user-context";
+import { RouteProtection } from "@/components/route-protection";
 
 interface Product {
   id: number;
@@ -48,9 +49,11 @@ interface Product {
 
 export default function HomePage() {
   return (
-    <BranchProvider>
-      <HomePageContent />
-    </BranchProvider>
+    <RouteProtection adminOnly={true} fallbackPath="/pos">
+      <BranchProvider>
+        <HomePageContent />
+      </BranchProvider>
+    </RouteProtection>
   );
 }
 

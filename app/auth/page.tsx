@@ -29,9 +29,12 @@ export default function AuthPage() {
   // Check if user is already authenticated
   useEffect(() => {
     const checkUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (user) {
-        router.push("/home");
+        // Let middleware handle role-based redirect
+        router.push("/");
       }
     };
     checkUser();
@@ -39,7 +42,7 @@ export default function AuthPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!email || !password) {
       toast({
         title: "Error",
@@ -68,7 +71,8 @@ export default function AuthPage() {
           title: "Success",
           description: "Logged in successfully",
         });
-        router.push("/home");
+        // Let middleware handle role-based redirect
+        router.push("/");
       }
     } catch (error) {
       toast({

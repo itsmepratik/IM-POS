@@ -50,6 +50,68 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  // If user is authenticated, check role-based access
+  if (user) {
+    // Get user role from database
+    let userRole = "shop"; // default fallback
+
+    try {
+      const { data: roleData, error } = await supabase.rpc(
+        "get_user_role_for_middleware",
+        { user_id: user.id }
+      );
+
+      if (!error && roleData) {
+        userRole = roleData;
+      } else {
+        // Fallback based on email
+        userRole = user.email === "admin@hnsautomotive.com" ? "admin" : "shop";
+      }
+    } catch (error) {
+      console.error("Error getting user role in middleware:", error);
+      // Fallback based on email
+      userRole = user.email === "admin@hnsautomotive.com" ? "admin" : "shop";
+    }
+
+    const pathname = request.nextUrl.pathname;
+
+    // Define admin-only routes
+    const adminOnlyRoutes = [
+      "/home",
+      "/reports",
+      "/settings",
+      "/restock-orders",
+      "/transfer",
+      "/orders",
+    ];
+
+    // Define shop-accessible routes
+    const shopRoutes = [
+      "/pos",
+      "/inventory",
+      "/customers",
+      "/transactions",
+      "/notifications",
+    ];
+
+    // If shop user tries to access admin route, redirect to POS
+    if (
+      userRole === "shop" &&
+      adminOnlyRoutes.some((route) => pathname.startsWith(route))
+    ) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/pos";
+      return NextResponse.redirect(url);
+    }
+
+    // If user is on root path, redirect based on role
+    if (pathname === "/") {
+      const url = request.nextUrl.clone();
+      url.pathname = userRole === "admin" ? "/home" : "/pos";
+      return NextResponse.redirect(url);
+    }
+  }
+
   // IMPORTANT: You *must* return the supabaseResponse object as it is.
   // If you're creating a new response object with NextResponse.next() make sure to:
   // 1. Pass the request in it, like so:
@@ -77,4 +139,4 @@ export const config = {
      */
     "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
-}; 
+};

@@ -55,7 +55,7 @@ export function Sidebar({
   onCollapsedChange?: (collapsed: boolean) => void;
 }) {
   const pathname = usePathname();
-  const { currentUser } = useUser();
+  const { currentUser, hasPermission, isAdmin, isLoading } = useUser();
   const { notifications } = useNotification();
   const router = useRouter();
   const [isCollapsed, setIsCollapsed] = React.useState(false);
@@ -84,51 +84,60 @@ export function Sidebar({
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  // Define the nav items
+  // Define the nav items with permissions
   const navItems = [
     {
       title: "Dashboard",
-      href: "/",
+      href: "/home",
       icon: <Home className="h-4 w-4" />,
-      isAdmin: false,
+      permission: "admin.access" as const,
+      adminOnly: true,
     },
     {
       title: "POS",
       href: "/pos",
       icon: <ShoppingCart className="h-4 w-4" />,
-      isAdmin: false,
+      permission: "pos.access" as const,
+      adminOnly: false,
     },
     {
       title: "Customers",
       href: "/customers",
       icon: <Users className="h-4 w-4" />,
-      isAdmin: false,
+      permission: "customers.access" as const,
+      adminOnly: false,
     },
     {
       title: "Reports",
       href: "/reports",
       icon: <BarChart2 className="h-4 w-4" />,
-      isAdmin: false,
+      permission: "reports.access" as const,
+      adminOnly: true,
     },
     {
       title: "Transactions",
       href: "/transactions",
       icon: <RefreshCcw className="h-4 w-4" />,
-      isAdmin: false,
+      permission: "transactions.access" as const,
+      adminOnly: false,
     },
   ];
 
-  // Define the dropdown items
+  // Define the dropdown items with permissions
   const inventoryItems = [
     {
       title: "Main",
       href: "/inventory/main-inventory",
       icon: <Warehouse className="h-4 w-4" />,
+      permission: "inventory.access" as const,
+      adminOnly: false,
     },
     {
       title: "Branch",
       href: "/inventory/branch-inventory",
       icon: <Building className="h-4 w-4" />,
+      permission: "inventory.access" as const,
+      adminOnly: false,
     },
   ];
 
@@ -137,16 +146,22 @@ export function Sidebar({
       title: "Online Orders",
       href: "/orders",
       icon: <ShoppingCart className="h-4 w-4" />,
+      permission: "admin.access" as const,
+      adminOnly: true,
     },
     {
       title: "Transfer Stock",
       href: "/transfer",
       icon: <ArrowLeftRight className="h-4 w-4" />,
+      permission: "admin.access" as const,
+      adminOnly: true,
     },
     {
       title: "Restock Orders",
       href: "/restock-orders",
       icon: <Truck className="h-4 w-4" />,
+      permission: "admin.access" as const,
+      adminOnly: true,
     },
   ];
 
@@ -204,73 +219,92 @@ export function Sidebar({
         {/* Nav items */}
         <div className="flex-1 overflow-y-auto py-2 no-scrollbar">
           <div className="space-y-1 px-2">
-            {navItems.map((item) => {
-              // Skip admin items for non-admin users
-              if (
-                item.isAdmin &&
-                (!currentUser || currentUser.role !== "admin")
-              ) {
-                return null;
-              }
+            {isLoading ? (
+              // Show loading skeleton while permissions are being loaded
+              <div className="space-y-2">
+                <div className="h-8 bg-gray-200 animate-pulse rounded"></div>
+                <div className="h-8 bg-gray-200 animate-pulse rounded"></div>
+                <div className="h-8 bg-gray-200 animate-pulse rounded"></div>
+              </div>
+            ) : (
+              navItems.map((item) => {
+                // Skip admin items for non-admin users
+                if (item.adminOnly && !isAdmin()) {
+                  return null;
+                }
 
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={cn(
-                    "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground whitespace-nowrap",
-                    pathname === item.href &&
-                      "bg-accent text-accent-foreground",
-                    isCollapsed && "justify-center px-2"
-                  )}
-                  title={isCollapsed ? item.title : undefined}
-                >
-                  <span className="flex-shrink-0">{item.icon}</span>
-                  {!isCollapsed && (
-                    <span className="truncate">{item.title}</span>
-                  )}
-                </Link>
-              );
-            })}
+                // Skip items user doesn't have permission for
+                if (!hasPermission(item.permission)) {
+                  return null;
+                }
 
-            {/* Inventory Accordion */}
-            <Accordion
-              type="single"
-              collapsible
-              className={cn("w-full", isCollapsed && "hidden")}
-            >
-              <AccordionItem value="inventory" className="border-none">
-                <AccordionTrigger className="flex items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground hover:no-underline">
-                  <div className="flex items-center gap-3 w-full">
-                    <span className="flex-shrink-0">
-                      <Warehouse className="h-4 w-4" />
-                    </span>
-                    <span className="truncate">Inventory</span>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent className="pb-1 pt-0 px-0">
-                  <div className="ml-2 space-y-1">
-                    {inventoryItems.map((item) => (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        className={cn(
-                          "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground whitespace-nowrap",
-                          pathname === item.href &&
-                            "bg-accent text-accent-foreground"
-                        )}
-                      >
-                        <span className="flex-shrink-0">{item.icon}</span>
-                        <span className="truncate">{item.title}</span>
-                      </Link>
-                    ))}
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-            </Accordion>
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={cn(
+                      "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground whitespace-nowrap",
+                      pathname === item.href &&
+                        "bg-accent text-accent-foreground",
+                      isCollapsed && "justify-center px-2"
+                    )}
+                    title={isCollapsed ? item.title : undefined}
+                  >
+                    <span className="flex-shrink-0">{item.icon}</span>
+                    {!isCollapsed && (
+                      <span className="truncate">{item.title}</span>
+                    )}
+                  </Link>
+                );
+              })
+            )}
+
+            {/* Inventory Accordion - Only show if user has inventory access */}
+            {!isLoading && hasPermission("inventory.access") && (
+              <Accordion
+                type="single"
+                collapsible
+                className={cn("w-full", isCollapsed && "hidden")}
+              >
+                <AccordionItem value="inventory" className="border-none">
+                  <AccordionTrigger className="flex items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground hover:no-underline">
+                    <div className="flex items-center gap-3 w-full">
+                      <span className="flex-shrink-0">
+                        <Warehouse className="h-4 w-4" />
+                      </span>
+                      <span className="truncate">Inventory</span>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent className="pb-1 pt-0 px-0">
+                    <div className="ml-2 space-y-1">
+                      {inventoryItems.map((item) => {
+                        // Check permissions for each inventory item
+                        if (item.adminOnly && !isAdmin()) return null;
+                        if (!hasPermission(item.permission)) return null;
+
+                        return (
+                          <Link
+                            key={item.href}
+                            href={item.href}
+                            className={cn(
+                              "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground whitespace-nowrap",
+                              pathname === item.href &&
+                                "bg-accent text-accent-foreground"
+                            )}
+                          >
+                            <span className="flex-shrink-0">{item.icon}</span>
+                            <span className="truncate">{item.title}</span>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+            )}
 
             {/* Inventory Icon Only (when collapsed) */}
-            {isCollapsed && (
+            {!isLoading && isCollapsed && hasPermission("inventory.access") && (
               <div className="flex justify-center py-1">
                 <Link
                   href="/inventory/main-inventory"
@@ -286,44 +320,52 @@ export function Sidebar({
               </div>
             )}
 
-            {/* Orders Accordion */}
-            <Accordion
-              type="single"
-              collapsible
-              className={cn("w-full", isCollapsed && "hidden")}
-            >
-              <AccordionItem value="orders" className="border-none">
-                <AccordionTrigger className="flex items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground hover:no-underline">
-                  <div className="flex items-center gap-3 w-full">
-                    <span className="flex-shrink-0">
-                      <ShoppingCart className="h-4 w-4" />
-                    </span>
-                    <span className="truncate">Orders</span>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent className="pb-1 pt-0 px-0">
-                  <div className="ml-2 space-y-1">
-                    {orderItems.map((item) => (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        className={cn(
-                          "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground whitespace-nowrap",
-                          pathname === item.href &&
-                            "bg-accent text-accent-foreground"
-                        )}
-                      >
-                        <span className="flex-shrink-0">{item.icon}</span>
-                        <span className="truncate">{item.title}</span>
-                      </Link>
-                    ))}
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-            </Accordion>
+            {/* Orders Accordion - Only show for admin users */}
+            {!isLoading && isAdmin() && (
+              <Accordion
+                type="single"
+                collapsible
+                className={cn("w-full", isCollapsed && "hidden")}
+              >
+                <AccordionItem value="orders" className="border-none">
+                  <AccordionTrigger className="flex items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground hover:no-underline">
+                    <div className="flex items-center gap-3 w-full">
+                      <span className="flex-shrink-0">
+                        <ShoppingCart className="h-4 w-4" />
+                      </span>
+                      <span className="truncate">Orders</span>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent className="pb-1 pt-0 px-0">
+                    <div className="ml-2 space-y-1">
+                      {orderItems.map((item) => {
+                        // Check permissions for each order item
+                        if (item.adminOnly && !isAdmin()) return null;
+                        if (!hasPermission(item.permission)) return null;
 
-            {/* Orders Icon Only (when collapsed) */}
-            {isCollapsed && (
+                        return (
+                          <Link
+                            key={item.href}
+                            href={item.href}
+                            className={cn(
+                              "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground whitespace-nowrap",
+                              pathname === item.href &&
+                                "bg-accent text-accent-foreground"
+                            )}
+                          >
+                            <span className="flex-shrink-0">{item.icon}</span>
+                            <span className="truncate">{item.title}</span>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+            )}
+
+            {/* Orders Icon Only (when collapsed) - Only show for admin users */}
+            {!isLoading && isCollapsed && isAdmin() && (
               <div className="flex justify-center py-1">
                 <Link
                   href="/orders"
