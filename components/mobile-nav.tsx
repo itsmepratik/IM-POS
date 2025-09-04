@@ -26,7 +26,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useUser } from "@/app/user-context";
+import { useUser, type Permission } from "@/app/user-context";
 import { useNotification } from "@/app/notification-context";
 import { useRouter } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -44,7 +44,8 @@ export function MobileNav({ className }: { className?: string }) {
   const [open, setOpen] = React.useState(false);
   const [inventoryOpen, setInventoryOpen] = React.useState(false);
   const [ordersOpen, setOrdersOpen] = React.useState(false);
-  const { currentUser } = useUser();
+  const [isLoggingOut, setIsLoggingOut] = React.useState(false);
+  const { currentUser, signOut, hasPermission } = useUser();
   const { notifications } = useNotification();
   const router = useRouter();
   const pathname = usePathname();
@@ -59,41 +60,83 @@ export function MobileNav({ className }: { className?: string }) {
   const navItems = [
     {
       title: "Dashboard",
-      href: "/",
+      href: "/home", // Changed from "/" to "/home" for admin dashboard
       icon: <Home className="h-4 w-4" />,
-      isAdmin: false,
+      isAdmin: true, // Dashboard is admin-only
+      permission: "admin.access" as const,
     },
     {
       title: "POS",
       href: "/pos",
       icon: <ShoppingCart className="h-4 w-4" />,
       isAdmin: false,
+      permission: "pos.access" as const,
     },
     {
       title: "Customers",
       href: "/customers",
       icon: <Users className="h-4 w-4" />,
       isAdmin: false,
+      permission: "customers.access" as const,
     },
     {
       title: "Reports",
       href: "/reports",
       icon: <BarChart2 className="h-4 w-4" />,
-      isAdmin: false,
+      isAdmin: true, // Reports are admin-only
+      permission: "reports.access" as const,
     },
     {
       title: "Transactions",
       href: "/transactions",
       icon: <RefreshCcw className="h-4 w-4" />,
       isAdmin: false,
+      permission: "transactions.access" as const,
     },
   ];
 
   const showAdminItems = mounted && currentUser && currentUser.role === "admin";
+  
+  // Filter navigation items based on permissions
+  const visibleNavItems = navItems.filter((item) => {
+    if (!mounted || !currentUser) return false;
+    
+    // Check if user has the required permission
+    if (item.permission && !hasPermission(item.permission)) {
+      return false;
+    }
+    
+    // Additional admin check for explicitly admin items
+    if (item.isAdmin && currentUser.role !== "admin") {
+      return false;
+    }
+    
+    return true;
+  });
 
   const toggleDarkMode = () => {
     setDarkMode(!darkMode);
     // No actual functionality as per requirements
+  };
+
+  const handleLogout = async () => {
+    if (isLoggingOut) return; // Prevent double clicks
+    
+    setIsLoggingOut(true);
+    setOpen(false); // Close the mobile nav sheet
+    
+    try {
+      await signOut();
+      // Use replace instead of push to avoid back navigation issues
+      router.replace("/login");
+    } catch (error) {
+      console.error("Mobile logout error:", error);
+      // Still redirect even if logout fails to prevent stuck state
+      router.replace("/login");
+    } finally {
+      // Reset after a delay to prevent immediate re-clicks
+      setTimeout(() => setIsLoggingOut(false), 2000);
+    }
   };
 
   return (
@@ -369,10 +412,11 @@ export function MobileNav({ className }: { className?: string }) {
                 <DropdownMenuSeparator className="my-2" />
                 <DropdownMenuItem
                   className="rounded-lg py-2"
-                  onSelect={() => router.push("/auth")}
+                  onSelect={handleLogout}
+                  disabled={isLoggingOut}
                 >
                   <LogOut className="mr-2 h-5 w-5 stroke-[2]" />
-                  <span>Log out</span>
+                  <span>{isLoggingOut ? "Logging out..." : "Log out"}</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

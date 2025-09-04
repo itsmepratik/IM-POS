@@ -1,46 +1,65 @@
-// Fullscreen handler for PWA
+// Fullscreen handler for PWA - with mobile safety checks
 (function () {
   // Wait for React to fully hydrate before manipulating the DOM
   window.addEventListener("load", function () {
     // Add a small delay to ensure React has finished hydrating
-    setTimeout(initFullscreenHandler, 300);
+    // Increased delay for mobile devices to prevent conflicts
+    const isMobile = /Mobi|Android/i.test(navigator.userAgent);
+    const delay = isMobile ? 1000 : 300;
+    
+    setTimeout(function() {
+      try {
+        initFullscreenHandler();
+      } catch (error) {
+        console.warn("Fullscreen handler error:", error);
+        // Fail silently on mobile to prevent breaking the app
+      }
+    }, delay);
   });
 
   function initFullscreenHandler() {
-    // Try to detect standalone mode
-    const isStandalone =
-      window.matchMedia("(display-mode: standalone)").matches ||
-      window.navigator.standalone ||
-      window.location.search.includes("standalone=true");
+    try {
+      // Try to detect standalone mode with additional safety checks
+      const isStandalone =
+        window.matchMedia &&
+        window.matchMedia("(display-mode: standalone)").matches ||
+        window.navigator.standalone ||
+        window.location.search.includes("standalone=true");
 
-    if (isStandalone) {
-      // Check if we're on Android
-      const isAndroid = /Android/.test(navigator.userAgent);
+      if (isStandalone) {
+        // Check if we're on Android
+        const isAndroid = /Android/.test(navigator.userAgent);
 
-      if (isAndroid) {
-        // Add a fullscreen class to the body
-        document.body.classList.add("pwa-fullscreen");
+        if (isAndroid && document.body) {
+          // Add a fullscreen class to the body with error handling
+          try {
+            document.body.classList.add("pwa-fullscreen");
+          } catch (classListError) {
+            console.warn("Could not add fullscreen class:", classListError);
+          }
 
-        // Only attempt fullscreen on user interaction to avoid scrolling issues
-        /*
-        document.addEventListener('click', function userInteractionHandler() {
-          // Only try once
-          document.removeEventListener('click', userInteractionHandler);
-          tryEnterFullscreen();
-        }, { once: true });
-        */
+          // Apply CSS for status bar replacement with error handling
+          try {
+            forceFullscreenCSS();
+          } catch (cssError) {
+            console.warn("Could not apply fullscreen CSS:", cssError);
+          }
 
-        // Apply CSS for status bar replacement
-        forceFullscreenCSS();
-
-        // Add a subtle notification that the app is in standalone mode
-        const appRoot = document.getElementById("app-root");
-        if (appRoot) {
-          // Just ensure the app-root has proper scrolling
-          appRoot.style.overflow = "auto";
-          appRoot.style.webkitOverflowScrolling = "touch";
+          // Add a subtle notification that the app is in standalone mode
+          const appRoot = document.getElementById("app-root");
+          if (appRoot) {
+            try {
+              // Just ensure the app-root has proper scrolling
+              appRoot.style.overflow = "auto";
+              appRoot.style.webkitOverflowScrolling = "touch";
+            } catch (styleError) {
+              console.warn("Could not apply app-root styles:", styleError);
+            }
+          }
         }
       }
+    } catch (error) {
+      console.warn("Error in initFullscreenHandler:", error);
     }
   }
 

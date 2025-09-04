@@ -315,13 +315,21 @@ function MobileView({
   const [showOutOfStockOnly, setShowOutOfStockOnly] = useState(false);
   const [branchId, setBranchId] = useState(selectedBranch.id);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
 
   // Get available branches
   const branches = [ABU_DHABI_BRANCH, HAFITH_BRANCH];
 
+  // Set mounted flag to prevent SSR issues
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   // Update the branch ID when selectedBranch changes
   useEffect(() => {
-    setBranchId(selectedBranch.id);
+    if (selectedBranch?.id) {
+      setBranchId(selectedBranch.id);
+    }
   }, [selectedBranch]);
 
   // Count out of stock items
@@ -397,6 +405,15 @@ function MobileView({
     setBranchId(branchId);
     onBranchChange(branchId);
   };
+
+  // Prevent rendering until component is mounted to avoid hydration issues
+  if (!isMounted) {
+    return (
+      <div className="space-y-4 -mt-4 pt-4 flex items-center justify-center h-64">
+        <p className="text-muted-foreground">Loading mobile view...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4 -mt-4 pt-4">
@@ -732,18 +749,25 @@ function BranchInventoryPage() {
   };
 
   const [isMobile, setIsMobile] = useState(false);
+  const [isClient, setIsClient] = useState(false);
 
-  // Check viewport on mount and resize
-  const checkViewport = () => {
-    setIsMobile(window.innerWidth < 1024);
-  };
+  // Check viewport on mount and resize - with client-side safety
+  const checkViewport = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      setIsMobile(window.innerWidth < 1024);
+    }
+  }, []);
 
   useEffect(() => {
-    checkViewport();
-    window.addEventListener("resize", checkViewport);
-
-    return () => window.removeEventListener("resize", checkViewport);
-  }, []);
+    // Set client flag to prevent hydration mismatches
+    setIsClient(true);
+    
+    if (typeof window !== 'undefined') {
+      checkViewport();
+      window.addEventListener("resize", checkViewport);
+      return () => window.removeEventListener("resize", checkViewport);
+    }
+  }, [checkViewport]);
 
   if (currentUser?.role === "staff") {
     return (
@@ -755,6 +779,15 @@ function BranchInventoryPage() {
 
   // Get available branches
   const branches = [ABU_DHABI_BRANCH, HAFITH_BRANCH];
+
+  // Prevent hydration mismatches on mobile detection
+  if (!isClient) {
+    return (
+      <div className="w-full h-full flex items-center justify-center">
+        <p className="text-muted-foreground">Loading...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full h-full">
