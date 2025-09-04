@@ -6,7 +6,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent } from "@/components/ui/card";
 import { ChevronDown, ChevronUp, ImageIcon } from "lucide-react";
 import Image from "next/image";
-import { usePOSMockData } from "@/lib/hooks/data/usePOSMockData";
+import { usePOSData } from "@/lib/hooks/data/usePOSData";
 
 interface LubricantCategoryProps {
   searchQuery?: string;
@@ -21,7 +21,7 @@ export function LubricantCategory({
   setExpandedBrand,
   onLubricantSelect,
 }: LubricantCategoryProps) {
-  const { lubricantProducts, lubricantBrands } = usePOSMockData();
+  const { lubricantProducts, lubricantBrands, isLoading } = usePOSData();
 
   // Filter brands based on search query
   const filteredLubricantBrands = useMemo(() => {
@@ -29,6 +29,19 @@ export function LubricantCategory({
       brand.toLowerCase().includes(searchQuery.toLowerCase())
     );
   }, [searchQuery, lubricantBrands]);
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-1 gap-4">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="border rounded-lg p-4">
+            <div className="h-6 bg-gray-200 animate-pulse rounded"></div>
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="grid grid-cols-1 gap-4">

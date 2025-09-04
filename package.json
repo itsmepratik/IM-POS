@@ -51,7 +51,7 @@
     "dayjs": "^1.11.13",
     "dotenv": "^16.6.1",
     "drizzle": "^1.4.0",
-    "drizzle-orm": "^0.43.1",
+    "drizzle-orm": "^0.44.5",
     "framer-motion": "^12.23.12",
     "geist": "^1.4.2",
     "lucide-react": "^0.510.0",

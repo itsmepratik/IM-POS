@@ -4,7 +4,7 @@ import React, { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { BrandCard } from "../shared/BrandCard";
-import { usePOSMockData } from "@/lib/hooks/data/usePOSMockData";
+import { usePOSData } from "@/lib/hooks/data/usePOSData";
 
 interface PartsCategoryProps {
   searchQuery?: string;
@@ -23,7 +23,20 @@ export function PartsCategory({
   setSelectedParts,
   setIsPartBrandModalOpen,
 }: PartsCategoryProps) {
-  const { partTypes, partBrands } = usePOSMockData();
+  const { partTypes, partBrands, isLoading } = usePOSData();
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-1 gap-4">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="border rounded-lg p-4">
+            <div className="h-6 bg-gray-200 animate-pulse rounded"></div>
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="grid grid-cols-1 gap-4">

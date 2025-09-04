@@ -3,7 +3,7 @@
 import React, { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { ChevronDown, ChevronUp, Droplet } from "lucide-react";
-import { usePOSMockData } from "@/lib/hooks/data/usePOSMockData";
+import { usePOSData } from "@/lib/hooks/data/usePOSData";
 
 interface AdditivesFluidsCategoryProps {
   searchQuery?: string;
@@ -18,7 +18,7 @@ export function AdditivesFluidsCategory({
   setExpandedBrand,
   addToCart,
 }: AdditivesFluidsCategoryProps) {
-  const { products } = usePOSMockData();
+  const { products, isLoading } = usePOSData();
 
   // Get unique brands for additives & fluids
   const additiveBrands = useMemo(() => {
@@ -32,6 +32,19 @@ export function AdditivesFluidsCategory({
       brand.toLowerCase().includes(searchQuery.toLowerCase())
     );
   }, [products, searchQuery]);
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-1 gap-4">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="border rounded-lg p-4">
+            <div className="h-6 bg-gray-200 animate-pulse rounded"></div>
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <>

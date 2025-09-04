@@ -1,13 +1,11 @@
 // A unique name for our cache.
 // IMPORTANT: Bump this version on deploys to clear old caches.
-const CACHE_NAME = "pos-runtime-cache-v3";
+const CACHE_NAME = "pos-runtime-cache-v4";
 
 // The self object refers to the service worker itself.
 // We are adding an event listener for the 'install' event.
-self.addEventListener("install", () => {
-  // skipWaiting() forces the waiting service worker to become the active service worker.
-  // This is crucial for ensuring updates are applied immediately.
-  self.skipWaiting();
+self.addEventListener("install", (event) => {
+  // Skip waiting only when explicitly requested to avoid reload loops
   console.log("Service Worker: Installed");
 });
 
@@ -29,8 +27,7 @@ self.addEventListener("activate", (event) => {
     })
   );
   console.log("Service Worker: Activated");
-  // Immediately take control of all pages so new SW applies without a hard refresh
-  self.clients.claim();
+  // Only claim clients when explicitly requested to avoid reload loops
 });
 
 // Add an event listener for the 'fetch' event.
@@ -42,27 +39,40 @@ self.addEventListener("fetch", (event) => {
   const req = event.request;
   const url = new URL(req.url);
 
-  // For navigations/HTML, always go to network with no-store to avoid stale HTML
+  // For navigations/HTML, bypass SW entirely to avoid navigation loops
   const isNavigation =
     req.mode === "navigate" ||
     req.destination === "document" ||
     (req.headers.get("accept") || "").includes("text/html");
 
   if (isNavigation) {
+    // Let the network handle navigations; do not cache HTML
+    return;
+  }
+
+  // For same-origin static assets (js/css/img/fonts), use cache-first strategy
+  if (url.origin === self.location.origin) {
     event.respondWith(
       (async () => {
+        // Check cache first for static assets
+        const cached = await caches.match(req);
+        if (cached) return cached;
+
         try {
-          const fresh = await fetch(req, { cache: "no-store" });
-          // Optionally cache a copy for offline fallback
+          const fresh = await fetch(req);
+          // Avoid caching redirects or opaque responses
+          if (!fresh || !fresh.ok || fresh.type === "opaqueredirect") {
+            return fresh;
+          }
           const cache = await caches.open(CACHE_NAME);
           cache.put(req, fresh.clone());
           return fresh;
-        } catch {
-          const cached = await caches.match(req);
-          if (cached) return cached;
-          return new Response("Offline", {
+        } catch (error) {
+          console.warn("Service Worker: Request failed for", req.url);
+          // Return a generic offline response instead of throwing
+          return new Response("Resource unavailable offline", {
             status: 503,
-            statusText: "Offline",
+            statusText: "Service Unavailable",
           });
         }
       })()
@@ -70,42 +80,41 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // For same-origin static assets (js/css/img/fonts), use network-first with no-store, fallback to cache
-  if (url.origin === self.location.origin) {
-    event.respondWith(
-      (async () => {
-        try {
-          const fresh = await fetch(req, { cache: "no-store" });
-          const cache = await caches.open(CACHE_NAME);
-          cache.put(req, fresh.clone());
-          return fresh;
-        } catch {
-          const cached = await caches.match(req);
-          if (cached) return cached;
-          throw new Error("Request failed and no cache available");
-        }
-      })()
-    );
+  // For cross-origin requests (like Vercel analytics), fail silently to avoid errors
+  const isVercelScript =
+    url.hostname.includes("vercel.com") && url.pathname.includes("script.js");
+  if (isVercelScript) {
+    // Skip handling Vercel scripts that are failing
     return;
   }
 
-  // For cross-origin requests, just pass-through network, fallback to cache
+  // For other cross-origin requests, pass-through network, fallback to cache
   event.respondWith(
     (async () => {
       try {
-        return await fetch(req, { cache: "no-store" });
+        return await fetch(req);
       } catch {
         const cached = await caches.match(req);
         if (cached) return cached;
-        throw new Error("Request failed and no cache available");
+        // Don't throw errors for cross-origin requests
+        return new Response("Resource unavailable", {
+          status: 503,
+          statusText: "Service Unavailable",
+        });
       }
     })()
   );
 });
 
-// Optional: allow pages to prompt this SW to skip waiting (if you wire it up in the app)
+// Handle messages from the app
 self.addEventListener("message", (event) => {
   if (event.data && event.data.type === "SKIP_WAITING") {
     self.skipWaiting();
+    // Notify clients that the new service worker is ready
+    self.clients.matchAll().then((clients) => {
+      clients.forEach((client) => {
+        client.postMessage({ type: "SW_UPDATED" });
+      });
+    });
   }
 });

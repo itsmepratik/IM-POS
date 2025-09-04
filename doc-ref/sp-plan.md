@@ -45,20 +45,26 @@ Deliverable: `.env.local` (dev) loaded; prod variables set in hosting provider.
 Create normalized tables matching the PRD (essentials first):
 
 1. Reference tables: `branches`, `categories`, `brands`, `suppliers`.
-2. Core: `items`, `item_volumes`, `batches`.
+2. Core: `items`, `item_variants` (for products with volumes/sizes like lubricants), `batches`.
 3. Branch stock: `location_stock`.
-4. Sales: `sales`, `sale_items`.
+4. Sales: `sales`, `sale_items`, `trade_in_batteries` (to record details of traded-in batteries).
 5. Operational logs: `inventory_transactions`, `inventory_transfers`.
 6. Users: `profiles` table keyed by `auth.uid()` with columns `role` and `branch_id`.
+7. Customers: `customers` table to store customer details, and `vehicles` table linked to `customers`.
 
 Indexes (minimum):
 
 - `items(name)`, `items(category_id)`, `items(brand_id)`
+- `item_variants(item_id, size)`
 - `batches(item_id, purchase_date DESC)` for FIFO
 - `location_stock(branch_id, item_id)`
-- `sale_items(sale_id)`, `sales(branch_id, created_at DESC)`
+- `sales(branch_id, created_at DESC)`
+- `sale_items(sale_id)`
+- `trade_in_batteries(sale_id)`
+- `customers(phone)` for quick lookup
+- `vehicles(customer_id)`
 
-Deliverable: All core tables created with required FKs and indexes.
+Deliverable: All core tables created with required FKs and indexes, including new tables for `item_variants`, `trade_in_batteries`, `customers`, and `vehicles`.
 
 ---
 
@@ -140,11 +146,12 @@ Choose a consistent pattern:
 Migration steps from mock → Supabase:
 
 1. Introduce a feature flag `USE_SUPABASE`.
-2. Implement new data hooks that call Supabase in parallel to existing mock services.
-3. Validate results/UI parity in dev.
-4. Flip the flag in dev; soak; then flip in prod.
+2. Implement new data hooks that call Supabase in parallel to existing mock services (e.g., `usePOSMockData` will be replaced with Supabase calls, and the `useStaffIDs` will fetch from `profiles` table).
+3. Update components (e.g., `TradeInDialog`, `POSCustomerForm`, category components) to consume data from Supabase-backed hooks.
+4. Validate results/UI parity in dev.
+5. Flip the flag in dev; soak; then flip in prod.
 
-Deliverable: Inventory, batches, brands, categories, suppliers, and sales flows backed by Supabase with no user-visible regressions.
+Deliverable: Inventory, batches, brands, categories, suppliers, customers, vehicles, trade-ins, and sales flows backed by Supabase with no user-visible regressions.
 
 ---
 

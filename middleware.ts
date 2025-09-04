@@ -104,8 +104,8 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(url);
     }
 
-    // If user is on root path, redirect based on role
-    if (pathname === "/") {
+    // If user is on root path or dashboard, redirect based on role
+    if (pathname === "/" || pathname === "/dashboard") {
       const url = request.nextUrl.clone();
       url.pathname = userRole === "admin" ? "/home" : "/pos";
       return NextResponse.redirect(url);
@@ -137,6 +137,12 @@ export const config = {
      * - favicon.ico (favicon file)
      * Feel free to modify this pattern to include more paths.
      */
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    // Exclude static/public assets and special routes from middleware to avoid loops
+    // - _next/static, _next/image: Next.js internals
+    // - favicon and common assets (svg/png/jpg/jpeg/gif/webp/ico/ttf/woff/woff2)
+    // - sw.js, service-worker.js, manifest.json, robots.txt, sitemap.xml
+    // - vercel analytics endpoints
+
+    "/((?!_next/static|_next/image|favicon.ico|manifest.json|robots.txt|sitemap.xml|sw.js|service-worker.js|_vercel|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|ttf|woff|woff2)$).*)",
   ],
 };

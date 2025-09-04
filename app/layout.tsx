@@ -4,9 +4,10 @@ import localFont from "next/font/local";
 import "react-day-picker/dist/style.css";
 import "./globals.css";
 import { UserProvider } from "./user-context";
-import { BranchProvider } from "./branch-context";
+import { DataProvider } from "@/lib/contexts/DataProvider";
 import { NotificationProvider } from "./notification-context";
 import { NotificationDemo } from "./notification-demo";
+// Conditional imports for production only
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import ServiceWorkerRegistration from "../components/service-worker-registration";
@@ -79,34 +80,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head>
         <link rel="icon" href="/favicon.ico" />
-        <link
-          rel="preload"
-          href="/fonts/Formula1-Regular-1.ttf"
-          as="font"
-          type="font/ttf"
-          crossOrigin="anonymous"
-        />
-        <link
-          rel="preload"
-          href="/fonts/Formula1-Bold-4.ttf"
-          as="font"
-          type="font/ttf"
-          crossOrigin="anonymous"
-        />
-        <link
-          rel="preload"
-          href="/fonts/Formula1-Black.ttf"
-          as="font"
-          type="font/ttf"
-          crossOrigin="anonymous"
-        />
-        <link
-          rel="preload"
-          href="/fonts/Formula1-Wide.ttf"
-          as="font"
-          type="font/ttf"
-          crossOrigin="anonymous"
-        />
+        {/* Font preloading removed - Next.js localFont handles this automatically */}
         <meta
           name="viewport"
           content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
@@ -117,6 +91,14 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="orientation" content="portrait" />
         <link rel="apple-touch-icon" href="/favicon.ico" />
+
+        {/* Cache-busting headers to make normal reload behave like hard refresh */}
+        <meta
+          httpEquiv="Cache-Control"
+          content="no-cache, no-store, must-revalidate"
+        />
+        <meta httpEquiv="Pragma" content="no-cache" />
+        <meta httpEquiv="Expires" content="0" />
         <style
           suppressHydrationWarning
           dangerouslySetInnerHTML={{
@@ -169,7 +151,7 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <UserProvider>
-          <BranchProvider>
+          <DataProvider>
             <NotificationProvider>
               <div
                 id="app-root"
@@ -180,10 +162,15 @@ export default function RootLayout({
               <NotificationDemo />
               <Toaster />
             </NotificationProvider>
-          </BranchProvider>
+          </DataProvider>
         </UserProvider>
-        <SpeedInsights />
-        <Analytics />
+        {/* Only load analytics in production to prevent development errors */}
+        {process.env.NODE_ENV === "production" && (
+          <>
+            <SpeedInsights />
+            <Analytics />
+          </>
+        )}
         <ServiceWorkerRegistration />
         {/* Load fullscreen handler script */}
         <script src="/fullscreen.js" async />

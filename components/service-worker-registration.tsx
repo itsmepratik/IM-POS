@@ -4,45 +4,20 @@ import { useEffect } from "react";
 
 export default function ServiceWorkerRegistration() {
   useEffect(() => {
-    // This code runs only on the client-side, after the component mounts
+    // DISABLED: Service worker completely disabled to prevent reload loops
+    // If you need PWA features, investigate the reload loop issue first
+
+    // Unregister any existing service workers to clean up
     if ("serviceWorker" in navigator) {
-      const register = async () => {
-        try {
-          const registration = await navigator.serviceWorker.register(
-            "/sw.js",
-            {
-              scope: "/",
-            }
-          );
-          console.log(
-            "ServiceWorker registration successful with scope:",
-            registration.scope
-          );
-
-          // If there's an updated worker waiting, activate it immediately
-          if (registration.waiting) {
-            registration.waiting.postMessage({ type: "SKIP_WAITING" });
-          }
-
-          registration.addEventListener("updatefound", () => {
-            const newWorker = registration.installing;
-            if (!newWorker) return;
-            newWorker.addEventListener("statechange", () => {
-              if (
-                newWorker.state === "installed" &&
-                navigator.serviceWorker.controller
-              ) {
-                newWorker.postMessage({ type: "SKIP_WAITING" });
-              }
-            });
-          });
-        } catch (error) {
-          console.error("ServiceWorker registration failed:", error);
-        }
-      };
-      register();
+      navigator.serviceWorker.getRegistrations().then((registrations) => {
+        registrations.forEach((registration) => {
+          registration.unregister();
+          console.log("Service Worker unregistered:", registration.scope);
+        });
+      });
     }
   }, []);
 
   return null; // This component doesn't render anything
 }
+.

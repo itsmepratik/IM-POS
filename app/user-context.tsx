@@ -239,49 +239,89 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
     // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_OUT' || !session?.user) {
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_OUT" || !session?.user) {
         setSupabaseUser(null);
         setCurrentUser(null);
         setIsLoading(false);
         return;
       }
-      
+
       if (session?.user) {
         setSupabaseUser(session.user);
 
-        // Use the same function as in getUser
-        try {
-          const { data, error } = await supabase.rpc(
-            "get_user_profile_with_permissions",
-            { user_id: session.user.id }
-          );
-
-          if (error) {
-            console.error(
-              "Error calling get_user_profile_with_permissions in auth change:",
-              error
+        // CRITICAL FIX: Use setTimeout to defer async operations and prevent deadlocks
+        setTimeout(async () => {
+          try {
+            const { data, error } = await supabase.rpc(
+              "get_user_profile_with_permissions",
+              { user_id: session.user.id }
             );
-            throw error;
-          }
 
-          if (data && data.profile) {
-            const profile = data.profile;
-            const permissions = data.permissions || [];
+            if (error) {
+              console.error(
+                "Error calling get_user_profile_with_permissions in auth change:",
+                error
+              );
+              throw error;
+            }
 
-            const mappedUser: User = {
-              id: session.user.id,
-              name:
-                profile.full_name ||
-                session.user.email?.split("@")[0] ||
-                "User",
-              email: session.user.email || "",
-              role: profile.role as UserRole,
-              permissions: permissions as Permission[],
-            };
-            setCurrentUser(mappedUser);
-          } else {
-            // Fallback for auth change
+            if (data && data.profile) {
+              const profile = data.profile;
+              const permissions = data.permissions || [];
+
+              const mappedUser: User = {
+                id: session.user.id,
+                name:
+                  profile.full_name ||
+                  session.user.email?.split("@")[0] ||
+                  "User",
+                email: session.user.email || "",
+                role: profile.role as UserRole,
+                permissions: permissions as Permission[],
+              };
+              setCurrentUser(mappedUser);
+            } else {
+              // Fallback for auth change
+              const fallbackRole =
+                session.user.email === "admin@hnsautomotive.com"
+                  ? "admin"
+                  : "shop";
+              const fallbackPermissions =
+                fallbackRole === "admin"
+                  ? [
+                      "pos.access",
+                      "inventory.access",
+                      "customers.access",
+                      "transactions.access",
+                      "notifications.access",
+                      "reports.access",
+                      "settings.access",
+                      "users.access",
+                      "admin.access",
+                    ]
+                  : [
+                      "pos.access",
+                      "inventory.access",
+                      "customers.access",
+                      "transactions.access",
+                      "notifications.access",
+                    ];
+
+              const mappedUser: User = {
+                id: session.user.id,
+                name:
+                  session.user.user_metadata?.full_name ||
+                  session.user.email?.split("@")[0] ||
+                  "User",
+                email: session.user.email || "",
+                role: fallbackRole as UserRole,
+                permissions: fallbackPermissions as Permission[],
+              };
+              setCurrentUser(mappedUser);
+            }
+          } catch (error) {
+            console.error("Error fetching user profile in auth change:", error);
             const fallbackRole =
               session.user.email === "admin@hnsautomotive.com"
                 ? "admin"
@@ -319,48 +359,13 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
             };
             setCurrentUser(mappedUser);
           }
-        } catch (error) {
-          console.error("Error fetching user profile in auth change:", error);
-          const fallbackRole =
-            session.user.email === "admin@hnsautomotive.com" ? "admin" : "shop";
-          const fallbackPermissions =
-            fallbackRole === "admin"
-              ? [
-                  "pos.access",
-                  "inventory.access",
-                  "customers.access",
-                  "transactions.access",
-                  "notifications.access",
-                  "reports.access",
-                  "settings.access",
-                  "users.access",
-                  "admin.access",
-                ]
-              : [
-                  "pos.access",
-                  "inventory.access",
-                  "customers.access",
-                  "transactions.access",
-                  "notifications.access",
-                ];
-
-          const mappedUser: User = {
-            id: session.user.id,
-            name:
-              session.user.user_metadata?.full_name ||
-              session.user.email?.split("@")[0] ||
-              "User",
-            email: session.user.email || "",
-            role: fallbackRole as UserRole,
-            permissions: fallbackPermissions as Permission[],
-          };
-          setCurrentUser(mappedUser);
-        }
+          setIsLoading(false);
+        }, 0); // Defer async operations to prevent infinite loops
       } else {
         setSupabaseUser(null);
         setCurrentUser(null);
+        setIsLoading(false);
       }
-      setIsLoading(false);
     });
 
     return () => subscription.unsubscribe();
@@ -391,7 +396,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
       // Clear local state immediately
       setCurrentUser(null);
       setSupabaseUser(null);
-      
+
       // Sign out from Supabase
       const { error } = await supabase.auth.signOut();
       if (error) {
