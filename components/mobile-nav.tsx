@@ -96,21 +96,21 @@ export function MobileNav({ className }: { className?: string }) {
   ];
 
   const showAdminItems = mounted && currentUser && currentUser.role === "admin";
-  
+
   // Filter navigation items based on permissions
   const visibleNavItems = navItems.filter((item) => {
     if (!mounted || !currentUser) return false;
-    
+
     // Check if user has the required permission
     if (item.permission && !hasPermission(item.permission)) {
       return false;
     }
-    
+
     // Additional admin check for explicitly admin items
     if (item.isAdmin && currentUser.role !== "admin") {
       return false;
     }
-    
+
     return true;
   });
 
@@ -121,10 +121,10 @@ export function MobileNav({ className }: { className?: string }) {
 
   const handleLogout = async () => {
     if (isLoggingOut) return; // Prevent double clicks
-    
+
     setIsLoggingOut(true);
     setOpen(false); // Close the mobile nav sheet
-    
+
     try {
       await signOut();
       // Use replace instead of push to avoid back navigation issues
@@ -177,178 +177,180 @@ export function MobileNav({ className }: { className?: string }) {
           </SheetHeader>
           <div className="flex-1 overflow-y-auto py-2">
             <nav className="grid gap-1 px-2">
-              {navItems.map((item) => {
-                if (item.isAdmin && !showAdminItems) {
-                  return null;
-                }
+              {visibleNavItems.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setOpen(false)}
+                  className={cn(
+                    "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
+                    mounted && pathname === item.href
+                      ? "bg-accent text-accent-foreground"
+                      : "transparent"
+                  )}
+                >
+                  {item.icon}
+                  <span>{item.title}</span>
+                </Link>
+              ))}
 
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={() => setOpen(false)}
+              {/* Orders Dropdown - Only show for admin users */}
+              {showAdminItems && (
+                <div className="space-y-1">
+                  <button
+                    onClick={() => setOrdersOpen(!ordersOpen)}
                     className={cn(
-                      "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
-                      mounted && pathname === item.href
+                      "flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
+                      mounted &&
+                        (pathname === "/orders" ||
+                          pathname === "/transfer" ||
+                          pathname === "/restock-orders")
                         ? "bg-accent text-accent-foreground"
                         : "transparent"
                     )}
                   >
-                    {item.icon}
-                    <span>{item.title}</span>
-                  </Link>
-                );
-              })}
-
-              {/* Orders Dropdown */}
-              <div className="space-y-1">
-                <button
-                  onClick={() => setOrdersOpen(!ordersOpen)}
-                  className={cn(
-                    "flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
-                    mounted &&
-                      (pathname === "/orders" ||
-                        pathname === "/transfer" ||
-                        pathname === "/restock-orders")
-                      ? "bg-accent text-accent-foreground"
-                      : "transparent"
-                  )}
-                >
-                  <div className="flex items-center gap-3">
-                    <ShoppingCart className="h-4 w-4" />
-                    <span>Orders</span>
-                  </div>
-                  <ChevronDown
-                    className={cn(
-                      "h-4 w-4 transition-transform",
-                      ordersOpen && "rotate-180"
-                    )}
-                  />
-                </button>
-
-                {ordersOpen && (
-                  <div className="ml-6 space-y-1">
-                    <Link
-                      href="/orders"
-                      onClick={() => setOpen(false)}
-                      className={cn(
-                        "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
-                        mounted && pathname === "/orders"
-                          ? "bg-accent text-accent-foreground"
-                          : "transparent"
-                      )}
-                    >
+                    <div className="flex items-center gap-3">
                       <ShoppingCart className="h-4 w-4" />
-                      <span>Online Orders</span>
-                    </Link>
-                    <Link
-                      href="/transfer"
-                      onClick={() => setOpen(false)}
+                      <span>Orders</span>
+                    </div>
+                    <ChevronDown
                       className={cn(
-                        "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
-                        mounted && pathname === "/transfer"
-                          ? "bg-accent text-accent-foreground"
-                          : "transparent"
+                        "h-4 w-4 transition-transform",
+                        ordersOpen && "rotate-180"
                       )}
-                    >
-                      <ArrowLeftRight className="h-4 w-4" />
-                      <span>Transfers</span>
-                    </Link>
-                    <Link
-                      href="/restock-orders"
-                      onClick={() => setOpen(false)}
-                      className={cn(
-                        "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
-                        mounted && pathname === "/restock-orders"
-                          ? "bg-accent text-accent-foreground"
-                          : "transparent"
-                      )}
-                    >
-                      <Truck className="h-4 w-4" />
-                      <span>Restock Orders</span>
-                    </Link>
-                  </div>
-                )}
-              </div>
+                    />
+                  </button>
 
-              {/* Inventory Dropdown */}
-              <div className="space-y-1">
-                <button
-                  onClick={() => setInventoryOpen(!inventoryOpen)}
-                  className={cn(
-                    "flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
-                    mounted && pathname.startsWith("/inventory")
-                      ? "bg-accent text-accent-foreground"
-                      : "transparent"
+                  {ordersOpen && (
+                    <div className="ml-6 space-y-1">
+                      <Link
+                        href="/orders"
+                        onClick={() => setOpen(false)}
+                        className={cn(
+                          "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
+                          mounted && pathname === "/orders"
+                            ? "bg-accent text-accent-foreground"
+                            : "transparent"
+                        )}
+                      >
+                        <ShoppingCart className="h-4 w-4" />
+                        <span>Online Orders</span>
+                      </Link>
+                      <Link
+                        href="/transfer"
+                        onClick={() => setOpen(false)}
+                        className={cn(
+                          "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
+                          mounted && pathname === "/transfer"
+                            ? "bg-accent text-accent-foreground"
+                            : "transparent"
+                        )}
+                      >
+                        <ArrowLeftRight className="h-4 w-4" />
+                        <span>Transfers</span>
+                      </Link>
+                      <Link
+                        href="/restock-orders"
+                        onClick={() => setOpen(false)}
+                        className={cn(
+                          "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
+                          mounted && pathname === "/restock-orders"
+                            ? "bg-accent text-accent-foreground"
+                            : "transparent"
+                        )}
+                      >
+                        <Truck className="h-4 w-4" />
+                        <span>Restock Orders</span>
+                      </Link>
+                    </div>
                   )}
-                >
-                  <div className="flex items-center gap-3">
-                    <Warehouse className="h-4 w-4" />
-                    <span>Inventory</span>
-                  </div>
-                  <ChevronDown
-                    className={cn(
-                      "h-4 w-4 transition-transform",
-                      inventoryOpen && "rotate-180"
-                    )}
-                  />
-                </button>
+                </div>
+              )}
 
-                {inventoryOpen && (
-                  <div className="ml-6 space-y-1">
-                    <Link
-                      href="/inventory/main-inventory"
-                      onClick={() => setOpen(false)}
-                      className={cn(
-                        "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
-                        mounted && pathname === "/inventory/main-inventory"
-                          ? "bg-accent text-accent-foreground"
-                          : "transparent"
-                      )}
-                    >
+              {/* Inventory Dropdown - Show if user has inventory access */}
+              {mounted && currentUser && hasPermission("inventory.access") && (
+                <div className="space-y-1">
+                  <button
+                    onClick={() => setInventoryOpen(!inventoryOpen)}
+                    className={cn(
+                      "flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
+                      mounted && pathname.startsWith("/inventory")
+                        ? "bg-accent text-accent-foreground"
+                        : "transparent"
+                    )}
+                  >
+                    <div className="flex items-center gap-3">
                       <Warehouse className="h-4 w-4" />
-                      <span>Main</span>
-                    </Link>
-                    <Link
-                      href="/inventory/branch-inventory"
-                      onClick={() => setOpen(false)}
+                      <span>Inventory</span>
+                    </div>
+                    <ChevronDown
                       className={cn(
-                        "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
-                        mounted && pathname === "/inventory/branch-inventory"
-                          ? "bg-accent text-accent-foreground"
-                          : "transparent"
+                        "h-4 w-4 transition-transform",
+                        inventoryOpen && "rotate-180"
                       )}
-                    >
-                      <Building className="h-4 w-4" />
-                      <span>Branch</span>
-                    </Link>
-                  </div>
-                )}
-              </div>
+                    />
+                  </button>
+
+                  {inventoryOpen && (
+                    <div className="ml-6 space-y-1">
+                      <Link
+                        href="/inventory/main-inventory"
+                        onClick={() => setOpen(false)}
+                        className={cn(
+                          "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
+                          mounted && pathname === "/inventory/main-inventory"
+                            ? "bg-accent text-accent-foreground"
+                            : "transparent"
+                        )}
+                      >
+                        <Warehouse className="h-4 w-4" />
+                        <span>Main</span>
+                      </Link>
+                      <Link
+                        href="/inventory/branch-inventory"
+                        onClick={() => setOpen(false)}
+                        className={cn(
+                          "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
+                          mounted && pathname === "/inventory/branch-inventory"
+                            ? "bg-accent text-accent-foreground"
+                            : "transparent"
+                        )}
+                      >
+                        <Building className="h-4 w-4" />
+                        <span>Branch</span>
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              )}
             </nav>
           </div>
           <div className="border-t p-4">
-            {/* Notifications Inbox */}
-            <Link
-              href="/notifications"
-              onClick={() => setOpen(false)}
-              className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground mb-2",
-                mounted && pathname === "/notifications"
-                  ? "bg-accent text-accent-foreground"
-                  : "transparent"
+            {/* Notifications Inbox - Show if user has notifications access */}
+            {mounted &&
+              currentUser &&
+              hasPermission("notifications.access") && (
+                <Link
+                  href="/notifications"
+                  onClick={() => setOpen(false)}
+                  className={cn(
+                    "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground mb-2",
+                    mounted && pathname === "/notifications"
+                      ? "bg-accent text-accent-foreground"
+                      : "transparent"
+                  )}
+                >
+                  <span className="relative">
+                    <Inbox className="h-4 w-4" />
+                    {notifications.length > 0 && (
+                      <Badge className="absolute -top-2 -right-2 h-4 min-w-4 px-1 flex items-center justify-center bg-blue-500 text-[10px]">
+                        {notifications.length}
+                      </Badge>
+                    )}
+                  </span>
+                  <span>Notifications</span>
+                </Link>
               )}
-            >
-              <span className="relative">
-                <Inbox className="h-4 w-4" />
-                {notifications.length > 0 && (
-                  <Badge className="absolute -top-2 -right-2 h-4 min-w-4 px-1 flex items-center justify-center bg-blue-500 text-[10px]">
-                    {notifications.length}
-                  </Badge>
-                )}
-              </span>
-              <span>Notifications</span>
-            </Link>
 
             {/* Profile Menu */}
             <DropdownMenu>
