@@ -34,7 +34,7 @@ export function CategoryModal({ open, onOpenChange }: CategoryModalProps) {
 
     setIsLoading(true);
     try {
-      const result = await addCategory(newCategory.trim());
+      let result = await addCategory(newCategory.trim());
       if (result) {
         toast({
           title: "Category added",
@@ -71,7 +71,7 @@ export function CategoryModal({ open, onOpenChange }: CategoryModalProps) {
 
     setIsLoading(true);
     try {
-      const success = await deleteCategory(category);
+      let success = await deleteCategory(category);
       if (success) {
         toast({
           title: "Category removed",

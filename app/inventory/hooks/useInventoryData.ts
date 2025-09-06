@@ -115,7 +115,7 @@ export function useInventoryData(): UseInventoryDataReturn {
     if (confirm('Are you sure you want to remove this item from this branch?')) {
       try {
         console.log(`Deleting item ${id} from branch ${currentBranch?.id}`);
-        const result = await deleteItem(id);
+        let result = await deleteItem(id);
         
         if (result) {
           console.log('Item deleted successfully from branch');

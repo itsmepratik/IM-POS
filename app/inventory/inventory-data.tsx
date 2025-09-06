@@ -166,7 +166,7 @@ export const useInventoryData = () => {
 
           console.log(`User confirmed deletion of item: ${itemName} (${id})`);
           console.log("Calling deleteItem with id:", id);
-          const success = await deleteItem(id);
+          let success = await deleteItem(id);
 
           if (success) {
             console.log(`Item ${id} successfully deleted`);
