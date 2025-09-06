@@ -73,7 +73,7 @@ export function useCachedInventory() {
   // Enhanced methods that update cache
   const enhancedHandlers = {
     handleDelete: async (id: string): Promise<boolean> => {
-      const result = await inventory.handleDelete(id);
+      let result = await inventory.handleDelete(id);
       if (result) {
         // Only update localStorage if operation was successful
         localStorage.setItem(
@@ -85,7 +85,7 @@ export function useCachedInventory() {
     },
 
     handleDuplicate: async (id: string): Promise<Item | null> => {
-      const result = await inventory.handleDuplicate(id);
+      let result = await inventory.handleDuplicate(id);
       if (result) {
         // Only update localStorage if operation was successful
         localStorage.setItem(
