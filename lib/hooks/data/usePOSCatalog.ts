@@ -37,6 +37,15 @@ function hashToNumber(input: string): number {
   return Math.abs(h);
 }
 
+/**
+ * Hook for retrieving and processing Point of Sale (POS) catalog data.
+ * This function filters and organizes inventory items into lubricant products and other products.
+ * It utilizes memoization for performance optimization.
+ * @returns {Object} An object containing:
+ *   - isLoading {boolean}: Always false (placeholder for potential future async operations)
+ *   - lubricantProducts {LubricantProduct[]}: Array of processed lubricant products
+ *   - products {Product[]}: Array of other processed products (filters, parts, additives & fluids)
+ */
 export function usePOSCatalog(): {
   isLoading: boolean;
   lubricantProducts: LubricantProduct[];
