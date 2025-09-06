@@ -224,7 +224,7 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
 
     try {
       setIsLoading(true);
-      const itemsData = await fetchItems(currentBranch.id);
+      let itemsData = await fetchItems(currentBranch.id);
       setItems(itemsData);
     } catch (error) {
       console.error("Error loading items:", error);
@@ -500,7 +500,7 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
 
   const addCategory = async (category: string): Promise<string | null> => {
     try {
-      const newCategory = await addCategoryService(category);
+      let newCategory = await addCategoryService(category);
       if (newCategory) {
         setCategories((prev) => [...prev, newCategory.name]);
         categoryMap.set(newCategory.id, newCategory.name);
@@ -569,7 +569,7 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (!categoryId) return false;
 
-      const success = await deleteCategoryService(categoryId);
+      let success = await deleteCategoryService(categoryId);
       if (success) {
         setCategories((prev) => prev.filter((cat) => cat !== category));
         categoryMap.delete(categoryId);
@@ -595,7 +595,7 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
 
   const addBrand = async (brand: string): Promise<string | null> => {
     try {
-      const newBrand = await addBrandService(brand);
+      let newBrand = await addBrandService(brand);
       if (newBrand) {
         setBrands((prev) => [...prev, newBrand.name]);
         brandMap.set(newBrand.id, newBrand.name);
