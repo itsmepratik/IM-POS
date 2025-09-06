@@ -196,6 +196,11 @@ export const fetchItems = async (branchId: string): Promise<Item[]> => {
   return MOCK_INVENTORY[branchId] || [];
 };
 
+/**
+ * Asynchronously fetches an item from the mock inventory based on the provided item ID.
+ * @param {string} itemId - The unique identifier of the item to fetch.
+ * @returns {Promise<Item | null>} A promise that resolves to the found Item object if it exists, or null if not found.
+ */
 export const fetchItem = async (itemId: string): Promise<Item | null> => {
   await new Promise((resolve) => setTimeout(resolve, 300)); // Simulate API delay
 
@@ -208,6 +213,12 @@ export const fetchItem = async (itemId: string): Promise<Item | null> => {
   return null;
 };
 
+/**
+ * Creates a new item in the inventory for a specific branch.
+ * @param {Omit<Item, "id">} item - The item to be created, excluding the id field.
+ * @param {string} branchId - The ID of the branch where the item will be added.
+ * @returns {Promise<Item>} A promise that resolves to the newly created item, including its generated id and timestamps.
+ */
 export const createItem = async (
   item: Omit<Item, "id">,
   branchId: string
@@ -236,6 +247,13 @@ export const createItem = async (
   return newItem;
 };
 
+/**
+ * Updates an item in the mock inventory for a specific branch
+ * @param {string} id - The unique identifier of the item to update
+ * @param {Partial<Item>} updatedItem - The partial item object containing the fields to update
+ * @param {string} branchId - The identifier of the branch where the item is located
+ * @returns {Promise<Item | null>} A promise that resolves to the updated item or null if the item is not found
+ */
 export const updateItem = async (
   id: string,
   updatedItem: Partial<Item>,
@@ -261,6 +279,12 @@ export const updateItem = async (
   return updated;
 };
 
+/**
+ * Deletes an item from the inventory of a specific branch.
+ * @param {string} id - The unique identifier of the item to be deleted.
+ * @param {string} branchId - The identifier of the branch from which to delete the item.
+ * @returns {Promise<boolean>} A promise that resolves to true if the item was successfully deleted, false otherwise.
+ */
 export const deleteItem = async (
   id: string,
   branchId: string
@@ -277,26 +301,47 @@ export const deleteItem = async (
   return MOCK_INVENTORY[branchId].length < initialLength;
 };
 
+/**
+ * Fetches a list of categories asynchronously
+ * @returns {Promise<Category[]>} A promise that resolves to an array of Category objects
+ */
 export const fetchCategories = async (): Promise<Category[]> => {
   await new Promise((resolve) => setTimeout(resolve, 300)); // Simulate API delay
   return MOCK_CATEGORIES;
 };
 
+/**
+ * Fetches a list of brands asynchronously.
+ * @returns {Promise<Brand[]>} A promise that resolves to an array of Brand objects.
+ */
 export const fetchBrands = async (): Promise<Brand[]> => {
   await new Promise((resolve) => setTimeout(resolve, 300)); // Simulate API delay
   return MOCK_BRANDS;
 };
 
+/**
+ * Fetches a list of suppliers asynchronously.
+ * @returns {Promise<Supplier[]>} A promise that resolves to an array of Supplier objects.
+ */
 export const fetchSuppliers = async (): Promise<Supplier[]> => {
   await new Promise((resolve) => setTimeout(resolve, 300)); // Simulate API delay
   return MOCK_SUPPLIERS;
 };
 
+/**
+ * Fetches a list of branches asynchronously.
+ * @returns {Promise<Branch[]>} A promise that resolves to an array of Branch objects.
+ */
 export const fetchBranches = async (): Promise<Branch[]> => {
   await new Promise((resolve) => setTimeout(resolve, 300)); // Simulate API delay
   return MOCK_BRANCHES;
 };
 
+/**
+ * Asynchronously adds a new category to the MOCK_CATEGORIES array.
+ * @param {string} name - The name of the category to be added.
+ * @returns {Promise<Category>} A Promise that resolves to the newly created Category object.
+ */
 export const addCategory = async (name: string): Promise<Category> => {
   await new Promise((resolve) => setTimeout(resolve, 400)); // Simulate API delay
 
@@ -307,6 +352,12 @@ export const addCategory = async (name: string): Promise<Category> => {
   return newCategory;
 };
 
+/**
+ * Updates the name of a category with the specified ID.
+ * @param {string} id - The unique identifier of the category to update.
+ * @param {string} name - The new name for the category.
+ * @returns {Promise<Category | null>} A promise that resolves to the updated Category object if found, or null if not found.
+ */
 export const updateCategory = async (
   id: string,
   name: string
@@ -320,6 +371,11 @@ export const updateCategory = async (
   return MOCK_CATEGORIES[index];
 };
 
+/**
+ * Deletes a category from the mock categories list
+ * @param {string} id - The unique identifier of the category to delete
+ * @returns {Promise<boolean>} A promise that resolves to true if the category was successfully deleted, false otherwise
+ */
 export const deleteCategory = async (id: string): Promise<boolean> => {
   await new Promise((resolve) => setTimeout(resolve, 400)); // Simulate API delay
 
@@ -333,6 +389,11 @@ export const deleteCategory = async (id: string): Promise<boolean> => {
   return MOCK_CATEGORIES.length < initialLength;
 };
 
+/**
+ * Asynchronously adds a new brand to the MOCK_BRANDS array
+ * @param {string} name - The name of the brand to be added
+ * @returns {Promise<Brand>} A promise that resolves to the newly created Brand object
+ */
 export const addBrand = async (name: string): Promise<Brand> => {
   await new Promise((resolve) => setTimeout(resolve, 400)); // Simulate API delay
 
@@ -343,6 +404,12 @@ export const addBrand = async (name: string): Promise<Brand> => {
   return newBrand;
 };
 
+/**
+ * Updates a brand's name in the mock database
+ * @param {string} id - The unique identifier of the brand to update
+ * @param {string} name - The new name for the brand
+ * @returns {Promise<Brand | null>} A promise that resolves to the updated Brand object if found, or null if not found
+ */
 export const updateBrand = async (
   id: string,
   name: string
@@ -356,6 +423,11 @@ export const updateBrand = async (
   return MOCK_BRANDS[index];
 };
 
+/**
+ * Deletes a brand from the MOCK_BRANDS array based on the provided ID.
+ * @param {string} id - The unique identifier of the brand to be deleted.
+ * @returns {Promise<boolean>} A promise that resolves to true if the brand was successfully deleted, false otherwise.
+ */
 export const deleteBrand = async (id: string): Promise<boolean> => {
   await new Promise((resolve) => setTimeout(resolve, 400)); // Simulate API delay
 
@@ -369,6 +441,12 @@ export const deleteBrand = async (id: string): Promise<boolean> => {
   return MOCK_BRANDS.length < initialLength;
 };
 
+/**
+ * Adds a new batch for a specific item in the inventory.
+ * @param {string} itemId - The ID of the item to add a batch for.
+ * @param {Partial<Batch>} batchData - The data for the new batch.
+ * @returns {Promise<Batch | null>} A promise that resolves to the newly created Batch object, or null if the item is not found.
+ */
 export const addBatch = async (
   itemId: string,
   batchData: Partial<Batch>
@@ -420,6 +498,13 @@ export const addBatch = async (
   return newBatch;
 };
 
+/**
+ * Updates a batch within an item in the inventory and adjusts stock if necessary.
+ * @param {string} itemId - The unique identifier of the item containing the batch to update.
+ * @param {string} batchId - The unique identifier of the batch to update.
+ * @param {Partial<Batch>} batchData - The partial batch data to update. Can include any properties of the Batch type.
+ * @returns {Promise<Batch | null>} A promise that resolves to the updated batch object if successful, or null if the item or batch is not found.
+ */
 export const updateBatch = async (
   itemId: string,
   batchId: string,
@@ -466,6 +551,12 @@ export const updateBatch = async (
   return targetItem.batches[batchIndex];
 };
 
+/**
+ * Deletes a specific batch from an item's inventory across all branches.
+ * @param {string} itemId - The unique identifier of the item.
+ * @param {string} batchId - The unique identifier of the batch to be deleted.
+ * @returns {Promise<boolean>} A promise that resolves to true if the batch was successfully deleted, false otherwise.
+ */
 export const deleteBatch = async (
   itemId: string,
   batchId: string
