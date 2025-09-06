@@ -14,6 +14,20 @@ export interface UserType {
   avatar?: string
 }
 
+/**
+ * Custom React hook for managing user data and operations.
+ * Provides functionality to fetch, add, update, and delete users,
+ * as well as manage loading and error states.
+ * 
+ * @returns {Object} An object containing the following properties and methods:
+ *   @property {UserType[]} users - Array of user objects.
+ *   @property {boolean} isLoading - Indicates if a user operation is in progress.
+ *   @property {Error|null} error - Error object if an operation fails, null otherwise.
+ *   @property {Function} fetchUsers - Asynchronous function to fetch users from localStorage or initialize with default data.
+ *   @property {Function} addUser - Asynchronous function to add a new user.
+ *   @property {Function} updateUser - Asynchronous function to update an existing user.
+ *   @property {Function} deleteUser - Asynchronous function to delete a user.
+ */
 export function useUsers() {
   const [users, setUsers] = useState<UserType[]>([])
   const [isLoading, setIsLoading] = useState(true)
