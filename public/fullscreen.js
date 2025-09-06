@@ -17,6 +17,13 @@
     }, delay);
   });
 
+  /**
+   * Initializes fullscreen handling for standalone Progressive Web Apps (PWAs) on Android devices.
+   * This function detects if the app is running in standalone mode, applies fullscreen CSS,
+   * adds a fullscreen class to the body, and ensures proper scrolling for the app root element.
+   * @returns {void} This function does not return a value.
+   * @throws {Error} May throw an error if there are issues with DOM manipulation or style application.
+   */
   function initFullscreenHandler() {
     try {
       // Try to detect standalone mode with additional safety checks
@@ -63,6 +70,12 @@
     }
   }
 
+  /**
+   * Attempts to enter fullscreen mode for the document.
+   * First tries the standard method, then falls back to alternative methods if necessary.
+   * @returns {void} This method doesn't return a value.
+   * @throws {Error} May throw an error if fullscreen mode cannot be entered.
+   */
   function tryEnterFullscreen() {
     // Try the standard way first
     if (document.documentElement.requestFullscreen) {
@@ -75,6 +88,12 @@
     }
   }
 
+  /**
+   * Attempts to enter fullscreen mode using vendor-specific methods.
+   * This function tries different browser-specific fullscreen APIs to maximize compatibility.
+   * It checks for webkit, mozilla, and microsoft implementations sequentially.
+   * @returns {void} This function does not return a value.
+   */
   function tryAlternativeFullscreen() {
     // Try vendor-specific methods
     const docEl = document.documentElement;
@@ -88,6 +107,16 @@
     }
   }
 
+  /**
+   * Applies CSS styles to force a fullscreen-like appearance for Progressive Web Apps (PWAs).
+   * This function creates and appends a style element to the document head with CSS rules that:
+   * - Make the body take up the full viewport
+   * - Add a safe area inset at the top for mobile devices
+   * - Ensure content is scrollable in PWA mode
+   * - Fix any fixed containers that might block scrolling
+   * - Apply flexbox display where needed
+   * @returns {void} This function does not return a value.
+   */
   function forceFullscreenCSS() {
     // Apply CSS that forces fullscreen-like appearance
     const style = document.createElement("style");
