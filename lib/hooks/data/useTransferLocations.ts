@@ -5,6 +5,18 @@ export interface Location {
   name: string
 }
 
+/**
+ * Custom React hook for managing transfer locations and categories.
+ * This hook handles fetching, storing, and updating transfer-related data.
+ * It also includes functionality to periodically check and refresh data if needed.
+ *
+ * @returns {Object} An object containing:
+ *   - locations {Location[]}: Array of available transfer locations
+ *   - categories {string[]}: Array of available transfer categories
+ *   - isLoading {boolean}: Indicates whether data is currently being fetched
+ *   - error {Error | null}: Any error that occurred during data fetching
+ *   - refreshTransferData {Function}: Function to manually refresh transfer data
+ */
 export function useTransferLocations() {
   const [locations, setLocations] = useState<Location[]>([])
   const [categories, setCategories] = useState<string[]>([])
