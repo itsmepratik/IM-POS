@@ -8,6 +8,20 @@ export interface UserType {
   lastActive: string
 }
 
+/**
+ * Custom React hook for managing users in the settings.
+ * Provides functions to fetch, add, update, and delete users,
+ * as well as state for the current users, loading status, and any errors.
+ *
+ * @returns {Object} An object containing the following properties and methods:
+ *   @property {UserType[]} users - The current list of users.
+ *   @property {boolean} isLoading - Indicates whether user data is being loaded.
+ *   @property {Error|null} error - Any error that occurred during operations.
+ *   @property {Function} addUser - Async function to add a new user.
+ *   @property {Function} updateUser - Async function to update an existing user.
+ *   @property {Function} deleteUser - Async function to delete a user.
+ *   @property {Function} refreshUsers - Function to refresh the user list.
+ */
 export function useSettingsUsers() {
   const [users, setUsers] = useState<UserType[]>([])
   const [isLoading, setIsLoading] = useState(true)
