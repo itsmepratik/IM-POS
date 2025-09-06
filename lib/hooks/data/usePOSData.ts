@@ -70,6 +70,21 @@ interface ProductWithDetails extends DbProduct {
   inventory: DbProductInventory[];
 }
 
+/**
+ * Hook to fetch and manage POS (Point of Sale) data for lubricants and products.
+ * This hook handles data fetching, state management, and data transformation for the POS system.
+ * It also provides fallback to mock data when necessary.
+ * @returns {POSCatalogData} An object containing:
+ *   - lubricantProducts: Array of lubricant products with details
+ *   - products: Array of other products (filters, parts, etc.) with details
+ *   - lubricantBrands: Array of unique lubricant brands
+ *   - filterBrands: Array of unique filter brands
+ *   - filterTypes: Array of unique filter types
+ *   - partBrands: Array of unique part brands
+ *   - partTypes: Array of unique part types
+ *   - isLoading: Boolean indicating if data is being fetched
+ *   - error: String containing error message, if any
+ */
 export function usePOSData(): POSCatalogData {
   const { currentBranch, branchLoadError } = useBranch();
   const [lubricants, setLubricants] = useState<LubricantWithDetails[]>([]);
