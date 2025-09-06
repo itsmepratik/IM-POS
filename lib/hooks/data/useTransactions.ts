@@ -23,6 +23,16 @@ export interface AllTransactions {
   thisMonth: Transaction[];
 }
 
+/**
+ * Custom React hook for managing transactions
+ * @returns {Object} An object containing the following properties:
+ *   @property {AllTransactions | null} transactions - The current transactions data
+ *   @property {boolean} isLoading - Indicates if transactions are being loaded
+ *   @property {Error | null} error - Any error that occurred during data fetching
+ *   @property {Function} fetchTransactions - Function to fetch transactions data
+ *   @property {Function} addTransaction - Function to add a new transaction
+ *   @property {Function} updateTransaction - Function to update an existing transaction
+ */
 export function useTransactions() {
   const [transactions, setTransactions] = useState<AllTransactions | null>(
     null

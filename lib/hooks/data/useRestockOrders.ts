@@ -19,6 +19,15 @@ export interface TransferOrder {
   items: TransferItem[]
 }
 
+/**
+ * Hook for managing restock orders, including fetching, loading, and updating transfer statuses.
+ * @returns {Object} An object containing:
+ *   - transfers: {TransferOrder[]} Array of transfer orders
+ *   - isLoading: {boolean} Loading state indicator
+ *   - error: {Error | null} Error object if an error occurred, null otherwise
+ *   - updateTransferStatus: {Function} Function to update a transfer order's status
+ *   - refreshTransfers: {Function} Function to refresh the transfer orders
+ */
 export function useRestockOrders() {
   const [transfers, setTransfers] = useState<TransferOrder[]>([])
   const [isLoading, setIsLoading] = useState(true)

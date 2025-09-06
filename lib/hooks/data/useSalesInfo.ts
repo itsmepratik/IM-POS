@@ -22,6 +22,16 @@ export interface Store {
   name: string
 }
 
+/**
+ * Custom React hook for managing sales information.
+ * Fetches and provides access to sales items, store data, loading state, and error handling.
+ * @returns {Object} An object containing:
+ *   - items {SaleItem[]} - Array of sale items
+ *   - stores {Store[]} - Array of store information
+ *   - isLoading {boolean} - Indicates if data is currently being fetched
+ *   - error {Error | null} - Error object if an error occurred, otherwise null
+ *   - refreshSalesInfo {Function} - Function to manually refresh sales information
+ */
 export function useSalesInfo() {
   const [items, setItems] = useState<SaleItem[]>([])
   const [stores, setStores] = useState<Store[]>([])

@@ -35,6 +35,10 @@ export interface POSCatalogData {
   lubricantBrands: string[];
 }
 
+/**
+ * Hook that provides mock data for a POS (Point of Sale) catalog.
+ * @returns {POSCatalogData} An object containing arrays of lubricant products, other products, and derived data such as brands and types.
+ */
 export function usePOSMockData(): POSCatalogData {
   // Complete original lubricant products data
   const lubricantProducts: LubricantProduct[] = useMemo(

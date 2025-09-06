@@ -53,6 +53,12 @@ self.addEventListener("fetch", (event) => {
   // For same-origin static assets (js/css/img/fonts), use cache-first strategy
   if (url.origin === self.location.origin) {
     event.respondWith(
+      /**
+       * Fetches a resource from the network or cache, updating the cache if necessary
+       * @param {Request} req - The request object for the resource to fetch
+       * @returns {Promise<Response>} The response object, either from cache or network
+       * @throws {Error} If both network and cache retrieval fail
+       */
       (async () => {
         // Check cache first for static assets
         const cached = await caches.match(req);
