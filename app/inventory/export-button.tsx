@@ -35,7 +35,6 @@ export default function ExportButton({ items }: ExportButtonProps) {
         "Type",
         "Stock",
         "Price",
-        "SKU",
         "Description",
       ];
 
@@ -47,7 +46,6 @@ export default function ExportButton({ items }: ExportButtonProps) {
         item.type || "",
         item.stock.toString(),
         item.price.toString(),
-        item.sku || "",
         item.description || "",
       ]);
 

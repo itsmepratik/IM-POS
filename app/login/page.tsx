@@ -13,7 +13,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { EyeIcon, EyeOffIcon } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
 export default function LoginPage() {

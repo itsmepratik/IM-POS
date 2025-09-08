@@ -10,7 +10,6 @@ export type Item = {
   brand_id: string | null;
   category_id: string | null;
   type: string | null;
-  sku: string | null;
   description: string | null;
   is_oil: boolean | null;
   isOil?: boolean;
@@ -21,6 +20,8 @@ export type Item = {
   created_at: string | null;
   updated_at: string | null;
   lowStockAlert?: number;
+  isBattery?: boolean;
+  batteryState?: "new" | "scrap" | "resellable";
 };
 
 export type Volume = {

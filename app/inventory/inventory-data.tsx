@@ -13,12 +13,18 @@ export const useInventoryData = () => {
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [selectedBrand, setSelectedBrand] = useState("all");
   const [selectedBottleState, setSelectedBottleState] = useState<string>("all");
-  const [showInStock, setShowInStock] = useState(true);
+  const [showInStock, setShowInStock] = useState(false);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
 
   // New filter states for threshold indicators
   const [showLowStockOnly, setShowLowStockOnly] = useState(false);
   const [showOutOfStockOnly, setShowOutOfStockOnly] = useState(false);
+
+  // Battery filter states
+  const [showBatteries, setShowBatteries] = useState(false);
+  const [batteryState, setBatteryState] = useState<
+    "new" | "scrap" | "resellable"
+  >("new");
 
   // Advanced filter states
   const [showFilters, setShowFilters] = useState(false);
@@ -56,8 +62,6 @@ export const useInventoryData = () => {
         item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (item.brand &&
           item.brand.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (item.sku &&
-          item.sku.toLowerCase().includes(searchQuery.toLowerCase())) ||
         (item.category &&
           item.category.toLowerCase().includes(searchQuery.toLowerCase()));
 
@@ -99,12 +103,18 @@ export const useInventoryData = () => {
           ? matchesLowStock && matchesOutOfStock
           : matchesStock;
 
+      // Battery filter
+      const matchesBattery = showBatteries
+        ? item.isBattery === true && item.batteryState === batteryState
+        : true;
+
       return (
         matchesSearch &&
         matchesCategory &&
         matchesBrand &&
         matchesBottleState &&
-        stockFilterToApply
+        stockFilterToApply &&
+        matchesBattery
       );
     });
   }, [
@@ -116,6 +126,8 @@ export const useInventoryData = () => {
     showInStock,
     showLowStockOnly,
     showOutOfStockOnly,
+    showBatteries,
+    batteryState,
   ]);
 
   // Reset all filters
@@ -124,9 +136,11 @@ export const useInventoryData = () => {
     setSelectedCategory("all");
     setSelectedBrand("all");
     setSelectedBottleState("all");
-    setShowInStock(true);
+    setShowInStock(false);
     setShowLowStockOnly(false);
     setShowOutOfStockOnly(false);
+    setShowBatteries(false);
+    setBatteryState("new");
   }, []);
 
   // Handle item selection
@@ -240,6 +254,12 @@ export const useInventoryData = () => {
     setShowLowStockOnly,
     showOutOfStockOnly,
     setShowOutOfStockOnly,
+
+    // Battery filter states
+    showBatteries,
+    setShowBatteries,
+    batteryState,
+    setBatteryState,
 
     // Advanced filter states
     showFilters,

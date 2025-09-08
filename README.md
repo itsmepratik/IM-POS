@@ -58,6 +58,36 @@ This project uses:
 - Modern React patterns including Context API for state management
 - Component-based architecture with reusable UI elements
 
+## Database: Drizzle ORM + Supabase
+
+Phase 1 adds Drizzle ORM backed by Supabase Postgres.
+
+1. Configure environment
+
+Create `.env.local` with your Supabase connection string (Project Settings → Database → Connection string → URI):
+
+```bash
+DATABASE_URL="postgres://USER:PASSWORD@HOST:PORT/DATABASE"
+```
+
+2. Generate migrations
+
+```bash
+bunx drizzle-kit generate
+```
+
+3. Apply migrations
+
+```bash
+bun run db:migrate
+```
+
+Notes:
+
+- Migrations run via `lib/db/migrate.ts` using `postgres` + Drizzle migrator.
+- Ensure your IP is allowed (or use SSL) for Supabase connections.
+- The schema includes: `locations`, `categories`, `products`, `product_volumes`, `inventory`, `batches`, `transactions`.
+
 ## Deployment
 
 The easiest way to deploy this application is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.

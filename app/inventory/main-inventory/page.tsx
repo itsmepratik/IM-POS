@@ -61,6 +61,8 @@ import { OpenBottleIcon, ClosedBottleIcon } from "@/components/ui/bottle-icons";
 import BrandModal from "../brand-modal";
 import ExportButton from "../export-button";
 import { StockIndicator } from "../components/stock-indicator";
+import { BatteryStateSwitch } from "../components/battery-state-switch";
+import { TradeInsModal } from "../components/trade-ins-modal";
 import Image from "next/image";
 
 // Using Batch type from services via Item; no local Batch interface needed
@@ -209,12 +211,6 @@ const MobileItemCard = memo(
                 OMR {item.price.toFixed(2)}
               </div>
             </div>
-
-            {item.sku && (
-              <div className="text-sm text-muted-foreground">
-                SKU: {item.sku}
-              </div>
-            )}
 
             {showDetails && (
               <>
@@ -544,6 +540,7 @@ function MobileView() {
     filteredItems,
     categories,
     brands,
+    isLoading,
 
     searchQuery,
     setSearchQuery,
@@ -559,6 +556,12 @@ function MobileView() {
     setShowLowStockOnly,
     showOutOfStockOnly,
     setShowOutOfStockOnly,
+
+    // Battery filter states
+    showBatteries,
+    setShowBatteries,
+    batteryState,
+    setBatteryState,
 
     editingItem,
     setEditingItem,
@@ -577,6 +580,7 @@ function MobileView() {
   const [itemModalOpen, setItemModalOpen] = useState(false);
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
   const [brandModalOpen, setBrandModalOpen] = useState(false);
+  const [tradeInsModalOpen, setTradeInsModalOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   // Open item modal for adding new item
@@ -679,6 +683,15 @@ function MobileView() {
                 >
                   Manage Brands
                 </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => {
+                    setTradeInsModalOpen(true);
+                    setFiltersOpen(false);
+                  }}
+                  className="cursor-pointer"
+                >
+                  Manage Trade-ins
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -757,26 +770,30 @@ function MobileView() {
               </Button>
             </div>
 
-            <div className="flex items-center space-x-2 pt-2">
-              <label
-                htmlFor="mobileShowInStock"
-                className="text-sm font-medium flex-1"
-              >
-                Show in-stock only
-              </label>
-              <ClientOnly>
-                <Checkbox
-                  id="mobileShowInStock"
-                  checked={showInStock}
-                  onCheckedChange={(checked) => {
-                    setShowInStock(!!checked);
-                    if (checked) {
-                      setShowLowStockOnly(false);
-                      setShowOutOfStockOnly(false);
-                    }
-                  }}
-                />
-              </ClientOnly>
+            {/* Stock Options */}
+            <div className="space-y-4 pt-2">
+              <h3 className="text-sm font-medium">Stock Options</h3>
+              <div className="flex items-center space-x-2">
+                <ClientOnly>
+                  <Checkbox
+                    id="mobileShowInStock"
+                    checked={showInStock}
+                    onCheckedChange={(checked) => {
+                      setShowInStock(!!checked);
+                      if (checked) {
+                        setShowLowStockOnly(false);
+                        setShowOutOfStockOnly(false);
+                      }
+                    }}
+                  />
+                </ClientOnly>
+                <label
+                  htmlFor="mobileShowInStock"
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                >
+                  Show in-stock only
+                </label>
+              </div>
             </div>
 
             {/* Stock Status Options */}
@@ -847,18 +864,37 @@ function MobileView() {
       </div>
 
       <div className="space-y-2">
-        {filteredItems.map((item) => (
-          <MobileItemCard
-            key={item.id}
-            item={item}
-            onEdit={openEditItemModal}
-            onDelete={handleDelete}
-            onDuplicate={handleDuplicate}
-          />
-        ))}
-        {filteredItems.length === 0 && (
+        {!isLoading &&
+          filteredItems.map((item) => (
+            <MobileItemCard
+              key={item.id}
+              item={item}
+              onEdit={openEditItemModal}
+              onDelete={handleDelete}
+              onDuplicate={handleDuplicate}
+            />
+          ))}
+        {isLoading && (
+          <div className="text-center py-8">
+            <div className="flex flex-col items-center justify-center gap-3">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+              <p className="text-muted-foreground">
+                Loading inventory items...
+              </p>
+            </div>
+          </div>
+        )}
+
+        {!isLoading && filteredItems.length === 0 && (
           <div className="text-center py-8 text-muted-foreground">
-            No items found. Try adjusting your filters.
+            <div className="flex flex-col items-center justify-center gap-2">
+              <Package className="h-8 w-8 text-muted-foreground/50" />
+              <p>
+                {searchQuery || selectedCategory || selectedBrand
+                  ? "No items match your current filters."
+                  : "No inventory items found. Add your first product to get started."}
+              </p>
+            </div>
           </div>
         )}
       </div>
@@ -873,6 +909,10 @@ function MobileView() {
         onOpenChange={setCategoryModalOpen}
       />
       <BrandModal open={brandModalOpen} onOpenChange={setBrandModalOpen} />
+      <TradeInsModal
+        isOpen={tradeInsModalOpen}
+        onClose={() => setTradeInsModalOpen(false)}
+      />
     </div>
   );
 }
@@ -882,6 +922,7 @@ function DesktopView() {
     filteredItems,
     categories,
     brands,
+    isLoading,
 
     searchQuery,
     setSearchQuery,
@@ -897,6 +938,12 @@ function DesktopView() {
     setShowLowStockOnly,
     showOutOfStockOnly,
     setShowOutOfStockOnly,
+
+    // Battery filter states
+    showBatteries,
+    setShowBatteries,
+    batteryState,
+    setBatteryState,
 
     // Local filter states
     showFilters,
@@ -928,6 +975,7 @@ function DesktopView() {
   const [itemModalOpen, setItemModalOpen] = useState(false);
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
   const [brandModalOpen, setBrandModalOpen] = useState(false);
+  const [tradeInsModalOpen, setTradeInsModalOpen] = useState(false);
 
   // Open item modal for adding new item
   const openAddItemModal = () => {
@@ -1010,7 +1058,7 @@ function DesktopView() {
                 <ChevronDown className="h-4 w-4 ml-1" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-32">
+            <DropdownMenuContent align="end" className="w-40">
               <DropdownMenuItem
                 onClick={() => setCategoryModalOpen(true)}
                 className="cursor-pointer"
@@ -1022,6 +1070,12 @@ function DesktopView() {
                 className="cursor-pointer"
               >
                 Brands
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setTradeInsModalOpen(true)}
+                className="cursor-pointer"
+              >
+                Manage Trade-ins
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -1038,24 +1092,6 @@ function DesktopView() {
         <div className="text-sm text-muted-foreground">
           {filteredItems.length} {filteredItems.length === 1 ? "item" : "items"}{" "}
           found
-        </div>
-        <div className="flex gap-2 items-center ml-6">
-          <label htmlFor="showInStock" className="text-sm font-medium">
-            Show in-stock only:
-          </label>
-          <ClientOnly>
-            <Checkbox
-              id="showInStock"
-              checked={showInStock}
-              onCheckedChange={(checked) => {
-                setShowInStock(!!checked);
-                if (checked) {
-                  setShowLowStockOnly(false);
-                  setShowOutOfStockOnly(false);
-                }
-              }}
-            />
-          </ClientOnly>
         </div>
         {showLowStockOnly && (
           <Badge
@@ -1075,6 +1111,31 @@ function DesktopView() {
             Out of Stock Only
           </Badge>
         )}
+        <div className="flex gap-4 items-center ml-6">
+          <div className="flex items-center gap-2">
+            <label htmlFor="showBatteries" className="text-sm font-medium">
+              Show batteries:
+            </label>
+            <ClientOnly>
+              <Checkbox
+                id="showBatteries"
+                checked={showBatteries}
+                onCheckedChange={(checked) => {
+                  setShowBatteries(!!checked);
+                }}
+              />
+            </ClientOnly>
+          </div>
+          {showBatteries && (
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium">State:</span>
+              <BatteryStateSwitch
+                value={batteryState}
+                onChange={setBatteryState}
+              />
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Awesome Filter Section - Desktop Only */}
@@ -1203,6 +1264,35 @@ function DesktopView() {
               </Select>
             </div>
 
+            {/* Stock Options Filter */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                <span className="text-green-600">📊</span>
+                Stock Options
+              </label>
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="desktopShowInStock"
+                    checked={showInStock}
+                    onCheckedChange={(checked) => {
+                      setShowInStock(!!checked);
+                      if (checked) {
+                        setShowLowStockOnly(false);
+                        setShowOutOfStockOnly(false);
+                      }
+                    }}
+                  />
+                  <label
+                    htmlFor="desktopShowInStock"
+                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                  >
+                    Show in-stock only
+                  </label>
+                </div>
+              </div>
+            </div>
+
             {/* Quick Actions */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
@@ -1285,29 +1375,49 @@ function DesktopView() {
               </tr>
             </thead>
             <tbody>
-              {filteredItems.map((item) => (
-                <TableRow
-                  key={item.id}
-                  item={item}
-                  isSelected={selectedItems.includes(item.id)}
-                  onToggle={toggleItemSelection}
-                  onEdit={openEditItemModal}
-                  onDelete={handleDelete}
-                  onDuplicate={handleDuplicate}
-                />
-              ))}
-              {filteredItems.length === 0 && (
+              {isLoading ? (
                 <tr>
                   <td
                     colSpan={8}
                     className="h-32 text-center text-muted-foreground"
                   >
-                    <div className="flex flex-col items-center justify-center gap-2">
-                      <Package className="h-8 w-8 text-muted-foreground/50" />
-                      <p>No items found. Try adjusting your filters.</p>
+                    <div className="flex flex-col items-center justify-center gap-3">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                      <p>Loading inventory items...</p>
                     </div>
                   </td>
                 </tr>
+              ) : (
+                <>
+                  {filteredItems.map((item) => (
+                    <TableRow
+                      key={item.id}
+                      item={item}
+                      isSelected={selectedItems.includes(item.id)}
+                      onToggle={toggleItemSelection}
+                      onEdit={openEditItemModal}
+                      onDelete={handleDelete}
+                      onDuplicate={handleDuplicate}
+                    />
+                  ))}
+                  {filteredItems.length === 0 && (
+                    <tr>
+                      <td
+                        colSpan={8}
+                        className="h-32 text-center text-muted-foreground"
+                      >
+                        <div className="flex flex-col items-center justify-center gap-2">
+                          <Package className="h-8 w-8 text-muted-foreground/50" />
+                          <p>
+                            {searchQuery || selectedCategory || selectedBrand
+                              ? "No items match your current filters."
+                              : "No inventory items found. Add your first product to get started."}
+                          </p>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </>
               )}
             </tbody>
           </table>
@@ -1324,6 +1434,10 @@ function DesktopView() {
         onOpenChange={setCategoryModalOpen}
       />
       <BrandModal open={brandModalOpen} onOpenChange={setBrandModalOpen} />
+      <TradeInsModal
+        isOpen={tradeInsModalOpen}
+        onClose={() => setTradeInsModalOpen(false)}
+      />
     </div>
   );
 }

@@ -753,7 +753,7 @@ function BranchInventoryPage() {
 
   // Check viewport on mount and resize - with client-side safety
   const checkViewport = useCallback(() => {
-    if (typeof window !== 'undefined') {
+    if (typeof window !== "undefined") {
       setIsMobile(window.innerWidth < 1024);
     }
   }, []);
@@ -761,8 +761,8 @@ function BranchInventoryPage() {
   useEffect(() => {
     // Set client flag to prevent hydration mismatches
     setIsClient(true);
-    
-    if (typeof window !== 'undefined') {
+
+    if (typeof window !== "undefined") {
       checkViewport();
       window.addEventListener("resize", checkViewport);
       return () => window.removeEventListener("resize", checkViewport);

@@ -53,61 +53,54 @@ export function BranchProvider({ children }: { children: ReactNode }) {
       setIsLoadingBranches(true);
       setBranchLoadError(false);
 
-      // In development mode, use mock branches directly
-      if (process.env.NODE_ENV === "development") {
-        console.log("Using mock branches data");
-        setBranches(MOCK_BRANCHES as ExtendedBranch[]);
-        setCurrentBranch(MOCK_BRANCHES[0] as ExtendedBranch);
+      console.log("🏢 Loading real branches from Supabase...");
+      
+      // Import fetchBranches function
+      const { fetchBranches } = await import("@/lib/services/inventoryService");
+      
+      // Fetch real branches from Supabase
+      const realBranches = await fetchBranches();
+      
+      if (realBranches && realBranches.length > 0) {
+        console.log("✅ Successfully loaded branches:", realBranches.map(b => ({id: b.id, name: b.name})));
+        setBranches(realBranches as ExtendedBranch[]);
+        setCurrentBranch(realBranches[0] as ExtendedBranch);
         setBranchLoadError(false);
-        setIsLoadingBranches(false);
-        return;
+      } else {
+        throw new Error("No branches returned from database");
       }
-
-      // Add fallback branches if there's an issue loading from the server
-      const fallbackBranches: ExtendedBranch[] = [
-        {
-          id: "branch1",
-          name: "Hafith",
-          address: "Hafith Location",
-          active: true,
-          created_at: null,
-          updated_at: null,
-        },
-        {
-          id: "branch2",
-          name: "Abu-Dhurus",
-          address: "Abu-Dhurus Location",
-          active: true,
-          created_at: null,
-          updated_at: null,
-        },
-      ];
-
-      // In production, try to fetch branches but this isn't implemented yet
-      // This will need to be updated when connecting to Supabase
-      console.warn("Fetching branches from API not implemented yet");
-      setBranches(fallbackBranches);
-      setCurrentBranch(fallbackBranches[0]);
     } catch (error) {
-      console.error("Error loading branches:", error);
+      console.error("❌ Error loading branches:", error);
+      
+      // Fallback to mock data with real-looking IDs for development
       const fallbackBranches: ExtendedBranch[] = [
         {
-          id: "branch1",
+          id: "8ae59a0c-1821-4ec0-b913-1900fdcaf7a1",
           name: "Hafith",
-          address: "Hafith Location",
+          address: "Hafith Area, Al Ain",
           active: true,
-          created_at: null,
-          updated_at: null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
         },
         {
-          id: "branch2",
-          name: "Abu-Dhurus",
-          address: "Abu-Dhurus Location",
+          id: "11fb9800-37ec-41af-b034-c8bbbd8c4b3c",
+          name: "Abu Dhurus",
+          address: "Abu Dhurus Area, Al Ain",
           active: true,
-          created_at: null,
-          updated_at: null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+        {
+          id: "01be3937-6c8a-4460-880d-a5da6fe6895b",
+          name: "Sanaiya (HQ)",
+          address: "Sanaiya Industrial Area, Al Ain",
+          active: true,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
         },
       ];
+      
+      console.warn("⚠️ Using fallback branch data with real IDs");
       setBranches(fallbackBranches);
       setCurrentBranch(fallbackBranches[0]);
       setBranchLoadError(true);

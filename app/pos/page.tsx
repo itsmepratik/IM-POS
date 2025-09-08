@@ -93,10 +93,10 @@ import {
 import { RefundDialog, WarrantyDialog } from "./components/refund-dialog";
 import { ImportDialog } from "./components/import-dialog";
 import {
-  usePOSMockData,
+  usePOSData,
   LubricantProduct,
   Product,
-} from "@/lib/hooks/data/usePOSMockData";
+} from "@/lib/hooks/data/usePOSData";
 import { FilterModal } from "./components/filter-modal";
 import { PartsModal } from "./components/parts-modal";
 import { TradeInDialog } from "./components/modals/trade-in-dialog";
@@ -115,6 +115,8 @@ import { LubricantCategory } from "./components/categories/LubricantCategory";
 import { FiltersCategory } from "./components/categories/FiltersCategory";
 import { PartsCategory } from "./components/categories/PartsCategory";
 import { AdditivesFluidsCategory } from "./components/categories/AdditivesFluidsCategory";
+import { DataProvider } from "@/lib/contexts/DataProvider";
+import { BranchSelector } from "@/components/BranchSelector";
 
 // Types are now imported from usePOSMockData hook
 
@@ -723,6 +725,7 @@ function POSCustomerForm({
 }
 
 function POSPageContent() {
+  // ✅ CRITICAL: ALL HOOKS MUST BE CALLED FIRST (React Rules of Hooks)
   const {
     lubricantProducts,
     products,
@@ -731,9 +734,9 @@ function POSPageContent() {
     partBrands,
     partTypes,
     lubricantBrands,
-  } = usePOSMockData();
-
-  // Category hooks removed - functionality integrated into main component
+    isLoading,
+    error,
+  } = usePOSData();
 
   const [cart, setCart] = useState<CartItem[]>([]);
   const [activeCategory, setActiveCategory] = useState<string>("Lubricants");
@@ -1525,6 +1528,37 @@ function POSPageContent() {
     setIsCheckoutModalOpen(true);
   };
 
+  // ✅ CONDITIONAL RENDERING AFTER ALL HOOKS (React Rules of Hooks)
+  // Show loading state while data is being fetched
+  if (isLoading) {
+    return (
+      <Layout>
+        <div className="h-[calc(100vh-4rem)] flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
+            <p className="text-lg">Loading inventory data...</p>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
+  // Show error state if there's a database error
+  if (error) {
+    return (
+      <Layout>
+        <div className="h-[calc(100vh-4rem)] flex items-center justify-center">
+          <div className="text-center">
+            <p className="text-lg text-red-600 mb-4">Database Error: {error}</p>
+            <p className="text-sm text-gray-600">
+              Using offline data as fallback
+            </p>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
   return (
     <Layout>
       <div
@@ -1536,7 +1570,12 @@ function POSPageContent() {
           <div className="flex-1 overflow-hidden flex flex-col min-h-0">
             <Card className="flex-1 overflow-hidden flex flex-col h-full">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 px-4 flex-shrink-0">
-                <CardTitle className="text-xl sm:text-2xl">Products</CardTitle>
+                <div className="flex items-center gap-4">
+                  <CardTitle className="text-xl sm:text-2xl">
+                    Products
+                  </CardTitle>
+                  <BranchSelector compact={true} showLabel={false} />
+                </div>
                 <div className="flex gap-2 items-center">
                   <Button
                     variant="outline"

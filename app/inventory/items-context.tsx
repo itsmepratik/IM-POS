@@ -29,7 +29,7 @@ import {
   Category,
   Supplier,
 } from "@/lib/services/inventoryService";
-import { useBranch } from "../branch-context";
+import { useBranch } from "@/lib/contexts/DataProvider";
 import { toast } from "@/components/ui/use-toast";
 import { useInventoryMockData } from "./hooks/useInventoryMockData";
 
@@ -116,9 +116,10 @@ export { type Item, type Batch, type Volume, type BottleStates };
 
 export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
   const { currentBranch } = useBranch();
-  // Use mock data hook in development
-  const isDev = process.env.NODE_ENV === "development";
-  const mock = isDev ? useInventoryMockData() : null;
+  // 🔥 DISABLED: Force use Supabase in development too
+  // const isDev = process.env.NODE_ENV === "development";
+  // const mock = isDev ? useInventoryMockData() : null;
+  const mock = null; // Always use Supabase
 
   // If using mock, wire up all context values from the mock hook
   if (mock) {
@@ -224,10 +225,20 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
 
     try {
       setIsLoading(true);
+      console.log(
+        `Loading items for branch: ${currentBranch.name} (${currentBranch.id})`
+      );
       const itemsData = await fetchItems(currentBranch.id);
+      console.log(`Loaded ${itemsData.length} items`);
       setItems(itemsData);
     } catch (error) {
       console.error("Error loading items:", error);
+      // Show toast error to user
+      toast({
+        title: "Error loading items",
+        description: "Failed to load inventory items. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -240,6 +251,11 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
   const addItem = async (item: Omit<Item, "id">): Promise<Item | null> => {
     if (!currentBranch) {
       console.error("Cannot add item: No current branch selected");
+      toast({
+        title: "Error",
+        description: "No branch selected. Please select a branch.",
+        variant: "destructive",
+      });
       return null;
     }
 
@@ -252,13 +268,29 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
       if (newItem) {
         console.log("Item added successfully:", newItem.id);
         setItems((prev) => [...prev, newItem]);
+        toast({
+          title: "Item added",
+          description: `${newItem.name} has been added successfully.`,
+        });
         return newItem;
       } else {
         console.error("Failed to add item: createItem returned null");
+        toast({
+          title: "Error adding item",
+          description: "Failed to add the item. Please try again.",
+          variant: "destructive",
+        });
         return null;
       }
     } catch (error) {
       console.error("Error adding item:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      toast({
+        title: "Error adding item",
+        description: errorMessage,
+        variant: "destructive",
+      });
       return null;
     }
   };
@@ -285,9 +317,9 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
       // Ensure that both the camelCase (UI) and snake_case (DB) versions of special fields are set
       const normalizedItem = {
         ...updatedItem,
-        is_oil: updatedItem.isOil,
-        image_url: updatedItem.imageUrl,
-        description: updatedItem.notes,
+        is_oil: updatedItem.isOil || updatedItem.is_oil,
+        image_url: updatedItem.imageUrl || updatedItem.image_url,
+        description: updatedItem.description || updatedItem.notes || null,
       };
 
       console.log("Normalized item data:", normalizedItem);
@@ -306,8 +338,13 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
           prevItems.map((item) => (item.id === id ? { ...updated } : item))
         );
 
+        // Add small delay to ensure database updates are propagated
+        await new Promise((resolve) => setTimeout(resolve, 500));
+
         // Refresh the data to ensure we have the latest
         await loadItems();
+
+        console.log("✅ Data refreshed after update");
 
         return updated;
       } else {
@@ -431,7 +468,6 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
         brand_id: original.brand_id,
         type: original.type,
         is_oil: original.is_oil || false,
-        sku: original.sku,
         description: original.description,
         image_url: original.image_url,
         created_at: null,

@@ -27,6 +27,7 @@ import {
   Inbox,
   Moon,
   Sun,
+  Package,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -153,6 +154,13 @@ export function Sidebar({
       title: "Transfer Stock",
       href: "/transfer",
       icon: <ArrowLeftRight className="h-4 w-4" />,
+      permission: "admin.access" as const,
+      adminOnly: true,
+    },
+    {
+      title: "Transfer 2.0",
+      href: "/transfer-2",
+      icon: <Package className="h-4 w-4" />,
       permission: "admin.access" as const,
       adminOnly: true,
     },
@@ -373,6 +381,7 @@ export function Sidebar({
                     "flex items-center justify-center rounded-md p-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
                     (pathname === "/orders" ||
                       pathname === "/transfer" ||
+                      pathname === "/transfer-2" ||
                       pathname === "/restock-orders") &&
                       "bg-accent text-accent-foreground"
                   )}
@@ -429,7 +438,7 @@ function ProfileMenu({ isCollapsed }: { isCollapsed: boolean }) {
 
   const handleLogout = async () => {
     if (isLoggingOut) return; // Prevent double clicks
-    
+
     setIsLoggingOut(true);
     try {
       await signOut();
@@ -500,8 +509,8 @@ function ProfileMenu({ isCollapsed }: { isCollapsed: boolean }) {
             <Switch checked={darkMode} onCheckedChange={toggleDarkMode} />
           </DropdownMenuItem>
           <DropdownMenuSeparator className="my-2" />
-          <DropdownMenuItem 
-            className="rounded-lg py-2" 
+          <DropdownMenuItem
+            className="rounded-lg py-2"
             onSelect={handleLogout}
             disabled={isLoggingOut || isLoading}
           >
@@ -573,8 +582,8 @@ function ProfileMenu({ isCollapsed }: { isCollapsed: boolean }) {
           <Switch checked={darkMode} onCheckedChange={toggleDarkMode} />
         </DropdownMenuItem>
         <DropdownMenuSeparator className="my-2" />
-        <DropdownMenuItem 
-          className="rounded-lg py-2" 
+        <DropdownMenuItem
+          className="rounded-lg py-2"
           onSelect={handleLogout}
           disabled={isLoggingOut || isLoading}
         >

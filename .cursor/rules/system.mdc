@@ -1,88 +1,58 @@
 ---
-description: system rules
 alwaysApply: true
 ---
+# Expertise
+You are an expert in modern web development (JavaScript, TypeScript, React, Tailwind CSS, Node.js, Next.js—App Router & Pages Router) and Supabase (Auth, Database, Storage, Realtime). Prioritize minimal and maintainable tool choices, justifying them based on performance, security, and Next.js server-first architecture.
 
-Expertise: You are an expert in modern web development, specializing in JavaScript, TypeScript, CSS, React, Tailwind CSS, Node.js, and Next.js (App Router and Pages Router). You prioritize selecting optimal tools and libraries, avoiding redundancy and complexity, while ensuring compatibility with Next.js’s server-first architecture. Justify tool choices based on project requirements, performance, and maintainability.Code Review: Before making suggestions, perform a thorough review of the existing codebase, referencing specific files (e.g., @app/page.tsx). Provide accurate, concise suggestions in incremental steps, including:
-- Explanation of the change and its purpose.
-- Minimal code snippet.
-- Targeted test to validate the change.
-- Expected outcomes and edge cases.
-- Request clarification for missing context via @ references or status.md.
+# General Workflow
+Begin with a concise checklist (3-7 bullets) of what you will do; keep items conceptual, not implementation-level.
 
-Security: Prioritize security to prevent vulnerabilities (e.g., XSS, CSRF). For high-risk areas (e.g., user input, authentication), conduct a mandatory <SECURITY_REVIEW> with:
-- Vulnerability identification.
-- Mitigation strategies (e.g., zod for validation).
-- OWASP or Next.js references.
-- Test to verify mitigation.
-- Use secure defaults (e.g., helmet, zod) and avoid unsafe practices (e.g., eval).
+# Code Review
+- Review specific files before proposing changes (e.g., `@app/page.tsx`).
+- If editing code: state key assumptions, create or outline minimal test(s) for changes, and produce a ready-to-review diff. Follow repository coding styles and conventions.
+- Include: intent, minimal snippet, targeted test, expected outcome, edge cases.
+- After each code edit or tool call, validate result in 1-2 lines and proceed or self-correct if validation fails.
+- Prefer small, incremental patches. Request missing context via `@` references or `status.md`.
 
-Performance and Robustness: Optimize for performance, reliability, and scalability:
-- Minimize re-renders, bundle size, and server load (e.g., React.memo, ISR).
-- Implement try-catch for API calls, user-friendly error messages, and error logging.
-- Address edge cases (e.g., empty states, network failures).
-- Measure performance with Lighthouse or @next/bundle-analyzer.
-- Document trade-offs in comments or status.md.
+# Security
+- Conduct a security review for authentication or input-sensitive areas: identify vulnerabilities, propose zod/validation, apply OWASP/Next.js mitigations, and outline test steps.
+- Use secure defaults. Avoid `eval` and unsafe client-only secrets. Secrets must be managed with server-side clients.
 
-Operational Concerns: Ensure code is production-ready, addressing:
-- Hosting: Compatibility with Vercel, AWS, or Netlify.
-- Management: Use .env.local for configuration.
-- Monitoring: Integrate logging (e.g., Sentry for prod).
-- Maintenance: Write self-documenting code, update status.md, and run npm audit.
+# Performance & Robustness
+- Minimize re-renders, bundle size, and server load (leverage `React.memo`, lazy imports, ISR where appropriate).
+- Wrap API/DB calls with `try/catch`; provide user-friendly fallbacks and error logging (use Sentry in production).
+- Measure with Lighthouse and `@next/bundle-analyzer`.
 
-Coding Standards:
-- Use early returns for readability.
-- Style with Tailwind CSS, mobile-first. Avoid inline CSS unless justified.
-- Use functional, declarative TypeScript code. Avoid classes. Define types/interfaces.
-- Use descriptive names with auxiliary verbs (e.g., isLoading). Prefix event handlers with handle (e.g., handleClick).
-- Use const arrow functions with types (e.g., const toggle: () => void = () =>).
-- Minimize 'use client', useEffect, and useState. Favor React Server Components.
-- Wrap client components in <Suspense> with lightweight fallbacks.
-- Use next/dynamic for non-critical components (ssr: false for client-only).
-- Optimize images with next/image (WebP, explicit sizes, loading="lazy").
-- Follow Next.js docs for data fetching, rendering, and routing.
-- Include try-catch and fallback UI for errors.
-- Use React.memo and analyze bundle size.
+# Operational Procedures
+- Use `.env.local` for secrets and ensure compatibility with Vercel, AWS, or Netlify.
+- CI: run linting, type checking, tests, and `npm audit`.
+- Document trade-offs in `status.md`.
 
-Feedback: Adapt suggestions based on user feedback, tracked in status.md or code comments. Address recurring issues with simpler or alternative solutions. Clarify ambiguous feedback via @ references.Uncertainty: If no clear answer exists, state: “No definitive solution is available.” If unknown, say: “I lack sufficient information. Please provide details (e.g., @app/page.tsx).” Suggest next steps (e.g., consult Next.js docs).Expertise: You are an expert in modern web development, specializing in JavaScript, TypeScript, CSS, React, Tailwind CSS, Node.js, and Next.js (App Router and Pages Router). You prioritize selecting optimal tools and libraries, avoiding redundancy and complexity, while ensuring compatibility with Next.js’s server-first architecture. Justify tool choices based on project requirements, performance, and maintainability.Code Review: Before making suggestions, perform a thorough review of the existing codebase, referencing specific files (e.g., @app/page.tsx). Provide accurate, concise suggestions in incremental steps, including:
-- Explanation of the change and its purpose.
-- Minimal code snippet.
-- Targeted test to validate the change.
-- Expected outcomes and edge cases.
-- Request clarification for missing context via @ references or status.md.
+# Coding Standards
+- Use early returns, functional TypeScript, types/interfaces, and `const` arrow functions.
+- Limit 'use client'; prefer Server Components and Server Actions. Wrap client components with Suspense and lightweight fallbacks.
+- Use `next/image`, `next/dynamic`, and Tailwind (mobile-first); avoid inline styles unless necessary.
 
-Security: Prioritize security to prevent vulnerabilities (e.g., XSS, CSRF). For high-risk areas (e.g., user input, authentication), conduct a mandatory <SECURITY_REVIEW> with:
-- Vulnerability identification.
-- Mitigation strategies (e.g., zod for validation).
-- OWASP or Next.js references.
-- Test to verify mitigation.
-- Use secure defaults (e.g., helmet, zod) and avoid unsafe practices (e.g., eval).
+# Supabase-specific Practices
+- Use `@supabase/supabase-js` for client usage and server-side client helpers (use server client for secrets and server-side auth flows).
+- Follow Supabase Next.js examples for authentication, SSR, and route handlers. Keep tokens and server clients out of the client bundle.
 
-Performance and Robustness: Optimize for performance, reliability, and scalability:
-- Minimize re-renders, bundle size, and server load (e.g., React.memo, ISR).
-- Implement try-catch for API calls, user-friendly error messages, and error logging.
-- Address edge cases (e.g., empty states, network failures).
-- Measure performance with Lighthouse or @next/bundle-analyzer.
-- Document trade-offs in comments or status.md.
+# Do's
+- Prefer server-side Supabase clients for secrets and authentication checks.
+- Validate all inputs with zod (or equivalent) and sanitize outputs.
+- Keep examples minimal and reproducible (small snippets + tests).
+- Document environment variables and runtime requirements in `status.md`.
 
-Operational Concerns: Ensure code is production-ready, addressing:
-- Hosting: Compatibility with Vercel, AWS, or Netlify.
-- Management: Use .env.local for configuration.
-- Monitoring: Integrate logging (e.g., Sentry for prod).
-- Maintenance: Write self-documenting code, update status.md, and run npm audit.
+# Don'ts
+- Never embed service keys in client bundles or commit them to git.
+- Avoid mixing overlapping libraries; use focused, well-maintained packages.
+- Do not rely on client-only authentication for sensitive flows.
+- Avoid lengthy examples; keep snippets minimal and actionable.
 
-Coding Standards:
-- Use early returns for readability.
-- Style with Tailwind CSS, mobile-first. Avoid inline CSS unless justified.
-- Use functional, declarative TypeScript code. Avoid classes. Define types/interfaces.
-- Use descriptive names with auxiliary verbs (e.g., isLoading). Prefix event handlers with handle (e.g., handleClick).
-- Use const arrow functions with types (e.g., const toggle: () => void = () =>).
-- Minimize 'use client', useEffect, and useState. Favor React Server Components.
-- Wrap client components in <Suspense> with lightweight fallbacks.
-- Use next/dynamic for non-critical components (ssr: false for client-only).
-- Optimize images with next/image (WebP, explicit sizes, loading="lazy").
-- Follow Next.js docs for data fetching, rendering, and routing.
-- Include try-catch and fallback UI for errors.
-- Use React.memo and analyze bundle size.
+# Feedback & Handling Uncertainty
+- If context is missing: reply with "I lack sufficient information. Please provide details (e.g., @app/page.tsx)."
+- If there is no clear solution: reply with "No definitive solution is available."
 
-Feedback: Adapt suggestions based on user feedback, tracked in status.md or code comments. Address recurring issues with simpler or alternative solutions. Clarify ambiguous feedback via @ references.Uncertainty: If no clear answer exists, state: “No definitive solution is available.” If unknown, say: “I lack sufficient information. Please provide details (e.g., @app/page.tsx).” Suggest next steps (e.g., consult Next.js docs).
+# Reasoning & Output
+Set reasoning_effort = medium/high (if applicable) unless task complexity indicates otherwise; make tool calls terse, provide fuller final outputs where appropriate.
+---

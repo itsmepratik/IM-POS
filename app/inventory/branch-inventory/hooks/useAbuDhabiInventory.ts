@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { Item } from "@/lib/services/branchInventoryService";
+import { Item } from "@/lib/services/inventoryService";
+import { fetchItems, deleteItem } from "@/lib/services/inventoryService";
 import { toast } from "@/components/ui/use-toast";
 
 // Abu Dhurus Branch data (Branch ID: "1")
@@ -275,9 +276,18 @@ export function useAbuDhabiInventory(): UseAbuDhabiInventoryReturn {
   }, []);
 
   const fetchBranchInventory = async (): Promise<Item[]> => {
-    // Simulate API call delay
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    return ABU_DHABI_INVENTORY;
+    try {
+      // Use real database connection - Abu Dhurus branch ID
+      const abuDhabiId = "11fb9800-37ec-41af-b034-c8bbbd8c4b3c";
+      const data = await fetchItems(abuDhabiId);
+      console.log(
+        `✅ Fetched ${data.length} items for Abu Dhurus from database`
+      );
+      return data;
+    } catch (error) {
+      console.error("Error fetching Abu Dhurus inventory:", error);
+      return [];
+    }
   };
 
   // Derived states
@@ -341,19 +351,24 @@ export function useAbuDhabiInventory(): UseAbuDhabiInventoryReturn {
 
   const handleDeleteItem = async (id: string): Promise<void> => {
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      // Use real database connection - Abu Dhurus branch ID
+      const abuDhabiId = "11fb9800-37ec-41af-b034-c8bbbd8c4b3c";
+      const success = await deleteItem(id, abuDhabiId);
 
-      // Update local state
-      setBranchItems((prev) => prev.filter((item) => item.id !== id));
+      if (success) {
+        // Update local state
+        setBranchItems((prev) => prev.filter((item) => item.id !== id));
 
-      // Update selected items
-      setSelectedItems((prev) => prev.filter((itemId) => itemId !== id));
+        // Update selected items
+        setSelectedItems((prev) => prev.filter((itemId) => itemId !== id));
 
-      toast({
-        title: "Success",
-        description: "Item deleted successfully",
-      });
+        toast({
+          title: "Success",
+          description: "Item deleted successfully from Abu Dhurus inventory",
+        });
+      } else {
+        throw new Error("Delete operation failed");
+      }
     } catch (error) {
       console.error("Error deleting item:", error);
       toast({

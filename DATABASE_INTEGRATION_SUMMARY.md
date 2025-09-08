@@ -61,13 +61,19 @@ Your POS system now has **complete database integration** with multi-location su
 
 ### **1. Environment Variables**
 
-⚠️ **CRITICAL**: Add to `.env.local`:
+⚠️ **CRITICAL**: Add to `.env.local` (server-only secrets stay on the server):
 
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://dyrxksfiqlgypkebfidr.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR5cnhrc2ZpcWxneXBrZWJmaWRyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUwMTc1MTgsImV4cCI6MjA3MDU5MzUxOH0.hREVNhdSflqe5XW7NHDNTn0SSYlspdVIKrAySTyFE1A
 NEXT_PUBLIC_APP_ENV=development
+# Server-only
+SUPABASE_SERVICE_ROLE_KEY=...your service role key...
 ```
+
+Notes:
+- SUPABASE_SERVICE_ROLE_KEY must NOT be exposed to the browser. It's only used in API routes (server).
+- The API route `/api/lubricant-bottle-states` uses this key to upsert bottle states securely.
 
 ### **2. Add Branch Selector to Header**
 

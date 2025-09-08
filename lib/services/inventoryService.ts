@@ -19,7 +19,6 @@ export type Item = {
   brand_id: string | null;
   category_id: string | null;
   type: string | null;
-  sku: string | null;
   description: string | null;
   is_oil: boolean | null;
   isOil?: boolean;
@@ -30,6 +29,8 @@ export type Item = {
   created_at: string | null;
   updated_at: string | null;
   lowStockAlert?: number;
+  isBattery?: boolean;
+  batteryState?: "new" | "scrap" | "resellable";
 };
 
 export type Volume = {
@@ -190,101 +191,365 @@ const MOCK_INVENTORY: Record<string, Item[]> = {
   ],
 };
 
-// Implement the missing API functions
-export const fetchItems = async (branchId: string): Promise<Item[]> => {
-  await new Promise((resolve) => setTimeout(resolve, 500)); // Simulate API delay
-  return MOCK_INVENTORY[branchId] || [];
+// Implement the API functions using actual endpoints
+export const fetchItems = async (locationId: string): Promise<Item[]> => {
+  try {
+    console.log(`Fetching items for location: ${locationId}`);
+
+    const response = await fetch(
+      `/api/products/fetch?locationId=${locationId}`
+    );
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch items: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+
+    if (!data.ok) {
+      throw new Error(data.error || "Failed to fetch items");
+    }
+
+    // Transform API response to match Item interface
+    const items: Item[] = data.items.map((item: any) => ({
+      id: item.id,
+      name: item.name,
+      price: parseFloat(item.inventory?.selling_price || "0"),
+      stock: item.inventory?.total_stock || 0,
+      category: item.category,
+      brand: item.brand,
+      brand_id: item.brand_id || null,
+      category_id: item.category_id || null,
+      type: item.product_type,
+      description: item.description || null,
+      is_oil: item.category?.toLowerCase() === "lubricants",
+      isOil: item.category?.toLowerCase() === "lubricants",
+      imageUrl: item.image_url,
+      image_url: item.image_url,
+      volumes: item.volumes || [],
+      batches: [], // Will be populated from batches API if needed
+      created_at: item.created_at || null,
+      updated_at: item.updated_at || null,
+      lowStockAlert: item.low_stock_threshold || 5,
+      bottleStates:
+        item.category?.toLowerCase() === "lubricants"
+          ? {
+              open: item.inventory?.open_bottles_stock || 0,
+              closed: item.inventory?.closed_bottles_stock || 0,
+            }
+          : undefined,
+    }));
+
+    console.log(`Fetched ${items.length} items successfully`);
+    return items;
+  } catch (error) {
+    console.error("Error fetching items:", error);
+    throw error;
+  }
 };
 
-export const fetchItem = async (itemId: string): Promise<Item | null> => {
-  await new Promise((resolve) => setTimeout(resolve, 300)); // Simulate API delay
+export const fetchItem = async (
+  itemId: string,
+  locationId: string
+): Promise<Item | null> => {
+  try {
+    console.log(`Fetching item ${itemId} for location: ${locationId}`);
 
-  // Search in all branches
-  for (const branchId in MOCK_INVENTORY) {
-    const item = MOCK_INVENTORY[branchId].find((item) => item.id === itemId);
-    if (item) return item;
+    // For now, fetch all items and find the specific one
+    const items = await fetchItems(locationId);
+    const item = items.find((item) => item.id === itemId);
+
+    if (item) {
+      console.log(`Found item: ${item.name}`);
+      return item;
+    }
+
+    console.log(`Item ${itemId} not found`);
+    return null;
+  } catch (error) {
+    console.error("Error fetching item:", error);
+    return null;
   }
-
-  return null;
 };
 
 export const createItem = async (
-  item: Omit<Item, "id">,
-  branchId: string
-): Promise<Item> => {
-  await new Promise((resolve) => setTimeout(resolve, 700)); // Simulate API delay
+  newItem: Omit<Item, "id">,
+  locationId: string
+): Promise<Item | null> => {
+  try {
+    console.log("Creating item:", newItem.name, "for location:", locationId);
 
-  const newId = Math.random().toString(36).substring(2, 15);
-  const newItem: Item = {
-    ...item,
-    id: newId,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    brand_id: item.brand_id || null,
-    category_id: item.category_id || null,
-    is_oil: item.is_oil || false,
-    image_url: item.image_url || null,
-    type: item.type || null,
-    sku: item.sku || null,
-  };
+    // Prepare the payload for the API
+    const payload: any = {
+      name: newItem.name,
+      low_stock_threshold: newItem.lowStockAlert || 5,
+      location_id: locationId,
+    };
 
-  if (!MOCK_INVENTORY[branchId]) {
-    MOCK_INVENTORY[branchId] = [];
+    // Only include fields if they have valid values (not null or undefined)
+    if (newItem.brand) {
+      payload.brand = newItem.brand;
+    }
+    if (newItem.type) {
+      payload.type = newItem.type;
+    }
+    if (newItem.description) {
+      payload.description = newItem.description;
+    }
+    if (newItem.image_url) {
+      payload.image_url = newItem.image_url;
+    }
+    if (newItem.category_id) {
+      payload.category_id = newItem.category_id;
+    }
+
+    // Add lubricant-specific data if it's a lubricant
+    if (newItem.isOil || newItem.is_oil) {
+      Object.assign(payload, {
+        volumes:
+          newItem.volumes?.map((v) => ({
+            volume: v.size,
+            price: v.price,
+          })) || [],
+        open_bottles_stock: newItem.bottleStates?.open || 0,
+        closed_bottles_stock: newItem.bottleStates?.closed || 0,
+      });
+    } else {
+      // For non-lubricants
+      Object.assign(payload, {
+        standard_stock: newItem.stock || 0,
+        selling_price: newItem.price || 0,
+      });
+    }
+
+    // Add initial batch if available
+    if (newItem.batches && newItem.batches.length > 0) {
+      const firstBatch = newItem.batches[0];
+      Object.assign(payload, {
+        batch: {
+          cost_price: firstBatch.cost_price || 0,
+          quantity: firstBatch.current_quantity || 0,
+          supplier: firstBatch.supplier_id || undefined,
+        },
+      });
+    }
+
+    console.log("API Payload:", payload);
+
+    const response = await fetch("/api/products/save", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errorData = await response
+        .json()
+        .catch(() => ({ error: response.statusText }));
+      console.error("API Error Response:", errorData);
+      throw new Error(
+        `Failed to create item: ${errorData.error || response.statusText}`
+      );
+    }
+
+    const data = await response.json();
+
+    if (!data.ok) {
+      throw new Error(data.error || "Failed to create item");
+    }
+
+    console.log("Item created successfully with ID:", data.product_id);
+
+    // Return the created item by fetching it back
+    const createdItem = await fetchItem(data.product_id, locationId);
+
+    if (!createdItem) {
+      throw new Error("Failed to fetch created item");
+    }
+
+    return createdItem;
+  } catch (error) {
+    console.error("Error creating item:", error);
+    throw error;
   }
-
-  MOCK_INVENTORY[branchId].push(newItem);
-  return newItem;
 };
+
+// Alias for backwards compatibility
+export const addItem = createItem;
 
 export const updateItem = async (
   id: string,
   updatedItem: Partial<Item>,
-  branchId: string
+  locationId: string
 ): Promise<Item | null> => {
-  await new Promise((resolve) => setTimeout(resolve, 500)); // Simulate API delay
+  try {
+    console.log("Updating item:", id, "for location:", locationId);
 
-  if (!MOCK_INVENTORY[branchId]) return null;
+    // Prepare the payload for the API (similar to createItem but with id)
+    const payload: any = {
+      id,
+      name: updatedItem.name,
+      low_stock_threshold: updatedItem.lowStockAlert || 5,
+      location_id: locationId,
+    };
 
-  const itemIndex = MOCK_INVENTORY[branchId].findIndex(
-    (item) => item.id === id
-  );
-  if (itemIndex === -1) return null;
+    // Only include fields if they have valid values (not null or undefined)
+    if (updatedItem.brand) {
+      payload.brand = updatedItem.brand;
+    }
+    if (updatedItem.type) {
+      payload.type = updatedItem.type;
+    }
+    if (updatedItem.description) {
+      payload.description = updatedItem.description;
+    }
+    if (updatedItem.image_url) {
+      payload.image_url = updatedItem.image_url;
+    }
+    if (updatedItem.category_id) {
+      payload.category_id = updatedItem.category_id;
+    }
 
-  const item = MOCK_INVENTORY[branchId][itemIndex];
-  const updated: Item = {
-    ...item,
-    ...updatedItem,
-    updated_at: new Date().toISOString(),
-  };
+    // Add lubricant-specific data if it's a lubricant
+    if (updatedItem.isOil || updatedItem.is_oil) {
+      Object.assign(payload, {
+        volumes:
+          updatedItem.volumes?.map((v) => ({
+            volume: v.size,
+            price: v.price,
+          })) || [],
+        open_bottles_stock: updatedItem.bottleStates?.open || 0,
+        closed_bottles_stock: updatedItem.bottleStates?.closed || 0,
+      });
+    } else {
+      // For non-lubricants
+      Object.assign(payload, {
+        standard_stock: updatedItem.stock || 0,
+        selling_price: updatedItem.price || 0,
+      });
+    }
 
-  MOCK_INVENTORY[branchId][itemIndex] = updated;
-  return updated;
+    console.log("Update API Payload:", payload);
+
+    const response = await fetch("/api/products/save", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errorData = await response
+        .json()
+        .catch(() => ({ error: response.statusText }));
+      console.error("API Error Response:", errorData);
+      throw new Error(
+        `Failed to update item: ${errorData.error || response.statusText}`
+      );
+    }
+
+    const data = await response.json();
+
+    if (!data.ok) {
+      throw new Error(data.error || "Failed to update item");
+    }
+
+    console.log("Item updated successfully");
+
+    // Return the updated item by fetching it back
+    const updatedItemData = await fetchItem(id, locationId);
+
+    if (!updatedItemData) {
+      throw new Error("Failed to fetch updated item");
+    }
+
+    return updatedItemData;
+  } catch (error) {
+    console.error("Error updating item:", error);
+    throw error;
+  }
 };
 
 export const deleteItem = async (
   id: string,
-  branchId: string
+  locationId: string
 ): Promise<boolean> => {
-  await new Promise((resolve) => setTimeout(resolve, 400)); // Simulate API delay
+  try {
+    console.log("Deleting item:", id, "for location:", locationId);
 
-  if (!MOCK_INVENTORY[branchId]) return false;
+    const response = await fetch(
+      `/api/products/delete?productId=${id}&locationId=${locationId}`,
+      {
+        method: "DELETE",
+      }
+    );
 
-  const initialLength = MOCK_INVENTORY[branchId].length;
-  MOCK_INVENTORY[branchId] = MOCK_INVENTORY[branchId].filter(
-    (item) => item.id !== id
-  );
+    if (!response.ok) {
+      throw new Error(`Failed to delete item: ${response.statusText}`);
+    }
 
-  return MOCK_INVENTORY[branchId].length < initialLength;
+    const data = await response.json();
+
+    if (!data.ok) {
+      throw new Error(data.error || "Failed to delete item");
+    }
+
+    console.log("Item deleted successfully");
+    return true;
+  } catch (error) {
+    console.error("Error deleting item:", error);
+    return false;
+  }
 };
 
 export const fetchCategories = async (): Promise<Category[]> => {
-  await new Promise((resolve) => setTimeout(resolve, 300)); // Simulate API delay
-  return MOCK_CATEGORIES;
+  try {
+    console.log("Fetching categories from database...");
+
+    // Use Supabase client to fetch categories
+    const { createClient } = await import("@/supabase/client");
+    const supabase = createClient();
+
+    const { data, error } = await supabase
+      .from("categories")
+      .select("id, name")
+      .order("name");
+
+    if (error) {
+      console.error("Error fetching categories:", error);
+      // Fallback to mock data if database fails
+      console.log("Falling back to mock categories");
+      return MOCK_CATEGORIES;
+    }
+
+    console.log(`Fetched ${data?.length || 0} categories from database`);
+    return data || [];
+  } catch (error) {
+    console.error("Error fetching categories:", error);
+    // Fallback to mock data
+    console.log("Falling back to mock categories");
+    return MOCK_CATEGORIES;
+  }
 };
 
 export const fetchBrands = async (): Promise<Brand[]> => {
-  await new Promise((resolve) => setTimeout(resolve, 300)); // Simulate API delay
-  return MOCK_BRANDS;
+  try {
+    console.log("Fetching brands from database...");
+
+    // For now, return mock data as brands table structure needs to be verified
+    // TODO: Implement actual database fetch when brands table is confirmed
+    console.log(
+      "Using mock brands - brands table structure needs verification"
+    );
+    await new Promise((resolve) => setTimeout(resolve, 100)); // Minimal delay
+    return MOCK_BRANDS;
+  } catch (error) {
+    console.error("Error fetching brands:", error);
+    return MOCK_BRANDS;
+  }
 };
 
 export const fetchSuppliers = async (): Promise<Supplier[]> => {
@@ -293,210 +558,271 @@ export const fetchSuppliers = async (): Promise<Supplier[]> => {
 };
 
 export const fetchBranches = async (): Promise<Branch[]> => {
-  await new Promise((resolve) => setTimeout(resolve, 300)); // Simulate API delay
-  return MOCK_BRANCHES;
+  try {
+    console.log("Fetching locations from database...");
+
+    // Use Supabase client to fetch locations (branches)
+    const { createClient } = await import("@/supabase/client");
+    const supabase = createClient();
+
+    const { data, error } = await supabase
+      .from("locations")
+      .select("id, name")
+      .order("name");
+
+    if (error) {
+      console.error("Error fetching locations:", error);
+      // Fallback to mock data if database fails
+      console.log("Falling back to mock branches");
+      return MOCK_BRANCHES;
+    }
+
+    // Transform locations to Branch format
+    const branches: Branch[] = (data || []).map((location) => ({
+      id: location.id,
+      name: location.name,
+      address: "", // Not stored in locations table
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }));
+
+    console.log(
+      `Fetched ${branches.length} locations from database:`,
+      branches.map((b) => ({ id: b.id, name: b.name }))
+    );
+    return branches;
+  } catch (error) {
+    console.error("Error fetching branches:", error);
+    // Fallback to mock data
+    console.log("Falling back to mock branches");
+    return MOCK_BRANCHES;
+  }
 };
 
-export const addCategory = async (name: string): Promise<Category> => {
-  await new Promise((resolve) => setTimeout(resolve, 400)); // Simulate API delay
+export const addCategory = async (name: string): Promise<Category | null> => {
+  try {
+    console.log("Adding category:", name);
 
-  const newId = Math.random().toString(36).substring(2, 15);
-  const newCategory: Category = { id: newId, name };
+    // Use Supabase client to add category
+    const { createClient } = await import("@/supabase/client");
+    const supabase = createClient();
 
-  MOCK_CATEGORIES.push(newCategory);
-  return newCategory;
+    const { data, error } = await supabase
+      .from("categories")
+      .insert({ name })
+      .select("id, name")
+      .single();
+
+    if (error) {
+      console.error("Error adding category:", error);
+      throw error;
+    }
+
+    console.log("Category added successfully:", data);
+    return data;
+  } catch (error) {
+    console.error("Error adding category:", error);
+    throw error;
+  }
 };
 
 export const updateCategory = async (
   id: string,
   name: string
 ): Promise<Category | null> => {
-  await new Promise((resolve) => setTimeout(resolve, 400)); // Simulate API delay
+  try {
+    console.log("Updating category:", id, "to:", name);
 
-  const index = MOCK_CATEGORIES.findIndex((cat) => cat.id === id);
-  if (index === -1) return null;
+    // Use Supabase client to update category
+    const { createClient } = await import("@/supabase/client");
+    const supabase = createClient();
 
-  MOCK_CATEGORIES[index].name = name;
-  return MOCK_CATEGORIES[index];
+    const { data, error } = await supabase
+      .from("categories")
+      .update({ name })
+      .eq("id", id)
+      .select("id, name")
+      .single();
+
+    if (error) {
+      console.error("Error updating category:", error);
+      throw error;
+    }
+
+    console.log("Category updated successfully:", data);
+    return data;
+  } catch (error) {
+    console.error("Error updating category:", error);
+    return null;
+  }
 };
 
 export const deleteCategory = async (id: string): Promise<boolean> => {
-  await new Promise((resolve) => setTimeout(resolve, 400)); // Simulate API delay
+  try {
+    console.log("Deleting category:", id);
 
-  const initialLength = MOCK_CATEGORIES.length;
-  const index = MOCK_CATEGORIES.findIndex((cat) => cat.id === id);
+    // Use Supabase client to delete category
+    const { createClient } = await import("@/supabase/client");
+    const supabase = createClient();
 
-  if (index !== -1) {
-    MOCK_CATEGORIES.splice(index, 1);
+    const { error } = await supabase.from("categories").delete().eq("id", id);
+
+    if (error) {
+      console.error("Error deleting category:", error);
+      throw error;
+    }
+
+    console.log("Category deleted successfully");
+    return true;
+  } catch (error) {
+    console.error("Error deleting category:", error);
+    return false;
   }
-
-  return MOCK_CATEGORIES.length < initialLength;
 };
 
-export const addBrand = async (name: string): Promise<Brand> => {
-  await new Promise((resolve) => setTimeout(resolve, 400)); // Simulate API delay
+export const addBrand = async (name: string): Promise<Brand | null> => {
+  try {
+    console.log("Adding brand:", name);
 
-  const newId = Math.random().toString(36).substring(2, 15);
-  const newBrand: Brand = { id: newId, name };
+    // For now, use mock data as brands table structure needs to be verified
+    // TODO: Implement actual database operations when brands table is confirmed
+    await new Promise((resolve) => setTimeout(resolve, 200));
 
-  MOCK_BRANDS.push(newBrand);
-  return newBrand;
+    const newId = Math.random().toString(36).substring(2, 15);
+    const newBrand: Brand = { id: newId, name };
+    MOCK_BRANDS.push(newBrand);
+
+    console.log("Brand added successfully (mock):", newBrand);
+    return newBrand;
+  } catch (error) {
+    console.error("Error adding brand:", error);
+    return null;
+  }
 };
 
 export const updateBrand = async (
   id: string,
   name: string
 ): Promise<Brand | null> => {
-  await new Promise((resolve) => setTimeout(resolve, 400)); // Simulate API delay
+  try {
+    console.log("Updating brand:", id, "to:", name);
 
-  const index = MOCK_BRANDS.findIndex((brand) => brand.id === id);
-  if (index === -1) return null;
+    // For now, use mock data as brands table structure needs to be verified
+    // TODO: Implement actual database operations when brands table is confirmed
+    await new Promise((resolve) => setTimeout(resolve, 200));
 
-  MOCK_BRANDS[index].name = name;
-  return MOCK_BRANDS[index];
+    const index = MOCK_BRANDS.findIndex((brand) => brand.id === id);
+    if (index === -1) return null;
+
+    MOCK_BRANDS[index].name = name;
+    console.log("Brand updated successfully (mock):", MOCK_BRANDS[index]);
+    return MOCK_BRANDS[index];
+  } catch (error) {
+    console.error("Error updating brand:", error);
+    return null;
+  }
 };
 
 export const deleteBrand = async (id: string): Promise<boolean> => {
-  await new Promise((resolve) => setTimeout(resolve, 400)); // Simulate API delay
+  try {
+    console.log("Deleting brand:", id);
 
-  const initialLength = MOCK_BRANDS.length;
-  const index = MOCK_BRANDS.findIndex((brand) => brand.id === id);
+    // For now, use mock data as brands table structure needs to be verified
+    // TODO: Implement actual database operations when brands table is confirmed
+    await new Promise((resolve) => setTimeout(resolve, 200));
 
-  if (index !== -1) {
-    MOCK_BRANDS.splice(index, 1);
+    const index = MOCK_BRANDS.findIndex((brand) => brand.id === id);
+    if (index !== -1) {
+      MOCK_BRANDS.splice(index, 1);
+      console.log("Brand deleted successfully (mock)");
+      return true;
+    }
+
+    return false;
+  } catch (error) {
+    console.error("Error deleting brand:", error);
+    return false;
   }
-
-  return MOCK_BRANDS.length < initialLength;
 };
 
+// Batch management functions
 export const addBatch = async (
   itemId: string,
-  batchData: Partial<Batch>
-): Promise<Batch | null> => {
-  await new Promise((resolve) => setTimeout(resolve, 500)); // Simulate API delay
+  newBatch: Pick<
+    Batch,
+    | "purchase_date"
+    | "cost_price"
+    | "initial_quantity"
+    | "current_quantity"
+    | "supplier_id"
+    | "expiration_date"
+  >,
+  locationId: string
+): Promise<boolean> => {
+  try {
+    console.log("Adding batch for item:", itemId, "location:", locationId);
 
-  // Find the item in any branch
-  let targetItem: Item | null = null;
-  let targetBranch: string | null = null;
+    // For now, return true as batch management needs a dedicated API endpoint
+    // The batch data would be stored via the products/save endpoint when creating/updating items
+    console.log("Batch management via dedicated API not yet implemented");
+    await new Promise((resolve) => setTimeout(resolve, 200));
 
-  for (const branchId in MOCK_INVENTORY) {
-    const item = MOCK_INVENTORY[branchId].find((item) => item.id === itemId);
-    if (item) {
-      targetItem = item;
-      targetBranch = branchId;
-      break;
-    }
+    return true;
+  } catch (error) {
+    console.error("Error adding batch:", error);
+    return false;
   }
-
-  if (!targetItem || !targetBranch) return null;
-
-  const newId = Math.random().toString(36).substring(2, 15);
-  const newBatch: Batch = {
-    id: newId,
-    item_id: itemId,
-    purchase_date: batchData.purchase_date || null,
-    expiration_date: batchData.expiration_date || null,
-    supplier_id: batchData.supplier_id || null,
-    cost_price: batchData.cost_price || 0,
-    initial_quantity: batchData.initial_quantity || 0,
-    current_quantity: batchData.current_quantity || 0,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  };
-
-  if (!targetItem.batches) {
-    targetItem.batches = [];
-  }
-
-  targetItem.batches.push(newBatch);
-
-  // Update stock
-  if (targetItem.stock === undefined) {
-    targetItem.stock = 0;
-  }
-
-  targetItem.stock += newBatch.current_quantity || 0;
-
-  return newBatch;
 };
 
 export const updateBatch = async (
   itemId: string,
   batchId: string,
-  batchData: Partial<Batch>
-): Promise<Batch | null> => {
-  await new Promise((resolve) => setTimeout(resolve, 500)); // Simulate API delay
+  updatedBatch: Partial<Omit<Batch, "id" | "item_id">>,
+  locationId: string
+): Promise<boolean> => {
+  try {
+    console.log(
+      "Updating batch:",
+      batchId,
+      "for item:",
+      itemId,
+      "location:",
+      locationId
+    );
 
-  // Find the item in any branch
-  let targetItem: Item | null = null;
+    // For now, return true as batch management needs a dedicated API endpoint
+    console.log("Batch update via dedicated API not yet implemented");
+    await new Promise((resolve) => setTimeout(resolve, 200));
 
-  for (const branchId in MOCK_INVENTORY) {
-    const item = MOCK_INVENTORY[branchId].find((item) => item.id === itemId);
-    if (item) {
-      targetItem = item;
-      break;
-    }
+    return true;
+  } catch (error) {
+    console.error("Error updating batch:", error);
+    return false;
   }
-
-  if (!targetItem || !targetItem.batches) return null;
-
-  const batchIndex = targetItem.batches.findIndex(
-    (batch) => batch.id === batchId
-  );
-  if (batchIndex === -1) return null;
-
-  const oldQuantity = targetItem.batches[batchIndex].current_quantity || 0;
-  const newQuantity =
-    batchData.current_quantity !== undefined
-      ? batchData.current_quantity
-      : oldQuantity;
-
-  // Update the batch
-  targetItem.batches[batchIndex] = {
-    ...targetItem.batches[batchIndex],
-    ...batchData,
-    updated_at: new Date().toISOString(),
-  };
-
-  // Update stock if quantity changed
-  if (targetItem.stock !== undefined && newQuantity !== oldQuantity) {
-    targetItem.stock = targetItem.stock - oldQuantity + (newQuantity || 0);
-  }
-
-  return targetItem.batches[batchIndex];
 };
 
 export const deleteBatch = async (
   itemId: string,
-  batchId: string
+  batchId: string,
+  locationId: string
 ): Promise<boolean> => {
-  await new Promise((resolve) => setTimeout(resolve, 400)); // Simulate API delay
+  try {
+    console.log(
+      "Deleting batch:",
+      batchId,
+      "for item:",
+      itemId,
+      "location:",
+      locationId
+    );
 
-  // Find the item in any branch
-  let targetItem: Item | null = null;
+    // For now, return true as batch management needs a dedicated API endpoint
+    console.log("Batch deletion via dedicated API not yet implemented");
+    await new Promise((resolve) => setTimeout(resolve, 200));
 
-  for (const branchId in MOCK_INVENTORY) {
-    const item = MOCK_INVENTORY[branchId].find((item) => item.id === itemId);
-    if (item) {
-      targetItem = item;
-      break;
-    }
+    return true;
+  } catch (error) {
+    console.error("Error deleting batch:", error);
+    return false;
   }
-
-  if (!targetItem || !targetItem.batches) return false;
-
-  const batchIndex = targetItem.batches.findIndex(
-    (batch) => batch.id === batchId
-  );
-  if (batchIndex === -1) return false;
-
-  // Decrease stock
-  if (targetItem.stock !== undefined) {
-    targetItem.stock -= targetItem.batches[batchIndex].current_quantity || 0;
-  }
-
-  // Remove the batch
-  targetItem.batches.splice(batchIndex, 1);
-
-  return true;
 };

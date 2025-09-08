@@ -7,12 +7,12 @@ import {
   useEffect,
   ReactNode,
 } from "react";
-import { createClient } from "@/lib/supabase/client";
-import { Database } from "@/types/database";
+import { createClient } from "@/supabase/client";
+import { Database } from "@/supabase/database";
 import { User, Session } from "@supabase/supabase-js";
 import { toast } from "@/components/ui/use-toast";
 
-type DbProfile = Database["public"]["Tables"]["profiles"]["Row"];
+type DbProfile = Database["public"]["Tables"]["user_profiles"]["Row"];
 
 interface AuthContextType {
   user: User | null;
@@ -50,7 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loadUserProfile = async (userId: string) => {
     try {
       const { data: profileData, error } = await supabase
-        .from("profiles")
+        .from("user_profiles")
         .select("*")
         .eq("id", userId)
         .single();

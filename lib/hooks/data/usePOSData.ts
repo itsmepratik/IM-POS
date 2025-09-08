@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useEffect, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
-import { Database } from "@/types/database";
+import { useMemo, useEffect, useState, useCallback } from "react";
+import { createClient } from "@/supabase/client";
+import { Database } from "@/supabase/database";
 import { usePOSMockData } from "./usePOSMockData";
 import { useBranch } from "../../contexts/DataProvider";
 
@@ -83,17 +83,7 @@ export function usePOSData(): POSCatalogData {
 
   const supabase = createClient();
 
-  useEffect(() => {
-    if (!currentBranch || branchLoadError) {
-      setUseFallback(true);
-      setIsLoading(false);
-      return;
-    }
-
-    fetchPOSData();
-  }, [currentBranch, branchLoadError]);
-
-  const fetchPOSData = async () => {
+  const fetchPOSData = useCallback(async () => {
     try {
       setIsLoading(true);
       setError(null);
@@ -144,7 +134,17 @@ export function usePOSData(): POSCatalogData {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [currentBranch, supabase]);
+
+  useEffect(() => {
+    if (!currentBranch || branchLoadError) {
+      setUseFallback(true);
+      setIsLoading(false);
+      return;
+    }
+
+    fetchPOSData();
+  }, [currentBranch, branchLoadError, fetchPOSData]);
 
   // Transform database data to match existing POS component interface
   const lubricantProducts = useMemo(() => {

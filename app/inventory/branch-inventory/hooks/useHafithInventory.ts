@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { Item } from "@/lib/services/branchInventoryService";
+import { Item } from "@/lib/services/inventoryService";
+import { fetchItems, deleteItem } from "@/lib/services/inventoryService";
 import { toast } from "@/components/ui/use-toast";
 
 // Hafith Branch data (Branch ID: "2")
@@ -302,9 +303,16 @@ export function useHafithInventory(): UseHafithInventoryReturn {
   }, []);
 
   const fetchBranchInventory = async (): Promise<Item[]> => {
-    // Simulate API call delay
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    return HAFITH_INVENTORY;
+    try {
+      // Use real database connection - Hafith branch ID
+      const hafithId = "8ae59a0c-1821-4ec0-b913-1900fdcaf7a1";
+      const data = await fetchItems(hafithId);
+      console.log(`✅ Fetched ${data.length} items for Hafith from database`);
+      return data;
+    } catch (error) {
+      console.error("Error fetching Hafith inventory:", error);
+      return [];
+    }
   };
 
   // Derived states
@@ -368,19 +376,24 @@ export function useHafithInventory(): UseHafithInventoryReturn {
 
   const handleDeleteItem = async (id: string): Promise<void> => {
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      // Use real database connection - Hafith branch ID
+      const hafithId = "8ae59a0c-1821-4ec0-b913-1900fdcaf7a1";
+      const success = await deleteItem(id, hafithId);
 
-      // Update local state
-      setBranchItems((prev) => prev.filter((item) => item.id !== id));
+      if (success) {
+        // Update local state
+        setBranchItems((prev) => prev.filter((item) => item.id !== id));
 
-      // Update selected items
-      setSelectedItems((prev) => prev.filter((itemId) => itemId !== id));
+        // Update selected items
+        setSelectedItems((prev) => prev.filter((itemId) => itemId !== id));
 
-      toast({
-        title: "Success",
-        description: "Item deleted successfully",
-      });
+        toast({
+          title: "Success",
+          description: "Item deleted successfully from Hafith inventory",
+        });
+      } else {
+        throw new Error("Delete operation failed");
+      }
     } catch (error) {
       console.error("Error deleting item:", error);
       toast({

@@ -6,12 +6,21 @@ import {
   useContext,
   useEffect,
   ReactNode,
+  useMemo,
 } from "react";
-import { createClient } from "@/lib/supabase/client";
-import { Database } from "@/types/database";
+import { createClient } from "@/supabase/client";
 import { toast } from "@/components/ui/use-toast";
 
-type DbBranch = Database["public"]["Tables"]["branches"]["Row"];
+// Define branch type since branches table no longer exists
+type DbBranch = {
+  id: string;
+  name: string;
+  address: string | null;
+  phone: string | null;
+  email: string | null;
+  is_active: boolean;
+  created_at: string;
+};
 
 interface BranchContextType {
   branches: DbBranch[];
@@ -43,75 +52,128 @@ export function BranchProvider({ children }: { children: ReactNode }) {
 
   const supabase = createClient();
 
-  // Load branches from Supabase
+  // Add stability to prevent unnecessary re-renders
+  const stableBranches = useMemo(() => branches, [JSON.stringify(branches)]);
+
+  // Load branches from database using the fetchBranches service
   const loadBranches = async () => {
     try {
       setIsLoadingBranches(true);
       setBranchLoadError(false);
 
-      const { data: branchesData, error } = await supabase
-        .from("branches")
-        .select("*")
-        .eq("is_active", true)
-        .order("name");
+      console.log(
+        "🏢 Loading real branches from database via fetchBranches service..."
+      );
 
-      if (error) {
-        console.error("Error fetching branches:", error);
-        throw error;
-      }
+      // Import fetchBranches function
+      const { fetchBranches } = await import("@/lib/services/inventoryService");
 
-      if (branchesData && branchesData.length > 0) {
-        setBranches(branchesData);
+      // Fetch real branches from database
+      const realBranches = await fetchBranches();
 
-        // Set first branch as default if none selected
-        if (!currentBranch) {
-          setCurrentBranch(branchesData[0]);
-          localStorage.setItem("selectedBranchId", branchesData[0].id);
+      if (realBranches && realBranches.length > 0) {
+        // Transform branch data to match DbBranch interface
+        const dbBranches: DbBranch[] = realBranches.map((branch) => ({
+          id: branch.id,
+          name: branch.name,
+          address: branch.address || null,
+          phone: null, // Not available in current schema
+          email: null, // Not available in current schema
+          is_active: true,
+          created_at: branch.created_at || new Date().toISOString(),
+        }));
+
+        console.log(
+          "✅ Successfully loaded branches:",
+          dbBranches.map((b) => ({ id: b.id, name: b.name }))
+        );
+        setBranches(dbBranches);
+
+        // Set first branch as default if none selected or saved branch doesn't exist
+        const savedBranchId = localStorage.getItem("selectedBranchId");
+        const savedBranch = dbBranches.find((b) => b.id === savedBranchId);
+
+        // Clear localStorage to force default to Sanaiya (which has inventory data)
+        if (savedBranchId && !savedBranch) {
+          localStorage.removeItem("selectedBranchId");
+          console.log("🧹 Cleared invalid saved branch ID from localStorage");
         }
+
+        if (!currentBranch || !savedBranch) {
+          // Set Sanaiya as default since it has inventory data
+          const sanaiyaBranch = dbBranches.find((b) =>
+            b.name.toLowerCase().includes("sanaiya")
+          );
+          const defaultBranch = sanaiyaBranch || dbBranches[0];
+          setCurrentBranch(defaultBranch);
+          localStorage.setItem("selectedBranchId", defaultBranch.id);
+          console.log(
+            `🏢 Set default branch to: ${defaultBranch.name} (${defaultBranch.id})`
+          );
+        }
+
+        setBranchLoadError(false);
       } else {
-        throw new Error("No active branches found");
+        throw new Error("No branches returned from database");
       }
     } catch (error) {
-      console.error("Error loading branches:", error);
+      console.error("❌ Error loading branches from database:", error);
 
-      // Fallback to default branches if database fails
+      // Fallback to mock data with real database UUIDs as last resort
       const fallbackBranches: DbBranch[] = [
         {
-          id: "fallback-downtown",
-          name: "Downtown Branch",
-          address: "123 Main Street, Downtown",
-          phone: "+1-555-0101",
-          email: "downtown@posstore.com",
+          id: "93922a5e-5327-4561-8395-97a4653c720c", // Real Hafith location ID from database
+          name: "Hafith",
+          address: "Hafith Area, Al Ain",
+          phone: "+971-3-711-2345",
+          email: "hafith@hnsautomotive.com",
           is_active: true,
           created_at: new Date().toISOString(),
         },
         {
-          id: "fallback-mall",
-          name: "Mall Branch",
-          address: "456 Shopping Mall, Level 2",
-          phone: "+1-555-0102",
-          email: "mall@posstore.com",
+          id: "d2f3b51b-2e86-4c4b-831c-96b468bd48db", // Real Abudhurus location ID from database
+          name: "Abu Dhurus",
+          address: "Abu Dhurus Area, Al Ain",
+          phone: "+971-3-711-2346",
+          email: "abudhurus@hnsautomotive.com",
           is_active: true,
           created_at: new Date().toISOString(),
         },
         {
-          id: "fallback-suburban",
-          name: "Suburban Branch",
-          address: "789 Suburban Ave, Plaza",
-          phone: "+1-555-0103",
-          email: "suburban@posstore.com",
+          id: "c4212c14-64f3-4c9e-aa0e-6317fa3e9c3c", // Real Sanaiya location ID from database
+          name: "Sanaiya (HQ)",
+          address: "Sanaiya Industrial Area, Al Ain",
+          phone: "+971-3-711-2347",
+          email: "sanaiya@hnsautomotive.com",
           is_active: true,
           created_at: new Date().toISOString(),
         },
       ];
 
+      console.warn("⚠️ Using fallback branch data with valid UUIDs");
       setBranches(fallbackBranches);
-      setCurrentBranch(fallbackBranches[0]);
+
+      // Set Sanaiya as default if none selected (since it has inventory data)
+      if (!currentBranch) {
+        const sanaiyaFallback = fallbackBranches.find((b) =>
+          b.name.toLowerCase().includes("sanaiya")
+        );
+        const defaultBranch = sanaiyaFallback || fallbackBranches[0];
+        setCurrentBranch(defaultBranch);
+        localStorage.setItem("selectedBranchId", defaultBranch.id);
+        console.log(
+          `🏢 Set fallback default branch to: ${defaultBranch.name} (${defaultBranch.id})`
+        );
+      }
+
       setBranchLoadError(true);
 
+      // Show error toast to user
+      const { toast } = await import("@/components/ui/use-toast");
       toast({
-        title: "Database Connection Issue",
-        description: "Using offline branch data. Please check your connection.",
+        title: "Error loading locations",
+        description:
+          "Using fallback location data. Some features may be limited.",
         variant: "destructive",
       });
     } finally {
@@ -138,12 +200,20 @@ export function BranchProvider({ children }: { children: ReactNode }) {
       setCurrentBranch(branch);
       localStorage.setItem("selectedBranchId", branchId);
 
+      console.log(`✅ Switched to branch: ${branch.name} (${branch.id})`);
+
       toast({
-        title: "Branch Selected",
+        title: "Location Selected",
         description: `Switched to ${branch.name}`,
       });
     } else {
-      console.error(`Branch with ID ${branchId} not found`);
+      console.error(`❌ Branch with ID ${branchId} not found`);
+
+      toast({
+        title: "Error",
+        description: `Location with ID ${branchId} not found`,
+        variant: "destructive",
+      });
     }
   };
 
@@ -151,17 +221,27 @@ export function BranchProvider({ children }: { children: ReactNode }) {
     await loadBranches();
   };
 
+  const contextValue = useMemo(
+    () => ({
+      branches: stableBranches,
+      currentBranch,
+      isLoadingBranches,
+      selectBranch,
+      retryLoadBranches,
+      branchLoadError,
+    }),
+    [
+      stableBranches,
+      currentBranch,
+      isLoadingBranches,
+      selectBranch,
+      retryLoadBranches,
+      branchLoadError,
+    ]
+  );
+
   return (
-    <BranchContext.Provider
-      value={{
-        branches,
-        currentBranch,
-        isLoadingBranches,
-        selectBranch,
-        retryLoadBranches,
-        branchLoadError,
-      }}
-    >
+    <BranchContext.Provider value={contextValue}>
       {children}
     </BranchContext.Provider>
   );

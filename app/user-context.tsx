@@ -2,7 +2,7 @@
 
 import type React from "react";
 import { createContext, useContext, useState, useEffect } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/supabase/client";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 
 export type UserRole = "admin" | "shop";

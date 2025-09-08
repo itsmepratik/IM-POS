@@ -178,7 +178,6 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
         updated_at: item.updated_at || null,
         description: item.description || item.notes || null,
         image_url: item.image_url || item.imageUrl || null,
-        sku: item.sku || null,
         is_oil: item.is_oil || item.isOil || false,
       };
 
@@ -221,7 +220,6 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
         updated_at: null,
         description: null,
         image_url: null,
-        sku: null,
         is_oil: false,
       } as ExtendedItem);
     }
@@ -352,9 +350,8 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
       volumes: updatedFormData.isOil ? updatedFormData.volumes : [],
       batches: updatedFormData.batches,
       // Add other fields that might be needed by the backend
-      sku: updatedFormData.sku || null,
-      category_id: updatedFormData.category_id,
-      brand_id: updatedFormData.brand_id,
+      category_id: updatedFormData.category_id || null,
+      brand_id: updatedFormData.brand_id || null,
       // Add low stock threshold
       lowStockAlert: updatedFormData.lowStockAlert || 5,
       // Required fields for a valid Item
@@ -374,7 +371,6 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
           bottleStates: itemToSave.bottleStates,
           stock: itemToSave.stock,
           description: itemToSave.description,
-          sku: itemToSave.sku,
           category_id: itemToSave.category_id,
           brand_id: itemToSave.brand_id,
         });
@@ -742,11 +738,34 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
                                       `Selected category: ${value}, ID: ${categoryId}`
                                     );
 
+                                    // Auto-set isOil and show volumes tab when Lubricants is selected
+                                    const isLubricants = value === "Lubricants";
+
                                     setFormData({
                                       ...formData,
                                       category: value,
                                       category_id: categoryId,
+                                      isOil: isLubricants,
+                                      is_oil: isLubricants,
+                                      // Initialize volumes and bottle states for lubricants
+                                      volumes: isLubricants
+                                        ? formData.volumes &&
+                                          formData.volumes.length > 0
+                                          ? formData.volumes
+                                          : [{ size: "", price: 0 }]
+                                        : [],
+                                      bottleStates: isLubricants
+                                        ? formData.bottleStates || {
+                                            open: 0,
+                                            closed: 0,
+                                          }
+                                        : undefined,
                                     });
+
+                                    // Auto-switch to volumes tab for lubricants
+                                    if (isLubricants) {
+                                      setActiveTab("volumes");
+                                    }
                                   }}
                                 >
                                   <SelectTrigger>
@@ -879,19 +898,36 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
                                   }
                                 />
                               </div>
-                              <div>
-                                <Label htmlFor="type">Type</Label>
-                                <Input
-                                  id="type"
-                                  value={formData.type || ""}
-                                  onChange={(e) =>
-                                    setFormData({
-                                      ...formData,
-                                      type: e.target.value,
-                                    })
-                                  }
-                                />
-                              </div>
+                              {/* Type field - only show for Lubricants category */}
+                              {formData.category === "Lubricants" && (
+                                <div>
+                                  <Label htmlFor="type">Type</Label>
+                                  <Select
+                                    value={formData.type || ""}
+                                    onValueChange={(value) =>
+                                      setFormData({
+                                        ...formData,
+                                        type: value,
+                                      })
+                                    }
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Select lubricant type" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="Synthetic">
+                                        Synthetic
+                                      </SelectItem>
+                                      <SelectItem value="Non-Synthetic">
+                                        Non-Synthetic
+                                      </SelectItem>
+                                      <SelectItem value="Semi-Synthetic">
+                                        Semi-Synthetic
+                                      </SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              )}
                             </div>
                           </div>
 
@@ -908,26 +944,6 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
                               }
                               placeholder="https://example.com/image.jpg or /local-path/image.jpg"
                             />
-                          </div>
-
-                          <div>
-                            <Label htmlFor="sku">SKU</Label>
-                            <Input
-                              id="sku"
-                              value={formData.sku || ""}
-                              onChange={(e) => {
-                                console.log("SKU changed:", e.target.value);
-                                setFormData({
-                                  ...formData,
-                                  sku: e.target.value,
-                                });
-                              }}
-                            />
-                            <div className="text-xs text-muted-foreground mt-1">
-                              {formData.sku
-                                ? `SKU: ${formData.sku}`
-                                : "No SKU entered yet"}
-                            </div>
                           </div>
 
                           <div>
@@ -953,61 +969,6 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
                                 ? `Description has ${formData.notes.length} characters`
                                 : "No description entered yet"}
                             </div>
-                          </div>
-
-                          <div className="flex items-center space-x-2">
-                            <Checkbox
-                              id="isOil"
-                              checked={formData.isOil}
-                              onCheckedChange={(checked) => {
-                                // Log the current state
-                                console.log("Oil checkbox change:", {
-                                  before: formData.isOil,
-                                  after: checked,
-                                  formDataBefore: formData,
-                                });
-
-                                const isOilChecked = Boolean(checked);
-
-                                // Update both UI and backend fields
-                                setFormData({
-                                  ...formData,
-                                  isOil: isOilChecked,
-                                  is_oil: isOilChecked, // Update backend field too
-
-                                  // Initialize bottle states if checked
-                                  bottleStates: isOilChecked
-                                    ? formData.bottleStates || {
-                                        open: 0,
-                                        closed: 0,
-                                      }
-                                    : undefined,
-
-                                  // Initialize volumes if checked
-                                  volumes: isOilChecked
-                                    ? formData.volumes &&
-                                      formData.volumes.length > 0
-                                      ? formData.volumes
-                                      : [{ size: "", price: 0 }]
-                                    : [],
-
-                                  // If oil is checked, stock is calculated from bottle states
-                                  stock:
-                                    isOilChecked && formData.bottleStates
-                                      ? formData.bottleStates.open +
-                                        formData.bottleStates.closed
-                                      : formData.stock,
-                                });
-
-                                // If unchecking and on volumes tab, switch to general
-                                if (!checked && activeTab === "volumes") {
-                                  setActiveTab("general");
-                                }
-                              }}
-                            />
-                            <Label htmlFor="isOil">
-                              This is an oil product
-                            </Label>
                           </div>
 
                           {formData.isOil && (
