@@ -483,7 +483,7 @@ function MobileView({
                   }}
                   className="cursor-pointer"
                 >
-                  Manage Categories
+                  Categories
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => {
@@ -492,7 +492,7 @@ function MobileView({
                   }}
                   className="cursor-pointer"
                 >
-                  Manage Brands
+                  Brands
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

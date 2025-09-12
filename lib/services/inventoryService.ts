@@ -31,6 +31,8 @@ export type Item = {
   lowStockAlert?: number;
   isBattery?: boolean;
   batteryState?: "new" | "scrap" | "resellable";
+  costPrice?: number;
+  manufacturingDate?: string | null;
 };
 
 export type Volume = {
@@ -192,13 +194,20 @@ const MOCK_INVENTORY: Record<string, Item[]> = {
 };
 
 // Implement the API functions using actual endpoints
-export const fetchItems = async (locationId: string): Promise<Item[]> => {
+export const fetchItems = async (
+  locationId: string,
+  showTradeIns?: boolean
+): Promise<Item[]> => {
   try {
     console.log(`Fetching items for location: ${locationId}`);
 
-    const response = await fetch(
-      `/api/products/fetch?locationId=${locationId}`
-    );
+    const url = new URL("/api/products/fetch", window.location.origin);
+    url.searchParams.set("locationId", locationId);
+    if (showTradeIns) {
+      url.searchParams.set("showTradeIns", "true");
+    }
+
+    const response = await fetch(url.toString());
 
     if (!response.ok) {
       throw new Error(`Failed to fetch items: ${response.statusText}`);
@@ -231,6 +240,8 @@ export const fetchItems = async (locationId: string): Promise<Item[]> => {
       created_at: item.created_at || null,
       updated_at: item.updated_at || null,
       lowStockAlert: item.low_stock_threshold || 5,
+      costPrice: item.cost_price ? parseFloat(item.cost_price) : 0,
+      manufacturingDate: item.manufacturing_date || null,
       bottleStates:
         item.category?.toLowerCase() === "lubricants"
           ? {
@@ -287,7 +298,10 @@ export const createItem = async (
     };
 
     // Only include fields if they have valid values (not null or undefined)
-    if (newItem.brand) {
+    // Prefer brand_id over brand text field
+    if (newItem.brand_id) {
+      payload.brand_id = newItem.brand_id;
+    } else if (newItem.brand) {
       payload.brand = newItem.brand;
     }
     if (newItem.type) {
@@ -302,15 +316,31 @@ export const createItem = async (
     if (newItem.category_id) {
       payload.category_id = newItem.category_id;
     }
+    if (newItem.costPrice !== undefined && newItem.costPrice !== null) {
+      payload.cost_price = newItem.costPrice;
+    }
+    if (newItem.manufacturingDate) {
+      payload.manufacturing_date = newItem.manufacturingDate;
+    }
 
     // Add lubricant-specific data if it's a lubricant
     if (newItem.isOil || newItem.is_oil) {
+      // Filter out volumes with empty or invalid sizes and map to API format
+      const volumes =
+        newItem.volumes
+          ?.filter((v) => v.size && v.size.trim() !== "")
+          ?.map((v) => ({
+            volume: v.size.trim(),
+            price: v.price || 0,
+          })) || [];
+
+      console.log("🛢️ Creating lubricant product:");
+      console.log("- Raw volumes from item:", newItem.volumes);
+      console.log("- Filtered volumes for API:", volumes);
+      console.log("- Bottle states:", newItem.bottleStates);
+
       Object.assign(payload, {
-        volumes:
-          newItem.volumes?.map((v) => ({
-            volume: v.size,
-            price: v.price,
-          })) || [],
+        volumes,
         open_bottles_stock: newItem.bottleStates?.open || 0,
         closed_bottles_stock: newItem.bottleStates?.closed || 0,
       });
@@ -396,7 +426,10 @@ export const updateItem = async (
     };
 
     // Only include fields if they have valid values (not null or undefined)
-    if (updatedItem.brand) {
+    // Prefer brand_id over brand text field
+    if (updatedItem.brand_id) {
+      payload.brand_id = updatedItem.brand_id;
+    } else if (updatedItem.brand) {
       payload.brand = updatedItem.brand;
     }
     if (updatedItem.type) {
@@ -411,23 +444,42 @@ export const updateItem = async (
     if (updatedItem.category_id) {
       payload.category_id = updatedItem.category_id;
     }
+    if (updatedItem.costPrice !== undefined && updatedItem.costPrice !== null) {
+      payload.cost_price = updatedItem.costPrice;
+    }
+    if (updatedItem.manufacturingDate) {
+      payload.manufacturing_date = updatedItem.manufacturingDate;
+    }
 
     // Add lubricant-specific data if it's a lubricant
     if (updatedItem.isOil || updatedItem.is_oil) {
+      // Filter out volumes with empty or invalid sizes and map to API format
+      const volumes =
+        updatedItem.volumes
+          ?.filter((v) => v.size && v.size.trim() !== "")
+          ?.map((v) => ({
+            volume: v.size.trim(),
+            price: v.price || 0,
+          })) || [];
+
+      console.log("🛢️ Updating lubricant product:");
+      console.log("- Raw volumes from item:", updatedItem.volumes);
+      console.log("- Filtered volumes for API:", volumes);
+      console.log("- Bottle states:", updatedItem.bottleStates);
+
       Object.assign(payload, {
-        volumes:
-          updatedItem.volumes?.map((v) => ({
-            volume: v.size,
-            price: v.price,
-          })) || [],
+        volumes,
         open_bottles_stock: updatedItem.bottleStates?.open || 0,
         closed_bottles_stock: updatedItem.bottleStates?.closed || 0,
       });
     } else {
       // For non-lubricants
+      const stockValue = Math.max(0, updatedItem.stock || 0);
+      const priceValue = updatedItem.price || 0;
+
       Object.assign(payload, {
-        standard_stock: updatedItem.stock || 0,
-        selling_price: updatedItem.price || 0,
+        standard_stock: stockValue,
+        selling_price: priceValue >= 0 ? priceValue : 0,
       });
     }
 
@@ -539,15 +591,28 @@ export const fetchBrands = async (): Promise<Brand[]> => {
   try {
     console.log("Fetching brands from database...");
 
-    // For now, return mock data as brands table structure needs to be verified
-    // TODO: Implement actual database fetch when brands table is confirmed
-    console.log(
-      "Using mock brands - brands table structure needs verification"
-    );
-    await new Promise((resolve) => setTimeout(resolve, 100)); // Minimal delay
-    return MOCK_BRANDS;
+    // Use Supabase client to fetch brands
+    const { createClient } = await import("@/supabase/client");
+    const supabase = createClient();
+
+    const { data, error } = await supabase
+      .from("brands")
+      .select("id, name")
+      .order("name");
+
+    if (error) {
+      console.error("Error fetching brands:", error);
+      // Fallback to mock data if database fails
+      console.log("Falling back to mock brands");
+      return MOCK_BRANDS;
+    }
+
+    console.log(`Fetched ${data?.length || 0} brands from database`);
+    return data || [];
   } catch (error) {
     console.error("Error fetching brands:", error);
+    // Fallback to mock data
+    console.log("Falling back to mock brands");
     return MOCK_BRANDS;
   }
 };
@@ -684,16 +749,23 @@ export const addBrand = async (name: string): Promise<Brand | null> => {
   try {
     console.log("Adding brand:", name);
 
-    // For now, use mock data as brands table structure needs to be verified
-    // TODO: Implement actual database operations when brands table is confirmed
-    await new Promise((resolve) => setTimeout(resolve, 200));
+    // Use Supabase client to add brand
+    const { createClient } = await import("@/supabase/client");
+    const supabase = createClient();
 
-    const newId = Math.random().toString(36).substring(2, 15);
-    const newBrand: Brand = { id: newId, name };
-    MOCK_BRANDS.push(newBrand);
+    const { data, error } = await supabase
+      .from("brands")
+      .insert({ name })
+      .select("id, name")
+      .single();
 
-    console.log("Brand added successfully (mock):", newBrand);
-    return newBrand;
+    if (error) {
+      console.error("Error adding brand:", error);
+      throw error;
+    }
+
+    console.log("Brand added successfully:", data);
+    return data;
   } catch (error) {
     console.error("Error adding brand:", error);
     return null;
@@ -707,16 +779,24 @@ export const updateBrand = async (
   try {
     console.log("Updating brand:", id, "to:", name);
 
-    // For now, use mock data as brands table structure needs to be verified
-    // TODO: Implement actual database operations when brands table is confirmed
-    await new Promise((resolve) => setTimeout(resolve, 200));
+    // Use Supabase client to update brand
+    const { createClient } = await import("@/supabase/client");
+    const supabase = createClient();
 
-    const index = MOCK_BRANDS.findIndex((brand) => brand.id === id);
-    if (index === -1) return null;
+    const { data, error } = await supabase
+      .from("brands")
+      .update({ name })
+      .eq("id", id)
+      .select("id, name")
+      .single();
 
-    MOCK_BRANDS[index].name = name;
-    console.log("Brand updated successfully (mock):", MOCK_BRANDS[index]);
-    return MOCK_BRANDS[index];
+    if (error) {
+      console.error("Error updating brand:", error);
+      throw error;
+    }
+
+    console.log("Brand updated successfully:", data);
+    return data;
   } catch (error) {
     console.error("Error updating brand:", error);
     return null;
@@ -727,18 +807,19 @@ export const deleteBrand = async (id: string): Promise<boolean> => {
   try {
     console.log("Deleting brand:", id);
 
-    // For now, use mock data as brands table structure needs to be verified
-    // TODO: Implement actual database operations when brands table is confirmed
-    await new Promise((resolve) => setTimeout(resolve, 200));
+    // Use Supabase client to delete brand
+    const { createClient } = await import("@/supabase/client");
+    const supabase = createClient();
 
-    const index = MOCK_BRANDS.findIndex((brand) => brand.id === id);
-    if (index !== -1) {
-      MOCK_BRANDS.splice(index, 1);
-      console.log("Brand deleted successfully (mock)");
-      return true;
+    const { error } = await supabase.from("brands").delete().eq("id", id);
+
+    if (error) {
+      console.error("Error deleting brand:", error);
+      throw error;
     }
 
-    return false;
+    console.log("Brand deleted successfully");
+    return true;
   } catch (error) {
     console.error("Error deleting brand:", error);
     return false;

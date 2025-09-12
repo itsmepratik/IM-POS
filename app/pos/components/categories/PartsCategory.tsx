@@ -4,7 +4,6 @@ import React, { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { BrandCard } from "../shared/BrandCard";
-import { usePOSData } from "@/lib/hooks/data/usePOSData";
 
 interface PartsCategoryProps {
   searchQuery?: string;
@@ -13,6 +12,9 @@ interface PartsCategoryProps {
   setSelectedPartBrand: (brand: string) => void;
   setSelectedParts: (parts: any[]) => void;
   setIsPartBrandModalOpen: (open: boolean) => void;
+  partTypes: string[];
+  partBrands: string[];
+  isLoading: boolean;
 }
 
 export function PartsCategory({
@@ -22,9 +24,10 @@ export function PartsCategory({
   setSelectedPartBrand,
   setSelectedParts,
   setIsPartBrandModalOpen,
+  partTypes,
+  partBrands,
+  isLoading,
 }: PartsCategoryProps) {
-  const { partTypes, partBrands, isLoading } = usePOSData();
-
   // Show loading state
   if (isLoading) {
     return (

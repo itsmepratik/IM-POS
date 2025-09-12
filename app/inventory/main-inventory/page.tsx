@@ -672,7 +672,7 @@ function MobileView() {
                   }}
                   className="cursor-pointer"
                 >
-                  Manage Categories
+                  Categories
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => {
@@ -681,7 +681,7 @@ function MobileView() {
                   }}
                   className="cursor-pointer"
                 >
-                  Manage Brands
+                  Brands
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => {
@@ -690,7 +690,7 @@ function MobileView() {
                   }}
                   className="cursor-pointer"
                 >
-                  Manage Trade-ins
+                  Trade-ins
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -735,7 +735,7 @@ function MobileView() {
                 }}
                 className="w-full"
               >
-                Manage Categories
+                Categories
               </Button>
             </div>
 
@@ -766,7 +766,7 @@ function MobileView() {
                 }}
                 className="w-full"
               >
-                Manage Brands
+                Brands
               </Button>
             </div>
 
@@ -1075,7 +1075,7 @@ function DesktopView() {
                 onClick={() => setTradeInsModalOpen(true)}
                 className="cursor-pointer"
               >
-                Manage Trade-ins
+                Trade-ins
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

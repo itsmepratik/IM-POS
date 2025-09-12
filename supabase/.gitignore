@@ -1,7 +1,7 @@
 # Supabase local development files
 .branches
 .temp
-.env.local
+
 
 # Generated files
 types/database.ts

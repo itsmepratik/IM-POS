@@ -39,6 +39,10 @@ import {
 } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { useTransactions, Transaction } from "@/lib/client";
+import {
+  useTransactionsAPI,
+  TransactionAPI,
+} from "@/lib/hooks/data/useTransactionsAPI";
 import { DateRange } from "react-day-picker";
 import { cn } from "@/lib/utils";
 import {
@@ -60,6 +64,8 @@ interface TransactionDisplay extends Omit<Transaction, "items"> {
   date?: string;
   notes?: string;
   cashier: string;
+  receiptHtml?: string | null;
+  batteryBillHtml?: string | null;
 }
 
 type DayTime = "morning" | "evening" | "full";
@@ -97,9 +103,8 @@ const yearlyOptions = [
 
 const stores = [
   { id: "all-stores", name: "All Stores" },
-  { id: "store1", name: "Store 1" },
-  { id: "store2", name: "Store 2" },
-  { id: "store3", name: "Store 3" },
+  { id: "sanaiya-1", name: "Sanaiya 1" },
+  { id: "sanaiya-2", name: "Sanaiya 2" },
 ] as const;
 
 // Create a function to generate the cashiers array from staffMembers
@@ -665,10 +670,16 @@ function Receipt({ transaction }: { transaction: TransactionDisplay | null }) {
 }
 
 export default function TransactionsPage() {
-  const { transactions, isLoading } = useTransactions();
   const [timeOfDay, setTimeOfDay] = useState<DayTime>("full");
   const [selectedStore, setSelectedStore] = useState("all-stores");
   const [selectedCashier, setSelectedCashier] = useState("all-cashiers");
+
+  // Use the new API hook
+  const {
+    transactions: apiTransactions,
+    isLoading,
+    error,
+  } = useTransactionsAPI(selectedStore);
   const [selectedPeriod, setSelectedPeriod] =
     useState<TimeOptionValue>("today");
   const [selectedTransaction, setSelectedTransaction] =
@@ -744,90 +755,31 @@ export default function TransactionsPage() {
     return format(date.from, "MMM d, yyyy");
   }, [date]);
 
-  // Convert transactions from our data hook to the format expected by the UI
+  // Convert API transactions to the format expected by the UI
   const getTransactions = useCallback((): TransactionDisplay[] => {
-    if (!transactions) return [];
+    if (!apiTransactions) return [];
 
-    let result: TransactionDisplay[] = [];
-
-    if (selectedPeriod === "today") {
-      if (timeOfDay === "full") {
-        result = [
-          ...transactions.today.morning,
-          ...transactions.today.evening,
-        ].map((t) => ({
-          ...t,
-          type: t.status === "refunded" ? "refund" : "sale",
-          items: [`${t.items} items`],
-          customerName: t.customer || "Anonymous",
-          reference: t.id,
-          storeId: "store1",
-          notes: t.status === "refunded" ? "Item returned" : undefined,
-          cashier: t.cashier || "Unknown",
-        }));
-      } else {
-        result = transactions.today[timeOfDay].map((t) => ({
-          ...t,
-          type: t.status === "refunded" ? "refund" : "sale",
-          items: [`${t.items} items`],
-          customerName: t.customer || "Anonymous",
-          reference: t.id,
-          storeId: "store1",
-          notes: t.status === "refunded" ? "Item returned" : undefined,
-          cashier: t.cashier || "Unknown",
-        }));
-      }
-    } else if (selectedPeriod === "weekly") {
-      result = transactions.thisWeek.map((t) => ({
-        ...t,
-        type: t.status === "refunded" ? "refund" : "sale",
-        items: [`${t.items} items`],
-        customerName: t.customer || "Anonymous",
-        reference: t.id,
-        storeId: "store1",
-        date: t.time,
-        notes: t.status === "refunded" ? "Item returned" : undefined,
-        cashier: t.cashier || "Unknown",
-      }));
-    } else if (selectedPeriod === "monthly") {
-      result = transactions.thisMonth.map((t) => ({
-        ...t,
-        type: t.status === "refunded" ? "refund" : "sale",
-        items: [`${t.items} items`],
-        customerName: t.customer || "Anonymous",
-        reference: t.id,
-        storeId: "store1",
-        date: t.time,
-        notes: t.status === "refunded" ? "Item returned" : undefined,
-        cashier: t.cashier || "Unknown",
-      }));
-    } else if (selectedPeriod === "yearly") {
-      // For yearly, we'll use thisMonth as a placeholder
-      result = transactions.thisMonth.map((t) => ({
-        ...t,
-        type: t.status === "refunded" ? "refund" : "sale",
-        items: [`${t.items} items`],
-        customerName: t.customer || "Anonymous",
-        reference: t.id,
-        storeId: "store1",
-        date: t.time,
-        notes: t.status === "refunded" ? "Item returned" : undefined,
-        cashier: t.cashier || "Unknown",
-      }));
-    }
-
-    // Filter by store if needed
-    if (selectedStore !== "all-stores") {
-      result = result.filter((t) => t.storeId === selectedStore);
-    }
-
-    // Filter by cashier if needed
-    if (selectedCashier !== "all-cashiers") {
-      result = result.filter((t) => t.cashier === selectedCashier);
-    }
-
-    return result;
-  }, [transactions, selectedPeriod, timeOfDay, selectedStore, selectedCashier]);
+    return apiTransactions.map((t) => ({
+      id: t.id,
+      amount: parseFloat(t.total_amount),
+      time: new Date(t.created_at).toLocaleString(),
+      paymentMethod: t.payment_method || "Cash",
+      customer: "Anonymous", // This would come from a customer field if available
+      items: t.items_sold?.length || 0,
+      cashier: t.cashier_id || "Unknown",
+      status: t.type === "REFUND" ? "refunded" : "completed",
+      type: t.type === "REFUND" ? "refund" : "sale",
+      items: [`${t.items_sold?.length || 0} items`],
+      customerName: "Anonymous",
+      reference: t.reference_number,
+      storeId: t.shop_id || "unknown",
+      date: new Date(t.created_at).toLocaleDateString(),
+      notes: t.type === "REFUND" ? "Item returned" : undefined,
+      cashier: t.cashier_id || "Unknown",
+      receiptHtml: t.receipt_html,
+      batteryBillHtml: t.battery_bill_html,
+    }));
+  }, [apiTransactions]);
 
   const displayTransactions = useMemo(
     () => getTransactions(),
@@ -864,9 +816,58 @@ export default function TransactionsPage() {
     }
   };
 
-  const handleViewReceipt = (transaction: TransactionDisplay) => {
-    setSelectedTransaction(transaction);
-    setReceiptOpen(true);
+  const handleViewReceipt = async (transaction: TransactionDisplay) => {
+    try {
+      // Fetch the full transaction record by ID
+      const response = await fetch(`/api/transactions/${transaction.id}`);
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch transaction: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+
+      if (!data.ok) {
+        throw new Error(data.error || "Failed to fetch transaction");
+      }
+
+      const fullTransaction = data.transaction;
+
+      // Check if battery_bill_html exists, otherwise use receipt_html
+      const htmlContent =
+        fullTransaction.battery_bill_html || fullTransaction.receipt_html;
+
+      if (htmlContent) {
+        // Create a new window and print the HTML content
+        const printWindow = window.open("", "_blank");
+        if (printWindow) {
+          printWindow.document.write(htmlContent);
+          printWindow.document.close();
+
+          // Wait for content to load, then print
+          setTimeout(() => {
+            printWindow.print();
+            // Close the window after print on desktop
+            if (
+              !/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+                navigator.userAgent
+              )
+            ) {
+              printWindow.close();
+            }
+          }, 500);
+        }
+      } else {
+        // Fallback to the dialog view
+        setSelectedTransaction(transaction);
+        setReceiptOpen(true);
+      }
+    } catch (error) {
+      console.error("Error fetching transaction for print:", error);
+      // Fallback to the dialog view
+      setSelectedTransaction(transaction);
+      setReceiptOpen(true);
+    }
   };
 
   // If not mounted yet or data is loading, show loading state

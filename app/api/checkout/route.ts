@@ -1,5 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db/client";
+import { z } from "zod";
+import {
+  getDatabase,
+  isDatabaseAvailable,
+  getDatabaseHealth,
+  testDatabaseConnection,
+  queryClient,
+} from "@/lib/db/client";
 import {
   transactions,
   tradeInTransactions,
@@ -7,6 +14,8 @@ import {
   batches,
   products,
   locations,
+  categories,
+  openBottleDetails,
 } from "@/lib/db/schema";
 import { eq, asc, and, inArray, gt } from "drizzle-orm";
 import {
@@ -23,14 +32,231 @@ import {
 } from "@/lib/utils/receipts";
 import type { CheckoutInput } from "@/lib/types/checkout";
 
+// Helper function to handle lubricant sales with precise bottle tracking
+async function handleLubricantSale(
+  tx: any,
+  cartItem: any,
+  inventoryRecord: any
+) {
+  // Add a default value here as a safeguard - fixes the main issue from checkoutroutefix.md
+  const { source = "CLOSED", quantity } = cartItem; // Default to 'CLOSED' if source is missing
+
+  if (source === "CLOSED") {
+    // Selling from a new closed bottle
+    if (inventoryRecord.closedBottlesStock < 1) {
+      throw new Error("No closed bottles available for this lubricant");
+    }
+
+    // Decrement closed bottles stock
+    await tx
+      .update(inventory)
+      .set({
+        closedBottlesStock: inventoryRecord.closedBottlesStock - 1,
+      })
+      .where(eq(inventory.id, inventoryRecord.id));
+
+    // Get the standard bottle size from volume description
+    // Default to 4.0 if not specified (common lubricant bottle size)
+    const bottleSize = parseFloat(
+      cartItem.volumeDescription?.replace(/[^\d.]/g, "") || "4.0"
+    );
+    const initialVolume = bottleSize;
+    const currentVolume = initialVolume - quantity;
+    const isEmpty = currentVolume <= 0;
+
+    // Create new open bottle record
+    await tx.insert(openBottleDetails).values({
+      inventoryId: inventoryRecord.id,
+      initialVolume: initialVolume.toString(),
+      currentVolume: currentVolume.toString(),
+      isEmpty: isEmpty,
+    });
+
+    // Only increment open bottles stock if the bottle is not immediately empty
+    if (!isEmpty) {
+      await tx
+        .update(inventory)
+        .set({
+          openBottlesStock: inventoryRecord.openBottlesStock + 1,
+        })
+        .where(eq(inventory.id, inventoryRecord.id));
+    }
+  } else if (source === "OPEN") {
+    // Selling from an existing open bottle
+    // Find the oldest, non-empty bottle
+    const [openBottle] = await tx
+      .select()
+      .from(openBottleDetails)
+      .where(
+        and(
+          eq(openBottleDetails.inventoryId, inventoryRecord.id),
+          eq(openBottleDetails.isEmpty, false)
+        )
+      )
+      .orderBy(asc(openBottleDetails.openedAt))
+      .limit(1);
+
+    if (!openBottle) {
+      throw new Error("No open bottles available for this lubricant");
+    }
+
+    // Check if there's enough volume in the open bottle
+    const currentVolume = parseFloat(openBottle.currentVolume);
+    if (currentVolume < quantity) {
+      throw new Error(
+        `Insufficient volume in open bottle. Available: ${currentVolume}, Required: ${quantity}`
+      );
+    }
+
+    // Decrement the current volume
+    const newVolume = currentVolume - quantity;
+    const isEmpty = newVolume <= 0;
+
+    await tx
+      .update(openBottleDetails)
+      .set({
+        currentVolume: newVolume.toString(),
+        isEmpty: isEmpty,
+      })
+      .where(eq(openBottleDetails.id, openBottle.id));
+
+    // If bottle is now empty, decrement open bottles stock
+    if (isEmpty) {
+      await tx
+        .update(inventory)
+        .set({
+          openBottlesStock: inventoryRecord.openBottlesStock - 1,
+        })
+        .where(eq(inventory.id, inventoryRecord.id));
+    }
+  } else {
+    // This should not happen with the default value, but keeping for safety
+    throw new Error(
+      "Invalid source for lubricant sale. Must be 'CLOSED' or 'OPEN'. Received: " +
+        source
+    );
+  }
+}
+
 export async function POST(req: NextRequest) {
+  const startTime = Date.now();
+  const requestId = Math.random().toString(36).substr(2, 9);
+
+  console.log(`[${requestId}] Checkout request started`);
+
   try {
+    // Enhanced request validation
+    if (!req.body) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Request body is required",
+          details: {
+            requestId,
+            errorType: "VALIDATION_ERROR",
+            timestamp: new Date().toISOString(),
+          },
+        },
+        { status: 400 }
+      );
+    }
+    // Test database connection before proceeding with checkout
+    let db;
+    try {
+      db = getDatabase();
+
+      // Perform a quick connection test to ensure we can actually connect
+      const connectionTest = await testDatabaseConnection();
+      if (!connectionTest.success) {
+        throw new Error(connectionTest.error || "Database connection failed");
+      }
+
+      console.log(
+        `[${requestId}] Database connection verified (${connectionTest.latency}ms)`
+      );
+    } catch (error) {
+      const dbHealth = getDatabaseHealth();
+      console.error(`[${requestId}] Database connection failed:`, error);
+      console.error(`[${requestId}] Database health:`, dbHealth);
+
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "Database service is currently unavailable. Please try again in a moment.",
+          details: {
+            requestId,
+            databaseHealth: dbHealth,
+            connectionError:
+              error instanceof Error ? error.message : "Unknown error",
+            suggestion: "Run GET /api/debug/database to diagnose the issue",
+            timestamp: new Date().toISOString(),
+          },
+        },
+        { status: 503 }
+      );
+    }
+
     const body = await req.json();
 
-    // Validate input
-    const validatedInput = CheckoutInputSchema.parse(body);
+    // Enhanced validation with detailed error handling
+    let validatedInput;
+    try {
+      validatedInput = CheckoutInputSchema.parse(body);
+    } catch (validationError) {
+      if (validationError instanceof z.ZodError) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Invalid request data",
+            details: {
+              requestId,
+              errorType: "VALIDATION_ERROR",
+              validationErrors: validationError.errors.map((err) => ({
+                field: err.path.join("."),
+                message: err.message,
+                code: err.code,
+              })),
+              timestamp: new Date().toISOString(),
+            },
+          },
+          { status: 400 }
+        );
+      }
+      throw validationError;
+    }
+
     const { locationId, shopId, paymentMethod, cashierId, cart, tradeIns } =
       validatedInput;
+
+    // Additional business logic validation
+    if (!cart || cart.length === 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Cart cannot be empty",
+          details: {
+            requestId,
+            errorType: "BUSINESS_LOGIC_ERROR",
+            timestamp: new Date().toISOString(),
+          },
+        },
+        { status: 400 }
+      );
+    }
+
+    // Process cart items to ensure lubricant items have source property
+    const processedCart = cart.map((item) => {
+      // Check if the item is a lubricant (we'll verify this in the transaction)
+      // For now, ensure source is always present for any item that might be a lubricant
+      if (item.source === undefined) {
+        return {
+          ...item,
+          source: "CLOSED" as const, // Default to CLOSED if source is missing
+        };
+      }
+      return item;
+    });
 
     // Generate reference number
     const referenceNumber = generateReferenceNumber();
@@ -38,282 +264,433 @@ export async function POST(req: NextRequest) {
     // Calculate total amount
     const totalAmount = calculateFinalTotal(cart, tradeIns);
 
-    // Perform all operations in a single transaction
+    // Database is already initialized and tested above
+
+    // Perform all operations in a single transaction with enhanced error handling
     const result = await db.transaction(async (tx) => {
-      // 1. Fetch product names for receipt generation
-      const productIds = [
-        ...cart.map((item) => item.productId),
-        ...(tradeIns?.map((ti) => ti.productId) || []),
-      ];
-      const productMap = new Map();
+      try {
+        // 1. Fetch product names and categories for receipt generation
+        const productIds = [
+          ...cart.map((item) => item.productId),
+          ...(tradeIns?.map((ti) => ti.productId) || []),
+        ];
+        const productMap = new Map();
+        let isBatterySale = false;
 
-      if (productIds.length > 0) {
-        const productsData = await tx
-          .select()
-          .from(products)
-          .where(inArray(products.id, productIds));
-
-        productsData.forEach((product) => {
-          productMap.set(product.id, product);
-        });
-      }
-
-      // 2. Create transaction record
-      const [newTransaction] = await tx
-        .insert(transactions)
-        .values({
-          referenceNumber,
-          locationId,
-          shopId,
-          cashierId,
-          type: "SALE",
-          totalAmount: totalAmount.toString(),
-          itemsSold: cart,
-          paymentMethod,
-        })
-        .returning();
-
-      // 2. Process each cart item with FIFO logic
-      for (const cartItem of cart) {
-        // Find inventory record
-        const [inventoryRecord] = await tx
-          .select()
-          .from(inventory)
-          .where(
-            and(
-              eq(inventory.productId, cartItem.productId),
-              eq(inventory.locationId, locationId)
-            )
-          )
-          .limit(1);
-
-        if (!inventoryRecord) {
-          throw new Error(
-            `Inventory not found for product ${cartItem.productId} at location ${locationId}`
-          );
-        }
-
-        // Find the active batch (FIFO - oldest first)
-        const [activeBatch] = await tx
-          .select()
-          .from(batches)
-          .where(
-            and(
-              eq(batches.inventoryId, inventoryRecord.id),
-              eq(batches.isActiveBatch, true)
-            )
-          )
-          .orderBy(asc(batches.purchaseDate))
-          .limit(1);
-
-        if (!activeBatch) {
-          throw new Error(
-            `No active batch found for inventory ${inventoryRecord.id}`
-          );
-        }
-
-        // Check if we have enough stock in the active batch
-        if (activeBatch.stockRemaining < cartItem.quantity) {
-          throw new Error(
-            `Insufficient stock in active batch ${activeBatch.id}. Available: ${activeBatch.stockRemaining}, Required: ${cartItem.quantity}`
-          );
-        }
-
-        // Decrement stock from active batch
-        await tx
-          .update(batches)
-          .set({
-            stockRemaining: activeBatch.stockRemaining - cartItem.quantity,
-          })
-          .where(eq(batches.id, activeBatch.id));
-
-        // FIFO Rule: If depleting the active batch, deactivate it and activate next oldest
-        if (activeBatch.stockRemaining - cartItem.quantity === 0) {
-          await tx
-            .update(batches)
-            .set({ isActiveBatch: false })
-            .where(eq(batches.id, activeBatch.id));
-
-          // Find and activate the next oldest batch with stock
-          const [nextBatch] = await tx
-            .select()
-            .from(batches)
-            .where(
-              and(
-                eq(batches.inventoryId, inventoryRecord.id),
-                eq(batches.isActiveBatch, false),
-                gt(batches.stockRemaining, 0)
-              )
-            )
-            .orderBy(asc(batches.purchaseDate))
-            .limit(1);
-
-          if (nextBatch) {
-            await tx
-              .update(batches)
-              .set({ isActiveBatch: true })
-              .where(eq(batches.id, nextBatch.id));
-          }
-        }
-
-        // Update inventory stock based on product type
-        const product = await tx
-          .select()
-          .from(products)
-          .where(eq(products.id, cartItem.productId))
-          .limit(1);
-
-        if (product[0]?.productType === "lubricant") {
-          // For lubricants, prioritize closed bottles
-          if (inventoryRecord.closedBottlesStock >= cartItem.quantity) {
-            await tx
-              .update(inventory)
-              .set({
-                closedBottlesStock:
-                  inventoryRecord.closedBottlesStock - cartItem.quantity,
-              })
-              .where(eq(inventory.id, inventoryRecord.id));
-          } else {
-            // Use remaining closed bottles and then open bottles
-            const remainingFromClosed = inventoryRecord.closedBottlesStock;
-            const remainingFromOpen = cartItem.quantity - remainingFromClosed;
-
-            await tx
-              .update(inventory)
-              .set({
-                closedBottlesStock: 0,
-                openBottlesStock:
-                  inventoryRecord.openBottlesStock - remainingFromOpen,
-              })
-              .where(eq(inventory.id, inventoryRecord.id));
-          }
-        } else {
-          // For other products, decrement standard stock
-          await tx
-            .update(inventory)
-            .set({
-              standardStock: inventoryRecord.standardStock - cartItem.quantity,
+        if (productIds.length > 0) {
+          const productsData = await tx
+            .select({
+              id: products.id,
+              name: products.name,
+              categoryId: products.categoryId,
+              productType: products.productType,
+              categoryName: categories.name,
             })
-            .where(eq(inventory.id, inventoryRecord.id));
-        }
-      }
+            .from(products)
+            .leftJoin(categories, eq(products.categoryId, categories.id))
+            .where(inArray(products.id, productIds));
 
-      // 3. Handle trade-ins if present
-      if (tradeIns && tradeIns.length > 0) {
-        for (const tradeIn of tradeIns) {
-          // Create trade-in transaction record
-          await tx.insert(tradeInTransactions).values({
-            transactionId: newTransaction.id,
-            productId: tradeIn.productId,
-            quantity: tradeIn.quantity,
-            tradeInValue: tradeIn.tradeInValue.toString(),
+          productsData.forEach((product) => {
+            productMap.set(product.id, product);
+            // Check if any cart item is a battery
+            if (
+              product.categoryName?.toLowerCase().includes("battery") ||
+              product.productType?.toLowerCase().includes("battery")
+            ) {
+              isBatterySale = true;
+            }
           });
+        }
 
-          // Find inventory record for trade-in product
-          const [tradeInInventory] = await tx
+        // 2. Create transaction record
+        const [newTransaction] = await tx
+          .insert(transactions)
+          .values({
+            referenceNumber,
+            locationId,
+            shopId,
+            cashierId,
+            type: "SALE",
+            totalAmount: totalAmount.toString(),
+            itemsSold: cart,
+            paymentMethod,
+          })
+          .returning();
+
+        // 2. Process each cart item with FIFO logic
+        for (const cartItem of processedCart) {
+          // Find inventory record
+          const [inventoryRecord] = await tx
             .select()
             .from(inventory)
             .where(
               and(
-                eq(inventory.productId, tradeIn.productId),
+                eq(inventory.productId, cartItem.productId),
                 eq(inventory.locationId, locationId)
               )
             )
             .limit(1);
 
-          if (tradeInInventory) {
-            // Increment standard stock for trade-in product
+          if (!inventoryRecord) {
+            throw new Error(
+              `Inventory not found for product ${cartItem.productId} at location ${locationId}`
+            );
+          }
+
+          // Find the active batch (FIFO - oldest first)
+          const [activeBatch] = await tx
+            .select()
+            .from(batches)
+            .where(
+              and(
+                eq(batches.inventoryId, inventoryRecord.id),
+                eq(batches.isActiveBatch, true)
+              )
+            )
+            .orderBy(asc(batches.purchaseDate))
+            .limit(1);
+
+          if (!activeBatch) {
+            throw new Error(
+              `No active batch found for inventory ${inventoryRecord.id}`
+            );
+          }
+
+          // Check if we have enough stock in the active batch
+          if (activeBatch.stockRemaining < cartItem.quantity) {
+            throw new Error(
+              `Insufficient stock in active batch ${activeBatch.id}. Available: ${activeBatch.stockRemaining}, Required: ${cartItem.quantity}`
+            );
+          }
+
+          // Decrement stock from active batch
+          await tx
+            .update(batches)
+            .set({
+              stockRemaining: activeBatch.stockRemaining - cartItem.quantity,
+            })
+            .where(eq(batches.id, activeBatch.id));
+
+          // FIFO Rule: If depleting the active batch, deactivate it and activate next oldest
+          if (activeBatch.stockRemaining - cartItem.quantity === 0) {
+            await tx
+              .update(batches)
+              .set({ isActiveBatch: false })
+              .where(eq(batches.id, activeBatch.id));
+
+            // Find and activate the next oldest batch with stock
+            const [nextBatch] = await tx
+              .select()
+              .from(batches)
+              .where(
+                and(
+                  eq(batches.inventoryId, inventoryRecord.id),
+                  eq(batches.isActiveBatch, false),
+                  gt(batches.stockRemaining, 0)
+                )
+              )
+              .orderBy(asc(batches.purchaseDate))
+              .limit(1);
+
+            if (nextBatch) {
+              await tx
+                .update(batches)
+                .set({ isActiveBatch: true })
+                .where(eq(batches.id, nextBatch.id));
+            }
+          }
+
+          // Update inventory stock based on product type
+          const product = await tx
+            .select()
+            .from(products)
+            .where(eq(products.id, cartItem.productId))
+            .limit(1);
+
+          if (!product[0]) {
+            throw new Error(`Product not found: ${cartItem.productId}`);
+          }
+
+          if (product[0].productType === "lubricant") {
+            // Handle lubricant sales with precise bottle tracking
+            await handleLubricantSale(tx, cartItem, inventoryRecord);
+          } else {
+            // For other products, decrement standard stock
+            // Verify we have enough stock before updating
+            const currentStock = inventoryRecord.standardStock ?? 0;
+            if (currentStock < cartItem.quantity) {
+              throw new Error(
+                `Insufficient standard stock for product ${cartItem.productId}. Available: ${currentStock}, Required: ${cartItem.quantity}`
+              );
+            }
+
             await tx
               .update(inventory)
               .set({
-                standardStock:
-                  tradeInInventory.standardStock + tradeIn.quantity,
+                standardStock: currentStock - cartItem.quantity,
               })
-              .where(eq(inventory.id, tradeInInventory.id));
+              .where(eq(inventory.id, inventoryRecord.id));
           }
         }
+
+        // 3. Handle trade-ins if present
+        if (tradeIns && tradeIns.length > 0) {
+          for (const tradeIn of tradeIns) {
+            // Create trade-in transaction record
+            await tx.insert(tradeInTransactions).values({
+              transactionId: newTransaction.id,
+              productId: tradeIn.productId,
+              quantity: tradeIn.quantity,
+              tradeInValue: tradeIn.tradeInValue.toString(),
+            });
+
+            // Find inventory record for trade-in product (e.g., "80 Scrap")
+            const [tradeInInventory] = await tx
+              .select()
+              .from(inventory)
+              .where(
+                and(
+                  eq(inventory.productId, tradeIn.productId),
+                  eq(inventory.locationId, locationId)
+                )
+              )
+              .limit(1);
+
+            if (tradeInInventory) {
+              // Increment standard stock for trade-in product
+              const currentTradeInStock = tradeInInventory.standardStock ?? 0;
+              await tx
+                .update(inventory)
+                .set({
+                  standardStock: currentTradeInStock + tradeIn.quantity,
+                })
+                .where(eq(inventory.id, tradeInInventory.id));
+            } else {
+              // If no inventory record exists, create one
+              const [newInventory] = await tx
+                .insert(inventory)
+                .values({
+                  productId: tradeIn.productId,
+                  locationId: locationId,
+                  standardStock: tradeIn.quantity,
+                })
+                .returning();
+            }
+          }
+        }
+
+        // 4. Generate receipts
+        const now = new Date();
+        const receiptData: ReceiptData = {
+          referenceNumber: newTransaction.referenceNumber,
+          totalAmount: newTransaction.totalAmount,
+          paymentMethod: paymentMethod,
+          items: processedCart.map((item) => {
+            const product = productMap.get(item.productId);
+            return {
+              name: product?.name || `Product ${item.productId}`,
+              quantity: item.quantity,
+              sellingPrice: item.sellingPrice,
+              volumeDescription: item.volumeDescription,
+            };
+          }),
+          tradeIns: tradeIns?.map((tradeIn) => {
+            const product = productMap.get(tradeIn.productId);
+            return {
+              name: product?.name || `Trade-in ${tradeIn.productId}`,
+              quantity: tradeIn.quantity,
+              tradeInValue: tradeIn.tradeInValue,
+            };
+          }),
+          date: formatDate(now),
+          time: formatTime(now),
+        };
+
+        let receiptHtml = "";
+        let batteryBillHtml = "";
+
+        // Generate appropriate receipt based on battery sale detection
+        if (isBatterySale) {
+          batteryBillHtml = generateBatteryBill(receiptData);
+        } else {
+          receiptHtml = generateThermalReceipt(receiptData);
+        }
+
+        // Update transaction with receipt HTML
+        await tx
+          .update(transactions)
+          .set({
+            receiptHtml: receiptHtml || null,
+            batteryBillHtml: batteryBillHtml || null,
+          })
+          .where(eq(transactions.id, newTransaction.id));
+
+        return {
+          transaction: newTransaction,
+          receiptHtml,
+          batteryBillHtml,
+          isBattery: isBatterySale,
+        };
+      } catch (transactionError) {
+        // Log transaction-specific errors for debugging
+        console.error(`[${requestId}] Transaction failed:`, transactionError);
+
+        // Re-throw the error to trigger transaction rollback
+        throw transactionError;
       }
-
-      // 4. Generate receipts
-      const now = new Date();
-      const receiptData: ReceiptData = {
-        referenceNumber: newTransaction.referenceNumber,
-        totalAmount: newTransaction.totalAmount,
-        paymentMethod: paymentMethod,
-        items: cart.map((item) => {
-          const product = productMap.get(item.productId);
-          return {
-            name: product?.name || `Product ${item.productId}`,
-            quantity: item.quantity,
-            sellingPrice: item.sellingPrice,
-            volumeDescription: item.volumeDescription,
-          };
-        }),
-        tradeIns: tradeIns?.map((tradeIn) => {
-          const product = productMap.get(tradeIn.productId);
-          return {
-            name: product?.name || `Trade-in ${tradeIn.productId}`,
-            quantity: tradeIn.quantity,
-            tradeInValue: tradeIn.tradeInValue,
-          };
-        }),
-        date: formatDate(now),
-        time: formatTime(now),
-      };
-
-      const isBattery = cart.some((item) =>
-        item.volumeDescription?.toLowerCase().includes("battery")
-      );
-
-      let receiptHtml = "";
-      let batteryBillHtml = "";
-
-      if (isBattery) {
-        batteryBillHtml = generateBatteryBill(receiptData);
-      } else {
-        receiptHtml = generateThermalReceipt(receiptData);
-      }
-
-      // Update transaction with receipt HTML
-      await tx
-        .update(transactions)
-        .set({
-          receiptHtml: receiptHtml || null,
-          batteryBillHtml: batteryBillHtml || null,
-        })
-        .where(eq(transactions.id, newTransaction.id));
-
-      return {
-        transaction: newTransaction,
-        receiptHtml,
-        batteryBillHtml,
-        isBattery,
-      };
     });
+
+    const processingTime = Date.now() - startTime;
+    console.log(
+      `[${requestId}] Checkout completed successfully (${processingTime}ms)`
+    );
 
     return NextResponse.json({
       success: true,
-      data: result,
+      data: {
+        ...result,
+        requestId,
+        processingTime,
+        timestamp: new Date().toISOString(),
+      },
     });
   } catch (error) {
-    console.error("Checkout error:", error);
+    const processingTime = Date.now() - startTime;
+    console.error(
+      `[${requestId}] Checkout error after ${processingTime}ms:`,
+      error
+    );
 
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         {
           success: false,
           error: "Invalid input data",
-          details: error.errors,
+          details: {
+            requestId,
+            validationErrors: error.errors,
+            processingTime,
+            timestamp: new Date().toISOString(),
+          },
         },
         { status: 400 }
       );
     }
 
+    // Enhanced database error handling
+    if (error instanceof Error) {
+      const errorMessage = error.message.toLowerCase();
+
+      // Authentication errors
+      if (
+        errorMessage.includes("password authentication failed") ||
+        errorMessage.includes("authentication failed")
+      ) {
+        return NextResponse.json(
+          {
+            success: false,
+            error:
+              "Database authentication failed. Please check your database configuration.",
+            details: {
+              requestId,
+              errorType: "AUTH_FAILED",
+              processingTime,
+              timestamp: new Date().toISOString(),
+              recovery: "Check database credentials and connection string",
+            },
+          },
+          { status: 503 }
+        );
+      }
+
+      // Connection errors
+      if (
+        errorMessage.includes("connection") ||
+        errorMessage.includes("timeout") ||
+        errorMessage.includes("econnreset") ||
+        errorMessage.includes("enotfound")
+      ) {
+        return NextResponse.json(
+          {
+            success: false,
+            error:
+              "Database connection failed. The service may be temporarily unavailable.",
+            details: {
+              requestId,
+              errorType: "CONNECTION_FAILED",
+              processingTime,
+              timestamp: new Date().toISOString(),
+              recovery:
+                "Transaction will be retried automatically. Check network connectivity.",
+            },
+          },
+          { status: 503 }
+        );
+      }
+
+      // Transaction/constraint errors
+      if (
+        errorMessage.includes("insufficient stock") ||
+        errorMessage.includes("constraint") ||
+        errorMessage.includes("violates") ||
+        errorMessage.includes("no closed bottles available") ||
+        errorMessage.includes("no open bottles available") ||
+        errorMessage.includes("invalid source for lubricant sale")
+      ) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: error.message,
+            details: {
+              requestId,
+              errorType: "BUSINESS_LOGIC_ERROR",
+              processingTime,
+              timestamp: new Date().toISOString(),
+              recovery:
+                "Check inventory levels and product availability. For lubricants, ensure proper source selection.",
+            },
+          },
+          { status: 400 }
+        );
+      }
+
+      // Product not found errors
+      if (
+        errorMessage.includes("product not found") ||
+        errorMessage.includes("inventory not found")
+      ) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: error.message,
+            details: {
+              requestId,
+              errorType: "PRODUCT_NOT_FOUND",
+              processingTime,
+              timestamp: new Date().toISOString(),
+              recovery:
+                "Verify product exists and is available at the specified location",
+            },
+          },
+          { status: 404 }
+        );
+      }
+    }
+
+    // Generic server error with enhanced details
     return NextResponse.json(
       {
         success: false,
         error:
           error instanceof Error ? error.message : "Unknown error occurred",
+        details: {
+          requestId,
+          errorType: "INTERNAL_ERROR",
+          processingTime,
+          timestamp: new Date().toISOString(),
+          recovery:
+            "Please try again. If the problem persists, contact system administrator.",
+        },
       },
       { status: 500 }
     );

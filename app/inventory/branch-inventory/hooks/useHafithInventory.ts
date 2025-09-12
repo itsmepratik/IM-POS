@@ -2,7 +2,12 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { Item } from "@/lib/services/inventoryService";
-import { fetchItems, deleteItem } from "@/lib/services/inventoryService";
+import {
+  fetchItems,
+  deleteItem,
+  fetchCategories,
+  fetchBrands,
+} from "@/lib/services/inventoryService";
 import { toast } from "@/components/ui/use-toast";
 
 // Hafith Branch data (Branch ID: "2")
@@ -265,6 +270,10 @@ export function useHafithInventory(): UseHafithInventoryReturn {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
 
+  // Database categories and brands
+  const [dbCategories, setDbCategories] = useState<string[]>([]);
+  const [dbBrands, setDbBrands] = useState<string[]>([]);
+
   // UI states
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
@@ -285,8 +294,16 @@ export function useHafithInventory(): UseHafithInventoryReturn {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const data = await fetchBranchInventory();
-        setBranchItems(data);
+        // Fetch items, categories, and brands in parallel
+        const [itemsData, categoriesData, brandsData] = await Promise.all([
+          fetchBranchInventory(),
+          fetchCategories(),
+          fetchBrands(),
+        ]);
+
+        setBranchItems(itemsData);
+        setDbCategories(categoriesData.map((cat) => cat.name));
+        setDbBrands(brandsData.map((brand) => brand.name));
       } catch (error) {
         console.error("Error fetching data:", error);
         toast({
@@ -315,22 +332,14 @@ export function useHafithInventory(): UseHafithInventoryReturn {
     }
   };
 
-  // Derived states
+  // Derived states - use database categories and brands
   const categories = useMemo(() => {
-    const allCategories = Array.from(
-      new Set(
-        branchItems.map((item) => item.category).filter(Boolean) as string[]
-      )
-    );
-    return allCategories;
-  }, [branchItems]);
+    return dbCategories;
+  }, [dbCategories]);
 
   const brands = useMemo(() => {
-    const allBrands = Array.from(
-      new Set(branchItems.map((item) => item.brand).filter(Boolean) as string[])
-    );
-    return allBrands;
-  }, [branchItems]);
+    return dbBrands;
+  }, [dbBrands]);
 
   const oilItems = useMemo(() => {
     return branchItems.filter((item) => item.isOil);

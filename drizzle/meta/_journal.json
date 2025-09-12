@@ -15,6 +15,34 @@
       "when": 1757267432044,
       "tag": "0001_secret_apocalypse",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1757363013820,
+      "tag": "0002_safe_invaders",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1757519963203,
+      "tag": "0003_awesome_daimon_hellstrom",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1757519986639,
+      "tag": "0004_mysterious_champions",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1757530199670,
+      "tag": "0005_unknown_nova",
+      "breakpoints": true
     }
   ]
 }

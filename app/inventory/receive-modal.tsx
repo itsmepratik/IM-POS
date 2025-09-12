@@ -13,13 +13,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useItems } from "./items-context";
 import { toast } from "@/components/ui/use-toast";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -39,14 +32,12 @@ export default function ReceiveModal({
   open,
   onOpenChange,
 }: ReceiveModalProps) {
-  const { items, addBatch, suppliers } = useItems();
+  const { items, addBatch } = useItems();
   const [formData, setFormData] = useState({
     itemId: "",
     quantity: "1",
     costPrice: "",
-    supplierId: "",
     purchaseDate: new Date(),
-    expirationDate: undefined as Date | undefined,
   });
   const [formError, setFormError] = useState("");
 
@@ -75,10 +66,8 @@ export default function ReceiveModal({
         cost_price: parseFloat(formData.costPrice),
         initial_quantity: parseInt(formData.quantity),
         current_quantity: parseInt(formData.quantity),
-        supplier_id: formData.supplierId || null,
-        expiration_date: formData.expirationDate
-          ? format(formData.expirationDate, "yyyy-MM-dd")
-          : null,
+        supplier_id: null,
+        expiration_date: null,
       });
 
       if (success) {
@@ -96,9 +85,7 @@ export default function ReceiveModal({
           itemId: "",
           quantity: "1",
           costPrice: "",
-          supplierId: "",
           purchaseDate: new Date(),
-          expirationDate: undefined,
         });
         setFormError("");
 
@@ -175,95 +162,38 @@ export default function ReceiveModal({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="supplier">Supplier (optional)</Label>
-            <Select
-              value={formData.supplierId}
-              onValueChange={(value) =>
-                setFormData({ ...formData, supplierId: value })
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select a supplier" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">None</SelectItem>
-                {suppliers.map((supplier) => (
-                  <SelectItem key={supplier.id} value={supplier.id}>
-                    {supplier.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="purchaseDate">Purchase Date</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !formData.purchaseDate && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {formData.purchaseDate ? (
-                      format(formData.purchaseDate, "PPP")
-                    ) : (
-                      <span>Pick a date</span>
-                    )}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <Calendar
-                    mode="single"
-                    selected={formData.purchaseDate}
-                    onSelect={(date) =>
-                      setFormData({
-                        ...formData,
-                        purchaseDate: date || new Date(),
-                      })
-                    }
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="expirationDate">Expiration Date (optional)</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !formData.expirationDate && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {formData.expirationDate ? (
-                      format(formData.expirationDate, "PPP")
-                    ) : (
-                      <span>Pick a date</span>
-                    )}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <Calendar
-                    mode="single"
-                    selected={formData.expirationDate}
-                    onSelect={(date) =>
-                      setFormData({ ...formData, expirationDate: date })
-                    }
-                    initialFocus
-                    disabled={(date) => date < new Date()}
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
+            <Label htmlFor="purchaseDate">Purchase Date</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-full justify-start text-left font-normal",
+                    !formData.purchaseDate && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {formData.purchaseDate ? (
+                    format(formData.purchaseDate, "PPP")
+                  ) : (
+                    <span>Pick a date</span>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0">
+                <Calendar
+                  mode="single"
+                  selected={formData.purchaseDate}
+                  onSelect={(date) =>
+                    setFormData({
+                      ...formData,
+                      purchaseDate: date || new Date(),
+                    })
+                  }
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
           </div>
 
           {formError && <p className="text-sm text-red-500">{formError}</p>}

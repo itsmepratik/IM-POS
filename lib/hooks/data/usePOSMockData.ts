@@ -717,14 +717,7 @@ export function usePOSMockData(): POSCatalogData {
     const partTypes = Array.from(
       new Set(
         products
-          .filter(
-            (p) =>
-              p.category === "Parts" &&
-              p.type &&
-              ["Miscellaneous Parts", "Spark Plugs", "Batteries"].includes(
-                p.type
-              )
-          )
+          .filter((p) => p.category === "Parts" && p.type)
           .map((p) => p.type!)
       )
     );

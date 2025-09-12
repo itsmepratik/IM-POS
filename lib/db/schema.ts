@@ -7,6 +7,7 @@ import {
   pgTable,
   text,
   timestamp,
+  unique,
   uuid,
 } from "drizzle-orm/pg-core";
 
@@ -20,17 +21,27 @@ export const categories = pgTable("categories", {
   name: text("name").notNull().unique(),
 });
 
+export const brands = pgTable("brands", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull().unique(),
+});
+
 export const products = pgTable("products", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
   categoryId: uuid("category_id")
     .notNull()
     .references(() => categories.id, { onDelete: "restrict" }),
-  brand: text("brand"),
+  brandId: uuid("brand_id").references(() => brands.id, {
+    onDelete: "set null",
+  }),
+  brand: text("brand"), // Keep for backward compatibility
   productType: text("product_type"),
   description: text("description"),
   imageUrl: text("image_url"),
   lowStockThreshold: integer("low_stock_threshold").default(0),
+  costPrice: numeric("cost_price"),
+  manufacturingDate: timestamp("manufacturing_date", { withTimezone: true }),
 });
 
 export const productVolumes = pgTable("product_volumes", {
@@ -98,6 +109,21 @@ export const transactions = pgTable("transactions", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });
 
+export const tradeInPrices = pgTable(
+  "trade_in_prices",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    size: text("size").notNull(),
+    condition: text("condition").notNull(), // 'Scrap' or 'Resalable'
+    tradeInValue: numeric("trade_in_value").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  },
+  (table) => ({
+    uniqueSizeCondition: unique().on(table.size, table.condition),
+  })
+);
+
 export const tradeInTransactions = pgTable("trade_in_transactions", {
   id: uuid("id").primaryKey().defaultRandom(),
   transactionId: uuid("transaction_id")
@@ -109,4 +135,15 @@ export const tradeInTransactions = pgTable("trade_in_transactions", {
   quantity: integer("quantity").notNull(),
   tradeInValue: numeric("trade_in_value").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
+export const openBottleDetails = pgTable("open_bottle_details", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  inventoryId: uuid("inventory_id")
+    .notNull()
+    .references(() => inventory.id, { onDelete: "cascade" }),
+  initialVolume: numeric("initial_volume").notNull(),
+  currentVolume: numeric("current_volume").notNull(),
+  openedAt: timestamp("opened_at", { withTimezone: true }).defaultNow(),
+  isEmpty: boolean("is_empty").default(false),
 });

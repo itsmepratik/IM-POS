@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,7 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { X, Plus, Trash2, Edit3 } from "lucide-react";
+import { X, Plus, Trash2, Edit3, Save, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Select,
@@ -20,12 +20,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { toast } from "@/components/ui/use-toast";
+import { TradeInPrice } from "@/lib/types/trade-in";
 
 interface TradeInItem {
   id: string;
   size: string;
   price: number;
-  category: "scrap" | "resellable";
+  category: "Scrap" | "Resalable";
 }
 
 interface TradeInsModalProps {
@@ -34,33 +36,114 @@ interface TradeInsModalProps {
 }
 
 export function TradeInsModal({ isOpen, onClose }: TradeInsModalProps) {
-  const [tradeInItems, setTradeInItems] = useState<TradeInItem[]>([
-    { id: "1", size: "1000", price: 0, category: "scrap" },
-    { id: "2", size: "1200", price: 0, category: "scrap" },
-    { id: "3", size: "1400", price: 0, category: "scrap" },
-    { id: "4", size: "1600", price: 0, category: "scrap" },
-    { id: "5", size: "1800", price: 0, category: "scrap" },
-    { id: "6", size: "2000", price: 0, category: "scrap" },
-    { id: "7", size: "1100", price: 25, category: "resellable" },
-    { id: "8", size: "1300", price: 30, category: "resellable" },
-    { id: "9", size: "1500", price: 35, category: "resellable" },
-  ]);
-
+  const [tradeInItems, setTradeInItems] = useState<TradeInItem[]>([]);
   const [editingItem, setEditingItem] = useState<string | null>(null);
   const [newSize, setNewSize] = useState("");
   const [newPrice, setNewPrice] = useState("");
-  const [newCategory, setNewCategory] = useState<"scrap" | "resellable">(
-    "scrap"
+  const [newCategory, setNewCategory] = useState<"Scrap" | "Resalable">(
+    "Scrap"
   );
+  const [filterCategory, setFilterCategory] = useState<"Scrap" | "Resalable">(
+    "Scrap"
+  );
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [hasChanges, setHasChanges] = useState(false);
 
-  const [filterCategory, setFilterCategory] = useState<"scrap" | "resellable">(
-    "scrap"
-  );
+  // Load trade-in prices from API
+  const loadTradeInPrices = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch("/api/trade-in/prices");
+      const data = await response.json();
+
+      if (data.success) {
+        const transformedItems: TradeInItem[] = data.data.map(
+          (price: TradeInPrice) => ({
+            id: price.id,
+            size: price.size,
+            price: price.tradeInValue,
+            category: price.condition,
+          })
+        );
+        setTradeInItems(transformedItems);
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to load trade-in prices",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error loading trade-in prices:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load trade-in prices",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Save trade-in prices to API
+  const saveTradeInPrices = async () => {
+    setIsSaving(true);
+    try {
+      const pricesToSave = tradeInItems.map((item) => ({
+        size: item.size,
+        condition: item.category,
+        tradeInValue: item.price,
+      }));
+
+      const response = await fetch("/api/trade-in/prices", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(pricesToSave),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        toast({
+          title: "Success",
+          description: data.message,
+        });
+        setHasChanges(false);
+        // Reload data to get updated IDs
+        await loadTradeInPrices();
+      } else {
+        toast({
+          title: "Error",
+          description: data.error || "Failed to save trade-in prices",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error saving trade-in prices:", error);
+      toast({
+        title: "Error",
+        description: "Failed to save trade-in prices",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Load data when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      loadTradeInPrices();
+    }
+  }, [isOpen]);
 
   const handleAddItem = () => {
     if (newSize && newPrice) {
       const newItem: TradeInItem = {
-        id: Date.now().toString(),
+        id: `temp-${Date.now()}`,
         size: newSize,
         price: parseFloat(newPrice),
         category: newCategory,
@@ -68,11 +151,13 @@ export function TradeInsModal({ isOpen, onClose }: TradeInsModalProps) {
       setTradeInItems([...tradeInItems, newItem]);
       setNewSize("");
       setNewPrice("");
+      setHasChanges(true);
     }
   };
 
   const handleDeleteItem = (id: string) => {
     setTradeInItems(tradeInItems.filter((item) => item.id !== id));
+    setHasChanges(true);
   };
 
   const handleUpdatePrice = (id: string, newPrice: number) => {
@@ -82,24 +167,26 @@ export function TradeInsModal({ isOpen, onClose }: TradeInsModalProps) {
       )
     );
     setEditingItem(null);
+    setHasChanges(true);
   };
 
   const handleCategoryChange = (
     id: string,
-    category: "scrap" | "resellable"
+    category: "Scrap" | "Resalable"
   ) => {
     setTradeInItems(
       tradeInItems.map((item) =>
         item.id === id ? { ...item, category } : item
       )
     );
+    setHasChanges(true);
   };
 
   const getBackgroundPosition = () => {
-    if (filterCategory === "scrap") {
+    if (filterCategory === "Scrap") {
       return "left-1";
     }
-    if (filterCategory === "resellable") {
+    if (filterCategory === "Resalable") {
       return "left-1/2";
     }
     return "left-1"; // Default to Scrap
@@ -162,7 +249,7 @@ export function TradeInsModal({ isOpen, onClose }: TradeInsModalProps) {
                     </label>
                     <Select
                       value={newCategory}
-                      onValueChange={(value: "scrap" | "resellable") =>
+                      onValueChange={(value: "Scrap" | "Resalable") =>
                         setNewCategory(value)
                       }
                     >
@@ -170,13 +257,13 @@ export function TradeInsModal({ isOpen, onClose }: TradeInsModalProps) {
                         <SelectValue placeholder="Select Status" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="scrap">Scrap</SelectItem>
-                        <SelectItem value="resellable">Resellable</SelectItem>
+                        <SelectItem value="Scrap">Scrap</SelectItem>
+                        <SelectItem value="Resalable">Resalable</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                 </div>
-                <div className="md:pt-6">
+                <div className="md:pt-6 flex gap-2">
                   <Button
                     onClick={handleAddItem}
                     className="w-full md:w-auto rounded-lg bg-blue-600 hover:bg-blue-700"
@@ -184,6 +271,18 @@ export function TradeInsModal({ isOpen, onClose }: TradeInsModalProps) {
                   >
                     <Plus className="h-4 w-4 mr-2" />
                     Add
+                  </Button>
+                  <Button
+                    onClick={saveTradeInPrices}
+                    className="w-full md:w-auto rounded-lg bg-green-600 hover:bg-green-700"
+                    disabled={!hasChanges || isSaving}
+                  >
+                    {isSaving ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Save className="h-4 w-4 mr-2" />
+                    )}
+                    {isSaving ? "Saving..." : "Save Changes"}
                   </Button>
                 </div>
               </div>
@@ -204,30 +303,30 @@ export function TradeInsModal({ isOpen, onClose }: TradeInsModalProps) {
                   <div
                     className={cn(
                       "absolute inset-y-1 rounded-full transition-all duration-300 ease-in-out shadow-sm bg-white",
-                      filterCategory === "scrap"
+                      filterCategory === "Scrap"
                         ? "left-1 w-[calc(50%-4px)]"
                         : "left-1/2 w-[calc(50%-4px)] transform -translate-x-0.5"
                     )}
                   />
                   <button
                     className={`px-4 md:px-6 py-1.5 rounded-full text-sm font-medium relative transition-colors duration-300 ${
-                      filterCategory === "scrap"
+                      filterCategory === "Scrap"
                         ? "text-foreground"
                         : "text-muted-foreground hover:text-foreground"
                     }`}
-                    onClick={() => setFilterCategory("scrap")}
+                    onClick={() => setFilterCategory("Scrap")}
                   >
                     Scrap
                   </button>
                   <button
                     className={`px-4 md:px-6 py-1.5 rounded-full text-sm font-medium relative transition-colors duration-300 ${
-                      filterCategory === "resellable"
+                      filterCategory === "Resalable"
                         ? "text-foreground"
                         : "text-muted-foreground hover:text-foreground"
                     }`}
-                    onClick={() => setFilterCategory("resellable")}
+                    onClick={() => setFilterCategory("Resalable")}
                   >
-                    Resellable
+                    Resalable
                   </button>
                 </div>
 
@@ -256,7 +355,14 @@ export function TradeInsModal({ isOpen, onClose }: TradeInsModalProps) {
 
               {/* Scrollable Items Container */}
               <div className="overflow-y-auto flex-1 min-h-0">
-                {filteredItems.length === 0 ? (
+                {isLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin mr-2" />
+                    <span className="text-gray-500 text-sm">
+                      Loading trade-in prices...
+                    </span>
+                  </div>
+                ) : filteredItems.length === 0 ? (
                   <div className="text-center py-8 text-gray-500 text-sm">
                     No {filterCategory} items found
                   </div>
@@ -344,10 +450,7 @@ export function TradeInsModal({ isOpen, onClose }: TradeInsModalProps) {
             onClick={onClose}
             className="flex-1 md:flex-none"
           >
-            Cancel
-          </Button>
-          <Button className="bg-blue-600 hover:bg-blue-700 flex-1 md:flex-none">
-            Save Changes
+            Close
           </Button>
         </div>
       </DialogContent>

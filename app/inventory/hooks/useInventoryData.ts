@@ -20,6 +20,10 @@ interface UseInventoryDataReturn {
   selectedItems: string[];
   setSelectedItems: (items: string[]) => void;
 
+  // Trade-in toggle
+  showTradeIns: boolean;
+  setShowTradeIns: (show: boolean) => void;
+
   // Modal states
   isModalOpen: boolean;
   setIsModalOpen: (isOpen: boolean) => void;
@@ -50,7 +54,14 @@ interface UseInventoryDataReturn {
 
 export function useInventoryData(): UseInventoryDataReturn {
   // Get data from contexts
-  const { items, categories, deleteItem, duplicateItem } = useItems();
+  const {
+    items,
+    categories,
+    deleteItem,
+    duplicateItem,
+    showTradeIns,
+    setShowTradeIns,
+  } = useItems();
   const { branches, currentBranch } = useBranch();
 
   // UI state
@@ -143,6 +154,7 @@ export function useInventoryData(): UseInventoryDataReturn {
     setSearchQuery("");
     setSelectedCategory("all");
     setShowLowStock(false);
+    setShowTradeIns(false);
     setIsFiltersOpen(false);
   };
 
@@ -163,6 +175,8 @@ export function useInventoryData(): UseInventoryDataReturn {
     setShowLowStock,
     selectedItems,
     setSelectedItems,
+    showTradeIns,
+    setShowTradeIns,
 
     // Modal states
     isModalOpen,

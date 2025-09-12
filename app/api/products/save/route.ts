@@ -19,10 +19,13 @@ const PayloadSchema = z.object({
   name: z.string().min(1),
   category_id: z.string().uuid().optional(),
   brand: z.string().optional(),
+  brand_id: z.string().uuid().optional(),
   type: z.string().optional(),
   description: z.string().optional(),
   image_url: z.string().url().optional(),
   low_stock_threshold: z.number().int().min(0).optional(),
+  cost_price: z.coerce.number().nonnegative().optional(),
+  manufacturing_date: z.string().optional(),
 
   location_id: z.string().uuid(),
 
@@ -33,7 +36,7 @@ const PayloadSchema = z.object({
 
   // Non-lubricants branch
   standard_stock: z.number().int().min(0).optional(),
-  selling_price: z.coerce.number().nonnegative().optional(),
+  selling_price: z.coerce.number().min(0).optional(),
 
   // Initial batch for new product
   batch: BatchSchema.optional(),
@@ -49,7 +52,7 @@ export async function POST(req: Request) {
     // Determine if the category is Lubricants
     let category = null;
     let isLubricant = false;
-    
+
     if (body.category_id) {
       const { data: categoryData, error: categoryError } = await supabase
         .from("categories")
@@ -79,7 +82,7 @@ export async function POST(req: Request) {
           { status: 404 }
         );
       }
-      
+
       category = existingProduct.categories;
       isLubricant = category?.name?.toLowerCase() === "lubricants";
     } else {
@@ -96,43 +99,79 @@ export async function POST(req: Request) {
       // Update existing product
       const updateData: any = {
         name: body.name,
-        brand_id: body.brand,
-        product_type: body.type,
-        description: body.description,
-        image_url: body.image_url,
+        product_type: body.type || null,
+        description: body.description || null,
+        image_url: body.image_url || null,
         low_stock_threshold: body.low_stock_threshold ?? 0,
       };
-      
+
+      // Handle brand_id vs brand - prefer brand_id (UUID) over brand (text)
+      if (body.brand_id) {
+        updateData.brand_id = body.brand_id;
+      } else if (body.brand) {
+        updateData.brand = body.brand;
+      }
+
+      // Only include new fields if they exist in the request
+      if (body.cost_price !== undefined) {
+        updateData.cost_price = body.cost_price;
+      }
+      if (body.manufacturing_date !== undefined) {
+        updateData.manufacturing_date = body.manufacturing_date;
+      }
+
       // Only update category_id if provided
       if (body.category_id) {
         updateData.category_id = body.category_id;
       }
-      
+
+      console.log("About to update product with data:", updateData);
+
       const { error: updateError } = await supabase
         .from("products")
         .update(updateData)
         .eq("id", productId);
 
       if (updateError) {
-        console.error("Error updating product:", updateError);
+        console.error("Detailed Supabase error updating product:", updateError);
+        console.error("Error code:", updateError.code);
+        console.error("Error message:", updateError.message);
+        console.error("Error details:", updateError.details);
+        console.error("Error hint:", updateError.hint);
         return NextResponse.json(
-          { error: "Failed to update product" },
+          { error: `Failed to update product: ${updateError.message}` },
           { status: 500 }
         );
       }
     } else {
       // Create new product
+      const insertData: any = {
+        name: body.name,
+        category_id: body.category_id,
+        product_type: body.type || null,
+        description: body.description || null,
+        image_url: body.image_url || null,
+        low_stock_threshold: body.low_stock_threshold ?? 0,
+      };
+
+      // Handle brand_id vs brand - prefer brand_id (UUID) over brand (text)
+      if (body.brand_id) {
+        insertData.brand_id = body.brand_id;
+      } else if (body.brand) {
+        insertData.brand = body.brand;
+      }
+
+      // Only include new fields if they exist in the request
+      if (body.cost_price !== undefined) {
+        insertData.cost_price = body.cost_price;
+      }
+      if (body.manufacturing_date !== undefined) {
+        insertData.manufacturing_date = body.manufacturing_date;
+      }
+
       const { data: insertedProduct, error: insertError } = await supabase
         .from("products")
-        .insert({
-          name: body.name,
-          category_id: body.category_id,
-          brand_id: body.brand,
-          product_type: body.type,
-          description: body.description,
-          image_url: body.image_url,
-          low_stock_threshold: body.low_stock_threshold ?? 0,
-        })
+        .insert(insertData)
         .select("id")
         .single();
 
@@ -204,36 +243,113 @@ export async function POST(req: Request) {
       inventoryId = insertedInv.id;
     }
 
-    // 3) Lubricant volumes upsert
+    // 3) Lubricant volumes upsert - now with proper upsert logic
+    console.log("🔍 Volume processing check:");
+    console.log("- isLubricant:", isLubricant);
+    console.log("- body.volumes:", body.volumes);
+    console.log("- volumes length:", body.volumes?.length || 0);
+
     if (isLubricant && body.volumes && body.volumes.length > 0) {
-      // Delete existing volumes
-      const { error: deleteVolumesError } = await supabase
+      console.log("✅ Processing volumes for lubricant product");
+
+      // Get existing volumes to determine what to update/insert/delete
+      const { data: existingVolumes, error: fetchVolumesError } = await supabase
         .from("product_volumes")
-        .delete()
+        .select("id, volume_description, selling_price")
         .eq("product_id", productId);
 
-      if (deleteVolumesError) {
-        console.error("Error deleting volumes:", deleteVolumesError);
-      }
-
-      // Insert new volumes
-      const volumeData = body.volumes.map((v) => ({
-        product_id: productId,
-        volume_description: v.volume,
-        selling_price: String(v.price),
-      }));
-
-      const { error: insertVolumesError } = await supabase
-        .from("product_volumes")
-        .insert(volumeData);
-
-      if (insertVolumesError) {
-        console.error("Error inserting volumes:", insertVolumesError);
+      if (fetchVolumesError) {
+        console.error("❌ Error fetching existing volumes:", fetchVolumesError);
         return NextResponse.json(
-          { error: "Failed to update product volumes" },
+          { error: "Failed to fetch existing volumes" },
           { status: 500 }
         );
       }
+
+      console.log("📦 Existing volumes:", existingVolumes);
+
+      // Create a map of existing volumes by volume_description for easy lookup
+      const existingVolumeMap = new Map();
+      (existingVolumes || []).forEach((v) => {
+        existingVolumeMap.set(v.volume_description, v);
+      });
+
+      // Process each volume from the request
+      const processedVolumeDescriptions = new Set();
+      for (const requestVolume of body.volumes) {
+        const volumeDescription = requestVolume.volume;
+        const price = String(requestVolume.price);
+
+        processedVolumeDescriptions.add(volumeDescription);
+
+        const existingVolume = existingVolumeMap.get(volumeDescription);
+
+        if (existingVolume) {
+          // Update existing volume if price changed
+          if (existingVolume.selling_price !== price) {
+            console.log(
+              `🔄 Updating volume ${volumeDescription}: ${existingVolume.selling_price} → ${price}`
+            );
+            const { error: updateError } = await supabase
+              .from("product_volumes")
+              .update({ selling_price: price })
+              .eq("id", existingVolume.id);
+
+            if (updateError) {
+              console.error("❌ Error updating volume:", updateError);
+              return NextResponse.json(
+                { error: "Failed to update product volume" },
+                { status: 500 }
+              );
+            }
+          } else {
+            console.log(`✅ Volume ${volumeDescription} unchanged`);
+          }
+        } else {
+          // Insert new volume
+          console.log(`➕ Adding new volume: ${volumeDescription} at ${price}`);
+          const { error: insertError } = await supabase
+            .from("product_volumes")
+            .insert({
+              product_id: productId,
+              volume_description: volumeDescription,
+              selling_price: price,
+            });
+
+          if (insertError) {
+            console.error("❌ Error inserting volume:", insertError);
+            return NextResponse.json(
+              { error: "Failed to insert product volume" },
+              { status: 500 }
+            );
+          }
+        }
+      }
+
+      // Remove volumes that are no longer in the request (optional - uncomment if you want this behavior)
+      /*
+      const volumesToDelete = (existingVolumes || []).filter(v => 
+        !processedVolumeDescriptions.has(v.volume_description)
+      );
+      
+      if (volumesToDelete.length > 0) {
+        console.log("🗑️ Removing volumes:", volumesToDelete.map(v => v.volume_description));
+        const { error: deleteError } = await supabase
+          .from("product_volumes")
+          .delete()
+          .in("id", volumesToDelete.map(v => v.id));
+          
+        if (deleteError) {
+          console.error("❌ Error deleting removed volumes:", deleteError);
+        }
+      }
+      */
+
+      console.log("✅ Successfully processed volumes");
+    } else {
+      console.log(
+        "⏭️ Skipping volume processing - not a lubricant or no volumes"
+      );
     }
 
     // 4) Initial batch for new product

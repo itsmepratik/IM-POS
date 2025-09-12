@@ -40,6 +40,8 @@ interface ItemsContextType {
   suppliers: Supplier[];
   categoryMap: Record<string, string>;
   brandMap: Record<string, string>;
+  showTradeIns: boolean;
+  setShowTradeIns: (show: boolean) => void;
   addItem: (item: Omit<Item, "id">) => Promise<Item | null>;
   updateItem: (
     id: string,
@@ -151,6 +153,8 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
           calculateAverageCost: () => 0,
           isLoading: false,
           refetchItems: async () => {},
+          showTradeIns: false,
+          setShowTradeIns: () => {},
         }}
       >
         {children}
@@ -163,6 +167,7 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
   const [brands, setBrands] = useState<string[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [showTradeIns, setShowTradeIns] = useState(false);
   const [categoryMap, setCategoryMap] = useState<Map<string, string>>(
     new Map()
   ); // id -> name
@@ -183,6 +188,13 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
       loadItems();
     }
   }, [currentBranch]);
+
+  // Reload items when showTradeIns changes
+  useEffect(() => {
+    if (currentBranch) {
+      loadItems();
+    }
+  }, [showTradeIns]);
 
   // Fetch categories, brands, and suppliers on initial load
   useEffect(() => {
@@ -228,7 +240,7 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
       console.log(
         `Loading items for branch: ${currentBranch.name} (${currentBranch.id})`
       );
-      const itemsData = await fetchItems(currentBranch.id);
+      const itemsData = await fetchItems(currentBranch.id, showTradeIns);
       console.log(`Loaded ${itemsData.length} items`);
       setItems(itemsData);
     } catch (error) {
@@ -339,7 +351,7 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
         );
 
         // Add small delay to ensure database updates are propagated
-        await new Promise((resolve) => setTimeout(resolve, 500));
+        await new Promise((resolve) => setTimeout(resolve, 1000));
 
         // Refresh the data to ensure we have the latest
         await loadItems();
@@ -867,6 +879,8 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
         calculateAverageCost,
         isLoading,
         refetchItems,
+        showTradeIns,
+        setShowTradeIns,
       }}
     >
       {children}

@@ -63,6 +63,8 @@ interface ExtendedItem extends Omit<Item, "is_oil" | "image_url"> {
   notes?: string; // UI version of description
   lowStockAlert?: number;
   cost?: number;
+  costPrice?: number; // UI version of cost_price
+  manufacturingDate?: string; // UI version of manufacturing_date
   batches: Batch[]; // Make batches always required and non-optional
 }
 
@@ -74,6 +76,32 @@ interface ItemModalProps {
 
 // Define a type for the tab values
 type TabType = "general" | "volumes" | "batches";
+
+// Function to get types based on category
+const getTypesForCategory = (category: string): string[] => {
+  const categoryLower = category.toLowerCase();
+
+  if (categoryLower.includes("lubricant")) {
+    return ["Synthetic", "Non-synthetic"];
+  } else if (categoryLower.includes("filter")) {
+    return ["Oil filters", "Air filters", "Cabin filters"];
+  } else if (categoryLower.includes("part")) {
+    return ["Miscellaneous", "Battery", "Spare parts"];
+  } else if (
+    categoryLower.includes("additive") ||
+    categoryLower.includes("fluid")
+  ) {
+    return [
+      "Engine additives",
+      "Transmission fluid",
+      "Brake fluid",
+      "Coolant",
+      "Power steering fluid",
+    ];
+  }
+
+  return []; // Default empty array for unknown categories
+};
 
 export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
   const {
@@ -98,6 +126,8 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
     stock: item?.stock || 0,
     price: item?.price || 0,
     cost: 0,
+    costPrice: item?.costPrice || 0,
+    manufacturingDate: item?.manufacturingDate || "",
     brand: item?.brand || "",
     type: item?.type || "",
     imageUrl: "",
@@ -113,8 +143,6 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
     purchaseDate: "",
     costPrice: 0,
     quantity: 0,
-    supplier: "",
-    expirationDate: "",
   });
   const [editingBatchId, setEditingBatchId] = useState<string | null>(null);
   const [isMounted, setIsMounted] = useState(false);
@@ -124,8 +152,6 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
     purchaseDate: "",
     costPrice: 0,
     quantity: 0,
-    supplier: "",
-    expirationDate: "",
   });
 
   // Set mounted state to track when component is mounted on client
@@ -162,6 +188,8 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
         stock: item.stock || 0,
         price: item.price || 0,
         cost: 0, // Default value
+        costPrice: item.costPrice || 0,
+        manufacturingDate: item.manufacturingDate || "",
         brand: item.brand || "",
         type: item.type || "",
         imageUrl: item.image_url || item.imageUrl || "",
@@ -326,6 +354,22 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
       );
     }
 
+    // Validate volumes before saving
+    if (updatedFormData.isOil && updatedFormData.volumes) {
+      const invalidVolumes = updatedFormData.volumes.filter(
+        (v) => !v.size || v.size.trim() === ""
+      );
+      if (invalidVolumes.length > 0) {
+        toast({
+          title: "Invalid Volume",
+          description:
+            "All volumes must have a valid size (e.g., '1L', '4L', '5L')",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
     // Convert ExtendedItem back to standard Item interface for the context
     // Ensure correct field names mapping between UI and backend
     const itemToSave = {
@@ -339,6 +383,8 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
       image_url: updatedFormData.imageUrl || null, // Map to backend field name
       description: updatedFormData.notes || null, // Use notes for description
       is_oil: updatedFormData.isOil, // Map to backend field name
+      costPrice: updatedFormData.costPrice || 0,
+      manufacturingDate: updatedFormData.manufacturingDate || null,
       // Explicitly include bottle states for oil products
       bottleStates:
         updatedFormData.isOil && updatedFormData.bottleStates
@@ -347,7 +393,9 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
               closed: updatedFormData.bottleStates.closed || 0,
             }
           : undefined,
-      volumes: updatedFormData.isOil ? updatedFormData.volumes : [],
+      volumes: updatedFormData.isOil
+        ? updatedFormData.volumes?.filter((v) => v.size && v.size.trim() !== "")
+        : [],
       batches: updatedFormData.batches,
       // Add other fields that might be needed by the backend
       category_id: updatedFormData.category_id || null,
@@ -387,7 +435,17 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
   const addVolume = () => {
     setFormData((prev) => ({
       ...prev,
-      volumes: [...(prev.volumes || []), { size: "", price: 0 }],
+      volumes: [
+        ...(prev.volumes || []),
+        {
+          id: getClientOnlyId(),
+          item_id: item?.id || "",
+          size: "1L",
+          price: 0,
+          created_at: null,
+          updated_at: null,
+        },
+      ],
     }));
   };
 
@@ -449,8 +507,6 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
           purchaseDate: "",
           costPrice: 0,
           quantity: 0,
-          supplier: "",
-          expirationDate: "",
         });
 
         setTimeout(() => {
@@ -506,8 +562,6 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
       purchaseDate: "",
       costPrice: 0,
       quantity: 0,
-      supplier: "",
-      expirationDate: "",
     });
     setTimeout(() => {
       setNewBatch((prev) => ({
@@ -570,8 +624,6 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
       purchaseDate: batch.purchaseDate,
       costPrice: batch.costPrice,
       quantity: batch.quantity,
-      supplier: batch.supplier || "",
-      expirationDate: batch.expirationDate || "",
     });
   };
 
@@ -581,8 +633,6 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
       purchaseDate: "",
       costPrice: 0,
       quantity: 0,
-      supplier: "",
-      expirationDate: "",
     });
     setTimeout(() => {
       setNewBatch((prev) => ({
@@ -747,6 +797,7 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
                                       category_id: categoryId,
                                       isOil: isLubricants,
                                       is_oil: isLubricants,
+                                      type: "", // Clear type when category changes
                                       // Initialize volumes and bottle states for lubricants
                                       volumes: isLubricants
                                         ? formData.volumes &&
@@ -827,6 +878,52 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
                                   </SelectContent>
                                 </Select>
                               </div>
+                              {/* Type field - moved to left column to fill empty space */}
+                              {formData.category &&
+                                getTypesForCategory(formData.category).length >
+                                  0 && (
+                                  <div>
+                                    <Label htmlFor="type">Type</Label>
+                                    <Select
+                                      value={formData.type || ""}
+                                      onValueChange={(value) =>
+                                        setFormData({
+                                          ...formData,
+                                          type: value,
+                                        })
+                                      }
+                                    >
+                                      <SelectTrigger>
+                                        <SelectValue
+                                          placeholder={`Select ${formData.category.toLowerCase()} type`}
+                                        />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {getTypesForCategory(
+                                          formData.category
+                                        ).map((type) => (
+                                          <SelectItem key={type} value={type}>
+                                            {type}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                )}
+                              <div>
+                                <Label htmlFor="manufacturingDate">M.F.D</Label>
+                                <Input
+                                  id="manufacturingDate"
+                                  type="date"
+                                  value={formData.manufacturingDate || ""}
+                                  onChange={(e) =>
+                                    setFormData({
+                                      ...formData,
+                                      manufacturingDate: e.target.value,
+                                    })
+                                  }
+                                />
+                              </div>
                             </div>
                             <div className="space-y-4">
                               <div>
@@ -844,6 +941,23 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
                                     })
                                   }
                                   required
+                                />
+                              </div>
+                              <div>
+                                <Label htmlFor="costPrice">Cost Price</Label>
+                                <Input
+                                  id="costPrice"
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  value={formData.costPrice || 0}
+                                  onChange={(e) =>
+                                    setFormData({
+                                      ...formData,
+                                      costPrice:
+                                        parseFloat(e.target.value) || 0,
+                                    })
+                                  }
                                 />
                               </div>
                               <div>
@@ -898,36 +1012,6 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
                                   }
                                 />
                               </div>
-                              {/* Type field - only show for Lubricants category */}
-                              {formData.category === "Lubricants" && (
-                                <div>
-                                  <Label htmlFor="type">Type</Label>
-                                  <Select
-                                    value={formData.type || ""}
-                                    onValueChange={(value) =>
-                                      setFormData({
-                                        ...formData,
-                                        type: value,
-                                      })
-                                    }
-                                  >
-                                    <SelectTrigger>
-                                      <SelectValue placeholder="Select lubricant type" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="Synthetic">
-                                        Synthetic
-                                      </SelectItem>
-                                      <SelectItem value="Non-Synthetic">
-                                        Non-Synthetic
-                                      </SelectItem>
-                                      <SelectItem value="Semi-Synthetic">
-                                        Semi-Synthetic
-                                      </SelectItem>
-                                    </SelectContent>
-                                  </Select>
-                                </div>
-                              )}
                             </div>
                           </div>
 
@@ -1255,8 +1339,6 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
                                       : "2023-01-01",
                                     costPrice: 0,
                                     quantity: 0,
-                                    supplier: "",
-                                    expirationDate: "",
                                   });
                                   setIsEditingBatch(true);
                                 }}
@@ -1395,9 +1477,6 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
                                             editingBatch.purchaseDate,
                                           costPrice: editingBatch.costPrice,
                                           quantity: editingBatch.quantity,
-                                          supplier: editingBatch.supplier,
-                                          expirationDate:
-                                            editingBatch.expirationDate,
                                         }
                                       );
 
@@ -1412,9 +1491,6 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
                                                 costPrice:
                                                   editingBatch.costPrice,
                                                 quantity: editingBatch.quantity,
-                                                supplier: editingBatch.supplier,
-                                                expirationDate:
-                                                  editingBatch.expirationDate,
                                               }
                                             : batch
                                         );
@@ -1440,9 +1516,6 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
                                         purchaseDate: editingBatch.purchaseDate,
                                         costPrice: editingBatch.costPrice,
                                         quantity: editingBatch.quantity,
-                                        supplier: editingBatch.supplier,
-                                        expirationDate:
-                                          editingBatch.expirationDate,
                                       });
 
                                       // Update local formData
@@ -1451,9 +1524,6 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
                                         purchaseDate: editingBatch.purchaseDate,
                                         costPrice: editingBatch.costPrice,
                                         quantity: editingBatch.quantity,
-                                        supplier: editingBatch.supplier,
-                                        expirationDate:
-                                          editingBatch.expirationDate,
                                       };
 
                                       // Sort batches by purchase date (oldest first) for FIFO
@@ -1546,51 +1616,7 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
                                           }
                                           required
                                         />
-                                        <div className="text-xs text-muted-foreground">
-                                          The total stock will update
-                                          automatically based on all batch
-                                          quantities.
-                                        </div>
                                       </div>
-                                    </div>
-                                    <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
-                                      <Label
-                                        htmlFor="supplier"
-                                        className="sm:text-right text-sm"
-                                      >
-                                        Supplier
-                                      </Label>
-                                      <Input
-                                        id="supplier"
-                                        value={editingBatch.supplier}
-                                        onChange={(e) =>
-                                          setEditingBatch({
-                                            ...editingBatch,
-                                            supplier: e.target.value,
-                                          })
-                                        }
-                                        className="sm:col-span-3"
-                                      />
-                                    </div>
-                                    <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
-                                      <Label
-                                        htmlFor="expirationDate"
-                                        className="sm:text-right text-sm"
-                                      >
-                                        Expiration Date
-                                      </Label>
-                                      <Input
-                                        id="expirationDate"
-                                        type="date"
-                                        value={editingBatch.expirationDate}
-                                        onChange={(e) =>
-                                          setEditingBatch({
-                                            ...editingBatch,
-                                            expirationDate: e.target.value,
-                                          })
-                                        }
-                                        className="sm:col-span-3"
-                                      />
                                     </div>
                                   </div>
                                   <DialogFooter className="flex-col-reverse sm:flex-row gap-2 sm:gap-0 mt-3">

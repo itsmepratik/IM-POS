@@ -3,13 +3,24 @@
 import React, { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { ChevronDown, ChevronUp, Droplet } from "lucide-react";
-import { usePOSData } from "@/lib/hooks/data/usePOSData";
+
+interface Product {
+  id: number;
+  name: string;
+  price: number;
+  category: "Filters" | "Parts" | "Additives & Fluids";
+  brand?: string;
+  type?: string;
+  availableQuantity?: number;
+}
 
 interface AdditivesFluidsCategoryProps {
   searchQuery?: string;
   expandedBrand: string | null;
   setExpandedBrand: (brand: string | null) => void;
   addToCart: (item: any) => void;
+  products: Product[];
+  isLoading: boolean;
 }
 
 export function AdditivesFluidsCategory({
@@ -17,9 +28,9 @@ export function AdditivesFluidsCategory({
   expandedBrand,
   setExpandedBrand,
   addToCart,
+  products,
+  isLoading,
 }: AdditivesFluidsCategoryProps) {
-  const { products, isLoading } = usePOSData();
-
   // Get unique brands for additives & fluids
   const additiveBrands = useMemo(() => {
     return Array.from(

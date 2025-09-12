@@ -4,7 +4,6 @@ import React, { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { BrandCard } from "../shared/BrandCard";
-import { usePOSData } from "@/lib/hooks/data/usePOSData";
 
 interface FiltersCategoryProps {
   searchQuery?: string;
@@ -13,6 +12,9 @@ interface FiltersCategoryProps {
   setSelectedFilterBrand: (brand: string) => void;
   setSelectedFilters: (filters: any[]) => void;
   setIsFilterBrandModalOpen: (open: boolean) => void;
+  filterTypes: string[];
+  filterBrands: string[];
+  isLoading: boolean;
 }
 
 export function FiltersCategory({
@@ -22,9 +24,10 @@ export function FiltersCategory({
   setSelectedFilterBrand,
   setSelectedFilters,
   setIsFilterBrandModalOpen,
+  filterTypes,
+  filterBrands,
+  isLoading,
 }: FiltersCategoryProps) {
-  const { filterTypes, filterBrands, isLoading } = usePOSData();
-
   // Show loading state
   if (isLoading) {
     return (

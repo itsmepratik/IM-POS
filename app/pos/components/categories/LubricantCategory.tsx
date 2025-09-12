@@ -6,13 +6,29 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent } from "@/components/ui/card";
 import { ChevronDown, ChevronUp, ImageIcon } from "lucide-react";
 import Image from "next/image";
-import { usePOSData } from "@/lib/hooks/data/usePOSData";
+
+interface LubricantProduct {
+  id: number;
+  brand: string;
+  name: string;
+  basePrice: number;
+  type: string;
+  image?: string;
+  volumes: {
+    size: string;
+    price: number;
+    availableQuantity?: number;
+  }[];
+}
 
 interface LubricantCategoryProps {
   searchQuery?: string;
   expandedBrand: string | null;
   setExpandedBrand: (brand: string | null) => void;
-  onLubricantSelect: (lubricant: any) => void;
+  onLubricantSelect: (lubricant: LubricantProduct) => void;
+  lubricantProducts: LubricantProduct[];
+  lubricantBrands: string[];
+  isLoading: boolean;
 }
 
 export function LubricantCategory({
@@ -20,9 +36,10 @@ export function LubricantCategory({
   expandedBrand,
   setExpandedBrand,
   onLubricantSelect,
+  lubricantProducts,
+  lubricantBrands,
+  isLoading,
 }: LubricantCategoryProps) {
-  const { lubricantProducts, lubricantBrands, isLoading } = usePOSData();
-
   // Filter brands based on search query
   const filteredLubricantBrands = useMemo(() => {
     return lubricantBrands.filter((brand) =>
@@ -98,7 +115,7 @@ export function LubricantCategory({
                         className="text-center font-medium text-xs sm:text-sm w-full px-1 word-wrap whitespace-normal leading-tight hyphens-auto"
                         style={{ lineHeight: 1.1 }}
                       >
-                        {lubricant.type}
+                        {lubricant.name}
                       </span>
                       <span className="block text-sm text-primary mt-2">
                         OMR {lubricant.basePrice.toFixed(3)}

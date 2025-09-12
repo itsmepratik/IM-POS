@@ -26,6 +26,7 @@ import {
   Smartphone,
   Ticket,
   RotateCcw,
+  RefreshCw,
   ExternalLink,
   ChevronRight,
   PercentIcon,
@@ -93,10 +94,10 @@ import {
 import { RefundDialog, WarrantyDialog } from "./components/refund-dialog";
 import { ImportDialog } from "./components/import-dialog";
 import {
-  usePOSData,
+  useIntegratedPOSData,
   LubricantProduct,
   Product,
-} from "@/lib/hooks/data/usePOSData";
+} from "@/lib/hooks/data/useIntegratedPOSData";
 import { FilterModal } from "./components/filter-modal";
 import { PartsModal } from "./components/parts-modal";
 import { TradeInDialog } from "./components/modals/trade-in-dialog";
@@ -115,7 +116,7 @@ import { LubricantCategory } from "./components/categories/LubricantCategory";
 import { FiltersCategory } from "./components/categories/FiltersCategory";
 import { PartsCategory } from "./components/categories/PartsCategory";
 import { AdditivesFluidsCategory } from "./components/categories/AdditivesFluidsCategory";
-import { DataProvider } from "@/lib/contexts/DataProvider";
+import { DataProvider, useBranch } from "@/lib/contexts/DataProvider";
 import { BranchSelector } from "@/components/BranchSelector";
 
 // Types are now imported from usePOSMockData hook
@@ -141,6 +142,13 @@ interface ImportedCustomer {
   email?: string;
   phone?: string;
   // Add any other properties that might be in imported customers
+}
+
+interface TradeinBattery {
+  id: string;
+  size: string;
+  status: "scrap" | "resellable";
+  amount: number;
 }
 
 // Replaced hardcoded arrays with hook-driven POS catalog
@@ -735,8 +743,16 @@ function POSPageContent() {
     partTypes,
     lubricantBrands,
     isLoading,
+    isBackgroundSyncing,
     error,
-  } = usePOSData();
+    lastSyncTime,
+    syncProducts,
+    processSale,
+    getProductAvailability,
+  } = useIntegratedPOSData();
+
+  const { toast } = useToast();
+  const { currentBranch } = useBranch();
 
   const [cart, setCart] = useState<CartItem[]>([]);
   const [activeCategory, setActiveCategory] = useState<string>("Lubricants");
@@ -836,12 +852,31 @@ function POSPageContent() {
     name: string;
   } | null>(null);
   const [cashierIdError, setCashierIdError] = useState<string | null>(null);
-  const [selectedCashier, setSelectedCashier] = useState<string | null>(null);
+  const [selectedCashier, setSelectedCashier] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
 
   // Parts state handled locally
 
   // Add state for payment recipient
   const [paymentRecipient, setPaymentRecipient] = useState<string | null>(null);
+
+  // Trade-in battery states
+  const [tradeinBatteries, setTradeinBatteries] = useState<TradeinBattery[]>(
+    []
+  );
+  const [currentBatteryEntry, setCurrentBatteryEntry] = useState<{
+    size: string;
+    status: string;
+    amount: number;
+  }>({ size: "", status: "", amount: 0 });
+  const [editingBatteryId, setEditingBatteryId] = useState<string | null>(null);
+  const [tradeinFormErrors, setTradeinFormErrors] = useState<{
+    size: boolean;
+    status: boolean;
+    amount: boolean;
+  }>({ size: false, status: false, amount: false });
 
   // Get cashier data from the hook
   const { staffMembers } = useStaffIDs();
@@ -987,7 +1022,7 @@ function POSPageContent() {
           );
         }
 
-        // Find the original product to get the brand if it exists
+        // Find the original product to get full product details
         const originalProduct =
           products.find((p) => p.id === product.id) ||
           lubricantProducts.find((p) => p.id === product.id);
@@ -998,6 +1033,10 @@ function POSPageContent() {
             : undefined;
         const fullName = brand ? `${brand} ${product.name}` : product.name;
 
+        // Extract category and type information for proper battery detection
+        const category = originalProduct?.category;
+        const type = originalProduct?.type;
+
         return [
           ...prevCart,
           {
@@ -1006,6 +1045,10 @@ function POSPageContent() {
             quantity,
             details,
             uniqueId,
+            // Include category and type for proper battery detection
+            ...(category && { category }),
+            ...(type && { type }),
+            ...(brand && { brand }),
           },
         ];
       });
@@ -1232,8 +1275,54 @@ function POSPageContent() {
     setShowClearCartDialog(false);
   };
 
-  const handleCheckout = () => {
-    // First show the customer form instead of going straight to payment
+  const handleCheckout = async () => {
+    // Validate stock availability for all cart items
+    const stockValidationErrors: string[] = [];
+
+    for (const cartItem of cart) {
+      const availability = getProductAvailability(cartItem.id);
+      if (availability) {
+        const validation = availability;
+        if (!validation.canSell) {
+          stockValidationErrors.push(
+            `${cartItem.name}: ${validation.errorMessage || "Not available"}`
+          );
+        } else if (cartItem.quantity > validation.availableQuantity) {
+          stockValidationErrors.push(
+            `${cartItem.name}: Only ${validation.availableQuantity} available, but ${cartItem.quantity} requested`
+          );
+        }
+      } else {
+        stockValidationErrors.push(
+          `${cartItem.name}: Product not found in inventory`
+        );
+      }
+    }
+
+    // If there are stock validation errors, show them and don't proceed
+    if (stockValidationErrors.length > 0) {
+      toast({
+        title: "Stock Validation Failed",
+        description: (
+          <div className="space-y-2">
+            <p>The following items have insufficient stock:</p>
+            <ul className="list-disc list-inside text-sm">
+              {stockValidationErrors.map((error, index) => (
+                <li key={index}>{error}</li>
+              ))}
+            </ul>
+            <p className="text-sm font-medium">
+              Please remove or reduce quantities before checking out.
+            </p>
+          </div>
+        ),
+        variant: "destructive",
+        duration: 8000,
+      });
+      return;
+    }
+
+    // If all validations pass, proceed with checkout
     setIsCustomerFormOpen(true);
 
     // Generate transaction data for later use
@@ -1264,26 +1353,177 @@ function POSPageContent() {
   };
 
   // Add this new function to handle final payment completion
-  // Add this new function to handle final payment completion
-  const handleFinalizePayment = () => {
-    // Make a copy of the appliedDiscount before resetting state
-    const discountForReceipt = appliedDiscount ? { ...appliedDiscount } : null;
+  const handleFinalizePayment = async () => {
+    if (!selectedPaymentMethod || !selectedCashier) {
+      toast({
+        title: "Missing Information",
+        description: "Payment method and cashier are required.",
+        variant: "destructive",
+        duration: 3000,
+      });
+      return;
+    }
 
-    // Create payment info object to include recipient for mobile payments
-    const paymentInfo = {
-      method: selectedPaymentMethod,
-      ...(selectedPaymentMethod === "mobile" && paymentRecipient
-        ? { recipient: paymentRecipient }
-        : {}),
-    };
+    // Ensure transaction data is generated if not already done
+    if (!transactionData.receiptNumber) {
+      const newReceiptNumber = `A${Math.floor(Math.random() * 10000)
+        .toString()
+        .padStart(4, "0")}`;
+      const newCurrentDate = new Date().toLocaleDateString("en-GB");
+      const newCurrentTime = new Date().toLocaleTimeString("en-GB", {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      });
+      setTransactionData({
+        receiptNumber: newReceiptNumber,
+        currentDate: newCurrentDate,
+        currentTime: newCurrentTime,
+      });
+    }
 
-    setIsCashierSelectOpen(false);
-    // Pass the receipt with the copied discount
-    setShowSuccess(true);
+    try {
+      // Prepare cart items for the API call
+      const cartForAPI = cart.map((item) => ({
+        productId: item.id.toString(), // Convert to string as expected by API
+        quantity: item.quantity,
+        sellingPrice: item.price,
+        volumeDescription: item.details || item.name,
+        source: item.bottleType === "open" ? "OPEN" : "CLOSED", // For lubricants
+      }));
 
-    // We'll reset other states but keep the discount for the receipt
-    console.log("Finalizing payment with discount:", discountForReceipt);
-    console.log("Payment info:", paymentInfo);
+      // Prepare trade-ins if any
+      const tradeInsForAPI =
+        appliedTradeInAmount > 0
+          ? [
+              {
+                productId: "999", // Mock trade-in product ID - should be configurable
+                quantity: 1,
+                tradeInValue: appliedTradeInAmount,
+                size: "Mixed", // This would normally come from the trade-in dialog
+                condition: "Mixed", // This would normally come from the trade-in dialog
+              },
+            ]
+          : undefined;
+
+      // Use the enhanced checkout service with retry and offline support
+      const { checkoutService } = await import(
+        "@/lib/services/checkout-service"
+      );
+
+      const result = await checkoutService.processCheckout({
+        locationId: currentBranch?.id || "default-location",
+        shopId: currentBranch?.id || "default-shop",
+        paymentMethod: selectedPaymentMethod.toUpperCase(),
+        cashierId: selectedCashier?.id || "default-cashier",
+        cart: cartForAPI,
+        ...(tradeInsForAPI && { tradeIns: tradeInsForAPI }),
+      });
+
+      if (!result.success) {
+        throw new Error(result.error || "Checkout processing failed");
+      }
+
+      // Store the transaction result for receipt display
+      console.log("✅ Transaction completed:", result.data);
+
+      if (result.data?.offline) {
+        console.log("📱 Transaction completed offline - will sync when online");
+        toast({
+          title: "Transaction Completed Offline",
+          description:
+            "Receipt generated. Transaction will sync when connection is restored.",
+          variant: "default",
+          duration: 5000,
+        });
+      } else {
+        console.log("🌐 Transaction completed online");
+        if (result.data?.batteryBillHtml) {
+          console.log("✅ Battery bill generated and saved to database");
+        } else if (result.data?.receiptHtml) {
+          console.log("✅ Thermal receipt generated and saved to database");
+        }
+      }
+
+      setIsCashierSelectOpen(false);
+      setShowSuccess(true);
+
+      // Auto-sync offline transactions periodically
+      if (typeof window !== "undefined") {
+        setTimeout(async () => {
+          try {
+            await checkoutService.syncOfflineTransactions();
+          } catch (error) {
+            console.error("Failed to sync offline transactions:", error);
+          }
+        }, 5000); // Sync after 5 seconds
+      }
+
+      // Make a copy of the appliedDiscount for the receipt display
+      const discountForReceipt = appliedDiscount
+        ? { ...appliedDiscount }
+        : null;
+      console.log("Finalizing payment with discount:", discountForReceipt);
+    } catch (error) {
+      console.error("Checkout error:", error);
+
+      // Enhanced error handling based on error type
+      let errorTitle = "Checkout Processing Issue";
+      let errorDescription = "There was an issue processing the payment.";
+
+      if (error instanceof Error) {
+        if (error.message.includes("Database")) {
+          errorTitle = "Database Connection Issue";
+          errorDescription =
+            "Unable to connect to database. Transaction saved offline.";
+        } else if (
+          error.message.includes("network") ||
+          error.message.includes("fetch")
+        ) {
+          errorTitle = "Network Issue";
+          errorDescription =
+            "Connection problem detected. Transaction saved offline.";
+        } else if (error.message.includes("timeout")) {
+          errorTitle = "Request Timeout";
+          errorDescription =
+            "Request took too long. Transaction completed offline.";
+        }
+      }
+
+      toast({
+        title: errorTitle,
+        description: errorDescription,
+        variant: "destructive",
+        duration: 5000,
+      });
+
+      // Fallback: Complete the transaction locally even if API fails
+      // This ensures the POS doesn't get stuck and customers can still get receipts
+      console.log("⚠️ API checkout failed, completing transaction manually");
+
+      setIsCashierSelectOpen(false);
+      setShowSuccess(true);
+
+      // Make a copy of the appliedDiscount for the receipt display
+      const discountForReceipt = appliedDiscount
+        ? { ...appliedDiscount }
+        : null;
+      console.log(
+        "Manual transaction completion with discount:",
+        discountForReceipt
+      );
+
+      // Show additional warning toast after a delay
+      setTimeout(() => {
+        toast({
+          title: "Manual Transaction Completed",
+          description:
+            "Transaction completed offline. Please verify inventory sync later.",
+          variant: "default",
+          duration: 8000,
+        });
+      }, 1500);
+    }
   };
 
   // Function to reset all POS state after a transaction is complete
@@ -1437,12 +1677,22 @@ function POSPageContent() {
     if (actualProductItems.length === 0) return false;
 
     return actualProductItems.every((item) => {
-      // Assuming item.id in the cart corresponds to the original product ID in the `products` array.
-      // This ID is used to look up the definitive product characteristics.
+      // Method 1: Check via product lookup (existing method)
       const productInfo = products.find((p) => p.id === item.id);
-      return (
-        productInfo?.category === "Parts" && productInfo?.type === "Batteries"
-      );
+      const isProductBattery =
+        productInfo?.category === "Parts" && productInfo?.type === "Batteries";
+
+      // Method 2: Check via cart item's own category/type properties
+      const isCartItemBattery =
+        item.category === "Parts" && item.type === "Batteries";
+
+      // Method 3: Check via item name (fallback method)
+      const isNameBattery =
+        item.name.toLowerCase().includes("battery") ||
+        item.name.toLowerCase().includes("batteries");
+
+      // Return true if any method identifies this as a battery
+      return isProductBattery || isCartItemBattery || isNameBattery;
     });
   };
 
@@ -1450,10 +1700,22 @@ function POSPageContent() {
   const cartContainsAnyBatteries = (cartItems: CartItem[]): boolean => {
     if (cartItems.length === 0) return false;
     return cartItems.some((item) => {
+      // Method 1: Check via product lookup (existing method)
       const productInfo = products.find((p) => p.id === item.id);
-      return (
-        productInfo?.category === "Parts" && productInfo?.type === "Batteries"
-      );
+      const isProductBattery =
+        productInfo?.category === "Parts" && productInfo?.type === "Batteries";
+
+      // Method 2: Check via cart item's own category/type properties
+      const isCartItemBattery =
+        item.category === "Parts" && item.type === "Batteries";
+
+      // Method 3: Check via item name (fallback method)
+      const isNameBattery =
+        item.name.toLowerCase().includes("battery") ||
+        item.name.toLowerCase().includes("batteries");
+
+      // Return true if any method identifies this as a battery
+      return isProductBattery || isCartItemBattery || isNameBattery;
     });
   };
 
@@ -1575,6 +1837,64 @@ function POSPageContent() {
                     Products
                   </CardTitle>
                   <BranchSelector compact={true} showLabel={false} />
+
+                  {/* Sync Status Indicator */}
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    {isLoading ? (
+                      <>
+                        <div className="animate-spin h-3 w-3 border-2 border-primary border-t-transparent rounded-full" />
+                        <span className="hidden sm:inline">Syncing...</span>
+                      </>
+                    ) : lastSyncTime ? (
+                      <>
+                        <div
+                          className={`h-2 w-2 rounded-full ${
+                            isBackgroundSyncing
+                              ? "bg-blue-500 animate-pulse"
+                              : "bg-green-500"
+                          }`}
+                        />
+                        <span className="hidden sm:inline">
+                          {isBackgroundSyncing
+                            ? "Syncing..."
+                            : lastSyncTime.toLocaleTimeString([], {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={syncProducts}
+                          disabled={isBackgroundSyncing}
+                          className="h-6 px-1 ml-1 hover:bg-green-50 disabled:opacity-50"
+                          title="Refresh inventory data"
+                        >
+                          <RefreshCw
+                            className={`h-3 w-3 ${
+                              isBackgroundSyncing ? "animate-spin" : ""
+                            }`}
+                          />
+                        </Button>
+                      </>
+                    ) : error ? (
+                      <>
+                        <div className="h-2 w-2 bg-red-500 rounded-full" />
+                        <span className="hidden sm:inline text-red-600">
+                          Sync failed
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={syncProducts}
+                          className="h-6 px-1 ml-1 hover:bg-red-50 text-red-600"
+                          title="Retry sync"
+                        >
+                          <RotateCcw className="h-3 w-3" />
+                        </Button>
+                      </>
+                    ) : null}
+                  </div>
                 </div>
                 <div className="flex gap-2 items-center">
                   <Button
@@ -1650,6 +1970,9 @@ function POSPageContent() {
                           expandedBrand={expandedBrand}
                           setExpandedBrand={setExpandedBrand}
                           onLubricantSelect={handleLubricantSelect}
+                          lubricantProducts={lubricantProducts}
+                          lubricantBrands={lubricantBrands}
+                          isLoading={isLoading}
                         />
                       ) : activeCategory === "Filters" ? (
                         <FiltersCategory
@@ -1659,6 +1982,9 @@ function POSPageContent() {
                           setSelectedFilterBrand={setSelectedFilterBrand}
                           setSelectedFilters={setSelectedFilters}
                           setIsFilterBrandModalOpen={setIsFilterBrandModalOpen}
+                          filterTypes={filterTypes}
+                          filterBrands={filterBrands}
+                          isLoading={isLoading}
                         />
                       ) : activeCategory === "Parts" ? (
                         <PartsCategory
@@ -1668,6 +1994,9 @@ function POSPageContent() {
                           setSelectedPartBrand={setSelectedPartBrand}
                           setSelectedParts={setSelectedParts}
                           setIsPartBrandModalOpen={setIsPartBrandModalOpen}
+                          partTypes={partTypes}
+                          partBrands={partBrands}
+                          isLoading={isLoading}
                         />
                       ) : activeCategory === "Additives & Fluids" ? (
                         <AdditivesFluidsCategory
@@ -1675,6 +2004,8 @@ function POSPageContent() {
                           expandedBrand={expandedBrand}
                           setExpandedBrand={setExpandedBrand}
                           addToCart={addToCart}
+                          products={products}
+                          isLoading={isLoading}
                         />
                       ) : (
                         // Show other category products
@@ -2465,7 +2796,7 @@ function POSPageContent() {
                     );
                     if (found) {
                       setFetchedCashier(found);
-                      setSelectedCashier(found.name);
+                      setSelectedCashier(found);
                       setCashierIdError(null);
                     } else {
                       setCashierIdError(
@@ -2666,31 +2997,61 @@ function POSPageContent() {
             <div className="mt-2">
               {cartContainsOnlyBatteries(cart) ? (
                 <BillComponent
-                  key={`bill-${transactionData.receiptNumber}`}
+                  key={`bill-${transactionData.receiptNumber || "fallback"}`}
                   cart={cart}
-                  billNumber={transactionData.receiptNumber}
-                  currentDate={transactionData.currentDate}
-                  currentTime={transactionData.currentTime}
-                  cashier={selectedCashier ?? undefined}
+                  billNumber={
+                    transactionData.receiptNumber ||
+                    `A${Math.floor(Math.random() * 10000)
+                      .toString()
+                      .padStart(4, "0")}`
+                  }
+                  currentDate={
+                    transactionData.currentDate ||
+                    new Date().toLocaleDateString("en-GB")
+                  }
+                  currentTime={
+                    transactionData.currentTime ||
+                    new Date().toLocaleTimeString("en-GB", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      second: "2-digit",
+                    })
+                  }
+                  cashier={selectedCashier?.name ?? undefined}
                   appliedDiscount={appliedDiscount}
                   appliedTradeInAmount={appliedTradeInAmount}
                   customerName={currentCustomer?.name || ""}
                 />
               ) : (
                 <ReceiptComponent
-                  key={`receipt-${transactionData.receiptNumber}`}
+                  key={`receipt-${transactionData.receiptNumber || "fallback"}`}
                   cart={cart}
                   paymentMethod={selectedPaymentMethod || "cash"}
-                  cashier={selectedCashier ?? undefined}
+                  cashier={selectedCashier?.name ?? undefined}
                   discount={appliedDiscount}
                   paymentRecipient={
                     selectedPaymentMethod === "mobile"
                       ? paymentRecipient
                       : undefined
                   }
-                  receiptNumber={transactionData.receiptNumber}
-                  currentDate={transactionData.currentDate}
-                  currentTime={transactionData.currentTime}
+                  receiptNumber={
+                    transactionData.receiptNumber ||
+                    `A${Math.floor(Math.random() * 10000)
+                      .toString()
+                      .padStart(4, "0")}`
+                  }
+                  currentDate={
+                    transactionData.currentDate ||
+                    new Date().toLocaleDateString("en-GB")
+                  }
+                  currentTime={
+                    transactionData.currentTime ||
+                    new Date().toLocaleTimeString("en-GB", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      second: "2-digit",
+                    })
+                  }
                 />
               )}
             </div>

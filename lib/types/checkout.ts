@@ -2,25 +2,32 @@ import { z } from "zod";
 
 // Cart item schema
 export const CartItemSchema = z.object({
-  productId: z.string().uuid(),
+  productId: z.string().min(1), // Changed from .uuid() to support non-UUID IDs
   quantity: z.number().positive(),
   sellingPrice: z.number().nonnegative(),
   volumeDescription: z.string().optional(),
+  source: z.enum(["CLOSED", "OPEN"]).optional(), // For lubricant products - will be defaulted to CLOSED if missing
 });
 
 // Trade-in item schema
 export const TradeInItemSchema = z.object({
-  productId: z.string().uuid(),
+  productId: z.string().min(1), // Changed from .uuid() to support non-UUID IDs
   quantity: z.number().positive(),
   tradeInValue: z.number().nonnegative(),
+  size: z.string().min(1, "Battery size is required"),
+  condition: z.enum(["Scrap", "Resalable"], {
+    errorMap: () => ({
+      message: "Condition must be either 'Scrap' or 'Resalable'",
+    }),
+  }),
 });
 
 // Checkout input schema
 export const CheckoutInputSchema = z.object({
-  locationId: z.string().uuid(),
-  shopId: z.string().uuid().optional(),
+  locationId: z.string().min(1), // Changed from .uuid() to support non-UUID IDs
+  shopId: z.string().min(1).optional(), // Changed from .uuid() to support non-UUID IDs
   paymentMethod: z.string().min(1),
-  cashierId: z.string().uuid().optional(),
+  cashierId: z.string().min(1).optional(), // Changed from .uuid() to support non-UUID IDs
   cart: z.array(CartItemSchema),
   tradeIns: z.array(TradeInItemSchema).optional(),
 });
@@ -91,5 +98,3 @@ export function isBatteryTransaction(items: CartItem[]): boolean {
     (item) => item.volumeDescription?.toLowerCase().includes("battery") || false // We'll need to check product type from database
   );
 }
-
-
