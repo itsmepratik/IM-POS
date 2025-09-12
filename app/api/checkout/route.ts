@@ -38,6 +38,9 @@ async function handleLubricantSale(
   cartItem: any,
   inventoryRecord: any
 ) {
+  // Debug logging to confirm function execution
+  console.log("Executing handleLubricantSale for product:", cartItem.productId);
+
   // Add a default value here as a safeguard - fixes the main issue from checkoutroutefix.md
   const { source = "CLOSED", quantity } = cartItem; // Default to 'CLOSED' if source is missing
 
@@ -411,7 +414,9 @@ export async function POST(req: NextRequest) {
             throw new Error(`Product not found: ${cartItem.productId}`);
           }
 
-          if (product[0].productType === "lubricant") {
+          if (
+            productMap.get(cartItem.productId)?.categoryName === "Lubricants"
+          ) {
             // Handle lubricant sales with precise bottle tracking
             await handleLubricantSale(tx, cartItem, inventoryRecord);
           } else {

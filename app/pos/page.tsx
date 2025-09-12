@@ -1384,13 +1384,23 @@ function POSPageContent() {
 
     try {
       // Prepare cart items for the API call
-      const cartForAPI = cart.map((item) => ({
-        productId: item.id.toString(), // Convert to string as expected by API
-        quantity: item.quantity,
-        sellingPrice: item.price,
-        volumeDescription: item.details || item.name,
-        source: item.bottleType === "open" ? "OPEN" : "CLOSED", // For lubricants
-      }));
+      const cartForAPI = cart.map((item) => {
+        const productInfo = products.find((p) => p.id === item.id);
+        const isLubricant = productInfo?.category === "Lubricants";
+
+        return {
+          productId: item.id.toString(), // Convert to string as expected by API
+          quantity: item.quantity,
+          sellingPrice: item.price,
+          volumeDescription: item.details || item.name,
+          // If it's a lubricant, ensure 'source' is set. Default to 'CLOSED' if bottleType is not specified.
+          source: isLubricant
+            ? item.bottleType === "open"
+              ? "OPEN"
+              : "CLOSED"
+            : undefined,
+        };
+      });
 
       // Prepare trade-ins if any
       const tradeInsForAPI =
