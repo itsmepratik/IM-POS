@@ -1,16 +1,23 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React from "react";
 import { Button } from "@/components/ui/button";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { BrandCard } from "../shared/BrandCard";
+
+interface Part {
+  id: number;
+  name: string;
+  price: number;
+  quantity: number;
+}
 
 interface PartsCategoryProps {
   searchQuery?: string;
   selectedPartType: string | null;
   setSelectedPartType: (type: string | null) => void;
   setSelectedPartBrand: (brand: string) => void;
-  setSelectedParts: (parts: any[]) => void;
+  setSelectedParts: (parts: Part[]) => void;
   setIsPartBrandModalOpen: (open: boolean) => void;
   partTypes: string[];
   partBrands: string[];

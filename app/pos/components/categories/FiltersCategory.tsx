@@ -10,7 +10,14 @@ interface FiltersCategoryProps {
   selectedFilterType: string | null;
   setSelectedFilterType: (type: string | null) => void;
   setSelectedFilterBrand: (brand: string) => void;
-  setSelectedFilters: (filters: any[]) => void;
+  setSelectedFilters: (
+    filters: Array<{
+      id: number;
+      name: string;
+      price: number;
+      quantity: number;
+    }>
+  ) => void;
   setIsFilterBrandModalOpen: (open: boolean) => void;
   filterTypes: string[];
   filterBrands: string[];

@@ -11,6 +11,7 @@ export interface CartItem {
   category?: string;
   brand?: string;
   type?: string;
+  source?: string; // Required for lubricant checkout API ("OPEN" or "CLOSED")
 }
 
 export interface Product {
@@ -68,6 +69,3 @@ export type CategoryType =
   | "Filters"
   | "Parts"
   | "Additives & Fluids";
-
-
-

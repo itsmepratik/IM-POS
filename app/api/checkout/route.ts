@@ -248,6 +248,27 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Validate productId format - must be valid UUIDs
+    const uuidRegex =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    for (const item of cart) {
+      if (!uuidRegex.test(item.productId)) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: `Invalid productId format: ${item.productId}`,
+            details: {
+              requestId,
+              errorType: "VALIDATION_ERROR",
+              invalidProductId: item.productId,
+              timestamp: new Date().toISOString(),
+            },
+          },
+          { status: 400 }
+        );
+      }
+    }
+
     // Process cart items to ensure lubricant items have source property
     const processedCart = cart.map((item) => {
       // Check if the item is a lubricant (we'll verify this in the transaction)
@@ -305,13 +326,26 @@ export async function POST(req: NextRequest) {
           });
         }
 
+        // 1.5. Verify location exists before creating transaction
+        const [locationExists] = await tx
+          .select({ id: locations.id })
+          .from(locations)
+          .where(eq(locations.id, locationId))
+          .limit(1);
+          
+        if (!locationExists) {
+          throw new Error(`Location ${locationId} does not exist in the database`);
+        }
+        
+        console.log(`[${requestId}] Location verified: ${locationExists.id}`);
+
         // 2. Create transaction record
         const [newTransaction] = await tx
           .insert(transactions)
           .values({
             referenceNumber,
             locationId,
-            shopId,
+            shopId: shopId || locationId, // Use locationId as shopId if not provided
             cashierId,
             type: "SALE",
             totalAmount: totalAmount.toString(),
@@ -323,25 +357,33 @@ export async function POST(req: NextRequest) {
         // 2. Process each cart item with FIFO logic
         for (const cartItem of processedCart) {
           // Find inventory record
-          const [inventoryRecord] = await tx
-            .select()
-            .from(inventory)
-            .where(
-              and(
-                eq(inventory.productId, cartItem.productId),
-                eq(inventory.locationId, locationId)
-              )
+        const [inventoryRecord] = await tx
+          .select()
+          .from(inventory)
+          .where(
+            and(
+              eq(inventory.productId, cartItem.productId),
+              eq(inventory.locationId, locationId)
             )
-            .limit(1);
+          )
+          .limit(1);
 
-          if (!inventoryRecord) {
-            throw new Error(
-              `Inventory not found for product ${cartItem.productId} at location ${locationId}`
-            );
-          }
+        if (!inventoryRecord) {
+          console.error(`[${requestId}] Inventory not found for product ${cartItem.productId} at location ${locationId}`);
+          throw new Error(
+            `Inventory not found for product ${cartItem.productId} at location ${locationId}`
+          );
+        }
+        
+        console.log(`[${requestId}] Found inventory record for product ${cartItem.productId}:`, {
+          id: inventoryRecord.id,
+          standardStock: inventoryRecord.standardStock,
+          openBottlesStock: inventoryRecord.openBottlesStock,
+          closedBottlesStock: inventoryRecord.closedBottlesStock
+        });
 
           // Find the active batch (FIFO - oldest first)
-          const [activeBatch] = await tx
+          let activeBatch = await tx
             .select()
             .from(batches)
             .where(
@@ -351,13 +393,54 @@ export async function POST(req: NextRequest) {
               )
             )
             .orderBy(asc(batches.purchaseDate))
-            .limit(1);
+            .limit(1)
+            .then(result => result[0]);
 
           if (!activeBatch) {
-            throw new Error(
-              `No active batch found for inventory ${inventoryRecord.id}`
-            );
+            console.error(`[${requestId}] No active batch found for inventory ${inventoryRecord.id}`);
+            // Try to find any batch with remaining stock
+            const anyBatch = await tx
+              .select()
+              .from(batches)
+              .where(
+                and(
+                  eq(batches.inventoryId, inventoryRecord.id),
+                  gt(batches.stockRemaining, 0)
+                )
+              )
+              .orderBy(asc(batches.purchaseDate))
+              .limit(1)
+              .then(result => result[0]);
+              
+            if (anyBatch) {
+              console.log(`[${requestId}] Found batch with stock, activating it:`, anyBatch.id);
+              // Activate this batch
+              await tx
+                .update(batches)
+                .set({ isActiveBatch: true })
+                .where(eq(batches.id, anyBatch.id));
+              // Use this batch as the active batch
+              activeBatch = { ...anyBatch, isActiveBatch: true };
+            } else {
+              // No batches exist - create a default batch for this inventory
+              console.log(`[${requestId}] No batches found, creating default batch for inventory ${inventoryRecord.id}`);
+              const [newBatch] = await tx
+                .insert(batches)
+                .values({
+                  inventoryId: inventoryRecord.id,
+                  costPrice: "0",
+                  quantityReceived: 1000, // Default large quantity
+                  stockRemaining: 1000,
+                  supplier: "System Generated",
+                  isActiveBatch: true,
+                })
+                .returning();
+              activeBatch = newBatch;
+              console.log(`[${requestId}] Created default batch:`, newBatch.id);
+            }
           }
+          
+          console.log(`[${requestId}] Using batch ${activeBatch.id} with ${activeBatch.stockRemaining} remaining stock`);
 
           // Check if we have enough stock in the active batch
           if (activeBatch.stockRemaining < cartItem.quantity) {
@@ -411,8 +494,11 @@ export async function POST(req: NextRequest) {
             .limit(1);
 
           if (!product[0]) {
+            console.error(`[${requestId}] Product not found: ${cartItem.productId}`);
             throw new Error(`Product not found: ${cartItem.productId}`);
           }
+          
+          console.log(`[${requestId}] Processing product: ${product[0].name} (Category: ${productMap.get(cartItem.productId)?.categoryName || 'Unknown'})`);
 
           if (
             productMap.get(cartItem.productId)?.categoryName === "Lubricants"

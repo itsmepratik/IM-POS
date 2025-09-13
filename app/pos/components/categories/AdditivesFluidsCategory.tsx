@@ -8,17 +8,25 @@ interface Product {
   id: number;
   name: string;
   price: number;
-  category: "Filters" | "Parts" | "Additives & Fluids";
+  category: "Filters" | "Parts" | "Additives & Fluids" | "Lubricants";
+  availableQuantity: number;
   brand?: string;
   type?: string;
-  availableQuantity?: number;
+  imageUrl?: string;
+  isAvailable: boolean;
+}
+
+interface CartItem {
+  id: number;
+  name: string;
+  price: number;
 }
 
 interface AdditivesFluidsCategoryProps {
   searchQuery?: string;
   expandedBrand: string | null;
   setExpandedBrand: (brand: string | null) => void;
-  addToCart: (item: any) => void;
+  addToCart: (item: CartItem) => void;
   products: Product[];
   isLoading: boolean;
 }

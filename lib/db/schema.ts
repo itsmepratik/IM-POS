@@ -98,7 +98,7 @@ export const transactions = pgTable("transactions", {
   shopId: uuid("shop_id").references(() => locations.id, {
     onDelete: "restrict",
   }),
-  cashierId: uuid("cashier_id"),
+  cashierId: text("cashier_id"),
   type: text("type").notNull(), // 'SALE' | 'REFUND' | 'WARRANTY_CLAIM'
   totalAmount: numeric("total_amount").notNull(),
   itemsSold: jsonb("items_sold").$type<unknown[]>(),

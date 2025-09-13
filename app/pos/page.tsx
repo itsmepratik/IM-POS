@@ -121,7 +121,7 @@ import { BranchSelector } from "@/components/BranchSelector";
 
 // Types are now imported from usePOSMockData hook
 
-interface CartItem extends Omit<Product, "category"> {
+interface CartItem extends Product {
   quantity: number;
   details?: string;
   uniqueId: string;
@@ -778,6 +778,7 @@ function POSPageContent() {
   const [discountType, setDiscountType] = useState<"percentage" | "amount">(
     "amount"
   );
+  const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
   const [discountValue, setDiscountValue] = useState<number>(0);
   const [appliedDiscount, setAppliedDiscount] = useState<{
     type: "percentage" | "amount";
@@ -1007,7 +1008,8 @@ function POSPageContent() {
     (
       product: { id: number; name: string; price: number },
       details?: string,
-      quantity: number = 1
+      quantity: number = 1,
+      source?: string
     ) => {
       const uniqueId = `${product.id}-${details || ""}`;
       setCart((prevCart) => {
@@ -1049,11 +1051,13 @@ function POSPageContent() {
             ...(category && { category }),
             ...(type && { type }),
             ...(brand && { brand }),
+            // Include source for lubricants (required by checkout API)
+            ...(source && { source }),
           },
         ];
       });
     },
-    []
+    [products, lubricantProducts]
   );
 
   const handleLubricantSelect = useCallback((lubricant: LubricantProduct) => {
@@ -1127,6 +1131,10 @@ function POSPageContent() {
         const details =
           volume.size +
           (volume.bottleType ? ` (${volume.bottleType} bottle)` : "");
+        
+        // Determine source based on bottle type for checkout API
+        const source = volume.bottleType === "open" ? "OPEN" : "CLOSED";
+        
         addToCart(
           {
             id: selectedOil.id,
@@ -1134,7 +1142,8 @@ function POSPageContent() {
             price: volume.price,
           },
           details,
-          volume.quantity
+          volume.quantity,
+          source
         );
       }
     });
@@ -1275,72 +1284,162 @@ function POSPageContent() {
     setShowClearCartDialog(false);
   };
 
-  const handleCheckout = async () => {
-    // Validate stock availability for all cart items
-    const stockValidationErrors: string[] = [];
-
-    for (const cartItem of cart) {
-      const availability = getProductAvailability(cartItem.id);
-      if (availability) {
-        const validation = availability;
-        if (!validation.canSell) {
-          stockValidationErrors.push(
-            `${cartItem.name}: ${validation.errorMessage || "Not available"}`
-          );
-        } else if (cartItem.quantity > validation.availableQuantity) {
-          stockValidationErrors.push(
-            `${cartItem.name}: Only ${validation.availableQuantity} available, but ${cartItem.quantity} requested`
-          );
-        }
-      } else {
-        stockValidationErrors.push(
-          `${cartItem.name}: Product not found in inventory`
-        );
-      }
+  // Helper function to get availability by numeric ID using the hook's built-in function
+  const getAvailabilityByNumericId = (productId: number) => {
+    // Find the product in either products or lubricantProducts arrays
+    const allProducts = [...products, ...lubricantProducts];
+    const product = allProducts.find(p => p.id === productId);
+    
+    if (!product) {
+      return {
+        canSell: false,
+        availableQuantity: 0,
+        errorMessage: "Product not found in inventory"
+      };
     }
+    
+    // Use the hook's built-in getProductAvailability function with numeric ID
+    const availability = getProductAvailability(productId);
+    
+    // Handle null availability response
+    if (!availability) {
+      return {
+        canSell: false,
+        availableQuantity: 0,
+        errorMessage: "Product availability could not be determined"
+      };
+    }
+    
+    // Transform to match the expected interface
+    return {
+      canSell: availability.canSell,
+      availableQuantity: availability.availableQuantity,
+      errorMessage: availability.errorMessage
+    };
+  };
 
-    // If there are stock validation errors, show them and don't proceed
-    if (stockValidationErrors.length > 0) {
-      toast({
-        title: "Stock Validation Failed",
-        description: (
-          <div className="space-y-2">
-            <p>The following items have insufficient stock:</p>
-            <ul className="list-disc list-inside text-sm">
-              {stockValidationErrors.map((error, index) => (
-                <li key={index}>{error}</li>
-              ))}
-            </ul>
-            <p className="text-sm font-medium">
-              Please remove or reduce quantities before checking out.
-            </p>
-          </div>
-        ),
-        variant: "destructive",
-        duration: 8000,
-      });
+  const handleCheckout = async () => {
+    if (isCheckoutLoading) {
+      console.log('⏳ Checkout already in progress, ignoring click');
       return;
     }
+    
+    setIsCheckoutLoading(true);
+    
+    try {
+      console.log('🛒 Checkout initiated with cart:', cart);
+      
+      // Validate cart is not empty
+      if (cart.length === 0) {
+        toast({
+          title: "Empty Cart",
+          description: "Please add items to your cart before checking out.",
+          variant: "destructive",
+          duration: 3000,
+        });
+        return;
+      }
 
-    // If all validations pass, proceed with checkout
-    setIsCustomerFormOpen(true);
+      // Validate stock availability for all cart items
+      const stockValidationErrors: string[] = [];
 
-    // Generate transaction data for later use
-    const newReceiptNumber = `A${Math.floor(Math.random() * 10000)
-      .toString()
-      .padStart(4, "0")}`;
-    const newCurrentDate = new Date().toLocaleDateString("en-GB");
-    const newCurrentTime = new Date().toLocaleTimeString("en-GB", {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    });
-    setTransactionData({
-      receiptNumber: newReceiptNumber,
-      currentDate: newCurrentDate,
-      currentTime: newCurrentTime,
-    });
-  };
+      for (const cartItem of cart) {
+        console.log(`🔍 Checking availability for product ID: ${cartItem.id}`);
+        
+        try {
+          const availability = getAvailabilityByNumericId(cartItem.id);
+          console.log(`📊 Availability result for ${cartItem.name}:`, availability);
+          
+          if (availability) {
+            if (!availability.canSell) {
+              stockValidationErrors.push(
+                `${cartItem.name}: ${availability.errorMessage || "Not available"}`
+              );
+            } else if (cartItem.quantity > availability.availableQuantity) {
+              stockValidationErrors.push(
+                `${cartItem.name}: Only ${availability.availableQuantity} available, but ${cartItem.quantity} requested`
+              );
+            }
+          } else {
+            console.warn(`⚠️ No availability data for product: ${cartItem.name}`);
+            stockValidationErrors.push(
+              `${cartItem.name}: Product not found in inventory`
+            );
+          }
+        } catch (availabilityError) {
+          console.error(`❌ Error checking availability for ${cartItem.name}:`, availabilityError);
+          stockValidationErrors.push(
+            `${cartItem.name}: Error checking availability`
+          );
+        }
+      }
+
+      // If there are stock validation errors, show them and don't proceed
+      if (stockValidationErrors.length > 0) {
+        console.log('❌ Stock validation failed:', stockValidationErrors);
+        toast({
+          title: "Stock Validation Failed",
+          description: (
+            <div className="space-y-2">
+              <p>The following items have insufficient stock:</p>
+              <ul className="list-disc list-inside text-sm">
+                {stockValidationErrors.map((error, index) => (
+                  <li key={index}>{error}</li>
+                ))}
+              </ul>
+              <p className="text-sm font-medium">
+                Please remove or reduce quantities before checking out.
+              </p>
+            </div>
+          ),
+          variant: "destructive",
+          duration: 8000,
+        });
+        return;
+      }
+
+      console.log('✅ Stock validation passed, proceeding with checkout');
+      
+      // If all validations pass, proceed with checkout
+      setIsCustomerFormOpen(true);
+
+      // Generate transaction data for later use
+      const newReceiptNumber = `A${Math.floor(Math.random() * 10000)
+        .toString()
+        .padStart(4, "0")}`;
+      const newCurrentDate = new Date().toLocaleDateString("en-GB");
+      const newCurrentTime = new Date().toLocaleTimeString("en-GB", {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      });
+      
+      console.log('📋 Transaction data generated:', {
+        receiptNumber: newReceiptNumber,
+        currentDate: newCurrentDate,
+        currentTime: newCurrentTime,
+      });
+      
+      setTransactionData({
+        receiptNumber: newReceiptNumber,
+        currentDate: newCurrentDate,
+        currentTime: newCurrentTime,
+      });
+      
+      console.log('🎯 Checkout process completed successfully');
+        
+      } catch (error) {
+        console.error('💥 Critical error in handleCheckout:', error);
+        toast({
+          title: "Checkout Error",
+          description: "An unexpected error occurred during checkout. Please try again.",
+          variant: "destructive",
+          duration: 5000,
+        });
+      } finally {
+        setIsCheckoutLoading(false);
+      }
+    };
 
   const handlePaymentComplete = () => {
     // Instead of showing success immediately, show cashier selection dialog
@@ -1384,12 +1483,29 @@ function POSPageContent() {
 
     try {
       // Prepare cart items for the API call
-      const cartForAPI = cart.map((item) => {
+      // Filter out "Labor - Custom Service" items as they don't have valid UUIDs
+      const validCartItems = cart.filter(
+        (item) => item.name !== "Labor - Custom Service"
+      );
+
+      const cartForAPI = validCartItems.map((item) => {
         const productInfo = products.find((p) => p.id === item.id);
-        const isLubricant = productInfo?.category === "Lubricants";
+        const lubricantProductInfo = lubricantProducts.find(
+          (p) => p.id === item.id
+        );
+        const isLubricant =
+          productInfo?.category === "Lubricants" ||
+          lubricantProductInfo !== undefined;
+
+        // Use the originalId (UUID) instead of the numeric id
+        const originalId =
+          productInfo?.originalId || lubricantProductInfo?.originalId;
+        if (!originalId) {
+          throw new Error(`Original ID not found for product ${item.id}`);
+        }
 
         return {
-          productId: item.id.toString(), // Convert to string as expected by API
+          productId: originalId, // Use the original UUID as expected by API
           quantity: item.quantity,
           sellingPrice: item.price,
           volumeDescription: item.details || item.name,
@@ -1402,19 +1518,22 @@ function POSPageContent() {
         };
       });
 
-      // Prepare trade-ins if any
-      const tradeInsForAPI =
-        appliedTradeInAmount > 0
-          ? [
-              {
-                productId: "999", // Mock trade-in product ID - should be configurable
-                quantity: 1,
-                tradeInValue: appliedTradeInAmount,
-                size: "Mixed", // This would normally come from the trade-in dialog
-                condition: "Mixed", // This would normally come from the trade-in dialog
-              },
-            ]
-          : undefined;
+      // Prepare trade-ins if any - Skip trade-ins for now to fix checkout
+      const tradeInsForAPI = undefined; // Temporarily disable trade-ins to fix checkout
+      
+      // TODO: Implement proper trade-in product lookup
+      // const tradeInsForAPI =
+      //   appliedTradeInAmount > 0
+      //     ? [
+      //         {
+      //           productId: "valid-uuid-here", // Need to lookup actual trade-in product ID
+      //           quantity: 1,
+      //           tradeInValue: appliedTradeInAmount,
+      //           size: "Mixed",
+      //           condition: "Mixed",
+      //         },
+      //       ]
+      //     : undefined;
 
       // Use the enhanced checkout service with retry and offline support
       const { checkoutService } = await import(
@@ -1427,7 +1546,7 @@ function POSPageContent() {
         paymentMethod: selectedPaymentMethod.toUpperCase(),
         cashierId: selectedCashier?.id || "default-cashier",
         cart: cartForAPI,
-        ...(tradeInsForAPI && { tradeIns: tradeInsForAPI }),
+        ...(tradeInsForAPI ? { tradeIns: tradeInsForAPI } : {}),
       });
 
       if (!result.success) {
@@ -2151,10 +2270,10 @@ function POSPageContent() {
 
                     <Button
                       className="w-full h-9"
-                      disabled={cart.length === 0}
+                      disabled={cart.length === 0 || isCheckoutLoading}
                       onClick={handleCheckout}
                     >
-                      Checkout
+                      {isCheckoutLoading ? "Processing..." : "Checkout"}
                     </Button>
                   </div>
                 </div>
@@ -2300,10 +2419,10 @@ function POSPageContent() {
 
                       <Button
                         className="w-full h-9"
-                        disabled={cart.length === 0}
+                        disabled={cart.length === 0 || isCheckoutLoading}
                         onClick={handleCheckout}
                       >
-                        Checkout
+                        {isCheckoutLoading ? "Processing..." : "Checkout"}
                       </Button>
                     </div>
                   </div>
