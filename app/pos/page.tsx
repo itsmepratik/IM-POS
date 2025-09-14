@@ -1518,22 +1518,23 @@ function POSPageContent() {
         };
       });
 
-      // Prepare trade-ins if any - Skip trade-ins for now to fix checkout
-      const tradeInsForAPI = undefined; // Temporarily disable trade-ins to fix checkout
+      // Prepare trade-ins if any - Enable for battery checkouts
+      let tradeInsForAPI = undefined;
       
-      // TODO: Implement proper trade-in product lookup
-      // const tradeInsForAPI =
-      //   appliedTradeInAmount > 0
-      //     ? [
-      //         {
-      //           productId: "valid-uuid-here", // Need to lookup actual trade-in product ID
-      //           quantity: 1,
-      //           tradeInValue: appliedTradeInAmount,
-      //           size: "Mixed",
-      //           condition: "Mixed",
-      //         },
-      //       ]
-      //     : undefined;
+      // Check if this is a battery sale and has trade-ins
+      const isBatterySale = cartContainsAnyBatteries(cart);
+      if (isBatterySale && tradeinBatteries.length > 0) {
+        // For battery sales, create trade-in entries using battery size as name
+        tradeInsForAPI = tradeinBatteries.map((battery) => ({
+          productId: `tradein-${battery.size.toLowerCase().replace(/\s+/g, '-')}-${battery.status}`, // Generate consistent ID
+          quantity: 1,
+          tradeInValue: battery.amount,
+          size: battery.size,
+          condition: battery.status,
+          name: battery.size, // Use battery size as the name
+          costPrice: battery.amount, // Use trade-in amount as cost price
+        }));
+      }
 
       // Use the enhanced checkout service with retry and offline support
       const { checkoutService } = await import(

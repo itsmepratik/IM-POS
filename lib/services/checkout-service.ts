@@ -26,6 +26,8 @@ export interface CheckoutTradeIn {
   tradeInValue: number;
   size?: string;
   condition?: string;
+  name?: string; // Battery size as name for battery trade-ins
+  costPrice?: number; // Trade-in amount as cost price for battery trade-ins
 }
 
 export interface CheckoutRequest {

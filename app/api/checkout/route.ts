@@ -317,7 +317,9 @@ export async function POST(req: NextRequest) {
           productsData.forEach((product) => {
             productMap.set(product.id, product);
             // Check if any cart item is a battery
+            // Batteries are in the "Parts" category with type "Batteries"
             if (
+              (product.categoryName === "Parts" && product.productType === "Batteries") ||
               product.categoryName?.toLowerCase().includes("battery") ||
               product.productType?.toLowerCase().includes("battery")
             ) {
@@ -535,37 +537,107 @@ export async function POST(req: NextRequest) {
               tradeInValue: tradeIn.tradeInValue.toString(),
             });
 
-            // Find inventory record for trade-in product (e.g., "80 Scrap")
-            const [tradeInInventory] = await tx
-              .select()
-              .from(inventory)
-              .where(
-                and(
-                  eq(inventory.productId, tradeIn.productId),
-                  eq(inventory.locationId, locationId)
-                )
-              )
-              .limit(1);
+            // For battery trade-ins, create/update inventory with battery size as name
+            if (isBatterySale && tradeIn.name && tradeIn.costPrice) {
+              // Check if a product with this name already exists
+              const [existingProduct] = await tx
+                .select()
+                .from(products)
+                .where(eq(products.name, tradeIn.name))
+                .limit(1);
 
-            if (tradeInInventory) {
-              // Increment standard stock for trade-in product
-              const currentTradeInStock = tradeInInventory.standardStock ?? 0;
+              let productId = tradeIn.productId;
+              
+              if (!existingProduct) {
+                // Create new product for this trade-in battery size
+                const [newProduct] = await tx
+                  .insert(products)
+                  .values({
+                    id: tradeIn.productId,
+                    name: tradeIn.name, // Battery size as name
+                    categoryId: "parts-category-id", // Default to parts category
+                    productType: "Trade-in Battery",
+                    description: `Trade-in battery - ${tradeIn.size} (${tradeIn.condition})`,
+                  })
+                  .returning();
+                productId = newProduct.id;
+              }
+
+              // Find or create inventory record for trade-in product
+              const [tradeInInventory] = await tx
+                .select()
+                .from(inventory)
+                .where(
+                  and(
+                    eq(inventory.productId, productId),
+                    eq(inventory.locationId, locationId)
+                  )
+                )
+                .limit(1);
+
+              if (tradeInInventory) {
+                // Increment standard stock for trade-in product
+                const currentTradeInStock = tradeInInventory.standardStock ?? 0;
+                await tx
+                  .update(inventory)
+                  .set({
+                    standardStock: currentTradeInStock + tradeIn.quantity,
+                  })
+                  .where(eq(inventory.id, tradeInInventory.id));
+              } else {
+                // Create new inventory record with cost price
+                await tx
+                  .insert(inventory)
+                  .values({
+                    productId: productId,
+                    locationId: locationId,
+                    standardStock: tradeIn.quantity,
+                  });
+              }
+
+              // Create a batch record with the trade-in amount as cost price
               await tx
-                .update(inventory)
-                .set({
-                  standardStock: currentTradeInStock + tradeIn.quantity,
-                })
-                .where(eq(inventory.id, tradeInInventory.id));
-            } else {
-              // If no inventory record exists, create one
-              const [newInventory] = await tx
-                .insert(inventory)
+                .insert(batches)
                 .values({
-                  productId: tradeIn.productId,
-                  locationId: locationId,
-                  standardStock: tradeIn.quantity,
-                })
-                .returning();
+                  inventoryId: tradeInInventory?.id || productId, // Use inventory ID if available
+                  costPrice: tradeIn.costPrice.toString(),
+                  quantityReceived: tradeIn.quantity,
+                  stockRemaining: tradeIn.quantity,
+                  supplier: `Trade-in (${tradeIn.condition})`,
+                  isActiveBatch: true,
+                });
+            } else {
+              // Handle regular trade-ins (non-battery)
+              const [tradeInInventory] = await tx
+                .select()
+                .from(inventory)
+                .where(
+                  and(
+                    eq(inventory.productId, tradeIn.productId),
+                    eq(inventory.locationId, locationId)
+                  )
+                )
+                .limit(1);
+
+              if (tradeInInventory) {
+                // Increment standard stock for trade-in product
+                const currentTradeInStock = tradeInInventory.standardStock ?? 0;
+                await tx
+                  .update(inventory)
+                  .set({
+                    standardStock: currentTradeInStock + tradeIn.quantity,
+                  })
+                  .where(eq(inventory.id, tradeInInventory.id));
+              } else {
+                // If no inventory record exists, create one
+                await tx
+                  .insert(inventory)
+                  .values({
+                    productId: tradeIn.productId,
+                    locationId: locationId,
+                    standardStock: tradeIn.quantity,
+                  });
+              }
             }
           }
         }
