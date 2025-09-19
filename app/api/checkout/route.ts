@@ -319,7 +319,8 @@ export async function POST(req: NextRequest) {
             // Check if any cart item is a battery
             // Batteries are in the "Parts" category with type "Batteries"
             if (
-              (product.categoryName === "Parts" && product.productType === "Batteries") ||
+              (product.categoryName === "Parts" &&
+                product.productType === "Batteries") ||
               product.categoryName?.toLowerCase().includes("battery") ||
               product.productType?.toLowerCase().includes("battery")
             ) {
@@ -334,11 +335,13 @@ export async function POST(req: NextRequest) {
           .from(locations)
           .where(eq(locations.id, locationId))
           .limit(1);
-          
+
         if (!locationExists) {
-          throw new Error(`Location ${locationId} does not exist in the database`);
+          throw new Error(
+            `Location ${locationId} does not exist in the database`
+          );
         }
-        
+
         console.log(`[${requestId}] Location verified: ${locationExists.id}`);
 
         // 2. Create transaction record
@@ -358,31 +361,44 @@ export async function POST(req: NextRequest) {
 
         // 2. Process each cart item with FIFO logic
         for (const cartItem of processedCart) {
+          // Skip inventory processing for labor charges
+          if (cartItem.productId === "9999" || cartItem.productId === 9999) {
+            console.log(
+              `[${requestId}] Skipping inventory processing for labor charge: ${cartItem.productId}`
+            );
+            continue;
+          }
+          
           // Find inventory record
-        const [inventoryRecord] = await tx
-          .select()
-          .from(inventory)
-          .where(
-            and(
-              eq(inventory.productId, cartItem.productId),
-              eq(inventory.locationId, locationId)
+          const [inventoryRecord] = await tx
+            .select()
+            .from(inventory)
+            .where(
+              and(
+                eq(inventory.productId, cartItem.productId),
+                eq(inventory.locationId, locationId)
+              )
             )
-          )
-          .limit(1);
+            .limit(1);
 
-        if (!inventoryRecord) {
-          console.error(`[${requestId}] Inventory not found for product ${cartItem.productId} at location ${locationId}`);
-          throw new Error(
-            `Inventory not found for product ${cartItem.productId} at location ${locationId}`
+          if (!inventoryRecord) {
+            console.error(
+              `[${requestId}] Inventory not found for product ${cartItem.productId} at location ${locationId}`
+            );
+            throw new Error(
+              `Inventory not found for product ${cartItem.productId} at location ${locationId}`
+            );
+          }
+
+          console.log(
+            `[${requestId}] Found inventory record for product ${cartItem.productId}:`,
+            {
+              id: inventoryRecord.id,
+              standardStock: inventoryRecord.standardStock,
+              openBottlesStock: inventoryRecord.openBottlesStock,
+              closedBottlesStock: inventoryRecord.closedBottlesStock,
+            }
           );
-        }
-        
-        console.log(`[${requestId}] Found inventory record for product ${cartItem.productId}:`, {
-          id: inventoryRecord.id,
-          standardStock: inventoryRecord.standardStock,
-          openBottlesStock: inventoryRecord.openBottlesStock,
-          closedBottlesStock: inventoryRecord.closedBottlesStock
-        });
 
           // Find the active batch (FIFO - oldest first)
           let activeBatch = await tx
@@ -396,10 +412,12 @@ export async function POST(req: NextRequest) {
             )
             .orderBy(asc(batches.purchaseDate))
             .limit(1)
-            .then(result => result[0]);
+            .then((result) => result[0]);
 
           if (!activeBatch) {
-            console.error(`[${requestId}] No active batch found for inventory ${inventoryRecord.id}`);
+            console.error(
+              `[${requestId}] No active batch found for inventory ${inventoryRecord.id}`
+            );
             // Try to find any batch with remaining stock
             const anyBatch = await tx
               .select()
@@ -412,10 +430,13 @@ export async function POST(req: NextRequest) {
               )
               .orderBy(asc(batches.purchaseDate))
               .limit(1)
-              .then(result => result[0]);
-              
+              .then((result) => result[0]);
+
             if (anyBatch) {
-              console.log(`[${requestId}] Found batch with stock, activating it:`, anyBatch.id);
+              console.log(
+                `[${requestId}] Found batch with stock, activating it:`,
+                anyBatch.id
+              );
               // Activate this batch
               await tx
                 .update(batches)
@@ -425,7 +446,9 @@ export async function POST(req: NextRequest) {
               activeBatch = { ...anyBatch, isActiveBatch: true };
             } else {
               // No batches exist - create a default batch for this inventory
-              console.log(`[${requestId}] No batches found, creating default batch for inventory ${inventoryRecord.id}`);
+              console.log(
+                `[${requestId}] No batches found, creating default batch for inventory ${inventoryRecord.id}`
+              );
               const [newBatch] = await tx
                 .insert(batches)
                 .values({
@@ -441,8 +464,10 @@ export async function POST(req: NextRequest) {
               console.log(`[${requestId}] Created default batch:`, newBatch.id);
             }
           }
-          
-          console.log(`[${requestId}] Using batch ${activeBatch.id} with ${activeBatch.stockRemaining} remaining stock`);
+
+          console.log(
+            `[${requestId}] Using batch ${activeBatch.id} with ${activeBatch.stockRemaining} remaining stock`
+          );
 
           // Check if we have enough stock in the active batch
           if (activeBatch.stockRemaining < cartItem.quantity) {
@@ -496,11 +521,17 @@ export async function POST(req: NextRequest) {
             .limit(1);
 
           if (!product[0]) {
-            console.error(`[${requestId}] Product not found: ${cartItem.productId}`);
+            console.error(
+              `[${requestId}] Product not found: ${cartItem.productId}`
+            );
             throw new Error(`Product not found: ${cartItem.productId}`);
           }
-          
-          console.log(`[${requestId}] Processing product: ${product[0].name} (Category: ${productMap.get(cartItem.productId)?.categoryName || 'Unknown'})`);
+
+          console.log(
+            `[${requestId}] Processing product: ${product[0].name} (Category: ${
+              productMap.get(cartItem.productId)?.categoryName || "Unknown"
+            })`
+          );
 
           if (
             productMap.get(cartItem.productId)?.categoryName === "Lubricants"
@@ -547,7 +578,7 @@ export async function POST(req: NextRequest) {
                 .limit(1);
 
               let productId = tradeIn.productId;
-              
+
               if (!existingProduct) {
                 // Create new product for this trade-in battery size
                 const [newProduct] = await tx
@@ -586,26 +617,22 @@ export async function POST(req: NextRequest) {
                   .where(eq(inventory.id, tradeInInventory.id));
               } else {
                 // Create new inventory record with cost price
-                await tx
-                  .insert(inventory)
-                  .values({
-                    productId: productId,
-                    locationId: locationId,
-                    standardStock: tradeIn.quantity,
-                  });
+                await tx.insert(inventory).values({
+                  productId: productId,
+                  locationId: locationId,
+                  standardStock: tradeIn.quantity,
+                });
               }
 
               // Create a batch record with the trade-in amount as cost price
-              await tx
-                .insert(batches)
-                .values({
-                  inventoryId: tradeInInventory?.id || productId, // Use inventory ID if available
-                  costPrice: tradeIn.costPrice.toString(),
-                  quantityReceived: tradeIn.quantity,
-                  stockRemaining: tradeIn.quantity,
-                  supplier: `Trade-in (${tradeIn.condition})`,
-                  isActiveBatch: true,
-                });
+              await tx.insert(batches).values({
+                inventoryId: tradeInInventory?.id || productId, // Use inventory ID if available
+                costPrice: tradeIn.costPrice.toString(),
+                quantityReceived: tradeIn.quantity,
+                stockRemaining: tradeIn.quantity,
+                supplier: `Trade-in (${tradeIn.condition})`,
+                isActiveBatch: true,
+              });
             } else {
               // Handle regular trade-ins (non-battery)
               const [tradeInInventory] = await tx
@@ -630,13 +657,11 @@ export async function POST(req: NextRequest) {
                   .where(eq(inventory.id, tradeInInventory.id));
               } else {
                 // If no inventory record exists, create one
-                await tx
-                  .insert(inventory)
-                  .values({
-                    productId: tradeIn.productId,
-                    locationId: locationId,
-                    standardStock: tradeIn.quantity,
-                  });
+                await tx.insert(inventory).values({
+                  productId: tradeIn.productId,
+                  locationId: locationId,
+                  standardStock: tradeIn.quantity,
+                });
               }
             }
           }

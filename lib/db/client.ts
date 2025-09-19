@@ -120,7 +120,9 @@ export function isDatabaseAvailable(): boolean {
   // This prevents 503 errors during the initial health check period
   const isStartup = connectionHealth.lastCheck === 0;
 
-  return isConfigured && (isHealthy || !recentlyChecked || isStartup);
+  // If configured and either healthy, recently checked, or during startup, consider available
+  // Also allow if consecutive failures are low (< 3) to be more permissive
+  return isConfigured && (isHealthy || !recentlyChecked || isStartup || connectionHealth.consecutiveFailures < 3);
 }
 
 // Helper function to get database instance with enhanced error handling

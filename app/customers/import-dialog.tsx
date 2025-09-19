@@ -148,7 +148,7 @@ export function ImportDialog({ isOpen, onClose, onImport }: ImportDialogProps) {
             make: "Toyota",
             model: "Camry",
             year: "2020",
-            licensePlate: "SAMPLE1",
+            plateNumber: "SAMPLE1",
             vin: "1HGCM82633A123456",
             notes: "Sample vehicle notes"
           }
@@ -254,4 +254,4 @@ export function ImportDialog({ isOpen, onClose, onImport }: ImportDialogProps) {
       </DialogContent>
     </Dialog>
   )
-} 
+}

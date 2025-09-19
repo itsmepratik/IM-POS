@@ -83,6 +83,7 @@ import { Badge } from "@/components/ui/badge";
 import { useCompanyInfo } from "@/lib/hooks/useCompanyInfo";
 // Removed unused hooks
 import { Textarea } from "@/components/ui/textarea";
+import { CustomerSelector, Customer } from "@/components/ui/customer-selector";
 import {
   Accordion,
   AccordionItem,
@@ -93,6 +94,7 @@ import {
 // Import the RefundDialog component
 import { RefundDialog, WarrantyDialog } from "./components/refund-dialog";
 import { ImportDialog } from "./components/import-dialog";
+import { customerService } from "@/lib/services/customerService";
 import {
   useIntegratedPOSData,
   LubricantProduct,
@@ -389,9 +391,98 @@ function POSCustomerForm({
     vehicles: [],
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleCustomerSelect = async (customer: Customer | null) => {
+    setSelectedCustomer(customer);
+    if (customer) {
+      try {
+        // Fetch full customer details including any additional data
+        const fullCustomer = await customerService.getCustomerById(customer.id);
+        
+        // Populate form data with customer details
+        setFormData({
+          name: fullCustomer.name || "",
+          email: fullCustomer.email || "",
+          phone: fullCustomer.phone || "",
+          address: fullCustomer.address || "",
+          notes: fullCustomer.notes || "",
+          vehicles: fullCustomer.vehicles || [], // This will be empty for now until vehicles table is implemented
+        });
+      } catch (error) {
+        console.error("Error fetching customer details:", error);
+        // Fallback to basic customer data from selector
+        setFormData({
+          name: customer.name || "",
+          email: customer.email || "",
+          phone: customer.phone || "",
+          address: customer.address || "",
+          notes: customer.notes || "",
+          vehicles: [],
+        });
+      }
+    } else {
+      // Clear form data when no customer is selected
+      setFormData({
+        name: "",
+        email: "",
+        phone: "",
+        address: "",
+        notes: "",
+        vehicles: [],
+      });
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData);
+    
+    if (isSubmitting) return;
+    
+    setIsSubmitting(true);
+    
+    try {
+      // If a customer is selected, use their data and update last visit
+      if (selectedCustomer) {
+        await customerService.updateLastVisit(selectedCustomer.id);
+        const customerData = await customerService.getCustomerById(selectedCustomer.id);
+        if (customerData) {
+          onSubmit(customerData);
+        } else {
+          throw new Error('Failed to fetch customer data');
+        }
+      } else {
+        // Create new customer
+        const customerData = await customerService.createCustomer({
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          address: formData.address,
+          notes: formData.notes,
+          vehicles: formData.vehicles.map(v => ({
+            make: v.make,
+            model: v.model,
+            year: v.year,
+            licensePlate: v.licensePlate,
+            color: v.color || '',
+            engineType: v.engineType || '',
+            notes: v.notes || '',
+          })),
+        });
+        
+        if (customerData) {
+          onSubmit(customerData);
+        } else {
+          throw new Error('Failed to create customer');
+        }
+      }
+    } catch (error) {
+      console.error('Error handling customer:', error);
+      // Error is already handled by the service with toast
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const addVehicle = () => {
@@ -446,6 +537,7 @@ function POSCustomerForm({
                   notes: "",
                   vehicles: [],
                 });
+                setSelectedCustomer(null);
               }}
               title="Clear all fields"
             >
@@ -467,7 +559,23 @@ function POSCustomerForm({
               >
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="name">Full Name</Label>
+                    <Label htmlFor="customer-selector">Customer</Label>
+                    <CustomerSelector
+                      value={selectedCustomer}
+                      onValueChange={handleCustomerSelect}
+                      placeholder="Search existing customer or add new..."
+                    />
+                    {selectedCustomer && (
+                      <div className="text-sm text-muted-foreground">
+                        Selected: {selectedCustomer.name} • {selectedCustomer.vehicleCount} vehicle(s)
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="name">
+                      {selectedCustomer ? "Customer Name" : "Full Name (New Customer)"}
+                    </Label>
                     <Input
                       id="name"
                       value={formData.name}
@@ -476,6 +584,8 @@ function POSCustomerForm({
                       }
                       placeholder="John Doe"
                       required
+                      readOnly={!!selectedCustomer}
+                      className={selectedCustomer ? "bg-gray-50" : ""}
                     />
                   </div>
 
@@ -489,6 +599,8 @@ function POSCustomerForm({
                       }
                       placeholder="customer@example.com"
                       type="email"
+                      readOnly={!!selectedCustomer}
+                      className={selectedCustomer ? "bg-gray-50" : ""}
                     />
                   </div>
 
@@ -502,6 +614,8 @@ function POSCustomerForm({
                       }
                       placeholder="(555) 123-4567"
                       required
+                      readOnly={!!selectedCustomer}
+                      className={selectedCustomer ? "bg-gray-50" : ""}
                     />
                   </div>
 
@@ -514,7 +628,8 @@ function POSCustomerForm({
                         setFormData({ ...formData, address: e.target.value })
                       }
                       placeholder="Customer address"
-                      className="h-20"
+                      className={`h-20 ${selectedCustomer ? "bg-gray-50" : ""}`}
+                      readOnly={!!selectedCustomer}
                     />
                   </div>
 
@@ -527,7 +642,8 @@ function POSCustomerForm({
                         setFormData({ ...formData, notes: e.target.value })
                       }
                       placeholder="Additional notes about the customer"
-                      className="h-20"
+                      className={`h-20 ${selectedCustomer ? "bg-gray-50" : ""}`}
+                      readOnly={!!selectedCustomer}
                     />
                   </div>
 
@@ -723,8 +839,16 @@ function POSCustomerForm({
             type="submit"
             form="customer-form"
             className="w-full sm:w-auto order-1 sm:order-2"
+            disabled={isSubmitting}
           >
-            Add Customer
+            {isSubmitting ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                {selectedCustomer ? 'Selecting...' : 'Adding...'}
+              </>
+            ) : (
+              selectedCustomer ? 'Select Customer' : 'Add Customer'
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -1340,10 +1464,16 @@ function POSPageContent() {
         return;
       }
 
-      // Validate stock availability for all cart items
+      // Validate stock availability for all cart items (excluding labor charges)
       const stockValidationErrors: string[] = [];
 
       for (const cartItem of cart) {
+        // Skip inventory validation for labor charges
+        if (cartItem.id === 9999 || cartItem.name === "Labor - Custom Service") {
+          console.log(`⚡ Skipping inventory check for labor charge: ${cartItem.name}`);
+          continue;
+        }
+        
         console.log(`🔍 Checking availability for product ID: ${cartItem.id}`);
         
         try {
@@ -1483,12 +1613,19 @@ function POSPageContent() {
 
     try {
       // Prepare cart items for the API call
-      // Filter out "Labor - Custom Service" items as they don't have valid UUIDs
-      const validCartItems = cart.filter(
-        (item) => item.name !== "Labor - Custom Service"
-      );
-
-      const cartForAPI = validCartItems.map((item) => {
+      // Include all items, but handle labor charges specially
+      const cartForAPI = cart.map((item) => {
+        // Handle labor charges specially
+        if (item.id === 9999 || item.name === "Labor - Custom Service") {
+          return {
+            productId: "9999", // Use string ID for labor charges
+            quantity: item.quantity,
+            sellingPrice: item.price,
+            volumeDescription: item.name,
+          };
+        }
+        
+        // Handle regular inventory items
         const productInfo = products.find((p) => p.id === item.id);
         const lubricantProductInfo = lubricantProducts.find(
           (p) => p.id === item.id
@@ -1961,72 +2098,113 @@ function POSPageContent() {
           {/* Product Grid */}
           <div className="flex-1 overflow-hidden flex flex-col min-h-0">
             <Card className="flex-1 overflow-hidden flex flex-col h-full">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 px-4 flex-shrink-0">
-                <div className="flex items-center gap-4">
+              <CardHeader className="flex flex-col lg:flex-row items-start lg:items-center justify-between space-y-2 lg:space-y-0 pb-3 px-4 flex-shrink-0">
+                {/* Desktop: Show title and branch selector side by side */}
+                <div className="hidden lg:flex items-center gap-4">
                   <CardTitle className="text-xl sm:text-2xl">
                     Products
                   </CardTitle>
                   <BranchSelector compact={true} showLabel={false} />
+                </div>
+                
+                {/* Mobile: Show branch selector first, then title below */}
+                <div className="flex lg:hidden flex-col gap-2 w-full">
+                  <div className="flex items-center justify-between w-full">
+                    <BranchSelector compact={true} showLabel={false} />
+                    <div className="flex gap-2 items-center lg:hidden">
+                      <Button
+                        variant="outline"
+                        size="default"
+                        className="dispute-button h-10 px-4 flex items-center gap-2 relative transition-all duration-200 ease-in-out active:transition-none"
+                        onClick={() => setIsDisputeDialogOpen(true)}
+                      >
+                        <RotateCcw className="h-4 w-4" />
+                        <span className="font-medium">Dispute</span>
+                      </Button>
 
-                  {/* Sync Status Indicator */}
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    {isLoading ? (
-                      <>
-                        <div className="animate-spin h-3 w-3 border-2 border-primary border-t-transparent rounded-full" />
-                        <span className="hidden sm:inline">Syncing...</span>
-                      </>
-                    ) : lastSyncTime ? (
-                      <>
-                        <div
-                          className={`h-2 w-2 rounded-full ${
-                            isBackgroundSyncing
-                              ? "bg-blue-500 animate-pulse"
-                              : "bg-green-500"
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="cart-button h-10 w-10 relative transition-all duration-200 ease-in-out active:transition-none"
+                        onClick={() => setShowCart(true)}
+                      >
+                        <ShoppingCart className="h-5 w-5" />
+                        {totalCartQuantity > 0 && (
+                          <Badge
+                            className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0"
+                            variant="destructive"
+                          >
+                            {totalCartQuantity}
+                          </Badge>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                  <CardTitle className="text-xl sm:text-2xl">
+                    Products
+                  </CardTitle>
+                </div>
+
+                {/* Sync Status Indicator */}
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  {isLoading ? (
+                    <>
+                      <div className="animate-spin h-3 w-3 border-2 border-primary border-t-transparent rounded-full" />
+                      <span className="hidden sm:inline">Syncing...</span>
+                    </>
+                  ) : lastSyncTime ? (
+                    <>
+                      <div
+                        className={`h-2 w-2 rounded-full ${
+                          isBackgroundSyncing
+                            ? "bg-blue-500 animate-pulse"
+                            : "bg-green-500"
+                        }`}
+                      />
+                      <span className="hidden sm:inline">
+                        {isBackgroundSyncing
+                          ? "Syncing..."
+                          : lastSyncTime.toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={syncProducts}
+                        disabled={isBackgroundSyncing}
+                        className="h-6 px-1 ml-1 hover:bg-green-50 disabled:opacity-50"
+                        title="Refresh inventory data"
+                      >
+                        <RefreshCw
+                          className={`h-3 w-3 ${
+                            isBackgroundSyncing ? "animate-spin" : ""
                           }`}
                         />
-                        <span className="hidden sm:inline">
-                          {isBackgroundSyncing
-                            ? "Syncing..."
-                            : lastSyncTime.toLocaleTimeString([], {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
-                        </span>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={syncProducts}
-                          disabled={isBackgroundSyncing}
-                          className="h-6 px-1 ml-1 hover:bg-green-50 disabled:opacity-50"
-                          title="Refresh inventory data"
-                        >
-                          <RefreshCw
-                            className={`h-3 w-3 ${
-                              isBackgroundSyncing ? "animate-spin" : ""
-                            }`}
-                          />
-                        </Button>
-                      </>
-                    ) : error ? (
-                      <>
-                        <div className="h-2 w-2 bg-red-500 rounded-full" />
-                        <span className="hidden sm:inline text-red-600">
-                          Sync failed
-                        </span>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={syncProducts}
-                          className="h-6 px-1 ml-1 hover:bg-red-50 text-red-600"
-                          title="Retry sync"
-                        >
-                          <RotateCcw className="h-3 w-3" />
-                        </Button>
-                      </>
-                    ) : null}
-                  </div>
+                      </Button>
+                    </>
+                  ) : error ? (
+                    <>
+                      <div className="h-2 w-2 bg-red-500 rounded-full" />
+                      <span className="hidden sm:inline text-red-600">
+                        Sync failed
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={syncProducts}
+                        className="h-6 px-1 ml-1 hover:bg-red-50 text-red-600"
+                        title="Retry sync"
+                      >
+                        <RotateCcw className="h-3 w-3" />
+                      </Button>
+                    </>
+                  ) : null}
                 </div>
-                <div className="flex gap-2 items-center">
+                
+                {/* Desktop: Show buttons on the right */}
+                <div className="hidden lg:flex gap-2 items-center">
                   <Button
                     variant="outline"
                     size="default"
@@ -2035,23 +2213,6 @@ function POSPageContent() {
                   >
                     <RotateCcw className="h-4 w-4" />
                     <span className="font-medium">Dispute</span>
-                  </Button>
-
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="cart-button lg:hidden h-10 w-10 relative transition-all duration-200 ease-in-out active:transition-none"
-                    onClick={() => setShowCart(true)}
-                  >
-                    <ShoppingCart className="h-5 w-5" />
-                    {totalCartQuantity > 0 && (
-                      <Badge
-                        className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0"
-                        variant="destructive"
-                      >
-                        {totalCartQuantity}
-                      </Badge>
-                    )}
                   </Button>
                 </div>
               </CardHeader>

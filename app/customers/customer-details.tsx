@@ -156,9 +156,9 @@ export function CustomerDetails({
                             <span className="font-medium">
                               {vehicle.make} {vehicle.model} {vehicle.year}
                             </span>
-                            {vehicle.licensePlate && (
+                            {vehicle.plateNumber && (
                               <Badge variant="outline" className="ml-2">
-                                {vehicle.licensePlate}
+                                {vehicle.plateNumber}
                               </Badge>
                             )}
                           </div>
@@ -188,7 +188,7 @@ export function CustomerDetails({
                                 <h4 className="text-xs text-muted-foreground">
                                   License Plate
                                 </h4>
-                                <p>{vehicle.licensePlate || "-"}</p>
+                                <p>{vehicle.plateNumber || "-"}</p>
                               </div>
                             </div>
 

@@ -19,34 +19,15 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Plus, Trash2, Car } from "lucide-react";
-
-export interface Vehicle {
-  id: string;
-  make: string;
-  model: string;
-  year: string;
-  licensePlate: string;
-  vin?: string;
-  notes?: string;
-}
-
-export interface CustomerData {
-  id: number;
-  name: string;
-  email: string;
-  phone: string;
-  vehicles: Vehicle[];
-  notes?: string;
-  lastVisit?: string;
-  address?: string;
-}
+import { Plus, Trash2, Car, Loader2 } from "lucide-react";
+import type { CustomerData, Vehicle } from "@/lib/hooks/data/useCustomers";
 
 interface CustomerFormProps {
   isOpen: boolean;
   onClose: () => void;
   customer?: CustomerData;
-  onSubmit: (customer: Omit<CustomerData, "id" | "lastVisit">) => void;
+  onSubmit: (customer: Omit<CustomerData, "id" | "createdAt" | "updatedAt">) => Promise<void>;
+  loading?: boolean;
 }
 
 export function CustomerForm({
@@ -54,9 +35,10 @@ export function CustomerForm({
   onClose,
   customer,
   onSubmit,
+  loading = false,
 }: CustomerFormProps) {
   const [formData, setFormData] = useState<
-    Omit<CustomerData, "id" | "lastVisit">
+    Omit<CustomerData, "id" | "createdAt" | "updatedAt">
   >({
     name: customer?.name || "",
     email: customer?.email || "",
@@ -66,9 +48,21 @@ export function CustomerForm({
     vehicles: customer?.vehicles || [],
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData);
+    if (isSubmitting) return;
+    
+    setIsSubmitting(true);
+    try {
+      await onSubmit(formData);
+      onClose();
+    } catch (error) {
+      console.error("Error submitting form:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const addVehicle = () => {
@@ -80,8 +74,8 @@ export function CustomerForm({
           id: Date.now().toString(),
           make: "",
           model: "",
-          year: "",
-          licensePlate: "",
+          year: 0,
+          plateNumber: "",
         },
       ],
     }));
@@ -290,11 +284,11 @@ export function CustomerForm({
                                   </Label>
                                   <Input
                                     id={`license-${vehicle.id}`}
-                                    value={vehicle.licensePlate}
+                                    value={vehicle.plateNumber}
                                     onChange={(e) =>
                                       updateVehicle(
                                         vehicle.id,
-                                        "licensePlate",
+                                        "plateNumber",
                                         e.target.value
                                       )
                                     }
@@ -373,8 +367,15 @@ export function CustomerForm({
           >
             Cancel
           </Button>
-          <Button type="submit" form="customer-form">
-            {customer ? "Update" : "Add"} Customer
+          <Button type="submit" form="customer-form" disabled={isSubmitting || loading}>
+            {isSubmitting || loading ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                {customer ? "Updating..." : "Adding..."}
+              </>
+            ) : (
+              <>{customer ? "Update" : "Add"} Customer</>
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -32,9 +32,11 @@ export { useInventory } from './hooks/data/useInventory'
 export { useBranchData } from './hooks/data/useBranchData'
 export { useUsers } from './hooks/data/useUsers'
 export { useTransactions } from './hooks/data/useTransactions'
+export { useCustomers } from './hooks/data/useCustomers'
 
 // Re-export types for convenience
 export type { InventoryItem } from './hooks/data/useInventory'
 export type { Branch } from './hooks/data/useBranchData'
 export type { UserType } from './hooks/data/useUsers'
-export type { Transaction, AllTransactions } from './hooks/data/useTransactions' 
+export type { Transaction, AllTransactions } from './hooks/data/useTransactions'
+export type { CustomerData, Vehicle } from './hooks/data/useCustomers'

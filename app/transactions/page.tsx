@@ -11,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import {
   FileText,
   ChevronDown,
@@ -19,6 +20,7 @@ import {
   CalendarIcon,
   Printer,
   X,
+  Search,
 } from "lucide-react";
 import {
   Popover,
@@ -697,6 +699,7 @@ export default function TransactionsPage() {
   const [hasMounted, setHasMounted] = useState(false);
   const [date, setDate] = useState<DateRange | undefined>(undefined);
   const [receiptOpen, setReceiptOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     // Check for time of day
@@ -781,10 +784,25 @@ export default function TransactionsPage() {
     }));
   }, [apiTransactions]);
 
-  const displayTransactions = useMemo(
-    () => getTransactions(),
-    [getTransactions]
-  );
+  const displayTransactions = useMemo(() => {
+    const transactions = getTransactions();
+    
+    if (!searchQuery.trim()) {
+      return transactions;
+    }
+    
+    const query = searchQuery.toLowerCase().trim();
+    return transactions.filter((transaction) => {
+      return (
+        transaction.reference.toLowerCase().includes(query) ||
+        transaction.cashier.toLowerCase().includes(query) ||
+        (transaction.customerName && transaction.customerName.toLowerCase().includes(query)) ||
+        transaction.paymentMethod.toLowerCase().includes(query) ||
+        transaction.type.toLowerCase().includes(query) ||
+        transaction.amount.toString().includes(query)
+      );
+    });
+  }, [getTransactions, searchQuery]);
 
   // Calculate total credit (total amount considering sale as positive and refund as negative)
   const totalCredit = useMemo(() => {
@@ -944,6 +962,29 @@ export default function TransactionsPage() {
           </div>
         </div>
 
+        {/* Search Bar */}
+        <div className="w-full">
+          <div className="relative max-w-md">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+            <Input
+              type="text"
+              placeholder="Search transactions by reference, cashier, payment method..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 pr-4 py-2 w-full sm:w-[400px] md:w-[500px] lg:w-[600px]"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                aria-label="Clear search"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+        </div>
+
         <div className="flex flex-col gap-4">
           <div className="flex flex-wrap items-center gap-3">
             {hasMounted ? (
@@ -1043,6 +1084,19 @@ export default function TransactionsPage() {
           )}
         </div>
 
+        {/* Search Results Indicator */}
+        {searchQuery.trim() && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Search className="h-4 w-4" />
+            <span>
+              {displayTransactions.length === 0
+                ? "No transactions found"
+                : `Found ${displayTransactions.length} transaction${displayTransactions.length === 1 ? '' : 's'}`
+              } matching "{searchQuery}"
+            </span>
+          </div>
+        )}
+
         {displayTransactions && displayTransactions.length > 0 ? (
           <div className="space-y-4 pb-20">
             <div className="grid gap-4" id="transaction-cards-container">
@@ -1062,7 +1116,14 @@ export default function TransactionsPage() {
             <div className="rounded-full bg-muted p-6 mb-4">
               <FileText className="h-8 w-8 text-muted-foreground" />
             </div>
-            <h2 className="text-xl font-semibold mb-2">No transactions</h2>
+            <h2 className="text-xl font-semibold mb-2">
+              {searchQuery.trim() ? "No matching transactions" : "No transactions"}
+            </h2>
+            {searchQuery.trim() && (
+              <p className="text-muted-foreground mb-4">
+                Try adjusting your search terms or clear the search to see all transactions.
+              </p>
+            )}
           </Card>
         )}
       </div>

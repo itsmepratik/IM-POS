@@ -460,7 +460,7 @@ export function useInventoryMockData(): UseInventoryMockDataReturn {
           searchQuery.toLowerCase()
         ) ||
         (item.brand?.toLowerCase() || "").includes(searchQuery.toLowerCase()) ||
-        (item.type?.toLowerCase() || "").includes(searchQuery.toLowerCase()) ||
+        (item.type?.toLowerCase() || "").includes(searchQuery.toLowerCase());
 
       // Category filter
       const matchesCategory =

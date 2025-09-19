@@ -36,15 +36,22 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/use-toast";
-import { CustomerForm, CustomerData } from "./customer-form";
+import { CustomerForm } from "./customer-form";
 import { CustomerDetails } from "./customer-details";
 import { DeleteDialog } from "./delete-dialog";
 import { ImportDialog } from "./import-dialog";
 import { useCustomers } from "./customers-context";
+import type { CustomerData } from "@/lib/hooks/data/useCustomers";
 
 export default function CustomersPage() {
-  const { customers, addCustomer, updateCustomer, deleteCustomer } =
-    useCustomers();
+  const { 
+    customers, 
+    addCustomer, 
+    updateCustomer, 
+    deleteCustomer, 
+    loading, 
+    error 
+  } = useCustomers();
   const { toast } = useToast();
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -81,8 +88,8 @@ export default function CustomersPage() {
         (v) =>
           v.make.trim() !== "" &&
           v.model.trim() !== "" &&
-          v.year.trim() !== "" &&
-          v.licensePlate.trim() !== ""
+          v.year > 0 &&
+          v.plateNumber.trim() !== ""
       );
 
     return hasAllRecommendedFields;
@@ -173,40 +180,64 @@ export default function CustomersPage() {
   };
 
   // Form submission handlers
-  const handleAddCustomer = (
-    customerData: Omit<CustomerData, "id" | "lastVisit">
+  const handleAddCustomer = async (
+    customerData: Omit<CustomerData, "id" | "createdAt" | "updatedAt">
   ) => {
-    addCustomer(customerData);
-    setIsCustomerFormOpen(false);
-    toast({
-      title: "Customer added",
-      description: `${customerData.name} has been added successfully.`,
-    });
-  };
-
-  const handleUpdateCustomer = (
-    customerData: Omit<CustomerData, "id" | "lastVisit">
-  ) => {
-    if (currentCustomer) {
-      updateCustomer(currentCustomer, customerData);
+    try {
+      await addCustomer(customerData);
       setIsCustomerFormOpen(false);
       toast({
-        title: "Customer updated",
-        description: `${customerData.name} has been updated successfully.`,
+        title: "Customer added",
+        description: `${customerData.name} has been added successfully.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to add customer. Please try again.",
+        variant: "destructive",
       });
     }
   };
 
-  const handleDeleteCustomer = () => {
+  const handleUpdateCustomer = async (
+    customerData: Omit<CustomerData, "id" | "createdAt" | "updatedAt">
+  ) => {
+    if (currentCustomer) {
+      try {
+        await updateCustomer(currentCustomer, customerData);
+        setIsCustomerFormOpen(false);
+        toast({
+          title: "Customer updated",
+          description: `${customerData.name} has been updated successfully.`,
+        });
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to update customer. Please try again.",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
+  const handleDeleteCustomer = async () => {
     if (currentCustomer) {
       const customer = customers.find((c) => c.id === currentCustomer);
-      deleteCustomer(currentCustomer);
-      setIsDeleteDialogOpen(false);
-      toast({
-        title: "Customer deleted",
-        description: `${customer?.name} has been deleted.`,
-        variant: "destructive",
-      });
+      try {
+        await deleteCustomer(currentCustomer);
+        setIsDeleteDialogOpen(false);
+        toast({
+          title: "Customer deleted",
+          description: `${customer?.name} has been deleted.`,
+          variant: "destructive",
+        });
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to delete customer. Please try again.",
+          variant: "destructive",
+        });
+      }
     }
   };
 
@@ -261,6 +292,7 @@ export default function CustomersPage() {
               variant="default"
               className="w-full sm:w-auto"
               onClick={openAddCustomer}
+              disabled={loading}
             >
               <Plus className="mr-2 h-4 w-4" />
               Add customer
@@ -308,6 +340,7 @@ export default function CustomersPage() {
                   variant="outline"
                   className="hidden sm:flex"
                   onClick={openImportDialog}
+                  disabled={loading}
                 >
                   <Upload className="h-4 w-4 mr-2" />
                   Import
@@ -427,6 +460,7 @@ export default function CustomersPage() {
                       filteredCustomers.length > 0
                     }
                     onChange={toggleAllCustomers}
+                    disabled={loading}
                   />
                 </th>
                 <th className="p-3 text-left font-medium">Name</th>
@@ -438,7 +472,38 @@ export default function CustomersPage() {
               </tr>
             </thead>
             <tbody>
-              {filteredCustomers.map((customer) => (
+              {loading ? (
+                <tr>
+                  <td colSpan={7} className="p-8 text-center">
+                    <div className="flex items-center justify-center space-x-2">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                      <span>Loading customers...</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : error ? (
+                <tr>
+                  <td colSpan={7} className="p-8 text-center text-red-600">
+                    <div className="space-y-2">
+                      <p>Error loading customers: {error}</p>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => window.location.reload()}
+                      >
+                        Retry
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              ) : filteredCustomers.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="p-8 text-center text-muted-foreground">
+                    No customers found
+                  </td>
+                </tr>
+              ) : (
+                filteredCustomers.map((customer) => (
                 <tr key={customer.id} className="border-b hover:bg-muted/50">
                   <td className="p-3">
                     <input
@@ -491,19 +556,46 @@ export default function CustomersPage() {
                     </DropdownMenu>
                   </td>
                 </tr>
-              ))}
+                ))
+              )}
             </tbody>
           </table>
-          {filteredCustomers.length === 0 && (
-            <div className="text-center py-8">
-              <p className="text-muted-foreground">No customers found</p>
-            </div>
-          )}
         </div>
 
         {/* Mobile Card View */}
         <div className="lg:hidden space-y-4">
-          {filteredCustomers.map((customer) => (
+          {loading ? (
+            <Card>
+              <CardContent className="p-8 text-center">
+                <div className="flex items-center justify-center space-x-2">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                  <span>Loading customers...</span>
+                </div>
+              </CardContent>
+            </Card>
+          ) : error ? (
+            <Card>
+              <CardContent className="p-8 text-center text-red-600">
+                <div className="space-y-2">
+                  <p>Error loading customers: {error}</p>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => window.location.reload()}
+                  >
+                    Retry
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ) : filteredCustomers.length === 0 ? (
+            <Card>
+              <CardContent className="p-8 text-center text-muted-foreground">
+                No customers found
+              </CardContent>
+            </Card>
+          ) : (
+            filteredCustomers.map((customer) => (
             <Card key={customer.id} className="overflow-hidden rounded-lg">
               <CardContent className="p-0">
                 <div className="p-4 flex flex-col gap-3">
@@ -601,12 +693,7 @@ export default function CustomersPage() {
                 </div>
               </CardContent>
             </Card>
-          ))}
-
-          {filteredCustomers.length === 0 && (
-            <div className="text-center py-8 border rounded-md">
-              <p className="text-muted-foreground">No customers found</p>
-            </div>
+            ))
           )}
         </div>
       </div>
@@ -618,6 +705,7 @@ export default function CustomersPage() {
           onClose={() => setIsCustomerFormOpen(false)}
           customer={getCurrentCustomer()}
           onSubmit={currentCustomer ? handleUpdateCustomer : handleAddCustomer}
+          loading={loading}
         />
       )}
 
