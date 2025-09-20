@@ -94,7 +94,7 @@ import {
 // Import the RefundDialog component
 import { RefundDialog, WarrantyDialog } from "./components/refund-dialog";
 import { ImportDialog } from "./components/import-dialog";
-import { customerService } from "@/lib/services/customerService";
+import { customerService } from "@/lib/services/customerservice";
 import {
   useIntegratedPOSData,
   LubricantProduct,
