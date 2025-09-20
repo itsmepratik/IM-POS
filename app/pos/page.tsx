@@ -572,80 +572,80 @@ function POSCustomerForm({
                     )}
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="name">
-                      {selectedCustomer ? "Customer Name" : "Full Name (New Customer)"}
-                    </Label>
-                    <Input
-                      id="name"
-                      value={formData.name}
-                      onChange={(e) =>
-                        setFormData({ ...formData, name: e.target.value })
-                      }
-                      placeholder="John Doe"
-                      required
-                      readOnly={!!selectedCustomer}
-                      className={selectedCustomer ? "bg-gray-50" : ""}
-                    />
-                  </div>
+                  {!selectedCustomer && (
+                    <div className="space-y-2">
+                      <Label htmlFor="name">Full Name (New Customer)</Label>
+                      <Input
+                        id="name"
+                        value={formData.name}
+                        onChange={(e) =>
+                          setFormData({ ...formData, name: e.target.value })
+                        }
+                        placeholder="John Doe"
+                        required
+                      />
+                    </div>
+                  )}
 
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      value={formData.email}
-                      onChange={(e) =>
-                        setFormData({ ...formData, email: e.target.value })
-                      }
-                      placeholder="customer@example.com"
-                      type="email"
-                      readOnly={!!selectedCustomer}
-                      className={selectedCustomer ? "bg-gray-50" : ""}
-                    />
-                  </div>
+                  {!selectedCustomer && (
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="email">Email</Label>
+                        <Input
+                          id="email"
+                          value={formData.email}
+                          onChange={(e) =>
+                            setFormData({ ...formData, email: e.target.value })
+                          }
+                          placeholder="customer@example.com"
+                          type="email"
+                        />
+                      </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="phone">Phone</Label>
-                    <Input
-                      id="phone"
-                      value={formData.phone}
-                      onChange={(e) =>
-                        setFormData({ ...formData, phone: e.target.value })
-                      }
-                      placeholder="(555) 123-4567"
-                      required
-                      readOnly={!!selectedCustomer}
-                      className={selectedCustomer ? "bg-gray-50" : ""}
-                    />
-                  </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="phone">Phone</Label>
+                        <Input
+                          id="phone"
+                          value={formData.phone}
+                          onChange={(e) =>
+                            setFormData({ ...formData, phone: e.target.value })
+                          }
+                          placeholder="(555) 123-4567"
+                          required
+                        />
+                      </div>
+                    </>
+                  )}
 
-                  <div className="space-y-2">
-                    <Label htmlFor="address">Address</Label>
-                    <Textarea
-                      id="address"
-                      value={formData.address}
-                      onChange={(e) =>
-                        setFormData({ ...formData, address: e.target.value })
-                      }
-                      placeholder="Customer address"
-                      className={`h-20 ${selectedCustomer ? "bg-gray-50" : ""}`}
-                      readOnly={!!selectedCustomer}
-                    />
-                  </div>
+                  {!selectedCustomer && (
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="address">Address</Label>
+                        <Textarea
+                          id="address"
+                          value={formData.address}
+                          onChange={(e) =>
+                            setFormData({ ...formData, address: e.target.value })
+                          }
+                          placeholder="Customer address"
+                          className="h-20"
+                        />
+                      </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="notes">Notes</Label>
-                    <Textarea
-                      id="notes"
-                      value={formData.notes}
-                      onChange={(e) =>
-                        setFormData({ ...formData, notes: e.target.value })
-                      }
-                      placeholder="Additional notes about the customer"
-                      className={`h-20 ${selectedCustomer ? "bg-gray-50" : ""}`}
-                      readOnly={!!selectedCustomer}
-                    />
-                  </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="notes">Notes</Label>
+                        <Textarea
+                          id="notes"
+                          value={formData.notes}
+                          onChange={(e) =>
+                            setFormData({ ...formData, notes: e.target.value })
+                          }
+                          placeholder="Additional notes about the customer"
+                          className="h-20"
+                        />
+                      </div>
+                    </>
+                  )}
 
                   <div className="space-y-3 pt-2">
                     <div className="flex items-center justify-between">
