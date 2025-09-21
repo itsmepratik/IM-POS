@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback, startTransition } from "react";
 import { Layout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import {
@@ -42,8 +42,11 @@ import { DeleteDialog } from "./delete-dialog";
 import { ImportDialog } from "./import-dialog";
 import { useCustomers } from "./customers-context";
 import type { CustomerData } from "@/lib/hooks/data/useCustomers";
+import ErrorBoundary from "@/components/ui/error-boundary";
 
 export default function CustomersPage() {
+  console.log("🔄 CustomersPage: Component rendering started");
+  
   const { 
     customers, 
     addCustomer, 
@@ -53,6 +56,12 @@ export default function CustomersPage() {
     error 
   } = useCustomers();
   const { toast } = useToast();
+
+  console.log("📊 CustomersPage: Hook data", { 
+    customersCount: customers?.length, 
+    loading, 
+    error: error?.message 
+  });
 
   const [searchQuery, setSearchQuery] = useState("");
   const [filterValue, setFilterValue] = useState("All customers");
@@ -73,6 +82,22 @@ export default function CustomersPage() {
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [currentCustomer, setCurrentCustomer] = useState<number | null>(null);
   const [hasMounted, setHasMounted] = useState(false);
+
+  console.log("🎛️ CustomersPage: Current state", {
+    searchQuery,
+    filterValue,
+    isFilterExpanded,
+    selectedCustomers,
+    viewMode,
+    completenessFilter,
+    requiredFieldsFilter,
+    isCustomerFormOpen,
+    isCustomerDetailsOpen,
+    isDeleteDialogOpen,
+    isImportDialogOpen,
+    currentCustomer,
+    hasMounted
+  });
 
   // Helper function to determine if a customer is complete
   const isCustomerComplete = (customer: CustomerData): boolean => {
@@ -101,99 +126,160 @@ export default function CustomersPage() {
   };
 
   // Filter customers based on search query and filter values
-  const filteredCustomers = customers.filter((customer) => {
-    const matchesSearch =
-      searchQuery === "" ||
-      customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      customer.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      customer.phone.includes(searchQuery);
+  const filteredCustomers = useMemo(() => {
+    console.log("🔍 CustomersPage: Filtering customers", {
+      totalCustomers: customers.length,
+      searchQuery,
+      filterValue,
+      completenessFilter,
+      requiredFieldsFilter
+    });
+    
+    const filtered = customers.filter((customer) => {
+      const matchesSearch =
+        searchQuery === "" ||
+        customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        customer.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        customer.phone.includes(searchQuery);
 
-    const matchesFilter =
-      filterValue === "All customers" ||
-      (filterValue === "Multiple" && customer.vehicles.length > 1) ||
-      (filterValue === "Recent" &&
-        new Date(customer.lastVisit || "") >
-          new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)) ||
-      (filterValue === "New" &&
-        new Date(customer.lastVisit || "") >
-          new Date(Date.now() - 7 * 24 * 60 * 60 * 1000));
+      const matchesFilter =
+        filterValue === "All customers" ||
+        (filterValue === "Multiple" && customer.vehicles.length > 1) ||
+        (filterValue === "Recent" &&
+          new Date(customer.lastVisit || "") >
+            new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)) ||
+        (filterValue === "New" &&
+          new Date(customer.lastVisit || "") >
+            new Date(Date.now() - 7 * 24 * 60 * 60 * 1000));
 
-    const matchesCompleteness =
-      completenessFilter === "all" ||
-      (completenessFilter === "complete" && isCustomerComplete(customer)) ||
-      (completenessFilter === "incomplete" && !isCustomerComplete(customer));
+      const matchesCompleteness =
+        completenessFilter === "all" ||
+        (completenessFilter === "complete" && isCustomerComplete(customer)) ||
+        (completenessFilter === "incomplete" && !isCustomerComplete(customer));
 
-    const matchesRequiredFields =
-      requiredFieldsFilter === "all" ||
-      (requiredFieldsFilter === "complete" && hasRequiredFields(customer)) ||
-      (requiredFieldsFilter === "incomplete" && !hasRequiredFields(customer));
+      const matchesRequiredFields =
+        requiredFieldsFilter === "all" ||
+        (requiredFieldsFilter === "complete" && hasRequiredFields(customer)) ||
+        (requiredFieldsFilter === "incomplete" && !hasRequiredFields(customer));
 
-    return (
-      matchesSearch &&
-      matchesFilter &&
-      matchesCompleteness &&
-      matchesRequiredFields
-    );
-  });
+      return (
+        matchesSearch &&
+        matchesFilter &&
+        matchesCompleteness &&
+        matchesRequiredFields
+      );
+    });
+    
+    console.log("✅ CustomersPage: Filtered customers", {
+      filteredCount: filtered.length,
+      originalCount: customers.length
+    });
+    
+    return filtered;
+  }, [customers, searchQuery, filterValue, completenessFilter, requiredFieldsFilter]);
 
   // Toggle selection of a customer
-  const toggleCustomerSelection = (id: number) => {
-    setSelectedCustomers((prev) =>
-      prev.includes(id)
+  const toggleCustomerSelection = useCallback((id: number) => {
+    console.log("🎯 CustomersPage: Toggling customer selection", { customerId: id });
+    setSelectedCustomers((prev) => {
+      const newSelection = prev.includes(id)
         ? prev.filter((customerId) => customerId !== id)
-        : [...prev, id]
-    );
-  };
+        : [...prev, id];
+      console.log("📝 CustomersPage: Updated customer selection", { 
+        previousSelection: prev, 
+        newSelection 
+      });
+      return newSelection;
+    });
+  }, []);
 
   // Toggle selection of all customers
-  const toggleAllCustomers = () => {
+  const toggleAllCustomers = useCallback(() => {
+    console.log("🎯 CustomersPage: Toggling all customers selection");
     if (selectedCustomers.length === filteredCustomers.length) {
+      console.log("📝 CustomersPage: Deselecting all customers");
       setSelectedCustomers([]);
     } else {
-      setSelectedCustomers(filteredCustomers.map((c) => c.id));
+      const allIds = filteredCustomers.map((c) => c.id);
+      console.log("📝 CustomersPage: Selecting all customers", { allIds });
+      setSelectedCustomers(allIds);
     }
-  };
+  }, [selectedCustomers.length, filteredCustomers]);
 
-  // Modal handlers
-  const openAddCustomer = () => {
-    setCurrentCustomer(null);
-    setIsCustomerFormOpen(true);
-  };
+  // Modal handlers with proper state transitions to prevent race conditions
+  const openAddCustomer = useCallback(() => {
+    console.log("🚪 Modal: Opening add customer modal");
+    
+    startTransition(() => {
+      setCurrentCustomer(null);
+      setIsCustomerFormOpen(true);
+    });
+    
+    console.log("✅ Modal: Add customer modal opened");
+  }, []);
 
-  const openEditCustomer = (id: number) => {
-    setCurrentCustomer(id);
-    setIsCustomerFormOpen(true);
-  };
+  const openEditCustomer = useCallback((id: number) => {
+    console.log("✏️ Modal: Opening edit customer modal", { customerId: id });
+    
+    startTransition(() => {
+      setCurrentCustomer(id);
+      setIsCustomerFormOpen(true);
+    });
+    
+    console.log("✅ Modal: Edit customer modal opened", { customerId: id });
+  }, []);
 
-  const openViewCustomer = (id: number) => {
-    setCurrentCustomer(id);
-    setIsCustomerDetailsOpen(true);
-  };
+  const openViewCustomer = useCallback((id: number) => {
+    console.log("👁️ Modal: Opening view customer modal", { customerId: id });
+    
+    startTransition(() => {
+      setCurrentCustomer(id);
+      setIsCustomerDetailsOpen(true);
+    });
+    
+    console.log("✅ Modal: View customer modal opened", { customerId: id });
+  }, []);
 
-  const openDeleteCustomer = (id: number) => {
-    setCurrentCustomer(id);
-    setIsDeleteDialogOpen(true);
-  };
+  const openDeleteCustomer = useCallback((id: number) => {
+    console.log("🗑️ Modal: Opening delete customer modal", { customerId: id });
+    
+    startTransition(() => {
+      setCurrentCustomer(id);
+      setIsDeleteDialogOpen(true);
+    });
+    
+    console.log("✅ Modal: Delete customer modal opened", { customerId: id });
+  }, []);
 
-  const openImportDialog = () => {
+  const openImportDialog = useCallback(() => {
+    console.log("🚪 CustomersPage: Opening import dialog");
     setIsImportDialogOpen(true);
-  };
+  }, []);
 
   // Form submission handlers
   const handleAddCustomer = async (
     customerData: Omit<CustomerData, "id" | "createdAt" | "updatedAt">
   ) => {
+    console.log("➕ CustomersPage: Adding customer", { customerName: customerData.name });
     try {
       await addCustomer(customerData);
-      setIsCustomerFormOpen(false);
+      console.log("✅ CustomersPage: Customer added successfully");
+      startTransition(() => {
+        setIsCustomerFormOpen(false);
+      });
       toast({
         title: "Customer added",
         description: `${customerData.name} has been added successfully.`,
       });
     } catch (error) {
+      console.error("❌ CustomersPage: Error adding customer", error);
+      // Ensure modal stays open on error to allow retry
+      startTransition(() => {
+        setIsCustomerFormOpen(true);
+      });
       toast({
         title: "Error",
-        description: "Failed to add customer. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to add customer. Please try again.",
         variant: "destructive",
       });
     }
@@ -202,18 +288,30 @@ export default function CustomersPage() {
   const handleUpdateCustomer = async (
     customerData: Omit<CustomerData, "id" | "createdAt" | "updatedAt">
   ) => {
+    console.log("✏️ CustomersPage: Updating customer", { 
+      customerId: currentCustomer, 
+      customerName: customerData.name 
+    });
     if (currentCustomer) {
       try {
         await updateCustomer(currentCustomer, customerData);
-        setIsCustomerFormOpen(false);
+        console.log("✅ CustomersPage: Customer updated successfully");
+        startTransition(() => {
+          setIsCustomerFormOpen(false);
+        });
         toast({
           title: "Customer updated",
           description: `${customerData.name} has been updated successfully.`,
         });
       } catch (error) {
+        console.error("❌ CustomersPage: Error updating customer", error);
+        // Ensure modal stays open on error to allow retry
+        startTransition(() => {
+          setIsCustomerFormOpen(true);
+        });
         toast({
           title: "Error",
-          description: "Failed to update customer. Please try again.",
+          description: error instanceof Error ? error.message : "Failed to update customer. Please try again.",
           variant: "destructive",
         });
       }
@@ -221,46 +319,91 @@ export default function CustomersPage() {
   };
 
   const handleDeleteCustomer = async () => {
+    console.log("🗑️ CustomersPage: Deleting customer", { customerId: currentCustomer });
     if (currentCustomer) {
       const customer = customers.find((c) => c.id === currentCustomer);
       try {
         await deleteCustomer(currentCustomer);
-        setIsDeleteDialogOpen(false);
+        console.log("✅ CustomersPage: Customer deleted successfully");
+        startTransition(() => {
+          setIsDeleteDialogOpen(false);
+        });
         toast({
           title: "Customer deleted",
           description: `${customer?.name} has been deleted.`,
           variant: "destructive",
         });
       } catch (error) {
+        console.error("❌ CustomersPage: Error deleting customer", error);
+        // Ensure dialog stays open on error to allow retry
+        startTransition(() => {
+          setIsDeleteDialogOpen(true);
+        });
         toast({
           title: "Error",
-          description: "Failed to delete customer. Please try again.",
+          description: error instanceof Error ? error.message : "Failed to delete customer. Please try again.",
           variant: "destructive",
         });
       }
     }
   };
 
-  const handleImportCustomers = (
+  const handleImportCustomers = async (
     importedCustomers: Omit<CustomerData, "id" | "lastVisit">[]
   ) => {
-    importedCustomers.forEach((customer) => {
-      addCustomer(customer);
-    });
-    toast({
-      title: "Customers imported",
-      description: `${importedCustomers.length} customers have been imported successfully.`,
-    });
+    console.log("📥 CustomersPage: Importing customers", { count: importedCustomers.length });
+    
+    try {
+      const importPromises = importedCustomers.map(customer => addCustomer(customer));
+      await Promise.all(importPromises);
+      
+      startTransition(() => {
+        setIsImportDialogOpen(false);
+      });
+      
+      toast({
+        title: "Customers imported",
+        description: `${importedCustomers.length} customers have been imported successfully.`,
+      });
+    } catch (error) {
+      console.error("❌ CustomersPage: Error importing customers:", error);
+      // Keep dialog open on error to allow retry
+      startTransition(() => {
+        setIsImportDialogOpen(true);
+      });
+      toast({
+        title: "Import Error",
+        description: error instanceof Error ? error.message : "Failed to import customers. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
+
+  // Wrapper to maintain backward compatibility with legacy references
+  const handleFormSubmit = useCallback(
+    (
+      customerData: Omit<CustomerData, "id" | "createdAt" | "updatedAt">
+    ) => {
+      if (currentCustomer) {
+        // Delegate to the updated handler when editing
+        return handleUpdateCustomer(customerData);
+      }
+      // Delegate to the updated handler when adding new customer
+      return handleAddCustomer(customerData);
+    },
+    [currentCustomer, handleAddCustomer, handleUpdateCustomer]
+  );
 
   // Handle mobile view
   useEffect(() => {
+    console.log("📱 CustomersPage: Setting up resize handler");
     const handleResize = () => {
-      if (window.innerWidth < 1024) {
-        setViewMode("cards");
-      } else {
-        setViewMode("table");
-      }
+      const newViewMode = window.innerWidth < 1024 ? "cards" : "table";
+      console.log("📱 CustomersPage: Window resized", { 
+        width: window.innerWidth, 
+        newViewMode 
+      });
+      setViewMode(newViewMode);
     };
 
     // Set initial view mode
@@ -270,22 +413,78 @@ export default function CustomersPage() {
     window.addEventListener("resize", handleResize);
 
     // Clean up
-    return () => window.removeEventListener("resize", handleResize);
+    return () => {
+      console.log("🧹 CustomersPage: Cleaning up resize handler");
+      window.removeEventListener("resize", handleResize);
+    };
   }, []);
 
   useEffect(() => {
+    console.log("🏗️ CustomersPage: Component mounted");
     // Set hasMounted to true after component mounts
     setHasMounted(true);
   }, []);
 
   // Get current customer for modals
-  const getCurrentCustomer = () => {
-    return customers.find((c) => c.id === currentCustomer);
-  };
+  const getCurrentCustomer = useMemo(() => {
+    const customer = customers.find((c) => c.id === currentCustomer);
+    console.log("👤 CustomersPage: Getting current customer", { 
+      currentCustomerId: currentCustomer, 
+      found: !!customer 
+    });
+    return customer;
+  }, [customers, currentCustomer]);
+
+  // Add logging for search query changes
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const newQuery = e.target.value;
+    console.log("🔍 CustomersPage: Search query changed", { 
+      oldQuery: searchQuery, 
+      newQuery 
+    });
+    setSearchQuery(newQuery);
+  }, [searchQuery]);
+
+  // Add logging for filter changes
+  const handleFilterChange = useCallback((value: string) => {
+    console.log("🔧 CustomersPage: Filter value changed", { 
+      oldValue: filterValue, 
+      newValue: value 
+    });
+    setFilterValue(value);
+  }, [filterValue]);
+
+  // Add logging for completeness filter changes
+  const handleCompletenessFilterChange = useCallback((value: "all" | "complete" | "incomplete") => {
+    console.log("🔧 CustomersPage: Completeness filter changed", { 
+      oldValue: completenessFilter, 
+      newValue: value 
+    });
+    setCompletenessFilter(value);
+  }, [completenessFilter]);
+
+  // Add logging for required fields filter changes
+  const handleRequiredFieldsFilterChange = useCallback((value: "all" | "complete" | "incomplete") => {
+    console.log("🔧 CustomersPage: Required fields filter changed", { 
+      oldValue: requiredFieldsFilter, 
+      newValue: value 
+    });
+    setRequiredFieldsFilter(value);
+  }, [requiredFieldsFilter]);
+
+  // Add logging for filter expansion toggle
+  const handleFilterExpansionToggle = useCallback(() => {
+    console.log("🔧 CustomersPage: Filter expansion toggled", { 
+      wasExpanded: isFilterExpanded, 
+      willBeExpanded: !isFilterExpanded 
+    });
+    setIsFilterExpanded(!isFilterExpanded);
+  }, [isFilterExpanded]);
 
   return (
     <Layout>
-      <div className="w-full space-y-6">
+      <ErrorBoundary>
+        <div className="w-full space-y-6">
         <PageHeader
           actions={
             <Button
@@ -312,13 +511,13 @@ export default function CustomersPage() {
                 placeholder="Search customers"
                 className="w-full pl-10"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={handleSearchChange}
               />
             </div>
             <div className="flex flex-col sm:flex-row w-full sm:w-auto gap-2">
               <div className="flex items-center gap-2">
                 {hasMounted ? (
-                  <Select value={filterValue} onValueChange={setFilterValue}>
+                  <Select value={filterValue} onValueChange={handleFilterChange}>
                     <SelectTrigger className="w-full sm:w-[180px]">
                       <SelectValue placeholder="All customers" />
                     </SelectTrigger>
@@ -347,38 +546,38 @@ export default function CustomersPage() {
                 </Button>
               </div>
 
-              <Button
-                variant={
-                  completenessFilter !== "all" || requiredFieldsFilter !== "all"
-                    ? "default"
-                    : "outline"
-                }
-                size="sm"
-                className={`w-full sm:w-auto flex ${
-                  completenessFilter !== "all" || requiredFieldsFilter !== "all"
-                    ? "bg-primary/90 hover:bg-primary"
-                    : ""
-                }`}
-                onClick={() => setIsFilterExpanded(!isFilterExpanded)}
-              >
-                <Filter className="h-4 w-4 mr-2" />
-                Filters
-                {(completenessFilter !== "all" ||
-                  requiredFieldsFilter !== "all") && (
-                  <Badge
-                    variant="outline"
-                    className="ml-2 mr-1 bg-primary-foreground text-primary"
-                  >
-                    {(completenessFilter !== "all" ? 1 : 0) +
-                      (requiredFieldsFilter !== "all" ? 1 : 0)}
-                  </Badge>
-                )}
-                <ChevronDown
-                  className={`ml-2 h-4 w-4 transition-transform ${
-                    isFilterExpanded ? "rotate-180" : ""
-                  }`}
-                />
-              </Button>
+               <Button
+                 variant={
+                   completenessFilter !== "all" || requiredFieldsFilter !== "all"
+                     ? "default"
+                     : "outline"
+                 }
+                 size="sm"
+                 className={`w-full sm:w-auto flex ${
+                   completenessFilter !== "all" || requiredFieldsFilter !== "all"
+                     ? "bg-primary/90 hover:bg-primary"
+                     : ""
+                 }`}
+                 onClick={handleFilterExpansionToggle}
+               >
+                 <Filter className="h-4 w-4 mr-2" />
+                 Filters
+                 {(completenessFilter !== "all" ||
+                   requiredFieldsFilter !== "all") && (
+                   <Badge
+                     variant="outline"
+                     className="ml-2 mr-1 bg-primary-foreground text-primary"
+                   >
+                     {(completenessFilter !== "all" ? 1 : 0) +
+                       (requiredFieldsFilter !== "all" ? 1 : 0)}
+                   </Badge>
+                 )}
+                 <ChevronDown
+                   className={`ml-2 h-4 w-4 transition-transform ${
+                     isFilterExpanded ? "rotate-180" : ""
+                   }`}
+                 />
+               </Button>
             </div>
           </div>
         </div>
@@ -537,18 +736,57 @@ export default function CustomersPage() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem
-                          onClick={() => openViewCustomer(customer.id)}
+                          onSelect={() => {
+                            console.log("🖱️ Dropdown: View details clicked", { 
+                              customerId: customer.id, 
+                              customerName: customer.name,
+                              timestamp: new Date().toISOString()
+                            });
+                            console.log("🔄 Dropdown: Current modal states before view", {
+                              isCustomerFormOpen,
+                              isCustomerDetailsOpen,
+                              isDeleteDialogOpen,
+                              currentCustomer
+                            });
+                            openViewCustomer(customer.id);
+                          }}
                         >
                           View details
                         </DropdownMenuItem>
                         <DropdownMenuItem
-                          onClick={() => openEditCustomer(customer.id)}
+                          onSelect={() => {
+                            console.log("🖱️ Dropdown: Edit clicked", { 
+                              customerId: customer.id, 
+                              customerName: customer.name,
+                              timestamp: new Date().toISOString()
+                            });
+                            console.log("🔄 Dropdown: Current modal states before edit", {
+                              isCustomerFormOpen,
+                              isCustomerDetailsOpen,
+                              isDeleteDialogOpen,
+                              currentCustomer
+                            });
+                            openEditCustomer(customer.id);
+                          }}
                         >
                           Edit
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           className="text-red-600"
-                          onClick={() => openDeleteCustomer(customer.id)}
+                          onSelect={() => {
+                            console.log("🖱️ Dropdown: Delete clicked", { 
+                              customerId: customer.id, 
+                              customerName: customer.name,
+                              timestamp: new Date().toISOString()
+                            });
+                            console.log("🔄 Dropdown: Current modal states before delete", {
+                              isCustomerFormOpen,
+                              isCustomerDetailsOpen,
+                              isDeleteDialogOpen,
+                              currentCustomer
+                            });
+                            openDeleteCustomer(customer.id);
+                          }}
                         >
                           Delete
                         </DropdownMenuItem>
@@ -630,18 +868,57 @@ export default function CustomersPage() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem
-                          onClick={() => openViewCustomer(customer.id)}
+                          onSelect={() => {
+                            console.log("🖱️ Dropdown: View details clicked", { 
+                              customerId: customer.id, 
+                              customerName: customer.name,
+                              timestamp: new Date().toISOString()
+                            });
+                            console.log("🔄 Dropdown: Current modal states before view", {
+                              isCustomerFormOpen,
+                              isCustomerDetailsOpen,
+                              isDeleteDialogOpen,
+                              currentCustomer
+                            });
+                            openViewCustomer(customer.id);
+                          }}
                         >
                           View details
                         </DropdownMenuItem>
                         <DropdownMenuItem
-                          onClick={() => openEditCustomer(customer.id)}
+                          onSelect={() => {
+                            console.log("🖱️ Dropdown: Edit clicked", { 
+                              customerId: customer.id, 
+                              customerName: customer.name,
+                              timestamp: new Date().toISOString()
+                            });
+                            console.log("🔄 Dropdown: Current modal states before edit", {
+                              isCustomerFormOpen,
+                              isCustomerDetailsOpen,
+                              isDeleteDialogOpen,
+                              currentCustomer
+                            });
+                            openEditCustomer(customer.id);
+                          }}
                         >
                           Edit
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           className="text-red-600"
-                          onClick={() => openDeleteCustomer(customer.id)}
+                          onSelect={() => {
+                            console.log("🖱️ Dropdown: Delete clicked", { 
+                              customerId: customer.id, 
+                              customerName: customer.name,
+                              timestamp: new Date().toISOString()
+                            });
+                            console.log("🔄 Dropdown: Current modal states before delete", {
+                              isCustomerFormOpen,
+                              isCustomerDetailsOpen,
+                              isDeleteDialogOpen,
+                              currentCustomer
+                            });
+                            openDeleteCustomer(customer.id);
+                          }}
                         >
                           Delete
                         </DropdownMenuItem>
@@ -677,7 +954,20 @@ export default function CustomersPage() {
                       variant="ghost"
                       size="sm"
                       className="text-xs"
-                      onClick={() => openViewCustomer(customer.id)}
+                      onClick={() => {
+                        console.log("🖱️ Button: View Details clicked", { 
+                          customerId: customer.id, 
+                          customerName: customer.name,
+                          timestamp: new Date().toISOString()
+                        });
+                        console.log("🔄 Button: Current modal states before view", {
+                          isCustomerFormOpen,
+                          isCustomerDetailsOpen,
+                          isDeleteDialogOpen,
+                          currentCustomer
+                        });
+                        openViewCustomer(customer.id);
+                      }}
                     >
                       View Details
                     </Button>
@@ -685,7 +975,20 @@ export default function CustomersPage() {
                       variant="outline"
                       size="sm"
                       className="text-xs"
-                      onClick={() => openEditCustomer(customer.id)}
+                      onClick={() => {
+                        console.log("🖱️ Button: Edit Customer clicked", { 
+                          customerId: customer.id, 
+                          customerName: customer.name,
+                          timestamp: new Date().toISOString()
+                        });
+                        console.log("🔄 Button: Current modal states before edit", {
+                          isCustomerFormOpen,
+                          isCustomerDetailsOpen,
+                          isDeleteDialogOpen,
+                          currentCustomer
+                        });
+                        openEditCustomer(customer.id);
+                      }}
                     >
                       Edit Customer
                     </Button>
@@ -699,47 +1002,62 @@ export default function CustomersPage() {
       </div>
 
       {/* Customer Form Modal */}
-      {isCustomerFormOpen && (
-        <CustomerForm
+      <CustomerForm
           isOpen={isCustomerFormOpen}
-          onClose={() => setIsCustomerFormOpen(false)}
-          customer={getCurrentCustomer()}
-          onSubmit={currentCustomer ? handleUpdateCustomer : handleAddCustomer}
+          onClose={() => {
+            console.log("🚪 Modal: Closing customer form modal");
+            startTransition(() => {
+              setIsCustomerFormOpen(false);
+            });
+          }}
+          onSubmit={handleFormSubmit}
           loading={loading}
+          customer={getCurrentCustomer}
         />
-      )}
 
       {/* Customer Details Modal */}
-      {isCustomerDetailsOpen && getCurrentCustomer() && (
+      {getCurrentCustomer && (
         <CustomerDetails
           isOpen={isCustomerDetailsOpen}
-          onClose={() => setIsCustomerDetailsOpen(false)}
-          customer={getCurrentCustomer()!}
+          onClose={() => {
+            console.log("🚪 Modal: Closing customer details modal");
+            startTransition(() => {
+              setIsCustomerDetailsOpen(false);
+            });
+          }}
+          customer={getCurrentCustomer}
           onEdit={() => {
-            setIsCustomerDetailsOpen(false);
-            setIsCustomerFormOpen(true);
+            console.log("✏️ Modal: Transitioning from details to edit modal");
+            startTransition(() => {
+              setIsCustomerDetailsOpen(false);
+              setIsCustomerFormOpen(true);
+            });
           }}
         />
       )}
 
       {/* Delete Confirmation Dialog */}
-      {isDeleteDialogOpen && getCurrentCustomer() && (
+      {getCurrentCustomer && (
         <DeleteDialog
           isOpen={isDeleteDialogOpen}
-          onClose={() => setIsDeleteDialogOpen(false)}
+          onClose={() => {
+            console.log("🚪 Modal: Closing delete confirmation dialog");
+            startTransition(() => {
+              setIsDeleteDialogOpen(false);
+            });
+          }}
           onConfirm={handleDeleteCustomer}
-          customerName={getCurrentCustomer()!.name}
+          customerName={getCurrentCustomer?.name ?? ""}
         />
       )}
 
       {/* Import Dialog */}
-      {isImportDialogOpen && (
-        <ImportDialog
-          isOpen={isImportDialogOpen}
-          onClose={() => setIsImportDialogOpen(false)}
-          onImport={handleImportCustomers}
-        />
-      )}
+      <ImportDialog
+        isOpen={isImportDialogOpen}
+        onClose={() => setIsImportDialogOpen(false)}
+        onImport={handleImportCustomers}
+      />
+      </ErrorBoundary>
     </Layout>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useTransition, useMemo } from "react";
 import { Layout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +28,7 @@ import {
   CheckCircle,
   XCircle,
   MoreHorizontal,
+  Loader2,
   Receipt,
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -141,6 +142,35 @@ export default function Transfer2Page() {
   } = useTransferLocations();
   const [hasMounted, setHasMounted] = useState(false);
 
+  // Memoized component for rendering modal items to improve performance
+  const ModalItems = useMemo(() => {
+    return function ModalItemsComponent({ items }: { items: SaleItem[] }) {
+      return (
+        <div className="space-y-2">
+          {items.map((item) => (
+            <div
+              key={item.id}
+              className="flex items-center justify-between p-2 border rounded"
+            >
+              <div>
+                <div className="font-medium">{item.name}</div>
+                <div className="text-xs text-muted-foreground">
+                  {item.brand && `${item.brand} • `}SKU: {item.sku}
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="font-medium">Qty: {item.quantitySold}</div>
+                <div className="text-xs text-muted-foreground">
+                  ${item.price.toFixed(2)}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      );
+    };
+  }, []);
+
   // Use useEffect to refresh items and locations when the component mounts
   useEffect(() => {
     // First clear any cached locations
@@ -165,6 +195,7 @@ export default function Transfer2Page() {
   const [showPOSInterface, setShowPOSInterface] = useState(false);
   const [posCart, setPosCart] = useState<POSCartItem[]>([]);
   const [isCustomBillLoading, setIsCustomBillLoading] = useState(false);
+  const [isPending, startTransition] = useTransition();
   const [targetDate, setTargetDate] = useState<string>(
     new Date().toISOString().split("T")[0]
   ); // Today's date by default
@@ -295,8 +326,10 @@ export default function Transfer2Page() {
 
   // Handle order review
   const handleReviewOrder = (order: SubmittedTransferOrder) => {
-    setSelectedOrder(order);
-    setReviewModalOpen(true);
+    startTransition(() => {
+      setSelectedOrder(order);
+      setReviewModalOpen(true);
+    });
   };
 
   // Handle order status update
@@ -575,8 +608,13 @@ export default function Transfer2Page() {
                               <DropdownMenuContent align="end">
                                 <DropdownMenuItem
                                   onClick={() => handleReviewOrder(order)}
+                                  disabled={isPending}
                                 >
-                                  <FileText className="h-4 w-4 mr-2" />
+                                  {isPending ? (
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                  ) : (
+                                    <FileText className="h-4 w-4 mr-2" />
+                                  )}
                                   Review
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
@@ -699,27 +737,7 @@ export default function Transfer2Page() {
                   Items ({selectedOrder.items.length})
                 </h4>
                 <ScrollArea className="max-h-64">
-                  <div className="space-y-2">
-                    {selectedOrder.items.map((item) => (
-                      <div
-                        key={item.id}
-                        className="flex items-center justify-between p-2 border rounded"
-                      >
-                        <div>
-                          <div className="font-medium">{item.name}</div>
-                          <div className="text-xs text-muted-foreground">
-                            {item.brand && `${item.brand} • `}SKU: {item.sku}
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div>Qty: {item.quantitySold}</div>
-                          <div className="text-xs">
-                            OMR {item.price.toFixed(3)}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                  <ModalItems items={selectedOrder.items} />
                 </ScrollArea>
               </div>
             </div>

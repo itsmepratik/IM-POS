@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -30,6 +30,11 @@ interface CustomerFormProps {
   loading?: boolean;
 }
 
+// Form data type with address as string for form handling
+type CustomerFormData = Omit<CustomerData, "id" | "createdAt" | "updatedAt" | "address"> & {
+  address: string;
+};
+
 export function CustomerForm({
   isOpen,
   onClose,
@@ -37,38 +42,122 @@ export function CustomerForm({
   onSubmit,
   loading = false,
 }: CustomerFormProps) {
-  const [formData, setFormData] = useState<
-    Omit<CustomerData, "id" | "createdAt" | "updatedAt">
-  >({
+  console.log("🔄 CustomerForm: Component rendered", { 
+    isOpen, 
+    hasCustomer: !!customer, 
+    customerId: customer?.id,
+    loading,
+    timestamp: new Date().toISOString()
+  });
+
+  // Helper function to convert address object to string
+  const addressToString = (address: any): string => {
+    if (!address) return "";
+    if (typeof address === "string") return address;
+    if (typeof address === "object") {
+      // If it's an object, extract the street field or convert to readable format
+      if (address.street) return address.street;
+      // If it has multiple fields, combine them
+      const parts = [
+        address.street,
+        address.city,
+        address.state,
+        address.zipCode,
+        address.country
+      ].filter(Boolean);
+      return parts.join(", ");
+    }
+    return "";
+  };
+
+  // Helper function to convert string back to address object
+  const stringToAddress = (addressString: string): any => {
+    if (!addressString.trim()) return undefined;
+    // For now, store as street field in the address object
+    return {
+      street: addressString,
+      city: undefined,
+      state: undefined,
+      zipCode: undefined,
+      country: undefined,
+    };
+  };
+
+  const [formData, setFormData] = useState<CustomerFormData>({
     name: customer?.name || "",
     email: customer?.email || "",
     phone: customer?.phone || "",
-    address: customer?.address || "",
+    address: addressToString(customer?.address),
     notes: customer?.notes || "",
     vehicles: customer?.vehicles || [],
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Reset form data when customer prop changes
+  useEffect(() => {
+    console.log("🔄 CustomerForm: Customer prop changed", { 
+      customerId: customer?.id,
+      customerName: customer?.name,
+      timestamp: new Date().toISOString()
+    });
+    setFormData({
+      name: customer?.name || "",
+      email: customer?.email || "",
+      phone: customer?.phone || "",
+      address: addressToString(customer?.address),
+      notes: customer?.notes || "",
+      vehicles: customer?.vehicles || [],
+    });
+  }, [customer]);
+
   const handleSubmit = async (e: React.FormEvent) => {
+    console.log("📝 CustomerForm: Form submission started", { 
+      formData: { ...formData, vehicles: formData.vehicles.length },
+      isSubmitting,
+      timestamp: new Date().toISOString()
+    });
+    
     e.preventDefault();
-    if (isSubmitting) return;
+    if (isSubmitting) {
+      console.log("⚠️ CustomerForm: Form already submitting, ignoring");
+      return;
+    }
     
     setIsSubmitting(true);
+    console.log("🔄 CustomerForm: Set isSubmitting to true");
+    
     try {
-      await onSubmit(formData);
+      // Convert address string back to object before submitting
+      const submissionData = {
+        ...formData,
+        address: stringToAddress(formData.address as string),
+      };
+      console.log("📤 CustomerForm: Calling onSubmit with data", { 
+        submissionData: { ...submissionData, vehicles: submissionData.vehicles.length }
+      });
+      
+      await onSubmit(submissionData);
+      console.log("✅ CustomerForm: onSubmit completed successfully");
+      
+      console.log("🚪 CustomerForm: Calling onClose");
       onClose();
     } catch (error) {
-      console.error("Error submitting form:", error);
+      console.error("❌ CustomerForm: Error submitting form:", error);
     } finally {
+      console.log("🔄 CustomerForm: Setting isSubmitting to false");
       setIsSubmitting(false);
     }
   };
 
   const addVehicle = () => {
-    setFormData((prev) => ({
-      ...prev,
-      vehicles: [
+    console.log("🚗 CustomerForm: Adding new vehicle", { 
+      currentVehicleCount: formData.vehicles.length,
+      timestamp: new Date().toISOString()
+    });
+    
+    setFormData((prev) => {
+      const newVehicles = [
         ...prev.vehicles,
         {
           id: Date.now().toString(),
@@ -77,11 +166,26 @@ export function CustomerForm({
           year: 0,
           plateNumber: "",
         },
-      ],
-    }));
+      ];
+      console.log("🔄 CustomerForm: Vehicle added", { 
+        newVehicleCount: newVehicles.length,
+        newVehicleId: newVehicles[newVehicles.length - 1].id
+      });
+      return {
+        ...prev,
+        vehicles: newVehicles,
+      };
+    });
   };
 
   const updateVehicle = (id: string, field: keyof Vehicle, value: string) => {
+    console.log("🔧 CustomerForm: Updating vehicle", { 
+      vehicleId: id, 
+      field, 
+      value,
+      timestamp: new Date().toISOString()
+    });
+    
     setFormData((prev) => ({
       ...prev,
       vehicles: prev.vehicles.map((vehicle) =>
@@ -91,14 +195,36 @@ export function CustomerForm({
   };
 
   const removeVehicle = (id: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      vehicles: prev.vehicles.filter((vehicle) => vehicle.id !== id),
-    }));
+    console.log("🗑️ CustomerForm: Removing vehicle", { 
+      vehicleId: id,
+      currentVehicleCount: formData.vehicles.length,
+      timestamp: new Date().toISOString()
+    });
+    
+    setFormData((prev) => {
+      const newVehicles = prev.vehicles.filter((vehicle) => vehicle.id !== id);
+      console.log("🔄 CustomerForm: Vehicle removed", { 
+        newVehicleCount: newVehicles.length
+      });
+      return {
+        ...prev,
+        vehicles: newVehicles,
+      };
+    });
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={(open) => {
+      console.log("🚪 CustomerForm: Dialog onOpenChange", { 
+        open, 
+        isOpen, 
+        timestamp: new Date().toISOString() 
+      });
+      if (!open) {
+        console.log("🚪 CustomerForm: Dialog closing, calling onClose");
+        onClose();
+      }
+    }}>
       <DialogContent className="w-[90%] max-w-[600px] max-h-[90vh] rounded-lg overflow-hidden flex flex-col">
         <DialogHeader className="px-6 pt-6 pb-2 shrink-0">
           <DialogTitle>
@@ -122,9 +248,14 @@ export function CustomerForm({
                     <Input
                       id="name"
                       value={formData.name}
-                      onChange={(e) =>
-                        setFormData({ ...formData, name: e.target.value })
-                      }
+                      onChange={(e) => {
+                        console.log("📝 CustomerForm: Name field changed", { 
+                          newValue: e.target.value,
+                          previousValue: formData.name,
+                          timestamp: new Date().toISOString()
+                        });
+                        setFormData({ ...formData, name: e.target.value });
+                      }}
                       placeholder="John Doe"
                       required
                     />
@@ -135,9 +266,14 @@ export function CustomerForm({
                     <Input
                       id="email"
                       value={formData.email}
-                      onChange={(e) =>
-                        setFormData({ ...formData, email: e.target.value })
-                      }
+                      onChange={(e) => {
+                        console.log("📝 CustomerForm: Email field changed", { 
+                          newValue: e.target.value,
+                          previousValue: formData.email,
+                          timestamp: new Date().toISOString()
+                        });
+                        setFormData({ ...formData, email: e.target.value });
+                      }}
                       placeholder="customer@example.com"
                       type="email"
                     />
@@ -148,9 +284,14 @@ export function CustomerForm({
                     <Input
                       id="phone"
                       value={formData.phone}
-                      onChange={(e) =>
-                        setFormData({ ...formData, phone: e.target.value })
-                      }
+                      onChange={(e) => {
+                        console.log("📝 CustomerForm: Phone field changed", { 
+                          newValue: e.target.value,
+                          previousValue: formData.phone,
+                          timestamp: new Date().toISOString()
+                        });
+                        setFormData({ ...formData, phone: e.target.value });
+                      }}
                       placeholder="(555) 123-4567"
                       required
                     />
@@ -161,9 +302,14 @@ export function CustomerForm({
                     <Textarea
                       id="address"
                       value={formData.address}
-                      onChange={(e) =>
-                        setFormData({ ...formData, address: e.target.value })
-                      }
+                      onChange={(e) => {
+                        console.log("📝 CustomerForm: Address field changed", { 
+                          newValue: e.target.value,
+                          previousValue: formData.address,
+                          timestamp: new Date().toISOString()
+                        });
+                        setFormData({ ...formData, address: e.target.value });
+                      }}
                       placeholder="Customer address"
                       className="h-20"
                     />
@@ -174,9 +320,14 @@ export function CustomerForm({
                     <Textarea
                       id="notes"
                       value={formData.notes}
-                      onChange={(e) =>
-                        setFormData({ ...formData, notes: e.target.value })
-                      }
+                      onChange={(e) => {
+                        console.log("📝 CustomerForm: Notes field changed", { 
+                          newValue: e.target.value,
+                          previousValue: formData.notes,
+                          timestamp: new Date().toISOString()
+                        });
+                        setFormData({ ...formData, notes: e.target.value });
+                      }}
                       placeholder="Additional notes about the customer"
                       className="h-20"
                     />

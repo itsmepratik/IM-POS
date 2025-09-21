@@ -40,6 +40,23 @@ export function CustomerDetails({
   customer,
   onEdit,
 }: CustomerDetailsProps) {
+  // Helper function to convert address object to string
+  const formatAddress = (address: any): string => {
+    if (!address) return "";
+    if (typeof address === "string") return address;
+    if (typeof address === "object") {
+      const parts = [
+        address.street,
+        address.city,
+        address.state,
+        address.zipCode,
+        address.country
+      ].filter(Boolean);
+      return parts.join(", ");
+    }
+    return "";
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="w-[90%] max-w-[600px] max-h-[90vh] rounded-lg overflow-hidden flex flex-col">
@@ -86,7 +103,7 @@ export function CustomerDetails({
                     {customer.address && (
                       <div className="flex items-start gap-2">
                         <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
-                        <span>{customer.address}</span>
+                        <span>{formatAddress(customer.address)}</span>
                       </div>
                     )}
                   </div>

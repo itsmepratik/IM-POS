@@ -42,6 +42,11 @@ const DialogContent = React.forwardRef<
         className
       )}
       {...props}
+      onInteractOutside={(e) => {
+        // call any user-provided handler
+        // @ts-ignore - Radix types
+        props.onInteractOutside?.(e);
+      }}
     >
       {children}
       <DialogPrimitive.Close 
@@ -70,6 +75,11 @@ const DialogContentWithoutClose = React.forwardRef<
         className
       )}
       {...props}
+      onInteractOutside={(e) => {
+        // call any user-provided handler
+        // @ts-ignore - Radix types
+        props.onInteractOutside?.(e);
+      }}
     >
       {children}
     </DialogPrimitive.Content>

@@ -66,6 +66,7 @@
     "react-date-range": "^2.0.1",
     "react-day-picker": "^9.8.1",
     "react-dom": "19.0.0-rc-65a56d0e-20241020",
+    "react-select": "^5.10.2",
     "recharts": "^2.15.4",
     "tailwind": "^4.0.0",
     "tailwind-merge": "^3.3.1",

@@ -83,13 +83,19 @@ import { Badge } from "@/components/ui/badge";
 import { useCompanyInfo } from "@/lib/hooks/useCompanyInfo";
 // Removed unused hooks
 import { Textarea } from "@/components/ui/textarea";
-import { CustomerSelector, Customer } from "@/components/ui/customer-selector";
 import {
   Accordion,
   AccordionItem,
   AccordionTrigger,
   AccordionContent,
 } from "@/components/ui/accordion";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 // Import the RefundDialog component
 import { RefundDialog, WarrantyDialog } from "./components/refund-dialog";
@@ -391,39 +397,38 @@ function POSCustomerForm({
     vehicles: [],
   });
 
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string>("");
+  const [existingCustomers, setExistingCustomers] = useState<Array<{
+    id: string;
+    name: string;
+    email: string;
+    phone: string;
+    displayText: string;
+  }>>([]);
+  const [isLoadingCustomers, setIsLoadingCustomers] = useState(false);
+  const [customerSearchTerm, setCustomerSearchTerm] = useState("");
 
-  const handleCustomerSelect = async (customer: Customer | null) => {
-    setSelectedCustomer(customer);
-    if (customer) {
-      try {
-        // Fetch full customer details including any additional data
-        const fullCustomer = await customerService.getCustomerById(customer.id);
-        
-        // Populate form data with customer details
-        setFormData({
-          name: fullCustomer.name || "",
-          email: fullCustomer.email || "",
-          phone: fullCustomer.phone || "",
-          address: fullCustomer.address || "",
-          notes: fullCustomer.notes || "",
-          vehicles: fullCustomer.vehicles || [], // This will be empty for now until vehicles table is implemented
-        });
-      } catch (error) {
-        console.error("Error fetching customer details:", error);
-        // Fallback to basic customer data from selector
-        setFormData({
-          name: customer.name || "",
-          email: customer.email || "",
-          phone: customer.phone || "",
-          address: customer.address || "",
-          notes: customer.notes || "",
-          vehicles: [],
-        });
+  // Fetch existing customers for dropdown
+  const fetchCustomers = useCallback(async (search: string = "") => {
+    setIsLoadingCustomers(true);
+    try {
+      const response = await fetch(`/api/customers/dropdown?search=${encodeURIComponent(search)}&limit=50`);
+      if (response.ok) {
+        const data = await response.json();
+        setExistingCustomers(data.customers || []);
       }
-    } else {
-      // Clear form data when no customer is selected
+    } catch (error) {
+      console.error('Error fetching customers:', error);
+    } finally {
+      setIsLoadingCustomers(false);
+    }
+  }, []);
+
+  // Handle customer selection from dropdown
+  const handleCustomerSelect = useCallback(async (customerId: string) => {
+    if (!customerId || customerId === "new-customer") {
+      setSelectedCustomerId("");
       setFormData({
         name: "",
         email: "",
@@ -432,8 +437,46 @@ function POSCustomerForm({
         notes: "",
         vehicles: [],
       });
+      return;
     }
-  };
+
+    try {
+      const response = await fetch(`/api/customers/${customerId}`);
+      if (response.ok) {
+        const responseData = await response.json();
+        const customer = responseData.customer;
+        setSelectedCustomerId(customerId);
+        setFormData({
+          name: customer.name || "",
+          email: customer.email || "",
+          phone: customer.phone || "",
+          address: customer.address || "",
+          notes: customer.notes || "",
+          vehicles: customer.vehicles || [],
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching customer details:', error);
+    }
+  }, []);
+
+  // Load customers when dialog opens
+  useEffect(() => {
+    if (isOpen) {
+      fetchCustomers();
+    }
+  }, [isOpen, fetchCustomers]);
+
+  // Search customers with debounce
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (customerSearchTerm !== undefined) {
+        fetchCustomers(customerSearchTerm);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [customerSearchTerm, fetchCustomers]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -443,18 +486,19 @@ function POSCustomerForm({
     setIsSubmitting(true);
     
     try {
-      // If a customer is selected, use their data and update last visit
-      if (selectedCustomer) {
-        await customerService.updateLastVisit(selectedCustomer.id);
-        const customerData = await customerService.getCustomerById(selectedCustomer.id);
-        if (customerData) {
-          onSubmit(customerData);
+      let customerData;
+      
+      if (selectedCustomerId) {
+        // Use existing customer - fetch fresh data to ensure we have the ID
+        const response = await fetch(`/api/customers/${selectedCustomerId}`);
+        if (response.ok) {
+          customerData = await response.json();
         } else {
-          throw new Error('Failed to fetch customer data');
+          throw new Error('Failed to fetch existing customer');
         }
       } else {
         // Create new customer
-        const customerData = await customerService.createCustomer({
+        customerData = await customerService.createCustomer({
           name: formData.name,
           email: formData.email,
           phone: formData.phone,
@@ -470,12 +514,12 @@ function POSCustomerForm({
             notes: v.notes || '',
           })),
         });
-        
-        if (customerData) {
-          onSubmit(customerData);
-        } else {
-          throw new Error('Failed to create customer');
-        }
+      }
+      
+      if (customerData) {
+        onSubmit(customerData);
+      } else {
+        throw new Error('Failed to handle customer');
       }
     } catch (error) {
       console.error('Error handling customer:', error);
@@ -522,13 +566,17 @@ function POSCustomerForm({
       <DialogContent className="w-[90%] max-w-[600px] max-h-[90vh] rounded-lg overflow-hidden flex flex-col pb-20 sm:pb-4">
         <DialogHeader className="px-6 pt-6 pb-2 shrink-0">
           <div className="flex items-center gap-4">
-            <DialogTitle>Add New Customer</DialogTitle>
+            <DialogTitle>
+              {selectedCustomerId ? "Selected Customer" : "Add New Customer"}
+            </DialogTitle>
             <Button
               type="button"
               variant="ghost"
               size="sm"
               className="h-8 px-2 text-xs flex items-center gap-1 hover:bg-muted"
               onClick={() => {
+                setSelectedCustomerId("");
+                setCustomerSearchTerm("");
                 setFormData({
                   name: "",
                   email: "",
@@ -537,7 +585,6 @@ function POSCustomerForm({
                   notes: "",
                   vehicles: [],
                 });
-                setSelectedCustomer(null);
               }}
               title="Clear all fields"
             >
@@ -558,94 +605,123 @@ function POSCustomerForm({
                 className="space-y-6"
               >
                 <div className="space-y-4">
+                  {/* Customer Selector Dropdown */}
                   <div className="space-y-2">
-                    <Label htmlFor="customer-selector">Customer</Label>
-                    <CustomerSelector
-                      value={selectedCustomer}
+                    <Label htmlFor="customer-select">Select Existing Customer</Label>
+                    <Select
+                      value={selectedCustomerId}
                       onValueChange={handleCustomerSelect}
-                      placeholder="Search existing customer or add new..."
-                    />
-                    {selectedCustomer && (
-                      <div className="text-sm text-muted-foreground">
-                        Selected: {selectedCustomer.name} • {selectedCustomer.vehicleCount} vehicle(s)
-                      </div>
-                    )}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Choose an existing customer or create new..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <div className="p-2">
+                          <Input
+                            placeholder="Search customers..."
+                            value={customerSearchTerm}
+                            onChange={(e) => setCustomerSearchTerm(e.target.value)}
+                            className="mb-2"
+                          />
+                        </div>
+                        {isLoadingCustomers ? (
+                          <SelectItem value="loading" disabled>
+                            Loading customers...
+                          </SelectItem>
+                        ) : existingCustomers.length > 0 ? (
+                          <>
+                            <SelectItem value="new-customer">Create New Customer</SelectItem>
+                            {existingCustomers.map((customer) => (
+                              <SelectItem key={customer.id} value={customer.id}>
+                                {customer.displayText}
+                              </SelectItem>
+                            ))}
+                          </>
+                        ) : (
+                          <SelectItem value="no-customers" disabled>
+                            {customerSearchTerm ? "No customers found" : "No customers available"}
+                          </SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
                   </div>
 
-                  {!selectedCustomer && (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="name">Full Name</Label>
+                      {selectedCustomerId && (
+                        <Badge variant="secondary" className="text-xs">
+                          From existing customer
+                        </Badge>
+                      )}
+                    </div>
+                    <Input
+                      id="name"
+                      value={formData.name}
+                      onChange={(e) =>
+                        setFormData({ ...formData, name: e.target.value })
+                      }
+                      placeholder="Customer full name"
+                      required
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="name">Full Name (New Customer)</Label>
+                      <Label htmlFor="email">Email</Label>
                       <Input
-                        id="name"
-                        value={formData.name}
+                        id="email"
+                        value={formData.email}
                         onChange={(e) =>
-                          setFormData({ ...formData, name: e.target.value })
+                          setFormData({ ...formData, email: e.target.value })
                         }
-                        placeholder="John Doe"
+                        placeholder="customer@example.com"
+                        type="email"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="phone">Phone</Label>
+                      <Input
+                        id="phone"
+                        value={formData.phone}
+                        onChange={(e) =>
+                          setFormData({ ...formData, phone: e.target.value })
+                        }
+                        placeholder="(555) 123-4567"
                         required
                       />
                     </div>
-                  )}
+                  </div>
 
-                  {!selectedCustomer && (
-                    <>
-                      <div className="space-y-2">
-                        <Label htmlFor="email">Email</Label>
-                        <Input
-                          id="email"
-                          value={formData.email}
-                          onChange={(e) =>
-                            setFormData({ ...formData, email: e.target.value })
-                          }
-                          placeholder="customer@example.com"
-                          type="email"
-                        />
-                      </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="address">Address</Label>
+                    <Textarea
+                      id="address"
+                      value={formData.address}
+                      onChange={(e) =>
+                        setFormData({ ...formData, address: e.target.value })
+                      }
+                      placeholder="Customer address"
+                      className="h-20"
+                    />
+                  </div>
 
-                      <div className="space-y-2">
-                        <Label htmlFor="phone">Phone</Label>
-                        <Input
-                          id="phone"
-                          value={formData.phone}
-                          onChange={(e) =>
-                            setFormData({ ...formData, phone: e.target.value })
-                          }
-                          placeholder="(555) 123-4567"
-                          required
-                        />
-                      </div>
-                    </>
-                  )}
+                  <div className="space-y-2">
+                    <Label htmlFor="notes">Notes</Label>
+                    <Textarea
+                      id="notes"
+                      value={formData.notes}
+                      onChange={(e) =>
+                        setFormData({ ...formData, notes: e.target.value })
+                      }
+                      placeholder="Additional notes about the customer"
+                      className="h-20"
+                    />
+                  </div>
 
-                  {!selectedCustomer && (
-                    <>
-                      <div className="space-y-2">
-                        <Label htmlFor="address">Address</Label>
-                        <Textarea
-                          id="address"
-                          value={formData.address}
-                          onChange={(e) =>
-                            setFormData({ ...formData, address: e.target.value })
-                          }
-                          placeholder="Customer address"
-                          className="h-20"
-                        />
-                      </div>
 
-                      <div className="space-y-2">
-                        <Label htmlFor="notes">Notes</Label>
-                        <Textarea
-                          id="notes"
-                          value={formData.notes}
-                          onChange={(e) =>
-                            setFormData({ ...formData, notes: e.target.value })
-                          }
-                          placeholder="Additional notes about the customer"
-                          className="h-20"
-                        />
-                      </div>
-                    </>
-                  )}
+
 
                   <div className="space-y-3 pt-2">
                     <div className="flex items-center justify-between">
@@ -844,10 +920,10 @@ function POSCustomerForm({
             {isSubmitting ? (
               <>
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                {selectedCustomer ? 'Selecting...' : 'Adding...'}
+                Adding...
               </>
             ) : (
-              selectedCustomer ? 'Select Customer' : 'Add Customer'
+              'Add Customer'
             )}
           </Button>
         </DialogFooter>
