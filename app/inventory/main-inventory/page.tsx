@@ -599,27 +599,27 @@ function MobileView() {
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   // Open item modal for adding new item
-  const openAddItemModal = () => {
+  const openAddItemModal = useCallback(() => {
     setEditingItem(undefined);
     setItemModalOpen(true);
-  };
+  }, [setEditingItem]);
 
   // Open item modal for editing existing item
-  const openEditItemModal = (item: Item) => {
+  const openEditItemModal = useCallback((item: Item) => {
     setEditingItem(item);
     setItemModalOpen(true);
-  };
+  }, [setEditingItem]);
 
   // Handle modal state changes
-  const handleItemModalOpenChange = (open: boolean) => {
+  const handleItemModalOpenChange = useCallback((open: boolean) => {
     setItemModalOpen(open);
     if (!open) {
       setEditingItem(undefined);
     }
-  };
+  }, [setEditingItem]);
 
   // Handle low stock click
-  const handleLowStockClick = () => {
+  const handleLowStockClick = useCallback(() => {
     setShowLowStockOnly((prev) => !prev);
     if (!showLowStockOnly) {
       setShowOutOfStockOnly(false);
@@ -627,10 +627,10 @@ function MobileView() {
     } else {
       setShowInStock(true);
     }
-  };
+  }, [showLowStockOnly, setShowLowStockOnly, setShowOutOfStockOnly, setShowInStock]);
 
   // Handle out of stock click
-  const handleOutOfStockClick = () => {
+  const handleOutOfStockClick = useCallback(() => {
     setShowOutOfStockOnly((prev) => !prev);
     if (!showOutOfStockOnly) {
       setShowLowStockOnly(false);
@@ -638,7 +638,51 @@ function MobileView() {
     } else {
       setShowInStock(true);
     }
-  };
+  }, [showOutOfStockOnly, setShowOutOfStockOnly, setShowLowStockOnly, setShowInStock]);
+
+  // Handle category modal open
+  const handleCategoryModalOpen = useCallback(() => {
+    setCategoryModalOpen(true);
+    setFiltersOpen(false);
+  }, []);
+
+  // Handle brand modal open
+  const handleBrandModalOpen = useCallback(() => {
+    setBrandModalOpen(true);
+    setFiltersOpen(false);
+  }, []);
+
+  // Handle trade-ins modal open
+  const handleTradeInsModalOpen = useCallback(() => {
+    setTradeInsModalOpen(true);
+    setFiltersOpen(false);
+  }, []);
+
+  // Handle search input change
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    startTransition(() => setSearchQuery(e.target.value));
+  }, [setSearchQuery]);
+
+  // Handle category change
+  const handleCategoryChange = useCallback((value: string) => {
+    startTransition(() => setSelectedCategory(value));
+  }, [setSelectedCategory]);
+
+  // Handle brand change
+  const handleBrandChange = useCallback((value: string) => {
+    startTransition(() => setSelectedBrand(value));
+  }, [setSelectedBrand]);
+
+  // Handle show in stock change
+  const handleShowInStockChange = useCallback((checked: boolean) => {
+    startTransition(() => {
+      setShowInStock(!!checked);
+      if (checked) {
+        setShowLowStockOnly(false);
+        setShowOutOfStockOnly(false);
+      }
+    });
+  }, [setShowInStock, setShowLowStockOnly, setShowOutOfStockOnly]);
 
   return (
     <div className="space-y-4 mt-[0px]">
@@ -652,9 +696,7 @@ function MobileView() {
               placeholder="Search..."
               className="w-full pl-9"
               value={searchQuery}
-              onChange={(e) =>
-                startTransition(() => setSearchQuery(e.target.value))
-              }
+              onChange={handleSearchChange}
             />
           </div>
           <Button
@@ -683,28 +725,19 @@ function MobileView() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-40">
                 <DropdownMenuItem
-                  onClick={() => {
-                    setCategoryModalOpen(true);
-                    setFiltersOpen(false);
-                  }}
+                  onClick={handleCategoryModalOpen}
                   className="cursor-pointer"
                 >
                   Categories
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                  onClick={() => {
-                    setBrandModalOpen(true);
-                    setFiltersOpen(false);
-                  }}
+                  onClick={handleBrandModalOpen}
                   className="cursor-pointer"
                 >
                   Brands
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                  onClick={() => {
-                    setTradeInsModalOpen(true);
-                    setFiltersOpen(false);
-                  }}
+                  onClick={handleTradeInsModalOpen}
                   className="cursor-pointer"
                 >
                   Trade-ins
@@ -728,9 +761,7 @@ function MobileView() {
               <ClientOnly>
                 <Select
                   value={selectedCategory}
-                  onValueChange={(value) =>
-                    startTransition(() => setSelectedCategory(value))
-                  }
+                  onValueChange={handleCategoryChange}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="All Categories" />
@@ -748,10 +779,7 @@ function MobileView() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => {
-                  setCategoryModalOpen(true);
-                  setFiltersOpen(false);
-                }}
+                onClick={handleCategoryModalOpen}
                 className="w-full"
               >
                 Categories
@@ -763,9 +791,7 @@ function MobileView() {
               <ClientOnly>
                 <Select
                   value={selectedBrand}
-                  onValueChange={(value) =>
-                    startTransition(() => setSelectedBrand(value))
-                  }
+                  onValueChange={handleBrandChange}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="All Brands" />
@@ -784,10 +810,7 @@ function MobileView() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => {
-                  setBrandModalOpen(true);
-                  setFiltersOpen(false);
-                }}
+                onClick={handleBrandModalOpen}
                 className="w-full"
               >
                 Brands
@@ -802,15 +825,7 @@ function MobileView() {
                   <Checkbox
                     id="mobileShowInStock"
                     checked={showInStock}
-                    onCheckedChange={(checked) =>
-                      startTransition(() => {
-                        setShowInStock(!!checked);
-                        if (checked) {
-                          setShowLowStockOnly(false);
-                          setShowOutOfStockOnly(false);
-                        }
-                      })
-                    }
+                    onCheckedChange={handleShowInStockChange}
                   />
                 </ClientOnly>
                 <label
@@ -1010,27 +1025,27 @@ function DesktopView() {
   const [tradeInsModalOpen, setTradeInsModalOpen] = useState(false);
 
   // Open item modal for adding new item
-  const openAddItemModal = () => {
+  const openAddItemModal = useCallback(() => {
     setEditingItem(undefined);
     setItemModalOpen(true);
-  };
+  }, [setEditingItem]);
 
   // Open item modal for editing existing item
-  const openEditItemModal = (item: Item) => {
+  const openEditItemModal = useCallback((item: Item) => {
     setEditingItem(item);
     setItemModalOpen(true);
-  };
+  }, [setEditingItem]);
 
   // Handle modal state changes
-  const handleItemModalOpenChange = (open: boolean) => {
+  const handleItemModalOpenChange = useCallback((open: boolean) => {
     setItemModalOpen(open);
     if (!open) {
       setEditingItem(undefined);
     }
-  };
+  }, [setEditingItem]);
 
   // Handle low stock click
-  const handleLowStockClick = () => {
+  const handleLowStockClick = useCallback(() => {
     setShowLowStockOnly((prev) => !prev);
     if (!showLowStockOnly) {
       setShowOutOfStockOnly(false);
@@ -1038,10 +1053,10 @@ function DesktopView() {
     } else {
       setShowInStock(true);
     }
-  };
+  }, [showLowStockOnly, setShowLowStockOnly, setShowOutOfStockOnly, setShowInStock]);
 
   // Handle out of stock click
-  const handleOutOfStockClick = () => {
+  const handleOutOfStockClick = useCallback(() => {
     setShowOutOfStockOnly((prev) => !prev);
     if (!showOutOfStockOnly) {
       setShowLowStockOnly(false);
@@ -1049,7 +1064,83 @@ function DesktopView() {
     } else {
       setShowInStock(true);
     }
-  };
+  }, [showOutOfStockOnly, setShowOutOfStockOnly, setShowLowStockOnly, setShowInStock]);
+
+  // Handle category modal open
+  const handleCategoryModalOpen = useCallback(() => {
+    setCategoryModalOpen(true);
+  }, []);
+
+  // Handle brand modal open
+  const handleBrandModalOpen = useCallback(() => {
+    setBrandModalOpen(true);
+  }, []);
+
+  // Handle trade-ins modal open
+  const handleTradeInsModalOpen = useCallback(() => {
+    setTradeInsModalOpen(true);
+  }, []);
+
+  // Handle clear all filters
+  const handleClearAllFilters = useCallback(() => {
+    setMinPrice("");
+    setMaxPrice("");
+    setStockStatus("all");
+    setShowLowStockOnly(false);
+    setShowOutOfStockOnly(false);
+  }, [setMinPrice, setMaxPrice, setStockStatus, setShowLowStockOnly, setShowOutOfStockOnly]);
+
+  // Handle low stock filter toggle
+  const handleLowStockFilterToggle = useCallback(() => {
+    startTransition(() => {
+      setShowOutOfStockOnly(false);
+      setShowLowStockOnly(!showLowStockOnly);
+    });
+  }, [showLowStockOnly, setShowOutOfStockOnly, setShowLowStockOnly]);
+
+  // Handle out of stock filter toggle
+  const handleOutOfStockFilterToggle = useCallback(() => {
+    startTransition(() => {
+      setShowLowStockOnly(false);
+      setShowOutOfStockOnly(!showOutOfStockOnly);
+    });
+  }, [showOutOfStockOnly, setShowLowStockOnly, setShowOutOfStockOnly]);
+
+  // Handle min price change
+  const handleMinPriceChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setMinPrice(e.target.value);
+  }, [setMinPrice]);
+
+  // Handle max price change
+  const handleMaxPriceChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setMaxPrice(e.target.value);
+  }, [setMaxPrice]);
+
+  // Handle search input change
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    startTransition(() => setSearchQuery(e.target.value));
+  }, [setSearchQuery]);
+
+  // Handle category change
+  const handleCategoryChange = useCallback((value: string) => {
+    startTransition(() => setSelectedCategory(value));
+  }, [setSelectedCategory]);
+
+  // Handle brand change
+  const handleBrandChange = useCallback((value: string) => {
+    startTransition(() => setSelectedBrand(value));
+  }, [setSelectedBrand]);
+
+  // Handle show in stock change
+  const handleShowInStockChange = useCallback((checked: boolean) => {
+    startTransition(() => {
+      setShowInStock(!!checked);
+      if (checked) {
+        setShowLowStockOnly(false);
+        setShowOutOfStockOnly(false);
+      }
+    });
+  }, [setShowInStock, setShowLowStockOnly, setShowOutOfStockOnly]);
 
   const areAllSelected =
     selectedItems.length === filteredItems.length && filteredItems.length > 0;
@@ -1065,9 +1156,7 @@ function DesktopView() {
               placeholder="Search items..."
               className="pl-9 pr-4 w-full rounded-[2.0625rem] border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
               value={searchQuery}
-              onChange={(e) =>
-                startTransition(() => setSearchQuery(e.target.value))
-              }
+              onChange={handleSearchChange}
             />
           </ClientOnly>
         </div>
@@ -1094,19 +1183,19 @@ function DesktopView() {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-40">
               <DropdownMenuItem
-                onClick={() => setCategoryModalOpen(true)}
+                onClick={handleCategoryModalOpen}
                 className="cursor-pointer"
               >
                 Categories
               </DropdownMenuItem>
               <DropdownMenuItem
-                onClick={() => setBrandModalOpen(true)}
+                onClick={handleBrandModalOpen}
                 className="cursor-pointer"
               >
                 Brands
               </DropdownMenuItem>
               <DropdownMenuItem
-                onClick={() => setTradeInsModalOpen(true)}
+                onClick={handleTradeInsModalOpen}
                 className="cursor-pointer"
               >
                 Trade-ins
@@ -1192,13 +1281,7 @@ function DesktopView() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => {
-                setMinPrice("");
-                setMaxPrice("");
-                setStockStatus("all");
-                setShowLowStockOnly(false);
-                setShowOutOfStockOnly(false);
-              }}
+              onClick={handleClearAllFilters}
               className="rounded-[2.0625rem] text-gray-600 hover:bg-gray-100"
             >
               <X className="h-4 w-4 mr-1" />
@@ -1218,7 +1301,7 @@ function DesktopView() {
                   type="number"
                   placeholder="Min"
                   value={minPrice}
-                  onChange={(e) => setMinPrice(e.target.value)}
+                  onChange={handleMinPriceChange}
                   className="flex-1 rounded-[2.0625rem] border-gray-300 focus:border-blue-500 focus:ring-blue-500"
                 />
                 <span className="text-gray-400">-</span>
@@ -1226,7 +1309,7 @@ function DesktopView() {
                   type="number"
                   placeholder="Max"
                   value={maxPrice}
-                  onChange={(e) => setMaxPrice(e.target.value)}
+                  onChange={handleMaxPriceChange}
                   className="flex-1 rounded-[2.0625rem] border-gray-300 focus:border-blue-500 focus:ring-blue-500"
                 />
               </div>
@@ -1259,9 +1342,7 @@ function DesktopView() {
               </label>
               <Select
                 value={selectedCategory}
-                onValueChange={(value) =>
-                  startTransition(() => setSelectedCategory(value))
-                }
+                onValueChange={handleCategoryChange}
               >
                 <SelectTrigger className="w-full rounded-[2.0625rem] border-gray-300 focus:border-blue-500 focus:ring-blue-500">
                   <SelectValue placeholder="All Categories" />
@@ -1285,9 +1366,7 @@ function DesktopView() {
               </label>
               <Select
                 value={selectedBrand}
-                onValueChange={(value) =>
-                  startTransition(() => setSelectedBrand(value))
-                }
+                onValueChange={handleBrandChange}
               >
                 <SelectTrigger className="w-full rounded-[2.0625rem] border-gray-300 focus:border-blue-500 focus:ring-blue-500">
                   <SelectValue placeholder="All Brands" />
@@ -1316,15 +1395,7 @@ function DesktopView() {
                   <Checkbox
                     id="desktopShowInStock"
                     checked={showInStock}
-                    onCheckedChange={(checked) =>
-                      startTransition(() => {
-                        setShowInStock(!!checked);
-                        if (checked) {
-                          setShowLowStockOnly(false);
-                          setShowOutOfStockOnly(false);
-                        }
-                      })
-                    }
+                    onCheckedChange={handleShowInStockChange}
                   />
                   <label
                     htmlFor="desktopShowInStock"
@@ -1346,12 +1417,7 @@ function DesktopView() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() =>
-                    startTransition(() => {
-                      setShowOutOfStockOnly(false);
-                      setShowLowStockOnly(!showLowStockOnly);
-                    })
-                  }
+                  onClick={handleLowStockFilterToggle}
                   className={`justify-start rounded-[2.0625rem] ${
                     showLowStockOnly
                       ? "bg-amber-100 text-amber-800 border border-amber-300"
@@ -1364,12 +1430,7 @@ function DesktopView() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() =>
-                    startTransition(() => {
-                      setShowLowStockOnly(false);
-                      setShowOutOfStockOnly(!showOutOfStockOnly);
-                    })
-                  }
+                  onClick={handleOutOfStockFilterToggle}
                   className={`justify-start rounded-[2.0625rem] ${
                     showOutOfStockOnly
                       ? "bg-red-100 text-red-800 border border-red-300"

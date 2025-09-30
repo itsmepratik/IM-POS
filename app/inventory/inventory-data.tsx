@@ -6,7 +6,7 @@ import { toast } from "@/components/ui/use-toast";
 const LOW_STOCK_THRESHOLD = 5;
 
 export const useInventoryData = () => {
-  const { items, categories, brands, deleteItem, duplicateItem } = useItems();
+  const { items, categories, brands, deleteItem, duplicateItem, refetchItems } = useItems();
 
   // Search and filter states
   const [searchQuery, setSearchQuery] = useState("");
@@ -221,7 +221,7 @@ export const useInventoryData = () => {
         }
       }
     },
-    [deleteItem, items, toast]
+    [deleteItem, items, refetchItems, toast]
   );
 
   const handleDuplicate = useCallback(
