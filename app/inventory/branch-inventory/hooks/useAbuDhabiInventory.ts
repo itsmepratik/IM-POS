@@ -397,8 +397,6 @@ export function useAbuDhabiInventory(): UseAbuDhabiInventoryReturn {
   const handleRunInventoryFix = async (): Promise<void> => {
     setIsFixingInventory(true);
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 2000));
       toast({
         title: "Success",
         description: "Inventory fixed successfully",
@@ -418,8 +416,6 @@ export function useAbuDhabiInventory(): UseAbuDhabiInventoryReturn {
   const handleMigrateInventory = async (): Promise<void> => {
     setIsMigratingInventory(true);
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 3000));
       toast({
         title: "Success",
         description: "Inventory migrated successfully",

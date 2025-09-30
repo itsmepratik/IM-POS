@@ -504,17 +504,10 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
 
         // Reset the form after successful addition
         setNewBatch({
-          purchaseDate: "",
+          purchaseDate: format(new Date(), "yyyy-MM-dd"),
           costPrice: 0,
           quantity: 0,
         });
-
-        setTimeout(() => {
-          setNewBatch((prev) => ({
-            ...prev,
-            purchaseDate: format(new Date(), "yyyy-MM-dd"),
-          }));
-        }, 0);
 
         toast({
           title: "Batch added",
@@ -559,16 +552,10 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
 
     setEditingBatchId(null);
     setNewBatch({
-      purchaseDate: "",
+      purchaseDate: format(new Date(), "yyyy-MM-dd"),
       costPrice: 0,
       quantity: 0,
     });
-    setTimeout(() => {
-      setNewBatch((prev) => ({
-        ...prev,
-        purchaseDate: format(new Date(), "yyyy-MM-dd"),
-      }));
-    }, 0);
   };
 
   const handleDeleteBatch = async (batchId: string) => {
@@ -630,16 +617,10 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
   const handleCancelEdit = () => {
     setEditingBatchId(null);
     setNewBatch({
-      purchaseDate: "",
+      purchaseDate: format(new Date(), "yyyy-MM-dd"),
       costPrice: 0,
       quantity: 0,
     });
-    setTimeout(() => {
-      setNewBatch((prev) => ({
-        ...prev,
-        purchaseDate: format(new Date(), "yyyy-MM-dd"),
-      }));
-    }, 0);
   };
 
   // Reset to general tab and update active tab if isOil changes

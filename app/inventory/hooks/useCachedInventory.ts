@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useInventoryMockData } from "./useInventoryMockData";
+import { useEffect, useState, useCallback, useRef } from "react";
+
 // Redis import removed
 import { Item } from "@/lib/services/branchInventoryService";
 
@@ -13,9 +13,30 @@ const STORAGE_KEYS = {
 };
 
 export function useCachedInventory() {
-  const inventory = useInventoryMockData();
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [isCacheLoaded, setIsCacheLoaded] = useState(false);
+  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Debounced localStorage update function
+  const debouncedUpdateStorage = useCallback((items: Item[]) => {
+    // Clear existing timeout
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+
+    // Set new timeout for debounced update
+    debounceTimeoutRef.current = setTimeout(() => {
+      try {
+        localStorage.setItem(
+          STORAGE_KEYS.INVENTORY_ITEMS,
+          JSON.stringify(items)
+        );
+        console.log("Stored", items.length, "inventory items (debounced)");
+      } catch (error) {
+        console.error("Error storing inventory:", error);
+      }
+    }, 300); // 300ms debounce delay
+  }, []);
 
   // Load data from cache on initial load
   useEffect(() => {
@@ -51,24 +72,21 @@ export function useCachedInventory() {
     loadFromStorage();
   }, [isInitialLoad, inventory]);
 
-  // Cache items when they change
+  // Cache items when they change (debounced)
   useEffect(() => {
     if (!isCacheLoaded) return;
 
-    const storeInventory = () => {
-      try {
-        localStorage.setItem(
-          STORAGE_KEYS.INVENTORY_ITEMS,
-          JSON.stringify(inventory.items)
-        );
-        console.log("Stored", inventory.items.length, "inventory items");
-      } catch (error) {
-        console.error("Error storing inventory:", error);
+    debouncedUpdateStorage(inventory.items);
+  }, [inventory.items, isCacheLoaded, debouncedUpdateStorage]);
+
+  // Cleanup debounce timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
       }
     };
-
-    storeInventory();
-  }, [inventory.items, isCacheLoaded]);
+  }, []);
 
   // Enhanced methods that update cache
   const enhancedHandlers = {
@@ -105,11 +123,4 @@ export function useCachedInventory() {
     ...enhancedHandlers,
     isCacheReady: isCacheLoaded,
   };
-}
-
-// Type augmentation for TypeScript support
-declare module "./useInventoryMockData" {
-  interface UseInventoryMockDataReturn {
-    setItems?: (items: Item[]) => void;
-  }
 }

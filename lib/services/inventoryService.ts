@@ -1,3 +1,8 @@
+import { createClient } from "@/supabase/client";
+
+// Create a singleton Supabase client to prevent dynamic import issues
+const supabase = createClient();
+
 // Type definitions
 // Type definition for Branch
 export type Branch = {
@@ -668,10 +673,6 @@ export const addCategory = async (name: string): Promise<Category | null> => {
   try {
     console.log("Adding category:", name);
 
-    // Use Supabase client to add category
-    const { createClient } = await import("@/supabase/client");
-    const supabase = createClient();
-
     const { data, error } = await supabase
       .from("categories")
       .insert({ name })
@@ -698,10 +699,6 @@ export const updateCategory = async (
   try {
     console.log("Updating category:", id, "to:", name);
 
-    // Use Supabase client to update category
-    const { createClient } = await import("@/supabase/client");
-    const supabase = createClient();
-
     const { data, error } = await supabase
       .from("categories")
       .update({ name })
@@ -726,10 +723,6 @@ export const deleteCategory = async (id: string): Promise<boolean> => {
   try {
     console.log("Deleting category:", id);
 
-    // Use Supabase client to delete category
-    const { createClient } = await import("@/supabase/client");
-    const supabase = createClient();
-
     const { error } = await supabase.from("categories").delete().eq("id", id);
 
     if (error) {
@@ -748,10 +741,6 @@ export const deleteCategory = async (id: string): Promise<boolean> => {
 export const addBrand = async (name: string): Promise<Brand | null> => {
   try {
     console.log("Adding brand:", name);
-
-    // Use Supabase client to add brand
-    const { createClient } = await import("@/supabase/client");
-    const supabase = createClient();
 
     const { data, error } = await supabase
       .from("brands")
@@ -779,10 +768,6 @@ export const updateBrand = async (
   try {
     console.log("Updating brand:", id, "to:", name);
 
-    // Use Supabase client to update brand
-    const { createClient } = await import("@/supabase/client");
-    const supabase = createClient();
-
     const { data, error } = await supabase
       .from("brands")
       .update({ name })
@@ -806,10 +791,6 @@ export const updateBrand = async (
 export const deleteBrand = async (id: string): Promise<boolean> => {
   try {
     console.log("Deleting brand:", id);
-
-    // Use Supabase client to delete brand
-    const { createClient } = await import("@/supabase/client");
-    const supabase = createClient();
 
     const { error } = await supabase.from("brands").delete().eq("id", id);
 

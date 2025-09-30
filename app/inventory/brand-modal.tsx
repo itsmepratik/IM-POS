@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useItems } from "./items-context"
-import { X } from "lucide-react"
+import { X, Loader2 } from "lucide-react"
 import { toast } from "@/components/ui/use-toast"
 
 interface BrandModalProps {
@@ -17,25 +17,70 @@ interface BrandModalProps {
 export default function BrandModal({ open, onOpenChange }: BrandModalProps) {
   const { brands, addBrand, deleteBrand } = useItems()
   const [newBrand, setNewBrand] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
 
-  const handleAddBrand = () => {
-    if (newBrand.trim()) {
-      addBrand(newBrand.trim())
-      setNewBrand("")
+  const handleAddBrand = async () => {
+    if (!newBrand.trim()) return;
+
+    setIsLoading(true);
+    try {
+      const result = await addBrand(newBrand.trim());
+      if (result) {
+        toast({
+          title: "Brand added",
+          description: `${newBrand.trim()} has been added to brands.`,
+        });
+        setNewBrand("");
+      } else {
+        toast({
+          title: "Error adding brand",
+          description: "Failed to add brand. It might already exist.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error adding brand:", error);
       toast({
-        title: "Brand added",
-        description: `${newBrand.trim()} has been added to brands.`,
-      })
+        title: "Error",
+        description: "An unexpected error occurred.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
     }
-  }
+  };
 
-  const handleRemoveBrand = (brand: string) => {
-    deleteBrand(brand)
-    toast({
-      title: "Brand removed",
-      description: `${brand} has been removed from brands.`,
-    })
-  }
+  const handleRemoveBrand = async (brand: string) => {
+    if (!window.confirm(`Are you sure you want to delete "${brand}"? This may affect items assigned to this brand.`)) {
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const success = await deleteBrand(brand);
+      if (success) {
+        toast({
+          title: "Brand removed",
+          description: `${brand} has been removed from brands.`,
+        });
+      } else {
+        toast({
+          title: "Error removing brand",
+          description: "Could not remove brand. It might be in use by items.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error removing brand:", error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -59,8 +104,15 @@ export default function BrandModal({ open, onOpenChange }: BrandModalProps) {
                 }}
               />
             </div>
-            <Button onClick={handleAddBrand} className="mt-8">
-              Add
+            <Button onClick={handleAddBrand} className="mt-8" disabled={isLoading}>
+              {isLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Adding...
+                </>
+              ) : (
+                "Add"
+              )}
             </Button>
           </div>
           <div className="space-y-2">
@@ -76,8 +128,12 @@ export default function BrandModal({ open, onOpenChange }: BrandModalProps) {
                 brands.map((brand) => (
                   <div key={brand} className="flex items-center justify-between bg-secondary p-2 rounded-md">
                     <span>{brand}</span>
-                    <Button variant="ghost" size="sm" onClick={() => handleRemoveBrand(brand)}>
-                      <X className="h-4 w-4" />
+                    <Button variant="ghost" size="sm" onClick={() => handleRemoveBrand(brand)} disabled={isLoading}>
+                      {isLoading ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <X className="h-4 w-4" />
+                      )}
                     </Button>
                   </div>
                 ))
@@ -91,4 +147,4 @@ export default function BrandModal({ open, onOpenChange }: BrandModalProps) {
       </DialogContent>
     </Dialog>
   )
-} 
+}

@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { useItems, Item, BottleStates } from "./items-context";
 import { toast } from "@/components/ui/use-toast";
 
@@ -10,6 +10,7 @@ export const useInventoryData = () => {
 
   // Search and filter states
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [selectedBrand, setSelectedBrand] = useState("all");
   const [selectedBottleState, setSelectedBottleState] = useState<string>("all");
@@ -38,6 +39,15 @@ export const useInventoryData = () => {
   // Editing modal states
   const [editingItem, setEditingItem] = useState<Item | undefined>(undefined);
 
+  // Debounce search query to reduce filter frequency
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
   // Count out of stock items
   const outOfStockCount = useMemo(() => {
     return items.filter((item) => (item.stock ?? 0) === 0).length;
@@ -58,12 +68,12 @@ export const useInventoryData = () => {
     return items.filter((item) => {
       // Search filter
       const matchesSearch =
-        searchQuery === "" ||
-        item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        debouncedSearchQuery === "" ||
+        item.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
         (item.brand &&
-          item.brand.toLowerCase().includes(searchQuery.toLowerCase())) ||
+          item.brand.toLowerCase().includes(debouncedSearchQuery.toLowerCase())) ||
         (item.category &&
-          item.category.toLowerCase().includes(searchQuery.toLowerCase()));
+          item.category.toLowerCase().includes(debouncedSearchQuery.toLowerCase()));
 
       // Category filter
       const matchesCategory =
@@ -119,7 +129,7 @@ export const useInventoryData = () => {
     });
   }, [
     items,
-    searchQuery,
+    debouncedSearchQuery,
     selectedCategory,
     selectedBrand,
     selectedBottleState,
@@ -190,10 +200,8 @@ export const useInventoryData = () => {
               variant: "default",
             });
 
-            // Wait a moment and trigger a refetch
-            setTimeout(() => {
-              window.location.reload();
-            }, 1000);
+            // Refetch items to update the UI without page reload
+            await refetchItems();
           } else {
             console.error(`Failed to delete item ${id}`);
             toast({

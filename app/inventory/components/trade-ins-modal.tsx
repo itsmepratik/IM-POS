@@ -51,10 +51,12 @@ export function TradeInsModal({ isOpen, onClose }: TradeInsModalProps) {
   const [hasChanges, setHasChanges] = useState(false);
 
   // Load trade-in prices from API
-  const loadTradeInPrices = async () => {
+  const loadTradeInPrices = async (abortController?: AbortController) => {
     setIsLoading(true);
     try {
-      const response = await fetch("/api/trade-in/prices");
+      const response = await fetch("/api/trade-in/prices", {
+        signal: abortController?.signal,
+      });
       const data = await response.json();
 
       if (data.success) {
@@ -75,6 +77,10 @@ export function TradeInsModal({ isOpen, onClose }: TradeInsModalProps) {
         });
       }
     } catch (error) {
+      // Don't show error if request was aborted
+      if (error instanceof Error && error.name === 'AbortError') {
+        return;
+      }
       console.error("Error loading trade-in prices:", error);
       toast({
         title: "Error",
@@ -87,7 +93,7 @@ export function TradeInsModal({ isOpen, onClose }: TradeInsModalProps) {
   };
 
   // Save trade-in prices to API
-  const saveTradeInPrices = async () => {
+  const saveTradeInPrices = async (abortController?: AbortController) => {
     setIsSaving(true);
     try {
       const pricesToSave = tradeInItems.map((item) => ({
@@ -102,6 +108,7 @@ export function TradeInsModal({ isOpen, onClose }: TradeInsModalProps) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(pricesToSave),
+        signal: abortController?.signal,
       });
 
       const data = await response.json();
@@ -113,7 +120,7 @@ export function TradeInsModal({ isOpen, onClose }: TradeInsModalProps) {
         });
         setHasChanges(false);
         // Reload data to get updated IDs
-        await loadTradeInPrices();
+        await loadTradeInPrices(abortController);
       } else {
         toast({
           title: "Error",
@@ -122,6 +129,10 @@ export function TradeInsModal({ isOpen, onClose }: TradeInsModalProps) {
         });
       }
     } catch (error) {
+      // Don't show error if request was aborted
+      if (error instanceof Error && error.name === 'AbortError') {
+        return;
+      }
       console.error("Error saving trade-in prices:", error);
       toast({
         title: "Error",
@@ -136,7 +147,13 @@ export function TradeInsModal({ isOpen, onClose }: TradeInsModalProps) {
   // Load data when modal opens
   useEffect(() => {
     if (isOpen) {
-      loadTradeInPrices();
+      const abortController = new AbortController();
+      loadTradeInPrices(abortController);
+      
+      // Cleanup function to abort request if modal closes
+      return () => {
+        abortController.abort();
+      };
     }
   }, [isOpen]);
 

@@ -51,7 +51,6 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { PageHeader } from "@/components/page-title";
-import { BranchProvider, useBranch } from "./branch-context-mock";
 import type { Branch } from "@/lib/services/inventoryService";
 import { useInventoryData } from "../inventory-data";
 import { Label } from "@/components/ui/label";
@@ -61,7 +60,6 @@ import {
 } from "@/components/ui/inventory-bottle-icons";
 import { OpenBottleIcon, ClosedBottleIcon } from "@/components/ui/bottle-icons";
 import BrandModal from "../brand-modal";
-import { useBranchInventoryMockData } from "./hooks/useBranchInventoryMockData";
 import {
   useAbuDhabiInventory,
   ABU_DHABI_BRANCH,
@@ -73,27 +71,6 @@ import { StockIndicator } from "../components/stock-indicator";
 interface Volume {
   size: string;
   price: number;
-}
-
-// Mock utility functions
-async function runFixInventoryScript() {
-  // Simulate API call delay
-  await new Promise((resolve) => setTimeout(resolve, 2000));
-
-  return {
-    success: true,
-    message: "Inventory fixed successfully (mock)",
-  };
-}
-
-async function migrateToNewInventorySystem() {
-  // Simulate API call delay
-  await new Promise((resolve) => setTimeout(resolve, 3000));
-
-  return {
-    success: true,
-    message: "Inventory migrated to new system successfully (mock)",
-  };
 }
 
 // Memoize the mobile item card component

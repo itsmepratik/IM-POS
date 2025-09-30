@@ -31,7 +31,7 @@ import {
 } from "@/lib/services/inventoryService";
 import { useBranch } from "@/lib/contexts/DataProvider";
 import { toast } from "@/components/ui/use-toast";
-import { useInventoryMockData } from "./hooks/useInventoryMockData";
+
 
 interface ItemsContextType {
   items: Item[];
@@ -118,50 +118,8 @@ export { type Item, type Batch, type Volume, type BottleStates };
 
 export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
   const { currentBranch } = useBranch();
-  // 🔥 DISABLED: Force use Supabase in development too
-  // const isDev = process.env.NODE_ENV === "development";
-  // const mock = isDev ? useInventoryMockData() : null;
-  const mock = null; // Always use Supabase
-
-  // If using mock, wire up all context values from the mock hook
-  if (mock) {
-    return (
-      <ItemsContext.Provider
-        value={{
-          items: mock.items,
-          categories: mock.categories,
-          brands: mock.brands,
-          suppliers: [],
-          categoryMap: {},
-          brandMap: {},
-          addItem: async (item) => {
-            mock.handleAddItem();
-            return null;
-          },
-          updateItem: async (id, updatedItem) => null,
-          deleteItem: mock.handleDelete,
-          duplicateItem: mock.handleDuplicate,
-          addCategory: async () => null,
-          updateCategory: async () => false,
-          deleteCategory: async () => false,
-          addBrand: async () => null,
-          updateBrand: async () => false,
-          deleteBrand: async () => false,
-          addBatch: async () => false,
-          updateBatch: async () => false,
-          deleteBatch: async () => false,
-          calculateAverageCost: () => 0,
-          isLoading: false,
-          refetchItems: async () => {},
-          showTradeIns: false,
-          setShowTradeIns: () => {},
-        }}
-      >
-        {children}
-      </ItemsContext.Provider>
-    );
-  }
-
+  // Always use Supabase for data
+  
   const [items, setItems] = useState<Item[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [brands, setBrands] = useState<string[]>([]);
@@ -182,19 +140,12 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
     return record;
   };
 
-  // Fetch items when the current branch changes
+  // Fetch items when the current branch or showTradeIns changes
   useEffect(() => {
     if (currentBranch) {
       loadItems();
     }
-  }, [currentBranch]);
-
-  // Reload items when showTradeIns changes
-  useEffect(() => {
-    if (currentBranch) {
-      loadItems();
-    }
-  }, [showTradeIns]);
+  }, [currentBranch, showTradeIns]);
 
   // Fetch categories, brands, and suppliers on initial load
   useEffect(() => {
@@ -350,13 +301,7 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
           prevItems.map((item) => (item.id === id ? { ...updated } : item))
         );
 
-        // Add small delay to ensure database updates are propagated
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-
-        // Refresh the data to ensure we have the latest
-        await loadItems();
-
-        console.log("✅ Data refreshed after update");
+        console.log("✅ Item updated successfully");
 
         return updated;
       } else {

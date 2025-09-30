@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useInventoryMockData } from "./useInventoryMockData";
+
 import { useCachedInventory } from "./useCachedInventory";
-import { useAbuDhabiInventory, ABU_DHABI_BRANCH } from "./useAbuDhabiInventory";
-import { useHafithInventory, HAFITH_BRANCH } from "./useHafithInventory";
+import { useAbuDhabiInventory, ABU_DHABI_BRANCH } from "../branch-inventory/hooks/useAbuDhabiInventory";
+import { useHafithInventory, HAFITH_BRANCH } from "../branch-inventory/hooks/useHafithInventory";
 
 // Branch type for type safety
 export type Branch = {
@@ -69,4 +69,4 @@ export function useBranchSpecificInventory() {
       hafith: hafithInventory
     }
   };
-} 
+}
