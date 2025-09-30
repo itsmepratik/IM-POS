@@ -1,6 +1,13 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, memo, useMemo, useTransition } from "react";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  memo,
+  useMemo,
+  useTransition,
+} from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -113,9 +120,12 @@ const MobileItemCard = memo(
     }, []);
 
     // Memoize expensive calculations
-    const avgCost = useMemo(() => calculateAverageCost(item.id), [item.id, calculateAverageCost]);
+    const avgCost = useMemo(
+      () => calculateAverageCost(item.id),
+      [item.id, calculateAverageCost]
+    );
     const batchCount = useMemo(() => item.batches?.length || 0, [item.batches]);
-    
+
     // Calculate profit margin
     const margin = useMemo(() => {
       if (!item.batches || item.batches.length === 0 || item.price <= 0)
@@ -380,9 +390,12 @@ const TableRow = memo(
     const { calculateAverageCost } = useItems();
 
     // Memoize expensive calculations
-    const avgCost = useMemo(() => calculateAverageCost(item.id), [item.id, calculateAverageCost]);
+    const avgCost = useMemo(
+      () => calculateAverageCost(item.id),
+      [item.id, calculateAverageCost]
+    );
     const batchCount = useMemo(() => item.batches?.length || 0, [item.batches]);
-    
+
     // Calculate profit margin
     const margin = useMemo(() => {
       if (!item.batches || item.batches.length === 0 || item.price <= 0)
@@ -537,7 +550,7 @@ TableRow.displayName = "TableRow";
 
 function MobileView() {
   const [isPending, startTransition] = useTransition();
-  
+
   const {
     filteredItems,
     categories,
@@ -639,7 +652,9 @@ function MobileView() {
               placeholder="Search..."
               className="w-full pl-9"
               value={searchQuery}
-              onChange={(e) => startTransition(() => setSearchQuery(e.target.value))}
+              onChange={(e) =>
+                startTransition(() => setSearchQuery(e.target.value))
+              }
             />
           </div>
           <Button
@@ -713,7 +728,9 @@ function MobileView() {
               <ClientOnly>
                 <Select
                   value={selectedCategory}
-                  onValueChange={(value) => startTransition(() => setSelectedCategory(value))}
+                  onValueChange={(value) =>
+                    startTransition(() => setSelectedCategory(value))
+                  }
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="All Categories" />
@@ -744,7 +761,12 @@ function MobileView() {
             <div className="space-y-4 pt-2">
               <h3 className="text-sm font-medium">Brands</h3>
               <ClientOnly>
-                <Select value={selectedBrand} onValueChange={(value) => startTransition(() => setSelectedBrand(value))}>
+                <Select
+                  value={selectedBrand}
+                  onValueChange={(value) =>
+                    startTransition(() => setSelectedBrand(value))
+                  }
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="All Brands" />
                   </SelectTrigger>
@@ -780,13 +802,15 @@ function MobileView() {
                   <Checkbox
                     id="mobileShowInStock"
                     checked={showInStock}
-                    onCheckedChange={(checked) => startTransition(() => {
-                      setShowInStock(!!checked);
-                      if (checked) {
-                        setShowLowStockOnly(false);
-                        setShowOutOfStockOnly(false);
-                      }
-                    })}
+                    onCheckedChange={(checked) =>
+                      startTransition(() => {
+                        setShowInStock(!!checked);
+                        if (checked) {
+                          setShowLowStockOnly(false);
+                          setShowOutOfStockOnly(false);
+                        }
+                      })
+                    }
                   />
                 </ClientOnly>
                 <label
@@ -805,11 +829,13 @@ function MobileView() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => startTransition(() => {
-                    setShowOutOfStockOnly(false);
-                    setShowLowStockOnly(!showLowStockOnly);
-                    setShowInStock(false);
-                  })}
+                  onClick={() =>
+                    startTransition(() => {
+                      setShowOutOfStockOnly(false);
+                      setShowLowStockOnly(!showLowStockOnly);
+                      setShowInStock(false);
+                    })
+                  }
                   className={`justify-start w-full ${
                     showLowStockOnly ? "bg-amber-100 text-amber-800" : ""
                   }`}
@@ -820,11 +846,13 @@ function MobileView() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => startTransition(() => {
-                    setShowLowStockOnly(false);
-                    setShowOutOfStockOnly(!showOutOfStockOnly);
-                    setShowInStock(false);
-                  })}
+                  onClick={() =>
+                    startTransition(() => {
+                      setShowLowStockOnly(false);
+                      setShowOutOfStockOnly(!showOutOfStockOnly);
+                      setShowInStock(false);
+                    })
+                  }
                   className={`justify-start w-full ${
                     showOutOfStockOnly ? "bg-red-100 text-red-800" : ""
                   }`}
@@ -921,7 +949,7 @@ function MobileView() {
 
 function DesktopView() {
   const [isPending, startTransition] = useTransition();
-  
+
   const {
     filteredItems,
     categories,
@@ -1037,7 +1065,9 @@ function DesktopView() {
               placeholder="Search items..."
               className="pl-9 pr-4 w-full rounded-[2.0625rem] border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
               value={searchQuery}
-              onChange={(e) => startTransition(() => setSearchQuery(e.target.value))}
+              onChange={(e) =>
+                startTransition(() => setSearchQuery(e.target.value))
+              }
             />
           </ClientOnly>
         </div>
@@ -1229,7 +1259,9 @@ function DesktopView() {
               </label>
               <Select
                 value={selectedCategory}
-                onValueChange={(value) => startTransition(() => setSelectedCategory(value))}
+                onValueChange={(value) =>
+                  startTransition(() => setSelectedCategory(value))
+                }
               >
                 <SelectTrigger className="w-full rounded-[2.0625rem] border-gray-300 focus:border-blue-500 focus:ring-blue-500">
                   <SelectValue placeholder="All Categories" />
@@ -1251,7 +1283,12 @@ function DesktopView() {
                 <span className="text-purple-600">🏷️</span>
                 Brand
               </label>
-              <Select value={selectedBrand} onValueChange={(value) => startTransition(() => setSelectedBrand(value))}>
+              <Select
+                value={selectedBrand}
+                onValueChange={(value) =>
+                  startTransition(() => setSelectedBrand(value))
+                }
+              >
                 <SelectTrigger className="w-full rounded-[2.0625rem] border-gray-300 focus:border-blue-500 focus:ring-blue-500">
                   <SelectValue placeholder="All Brands" />
                 </SelectTrigger>
@@ -1279,13 +1316,15 @@ function DesktopView() {
                   <Checkbox
                     id="desktopShowInStock"
                     checked={showInStock}
-                    onCheckedChange={(checked) => startTransition(() => {
-                      setShowInStock(!!checked);
-                      if (checked) {
-                        setShowLowStockOnly(false);
-                        setShowOutOfStockOnly(false);
-                      }
-                    })}
+                    onCheckedChange={(checked) =>
+                      startTransition(() => {
+                        setShowInStock(!!checked);
+                        if (checked) {
+                          setShowLowStockOnly(false);
+                          setShowOutOfStockOnly(false);
+                        }
+                      })
+                    }
                   />
                   <label
                     htmlFor="desktopShowInStock"
@@ -1307,10 +1346,12 @@ function DesktopView() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => startTransition(() => {
-                    setShowOutOfStockOnly(false);
-                    setShowLowStockOnly(!showLowStockOnly);
-                  })}
+                  onClick={() =>
+                    startTransition(() => {
+                      setShowOutOfStockOnly(false);
+                      setShowLowStockOnly(!showLowStockOnly);
+                    })
+                  }
                   className={`justify-start rounded-[2.0625rem] ${
                     showLowStockOnly
                       ? "bg-amber-100 text-amber-800 border border-amber-300"
@@ -1323,10 +1364,12 @@ function DesktopView() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => startTransition(() => {
-                    setShowLowStockOnly(false);
-                    setShowOutOfStockOnly(!showOutOfStockOnly);
-                  })}
+                  onClick={() =>
+                    startTransition(() => {
+                      setShowLowStockOnly(false);
+                      setShowOutOfStockOnly(!showOutOfStockOnly);
+                    })
+                  }
                   className={`justify-start rounded-[2.0625rem] ${
                     showOutOfStockOnly
                       ? "bg-red-100 text-red-800 border border-red-300"

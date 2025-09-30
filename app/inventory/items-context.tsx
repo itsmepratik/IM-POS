@@ -32,7 +32,6 @@ import {
 import { useBranch } from "@/lib/contexts/DataProvider";
 import { toast } from "@/components/ui/use-toast";
 
-
 interface ItemsContextType {
   items: Item[];
   categories: string[];
@@ -119,7 +118,7 @@ export { type Item, type Batch, type Volume, type BottleStates };
 export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
   const { currentBranch } = useBranch();
   // Always use Supabase for data
-  
+
   const [items, setItems] = useState<Item[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [brands, setBrands] = useState<string[]>([]);

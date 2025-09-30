@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
-import { usePOSMockData } from "@/lib/hooks/data/usePOSMockData";
+import { useIntegratedPOSData } from "@/lib/hooks/data/useIntegratedPOSData";
 
 // Interface for POS items that will be selected
 interface POSCartItem {
@@ -114,7 +114,7 @@ export function Transfer2POSInterface({
   const [expandedBrand, setExpandedBrand] = useState<string | null>(null);
 
   // Get real POS data
-  const { lubricantProducts, products } = usePOSMockData();
+  const { lubricantProducts, products } = useIntegratedPOSData();
 
   // Categories available - all 4 categories like original POS
   const categories = ["Lubricants", "Filters", "Parts", "Additives & Fluids"];
