@@ -6,7 +6,7 @@ import { toast } from "@/components/ui/use-toast";
 const LOW_STOCK_THRESHOLD = 5;
 
 export const useInventoryData = () => {
-  const { items, categories, brands, deleteItem, duplicateItem, refetchItems } = useItems();
+  const { items, categories, brands, deleteItem, duplicateItem } = useItems();
 
   // Search and filter states
   const [searchQuery, setSearchQuery] = useState("");
@@ -200,8 +200,7 @@ export const useInventoryData = () => {
               variant: "default",
             });
 
-            // Refetch items to update the UI without page reload
-            await refetchItems();
+            // Context already reloads items after deletion; avoid redundant refetch
           } else {
             console.error(`Failed to delete item ${id}`);
             toast({
@@ -221,7 +220,7 @@ export const useInventoryData = () => {
         }
       }
     },
-    [deleteItem, items, refetchItems, toast]
+    [deleteItem, items, toast]
   );
 
   const handleDuplicate = useCallback(

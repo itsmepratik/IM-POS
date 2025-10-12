@@ -37,6 +37,7 @@ export interface CheckoutRequest {
   cashierId: string;
   cart: CheckoutItem[];
   tradeIns?: CheckoutTradeIn[];
+  carPlateNumber?: string; // For 'on hold' payments
 }
 
 export interface CheckoutResponse {

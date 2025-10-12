@@ -25,7 +25,7 @@ export type Item = {
   category_id: string | null;
   type: string | null;
   description: string | null;
-  is_oil: boolean | null;
+
   isOil?: boolean;
   imageUrl?: string;
   image_url: string | null;
@@ -85,806 +85,914 @@ export type Supplier = {
   phone?: string;
 };
 
-// Mock data for branches
-export const MOCK_BRANCHES: Branch[] = [
-  {
-    id: "1",
-    name: "Abu Dhabi Branch",
-    address: "123 Main St",
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: "2",
-    name: "Hafeet Branch",
-    address: "456 Center Ave",
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: "3",
-    name: "West Side Branch",
-    address: "789 West Blvd",
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-];
+// Database service functions
 
-// Mock data for categories
-const MOCK_CATEGORIES: Category[] = [
-  { id: "1", name: "Lubricants" },
-  { id: "2", name: "Filters" },
-  { id: "3", name: "Brakes" },
-  { id: "4", name: "Batteries" },
-  { id: "5", name: "Additives" },
-];
-
-// Mock data for brands
-const MOCK_BRANDS: Brand[] = [
-  { id: "1", name: "Castrol" },
-  { id: "2", name: "Mobil" },
-  { id: "3", name: "Bosch" },
-  { id: "4", name: "K&N" },
-  { id: "5", name: "Toyota" },
-];
-
-// Mock data for suppliers
-const MOCK_SUPPLIERS: Supplier[] = [
-  {
-    id: "1",
-    name: "AutoSupply Co.",
-    contact: "John Doe",
-    email: "john@autosupply.com",
-    phone: "+971 50 123 4567",
-  },
-  {
-    id: "2",
-    name: "Gulf Parts Ltd.",
-    contact: "Jane Smith",
-    email: "jane@gulfparts.com",
-    phone: "+971 50 765 4321",
-  },
-  {
-    id: "3",
-    name: "OEM Direct",
-    contact: "Mohammed Ali",
-    email: "mali@oemdirect.com",
-    phone: "+971 50 987 6543",
-  },
-];
-
-// Mock data for inventory items
-const MOCK_INVENTORY: Record<string, Item[]> = {
-  // Sample data for Branch 1
-  "1": [
-    {
-      id: "1",
-      name: "Engine Lubricant 5W-30",
-      price: 29.99,
-      stock: 45,
-      category: "Lubricants",
-      brand: "Castrol",
-      type: "Synthetic",
-      sku: "OIL-5W30-CAS",
-      description: "Fully synthetic engine oil for modern engines",
-      brand_id: "1",
-      category_id: "1",
-      is_oil: true,
-      isOil: true,
-      imageUrl: "/placeholders/oil.jpg",
-      image_url: "/placeholders/oil.jpg",
-      volumes: [
-        {
-          id: "v1",
-          item_id: "1",
-          size: "1L",
-          price: 12.99,
-          created_at: null,
-          updated_at: null,
-        },
-        {
-          id: "v2",
-          item_id: "1",
-          size: "4L",
-          price: 29.99,
-          created_at: null,
-          updated_at: null,
-        },
-      ],
-      bottleStates: { open: 3, closed: 42 },
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    },
-  ],
-};
-
-// Implement the API functions using actual endpoints
+// Fetch items for a specific location
 export const fetchItems = async (
-  locationId: string,
-  showTradeIns?: boolean
+  locationId: string = "sanaiya"
 ): Promise<Item[]> => {
   try {
-    console.log(`Fetching items for location: ${locationId}`);
-
-    const url = new URL("/api/products/fetch", window.location.origin);
-    url.searchParams.set("locationId", locationId);
-    if (showTradeIns) {
-      url.searchParams.set("showTradeIns", "true");
-    }
-
-    const response = await fetch(url.toString());
-
-    if (!response.ok) {
-      throw new Error(`Failed to fetch items: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-
-    if (!data.ok) {
-      throw new Error(data.error || "Failed to fetch items");
-    }
-
-    // Transform API response to match Item interface
-    const items: Item[] = data.items.map((item: any) => ({
-      id: item.id,
-      name: item.name,
-      price: parseFloat(item.inventory?.selling_price || "0"),
-      stock: item.inventory?.total_stock || 0,
-      category: item.category,
-      brand: item.brand,
-      brand_id: item.brand_id || null,
-      category_id: item.category_id || null,
-      type: item.product_type,
-      description: item.description || null,
-      is_oil: item.category?.toLowerCase() === "lubricants",
-      isOil: item.category?.toLowerCase() === "lubricants",
-      imageUrl: item.image_url,
-      image_url: item.image_url,
-      volumes: item.volumes || [],
-      batches: [], // Will be populated from batches API if needed
-      created_at: item.created_at || null,
-      updated_at: item.updated_at || null,
-      lowStockAlert: item.low_stock_threshold || 5,
-      costPrice: item.cost_price ? parseFloat(item.cost_price) : 0,
-      manufacturingDate: item.manufacturing_date || null,
-      bottleStates:
-        item.category?.toLowerCase() === "lubricants"
-          ? {
-              open: item.inventory?.open_bottles_stock || 0,
-              closed: item.inventory?.closed_bottles_stock || 0,
-            }
-          : undefined,
-    }));
-
-    console.log(`Fetched ${items.length} items successfully`);
-    return items;
-  } catch (error) {
-    console.error("Error fetching items:", error);
-    throw error;
-  }
-};
-
-export const fetchItem = async (
-  itemId: string,
-  locationId: string
-): Promise<Item | null> => {
-  try {
-    console.log(`Fetching item ${itemId} for location: ${locationId}`);
-
-    // For now, fetch all items and find the specific one
-    const items = await fetchItems(locationId);
-    const item = items.find((item) => item.id === itemId);
-
-    if (item) {
-      console.log(`Found item: ${item.name}`);
-      return item;
-    }
-
-    console.log(`Item ${itemId} not found`);
-    return null;
-  } catch (error) {
-    console.error("Error fetching item:", error);
-    return null;
-  }
-};
-
-export const createItem = async (
-  newItem: Omit<Item, "id">,
-  locationId: string
-): Promise<Item | null> => {
-  try {
-    console.log("Creating item:", newItem.name, "for location:", locationId);
-
-    // Prepare the payload for the API
-    const payload: any = {
-      name: newItem.name,
-      low_stock_threshold: newItem.lowStockAlert || 5,
-      location_id: locationId,
-    };
-
-    // Only include fields if they have valid values (not null or undefined)
-    // Prefer brand_id over brand text field
-    if (newItem.brand_id) {
-      payload.brand_id = newItem.brand_id;
-    } else if (newItem.brand) {
-      payload.brand = newItem.brand;
-    }
-    if (newItem.type) {
-      payload.type = newItem.type;
-    }
-    if (newItem.description) {
-      payload.description = newItem.description;
-    }
-    if (newItem.image_url) {
-      payload.image_url = newItem.image_url;
-    }
-    if (newItem.category_id) {
-      payload.category_id = newItem.category_id;
-    }
-    if (newItem.costPrice !== undefined && newItem.costPrice !== null) {
-      payload.cost_price = newItem.costPrice;
-    }
-    if (newItem.manufacturingDate) {
-      payload.manufacturing_date = newItem.manufacturingDate;
-    }
-
-    // Add lubricant-specific data if it's a lubricant
-    if (newItem.isOil || newItem.is_oil) {
-      // Filter out volumes with empty or invalid sizes and map to API format
-      const volumes =
-        newItem.volumes
-          ?.filter((v) => v.size && v.size.trim() !== "")
-          ?.map((v) => ({
-            volume: v.size.trim(),
-            price: v.price || 0,
-          })) || [];
-
-      console.log("🛢️ Creating lubricant product:");
-      console.log("- Raw volumes from item:", newItem.volumes);
-      console.log("- Filtered volumes for API:", volumes);
-      console.log("- Bottle states:", newItem.bottleStates);
-
-      Object.assign(payload, {
-        volumes,
-        open_bottles_stock: newItem.bottleStates?.open || 0,
-        closed_bottles_stock: newItem.bottleStates?.closed || 0,
-      });
-    } else {
-      // For non-lubricants
-      Object.assign(payload, {
-        standard_stock: newItem.stock || 0,
-        selling_price: newItem.price || 0,
-      });
-    }
-
-    // Add initial batch if available
-    if (newItem.batches && newItem.batches.length > 0) {
-      const firstBatch = newItem.batches[0];
-      Object.assign(payload, {
-        batch: {
-          cost_price: firstBatch.cost_price || 0,
-          quantity: firstBatch.current_quantity || 0,
-          supplier: firstBatch.supplier_id || undefined,
-        },
-      });
-    }
-
-    console.log("API Payload:", payload);
-
-    const response = await fetch("/api/products/save", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
-
-    if (!response.ok) {
-      const errorData = await response
-        .json()
-        .catch(() => ({ error: response.statusText }));
-      console.error("API Error Response:", errorData);
-      throw new Error(
-        `Failed to create item: ${errorData.error || response.statusText}`
-      );
-    }
-
-    const data = await response.json();
-
-    if (!data.ok) {
-      throw new Error(data.error || "Failed to create item");
-    }
-
-    console.log("Item created successfully with ID:", data.product_id);
-
-    // Return the created item by fetching it back
-    const createdItem = await fetchItem(data.product_id, locationId);
-
-    if (!createdItem) {
-      throw new Error("Failed to fetch created item");
-    }
-
-    return createdItem;
-  } catch (error) {
-    console.error("Error creating item:", error);
-    throw error;
-  }
-};
-
-// Alias for backwards compatibility
-export const addItem = createItem;
-
-export const updateItem = async (
-  id: string,
-  updatedItem: Partial<Item>,
-  locationId: string
-): Promise<Item | null> => {
-  try {
-    console.log("Updating item:", id, "for location:", locationId);
-
-    // Prepare the payload for the API (similar to createItem but with id)
-    const payload: any = {
-      id,
-      name: updatedItem.name,
-      low_stock_threshold: updatedItem.lowStockAlert || 5,
-      location_id: locationId,
-    };
-
-    // Only include fields if they have valid values (not null or undefined)
-    // Prefer brand_id over brand text field
-    if (updatedItem.brand_id) {
-      payload.brand_id = updatedItem.brand_id;
-    } else if (updatedItem.brand) {
-      payload.brand = updatedItem.brand;
-    }
-    if (updatedItem.type) {
-      payload.type = updatedItem.type;
-    }
-    if (updatedItem.description) {
-      payload.description = updatedItem.description;
-    }
-    if (updatedItem.image_url) {
-      payload.image_url = updatedItem.image_url;
-    }
-    if (updatedItem.category_id) {
-      payload.category_id = updatedItem.category_id;
-    }
-    if (updatedItem.costPrice !== undefined && updatedItem.costPrice !== null) {
-      payload.cost_price = updatedItem.costPrice;
-    }
-    if (updatedItem.manufacturingDate) {
-      payload.manufacturing_date = updatedItem.manufacturingDate;
-    }
-
-    // Add lubricant-specific data if it's a lubricant
-    if (updatedItem.isOil || updatedItem.is_oil) {
-      // Filter out volumes with empty or invalid sizes and map to API format
-      const volumes =
-        updatedItem.volumes
-          ?.filter((v) => v.size && v.size.trim() !== "")
-          ?.map((v) => ({
-            volume: v.size.trim(),
-            price: v.price || 0,
-          })) || [];
-
-      console.log("🛢️ Updating lubricant product:");
-      console.log("- Raw volumes from item:", updatedItem.volumes);
-      console.log("- Filtered volumes for API:", volumes);
-      console.log("- Bottle states:", updatedItem.bottleStates);
-
-      Object.assign(payload, {
-        volumes,
-        open_bottles_stock: updatedItem.bottleStates?.open || 0,
-        closed_bottles_stock: updatedItem.bottleStates?.closed || 0,
-      });
-    } else {
-      // For non-lubricants
-      const stockValue = Math.max(0, updatedItem.stock || 0);
-      const priceValue = updatedItem.price || 0;
-
-      Object.assign(payload, {
-        standard_stock: stockValue,
-        selling_price: priceValue >= 0 ? priceValue : 0,
-      });
-    }
-
-    console.log("Update API Payload:", payload);
-
-    const response = await fetch("/api/products/save", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
-
-    if (!response.ok) {
-      const errorData = await response
-        .json()
-        .catch(() => ({ error: response.statusText }));
-      console.error("API Error Response:", errorData);
-      throw new Error(
-        `Failed to update item: ${errorData.error || response.statusText}`
-      );
-    }
-
-    const data = await response.json();
-
-    if (!data.ok) {
-      throw new Error(data.error || "Failed to update item");
-    }
-
-    console.log("Item updated successfully");
-
-    // Return the updated item by fetching it back
-    const updatedItemData = await fetchItem(id, locationId);
-
-    if (!updatedItemData) {
-      throw new Error("Failed to fetch updated item");
-    }
-
-    return updatedItemData;
-  } catch (error) {
-    console.error("Error updating item:", error);
-    throw error;
-  }
-};
-
-export const deleteItem = async (
-  id: string,
-  locationId: string
-): Promise<boolean> => {
-  try {
-    console.log("Deleting item:", id, "for location:", locationId);
-
-    const response = await fetch(
-      `/api/products/delete?productId=${id}&locationId=${locationId}`,
-      {
-        method: "DELETE",
+    // Get location ID by name if string is passed
+    let actualLocationId = locationId;
+    if (locationId === "sanaiya" || locationId === "main") {
+      const { data: location } = await supabase
+        .from("locations")
+        .select("id")
+        .eq("name", locationId === "sanaiya" ? "Sanaiya" : "Main Branch")
+        .single();
+      
+      if (location) {
+        actualLocationId = location.id;
       }
+    }
+
+    const { data: inventoryData, error } = await supabase
+      .from("inventory")
+      .select(`
+        id,
+        standard_stock,
+        selling_price,
+        open_bottles_stock,
+        closed_bottles_stock,
+        total_stock,
+        products (
+          id,
+          name,
+          product_type,
+          description,
+          image_url,
+          low_stock_threshold,
+          cost_price,
+          manufacturing_date,
+          brand,
+          category_id,
+          brand_id,
+          categories (
+            id,
+            name
+          ),
+          brands!products_brand_id_fkey (
+            id,
+            name
+          )
+        )
+      `)
+      .eq("location_id", actualLocationId);
+
+    if (error) {
+      console.error("Error fetching inventory:", error);
+      return [];
+    }
+
+    // Transform the data to match the Item interface
+    const items: Item[] = await Promise.all(
+      (inventoryData || []).map(async (inv: any) => {
+        const product = inv.products;
+        
+        // Determine if this is an oil product based on product_type and category
+        const isOilProduct = 
+          product.product_type === "Oil" || 
+          product.product_type === "Synthetic" || 
+          product.product_type === "Semi-Synthetic" ||
+          (product.categories && product.categories.name === "Lubricants");
+        
+        // Fetch volumes for oil products
+        let volumes: Volume[] = [];
+        if (isOilProduct) {
+          const { data: volumeData } = await supabase
+            .from("product_volumes")
+            .select("*")
+            .eq("product_id", product.id);
+          
+          volumes = (volumeData || []).map((vol: any) => ({
+            id: vol.id,
+            item_id: product.id,
+            size: vol.volume_description,
+            price: parseFloat(vol.selling_price),
+            created_at: vol.created_at,
+            updated_at: vol.updated_at,
+          }));
+        }
+
+        // Fetch batches
+        const { data: batchData } = await supabase
+          .from("batches")
+          .select("*")
+          .eq("product_id", product.id)
+          .eq("location_id", actualLocationId);
+
+        const batches: Batch[] = (batchData || []).map((batch: any) => ({
+          id: batch.id,
+          item_id: product.id,
+          purchase_date: batch.purchase_date,
+          expiration_date: batch.expiration_date,
+          supplier_id: batch.supplier_id,
+          cost_price: batch.cost_price ? parseFloat(batch.cost_price) : null,
+          initial_quantity: batch.initial_quantity,
+          current_quantity: batch.current_quantity,
+          created_at: batch.created_at,
+          updated_at: batch.updated_at,
+        }));
+
+        const totalStock = inv.total_stock || inv.standard_stock || 0;
+
+        return {
+          id: product.id,
+          name: product.name,
+          price: inv.selling_price ? parseFloat(inv.selling_price) : 0,
+          stock: totalStock,
+          bottleStates: isOilProduct ? {
+            open: inv.open_bottles_stock || 0,
+            closed: inv.closed_bottles_stock || 0,
+          } : undefined,
+          category: product.categories?.name || "Uncategorized", // Using the actual category name
+          brand: product.brands?.name || product.brand || "N/A", // Use brands table first, fallback to deprecated brand column
+          brand_id: product.brand_id,
+          category_id: product.category_id,
+          type: product.product_type,
+          description: product.description,
+          is_oil: isOilProduct,
+          isOil: isOilProduct,
+          imageUrl: product.image_url,
+          image_url: product.image_url,
+          volumes,
+          batches,
+          created_at: null, // Not available in current schema
+          updated_at: null, // Not available in current schema
+          lowStockAlert: product.low_stock_threshold,
+          isBattery: false, // Not available in current schema
+          batteryState: undefined, // Not available in current schema
+          costPrice: product.cost_price ? parseFloat(product.cost_price) : undefined,
+          manufacturingDate: product.manufacturing_date,
+        };
+      })
     );
 
-    if (!response.ok) {
-      throw new Error(`Failed to delete item: ${response.statusText}`);
+    return items;
+  } catch (error) {
+    console.error("Error in fetchItems:", error);
+    return [];
+  }
+};
+
+// Fetch a single item
+export const fetchItem = async (
+  id: string,
+  locationId: string = "sanaiya"
+): Promise<Item | null> => {
+  try {
+    const items = await fetchItems(locationId);
+    return items.find(item => item.id === id) || null;
+  } catch (error) {
+    console.error("Error in fetchItem:", error);
+    return null;
+  }
+};
+
+// Create a new item
+export const createItem = async (
+  item: Omit<Item, "id" | "created_at" | "updated_at">,
+  locationId: string = "sanaiya"
+): Promise<Item | null> => {
+  try {
+    // Get location ID
+    let actualLocationId = locationId;
+    if (locationId === "sanaiya" || locationId === "main") {
+      const { data: location } = await supabase
+        .from("locations")
+        .select("id")
+        .eq("name", locationId === "sanaiya" ? "Sanaiya" : "Main Branch")
+        .single();
+      
+      if (location) {
+        actualLocationId = location.id;
+      }
     }
 
-    const data = await response.json();
+    // Create product first
+    const { data: productData, error: productError } = await supabase
+      .from("products")
+      .insert({
+        name: item.name,
+        category_id: item.category_id,
+        brand_id: item.brand_id,
+        product_type: item.type,
+        description: item.description,
+        image_url: item.image_url,
+        is_oil: item.is_oil,
+        low_stock_threshold: item.lowStockAlert || 0,
+      })
+      .select()
+      .single();
 
-    if (!data.ok) {
-      throw new Error(data.error || "Failed to delete item");
+    if (productError || !productData) {
+      console.error("Error creating product:", productError);
+      return null;
     }
 
-    console.log("Item deleted successfully");
+    // Create inventory entry
+    const { data: inventoryData, error: inventoryError } = await supabase
+      .from("inventory")
+      .insert({
+        product_id: productData.id,
+        location_id: actualLocationId,
+        standard_stock: item.stock || 0,
+        selling_price: item.price,
+        cost_price: item.costPrice,
+        open_bottles_stock: item.bottleStates?.open || 0,
+        closed_bottles_stock: item.bottleStates?.closed || 0,
+        is_battery: item.isBattery || false,
+        battery_state: item.batteryState,
+        manufacturing_date: item.manufacturingDate,
+      })
+      .select()
+      .single();
+
+    if (inventoryError) {
+      console.error("Error creating inventory:", inventoryError);
+      return null;
+    }
+
+    // Create volumes if it's an oil product
+    if (item.is_oil && item.volumes && item.volumes.length > 0) {
+      const volumeInserts = item.volumes.map(vol => ({
+        product_id: productData.id,
+        volume_description: vol.size,
+        selling_price: vol.price,
+      }));
+
+      await supabase
+        .from("product_volumes")
+        .insert(volumeInserts);
+    }
+
+    return await fetchItem(productData.id, locationId);
+  } catch (error) {
+    console.error("Error in createItem:", error);
+    return null;
+  }
+};
+
+// Update an existing item
+export const updateItem = async (
+  id: string,
+  updates: Partial<Item>,
+  locationId: string = "sanaiya"
+): Promise<Item | null> => {
+  try {
+    // Get location ID
+    let actualLocationId = locationId;
+    if (locationId === "sanaiya" || locationId === "main") {
+      const { data: location } = await supabase
+        .from("locations")
+        .select("id")
+        .eq("name", locationId === "sanaiya" ? "Sanaiya" : "Main Branch")
+        .single();
+      
+      if (location) {
+        actualLocationId = location.id;
+      }
+    }
+
+    // Update product
+    const productUpdates: any = {};
+    if (updates.name !== undefined) productUpdates.name = updates.name;
+    if (updates.category_id !== undefined) productUpdates.category_id = updates.category_id;
+    if (updates.brand_id !== undefined) productUpdates.brand_id = updates.brand_id;
+    if (updates.type !== undefined) productUpdates.product_type = updates.type;
+    if (updates.description !== undefined) productUpdates.description = updates.description;
+    if (updates.image_url !== undefined) productUpdates.image_url = updates.image_url;
+    if (updates.imageUrl !== undefined) productUpdates.image_url = updates.imageUrl;
+    if (updates.lowStockAlert !== undefined) productUpdates.low_stock_threshold = updates.lowStockAlert;
+    if (updates.costPrice !== undefined) productUpdates.cost_price = updates.costPrice;
+    if (updates.manufacturingDate !== undefined) productUpdates.manufacturing_date = updates.manufacturingDate;
+    // Note: is_oil column doesn't exist in database, so we skip this update
+
+    if (Object.keys(productUpdates).length > 0) {
+      const { error: productError } = await supabase
+        .from("products")
+        .update(productUpdates)
+        .eq("id", id);
+
+      if (productError) {
+        console.error("Error updating product:", {
+          error: productError,
+          message: productError.message || "Unknown database error",
+          details: productError.details || "No additional details",
+          hint: productError.hint || "No hint available",
+          code: productError.code || "No error code"
+        });
+        return null;
+      }
+    }
+
+    // Update inventory
+    const inventoryUpdates: any = {};
+    if (updates.stock !== undefined) inventoryUpdates.standard_stock = updates.stock;
+    if (updates.price !== undefined) inventoryUpdates.selling_price = updates.price;
+    // Note: is_battery, battery_state columns don't exist in inventory table
+    if (updates.bottleStates?.open !== undefined) inventoryUpdates.open_bottles_stock = updates.bottleStates.open;
+    if (updates.bottleStates?.closed !== undefined) inventoryUpdates.closed_bottles_stock = updates.bottleStates.closed;
+
+    if (Object.keys(inventoryUpdates).length > 0) {
+      const { error: inventoryError } = await supabase
+        .from("inventory")
+        .update(inventoryUpdates)
+        .eq("product_id", id)
+        .eq("location_id", actualLocationId);
+
+      if (inventoryError) {
+        console.error("Error updating inventory:", {
+          error: inventoryError,
+          message: inventoryError.message || "Unknown database error",
+          details: inventoryError.details || "No additional details",
+          hint: inventoryError.hint || "No hint available",
+          code: inventoryError.code || "No error code"
+        });
+        return null;
+      }
+    }
+
+    return await fetchItem(id, locationId);
+  } catch (error) {
+    console.error("Error in updateItem:", {
+      error,
+      message: error instanceof Error ? error.message : "Unknown error",
+      stack: error instanceof Error ? error.stack : "No stack trace",
+      type: typeof error
+    });
+    return null;
+  }
+};
+
+// Delete an item
+export const deleteItem = async (
+  id: string,
+  locationId: string = "sanaiya"
+): Promise<boolean> => {
+  try {
+    // Get location ID
+    let actualLocationId = locationId;
+    if (locationId === "sanaiya" || locationId === "main") {
+      const { data: location } = await supabase
+        .from("locations")
+        .select("id")
+        .eq("name", locationId === "sanaiya" ? "Sanaiya" : "Main Branch")
+        .single();
+      
+      if (location) {
+        actualLocationId = location.id;
+      }
+    }
+
+    // Delete inventory entry (this will cascade to related tables)
+    const { error: inventoryError } = await supabase
+      .from("inventory")
+      .delete()
+      .eq("product_id", id)
+      .eq("location_id", actualLocationId);
+
+    if (inventoryError) {
+      console.error("Error deleting inventory:", inventoryError);
+      return false;
+    }
+
+    // Check if product exists in other locations
+    const { data: otherInventory } = await supabase
+      .from("inventory")
+      .select("id")
+      .eq("product_id", id);
+
+    // If no other inventory exists, delete the product
+    if (!otherInventory || otherInventory.length === 0) {
+      const { error: productError } = await supabase
+        .from("products")
+        .delete()
+        .eq("id", id);
+
+      if (productError) {
+        console.error("Error deleting product:", productError);
+        return false;
+      }
+    }
+
     return true;
   } catch (error) {
-    console.error("Error deleting item:", error);
+    console.error("Error in deleteItem:", error);
     return false;
   }
 };
 
+// Fetch categories
 export const fetchCategories = async (): Promise<Category[]> => {
   try {
-    console.log("Fetching categories from database...");
-
-    // Use Supabase client to fetch categories
-    const { createClient } = await import("@/supabase/client");
-    const supabase = createClient();
-
     const { data, error } = await supabase
       .from("categories")
-      .select("id, name")
+      .select("*")
       .order("name");
 
     if (error) {
       console.error("Error fetching categories:", error);
-      // Fallback to mock data if database fails
-      console.log("Falling back to mock categories");
-      return MOCK_CATEGORIES;
+      return [];
     }
 
-    console.log(`Fetched ${data?.length || 0} categories from database`);
     return data || [];
   } catch (error) {
-    console.error("Error fetching categories:", error);
-    // Fallback to mock data
-    console.log("Falling back to mock categories");
-    return MOCK_CATEGORIES;
+    console.error("Error in fetchCategories:", error);
+    return [];
   }
 };
 
+// Fetch brands
 export const fetchBrands = async (): Promise<Brand[]> => {
   try {
-    console.log("Fetching brands from database...");
-
-    // Use Supabase client to fetch brands
-    const { createClient } = await import("@/supabase/client");
-    const supabase = createClient();
-
     const { data, error } = await supabase
       .from("brands")
-      .select("id, name")
+      .select("*")
       .order("name");
 
     if (error) {
       console.error("Error fetching brands:", error);
-      // Fallback to mock data if database fails
-      console.log("Falling back to mock brands");
-      return MOCK_BRANDS;
+      return [];
     }
 
-    console.log(`Fetched ${data?.length || 0} brands from database`);
     return data || [];
   } catch (error) {
-    console.error("Error fetching brands:", error);
-    // Fallback to mock data
-    console.log("Falling back to mock brands");
-    return MOCK_BRANDS;
+    console.error("Error in fetchBrands:", error);
+    return [];
   }
 };
 
+// Fetch suppliers
 export const fetchSuppliers = async (): Promise<Supplier[]> => {
-  await new Promise((resolve) => setTimeout(resolve, 300)); // Simulate API delay
-  return MOCK_SUPPLIERS;
-};
-
-export const fetchBranches = async (): Promise<Branch[]> => {
   try {
-    console.log("Fetching locations from database...");
-
-    // Use Supabase client to fetch locations (branches)
-    const { createClient } = await import("@/supabase/client");
-    const supabase = createClient();
-
     const { data, error } = await supabase
-      .from("locations")
-      .select("id, name")
+      .from("suppliers")
+      .select("*")
       .order("name");
 
     if (error) {
-      console.error("Error fetching locations:", error);
-      // Fallback to mock data if database fails
-      console.log("Falling back to mock branches");
-      return MOCK_BRANCHES;
+      // Handle specific case where suppliers table doesn't exist
+      if (error.code === "PGRST205" && error.message.includes("suppliers")) {
+        console.warn("Suppliers table not found. Please create the suppliers table in your Supabase dashboard.");
+        console.warn("SQL to create table:", `
+CREATE TABLE IF NOT EXISTS public.suppliers (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  name TEXT NOT NULL,
+  contact TEXT,
+  email TEXT,
+  phone TEXT,
+  address TEXT,
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL,
+  updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL
+);`);
+        return [];
+      }
+      
+      console.error("Error fetching suppliers:", error);
+      return [];
     }
 
-    // Transform locations to Branch format
-    const branches: Branch[] = (data || []).map((location) => ({
-      id: location.id,
-      name: location.name,
-      address: "", // Not stored in locations table
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+    return (data || []).map(supplier => ({
+      id: supplier.id,
+      name: supplier.name,
+      contact: supplier.contact,
+      email: supplier.email,
+      phone: supplier.phone,
     }));
-
-    console.log(
-      `Fetched ${branches.length} locations from database:`,
-      branches.map((b) => ({ id: b.id, name: b.name }))
-    );
-    return branches;
   } catch (error) {
-    console.error("Error fetching branches:", error);
-    // Fallback to mock data
-    console.log("Falling back to mock branches");
-    return MOCK_BRANCHES;
+    console.error("Error in fetchSuppliers:", error);
+    return [];
   }
 };
 
-export const addCategory = async (name: string): Promise<Category | null> => {
+// Fetch branches
+export const fetchBranches = async (): Promise<Branch[]> => {
   try {
-    console.log("Adding category:", name);
+    const { data, error } = await supabase
+      .from("locations")
+      .select("*")
+      .order("name");
 
+    if (error) {
+      console.error("Error fetching branches:", error);
+      return [];
+    }
+
+    const branches = (data || []).map(location => ({
+      id: location.id,
+      name: location.name,
+      address: location.address || "",
+      created_at: location.created_at,
+      updated_at: location.updated_at,
+    }));
+
+    // Prioritize Sanaiya as the main branch (first in the list)
+    // This ensures main inventory displays Sanaiya items by default
+    const sanaiyaIndex = branches.findIndex(branch => 
+      branch.name.toLowerCase().includes('sanaiya')
+    );
+    
+    if (sanaiyaIndex > 0) {
+      // Move Sanaiya to the front
+      const sanaiyaBranch = branches.splice(sanaiyaIndex, 1)[0];
+      branches.unshift(sanaiyaBranch);
+      console.log("✅ Prioritized Sanaiya as main branch for inventory display");
+    }
+
+    return branches;
+  } catch (error) {
+    console.error("Error in fetchBranches:", error);
+    return [];
+  }
+};
+
+// Category management functions
+export const addCategoryService = async (category: Omit<Category, "id">): Promise<Category> => {
+  try {
     const { data, error } = await supabase
       .from("categories")
-      .insert({ name })
-      .select("id, name")
+      .insert({ name: category.name })
+      .select()
       .single();
 
     if (error) {
       console.error("Error adding category:", error);
-      throw error;
+      throw new Error("Failed to add category");
     }
 
-    console.log("Category added successfully:", data);
     return data;
   } catch (error) {
-    console.error("Error adding category:", error);
+    console.error("Error in addCategoryService:", error);
     throw error;
+  }
+};
+
+export const updateCategoryService = async (id: string, updates: Partial<Category>): Promise<Category> => {
+  try {
+    const { data, error } = await supabase
+      .from("categories")
+      .update(updates)
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Error updating category:", error);
+      throw new Error("Failed to update category");
+    }
+
+    return data;
+  } catch (error) {
+    console.error("Error in updateCategoryService:", error);
+    throw error;
+  }
+};
+
+export const deleteCategoryService = async (id: string): Promise<void> => {
+  try {
+    const { error } = await supabase
+      .from("categories")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      console.error("Error deleting category:", error);
+      throw new Error("Failed to delete category");
+    }
+  } catch (error) {
+    console.error("Error in deleteCategoryService:", error);
+    throw error;
+  }
+};
+
+// Brand management functions
+export const addBrandService = async (brand: Omit<Brand, "id">): Promise<Brand> => {
+  try {
+    const { data, error } = await supabase
+      .from("brands")
+      .insert({ name: brand.name })
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Error adding brand:", error);
+      throw new Error("Failed to add brand");
+    }
+
+    return data;
+  } catch (error) {
+    console.error("Error in addBrandService:", error);
+    throw error;
+  }
+};
+
+export const updateBrandService = async (id: string, updates: Partial<Brand>): Promise<Brand> => {
+  try {
+    const { data, error } = await supabase
+      .from("brands")
+      .update(updates)
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Error updating brand:", error);
+      throw new Error("Failed to update brand");
+    }
+
+    return data;
+  } catch (error) {
+    console.error("Error in updateBrandService:", error);
+    throw error;
+  }
+};
+
+export const deleteBrandService = async (id: string): Promise<void> => {
+  try {
+    const { error } = await supabase
+      .from("brands")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      console.error("Error deleting brand:", error);
+      throw new Error("Failed to delete brand");
+    }
+  } catch (error) {
+    console.error("Error in deleteBrandService:", error);
+    throw error;
+  }
+};
+
+// Supplier management functions
+export const addSupplierService = async (supplier: Omit<Supplier, "id">): Promise<Supplier> => {
+  try {
+    const { data, error } = await supabase
+      .from("suppliers")
+      .insert({
+        name: supplier.name,
+        contact: supplier.contact,
+        email: supplier.email,
+        phone: supplier.phone,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Error adding supplier:", error);
+      throw new Error("Failed to add supplier");
+    }
+
+    return {
+      id: data.id,
+      name: data.name,
+      contact: data.contact,
+      email: data.email,
+      phone: data.phone,
+    };
+  } catch (error) {
+    console.error("Error in addSupplierService:", error);
+    throw error;
+  }
+};
+
+export const updateSupplierService = async (id: string, updates: Partial<Supplier>): Promise<Supplier> => {
+  try {
+    const { data, error } = await supabase
+      .from("suppliers")
+      .update({
+        name: updates.name,
+        contact: updates.contact,
+        email: updates.email,
+        phone: updates.phone,
+      })
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Error updating supplier:", error);
+      throw new Error("Failed to update supplier");
+    }
+
+    return {
+      id: data.id,
+      name: data.name,
+      contact: data.contact,
+      email: data.email,
+      phone: data.phone,
+    };
+  } catch (error) {
+    console.error("Error in updateSupplierService:", error);
+    throw error;
+  }
+};
+
+export const deleteSupplierService = async (id: string): Promise<Supplier> => {
+  try {
+    const { data, error } = await supabase
+      .from("suppliers")
+      .delete()
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Error deleting supplier:", error);
+      throw new Error("Failed to delete supplier");
+    }
+
+    return {
+      id: data.id,
+      name: data.name,
+      contact: data.contact,
+      email: data.email,
+      phone: data.phone,
+    };
+  } catch (error) {
+    console.error("Error in deleteSupplierService:", error);
+    throw error;
+  }
+};
+
+// Legacy function aliases for backward compatibility
+export const deleteItemService = async (id: string, branchId: string): Promise<void> => {
+  await deleteItem(id, branchId);
+};
+
+export const addCategory = async (name: string): Promise<Category | null> => {
+  try {
+    return await addCategoryService({ name });
+  } catch {
+    return null;
   }
 };
 
 export const updateCategory = async (
   id: string,
-  name: string
+  updates: Partial<Category>
 ): Promise<Category | null> => {
   try {
-    console.log("Updating category:", id, "to:", name);
-
-    const { data, error } = await supabase
-      .from("categories")
-      .update({ name })
-      .eq("id", id)
-      .select("id, name")
-      .single();
-
-    if (error) {
-      console.error("Error updating category:", error);
-      throw error;
-    }
-
-    console.log("Category updated successfully:", data);
-    return data;
-  } catch (error) {
-    console.error("Error updating category:", error);
+    return await updateCategoryService(id, updates);
+  } catch {
     return null;
   }
 };
 
 export const deleteCategory = async (id: string): Promise<boolean> => {
   try {
-    console.log("Deleting category:", id);
-
-    const { error } = await supabase.from("categories").delete().eq("id", id);
-
-    if (error) {
-      console.error("Error deleting category:", error);
-      throw error;
-    }
-
-    console.log("Category deleted successfully");
+    await deleteCategoryService(id);
     return true;
-  } catch (error) {
-    console.error("Error deleting category:", error);
+  } catch {
     return false;
   }
 };
 
 export const addBrand = async (name: string): Promise<Brand | null> => {
   try {
-    console.log("Adding brand:", name);
-
-    const { data, error } = await supabase
-      .from("brands")
-      .insert({ name })
-      .select("id, name")
-      .single();
-
-    if (error) {
-      console.error("Error adding brand:", error);
-      throw error;
-    }
-
-    console.log("Brand added successfully:", data);
-    return data;
-  } catch (error) {
-    console.error("Error adding brand:", error);
+    return await addBrandService({ name });
+  } catch {
     return null;
   }
 };
 
 export const updateBrand = async (
   id: string,
-  name: string
+  updates: Partial<Brand>
 ): Promise<Brand | null> => {
   try {
-    console.log("Updating brand:", id, "to:", name);
-
-    const { data, error } = await supabase
-      .from("brands")
-      .update({ name })
-      .eq("id", id)
-      .select("id, name")
-      .single();
-
-    if (error) {
-      console.error("Error updating brand:", error);
-      throw error;
-    }
-
-    console.log("Brand updated successfully:", data);
-    return data;
-  } catch (error) {
-    console.error("Error updating brand:", error);
+    return await updateBrandService(id, updates);
+  } catch {
     return null;
   }
 };
 
 export const deleteBrand = async (id: string): Promise<boolean> => {
   try {
-    console.log("Deleting brand:", id);
-
-    const { error } = await supabase.from("brands").delete().eq("id", id);
-
-    if (error) {
-      console.error("Error deleting brand:", error);
-      throw error;
-    }
-
-    console.log("Brand deleted successfully");
+    await deleteBrandService(id);
     return true;
-  } catch (error) {
-    console.error("Error deleting brand:", error);
+  } catch {
     return false;
   }
 };
 
 // Batch management functions
 export const addBatch = async (
-  itemId: string,
-  newBatch: Pick<
-    Batch,
-    | "purchase_date"
-    | "cost_price"
-    | "initial_quantity"
-    | "current_quantity"
-    | "supplier_id"
-    | "expiration_date"
-  >,
-  locationId: string
-): Promise<boolean> => {
+  batch: Omit<Batch, "id" | "created_at" | "updated_at">,
+  locationId: string = "sanaiya"
+): Promise<Batch | null> => {
   try {
-    console.log("Adding batch for item:", itemId, "location:", locationId);
+    // Get location ID
+    let actualLocationId = locationId;
+    if (locationId === "sanaiya" || locationId === "main") {
+      const { data: location } = await supabase
+        .from("locations")
+        .select("id")
+        .eq("name", locationId === "sanaiya" ? "Sanaiya" : "Main Branch")
+        .single();
+      
+      if (location) {
+        actualLocationId = location.id;
+      }
+    }
 
-    // For now, return true as batch management needs a dedicated API endpoint
-    // The batch data would be stored via the products/save endpoint when creating/updating items
-    console.log("Batch management via dedicated API not yet implemented");
-    await new Promise((resolve) => setTimeout(resolve, 200));
+    const { data, error } = await supabase
+      .from("batches")
+      .insert({
+        product_id: batch.item_id,
+        location_id: actualLocationId,
+        supplier_id: batch.supplier_id,
+        purchase_date: batch.purchase_date,
+        expiration_date: batch.expiration_date,
+        cost_price: batch.cost_price,
+        initial_quantity: batch.initial_quantity,
+        current_quantity: batch.current_quantity,
+      })
+      .select()
+      .single();
 
-    return true;
+    if (error) {
+      console.error("Error adding batch:", error);
+      return null;
+    }
+
+    return {
+      id: data.id,
+      item_id: data.product_id,
+      purchase_date: data.purchase_date,
+      expiration_date: data.expiration_date,
+      supplier_id: data.supplier_id,
+      cost_price: data.cost_price ? parseFloat(data.cost_price) : null,
+      initial_quantity: data.initial_quantity,
+      current_quantity: data.current_quantity,
+      created_at: data.created_at,
+      updated_at: data.updated_at,
+    };
   } catch (error) {
-    console.error("Error adding batch:", error);
-    return false;
+    console.error("Error in addBatch:", error);
+    return null;
   }
 };
 
 export const updateBatch = async (
-  itemId: string,
-  batchId: string,
-  updatedBatch: Partial<Omit<Batch, "id" | "item_id">>,
-  locationId: string
-): Promise<boolean> => {
+  id: string,
+  updates: Partial<Batch>
+): Promise<Batch | null> => {
   try {
-    console.log(
-      "Updating batch:",
-      batchId,
-      "for item:",
-      itemId,
-      "location:",
-      locationId
-    );
+    const batchUpdates: any = {};
+    if (updates.purchase_date !== undefined) batchUpdates.purchase_date = updates.purchase_date;
+    if (updates.expiration_date !== undefined) batchUpdates.expiration_date = updates.expiration_date;
+    if (updates.supplier_id !== undefined) batchUpdates.supplier_id = updates.supplier_id;
+    if (updates.cost_price !== undefined) batchUpdates.cost_price = updates.cost_price;
+    if (updates.initial_quantity !== undefined) batchUpdates.initial_quantity = updates.initial_quantity;
+    if (updates.current_quantity !== undefined) batchUpdates.current_quantity = updates.current_quantity;
 
-    // For now, return true as batch management needs a dedicated API endpoint
-    console.log("Batch update via dedicated API not yet implemented");
-    await new Promise((resolve) => setTimeout(resolve, 200));
+    const { data, error } = await supabase
+      .from("batches")
+      .update(batchUpdates)
+      .eq("id", id)
+      .select()
+      .single();
 
-    return true;
+    if (error) {
+      console.error("Error updating batch:", error);
+      return null;
+    }
+
+    return {
+      id: data.id,
+      item_id: data.product_id,
+      purchase_date: data.purchase_date,
+      expiration_date: data.expiration_date,
+      supplier_id: data.supplier_id,
+      cost_price: data.cost_price ? parseFloat(data.cost_price) : null,
+      initial_quantity: data.initial_quantity,
+      current_quantity: data.current_quantity,
+      created_at: data.created_at,
+      updated_at: data.updated_at,
+    };
   } catch (error) {
-    console.error("Error updating batch:", error);
-    return false;
+    console.error("Error in updateBatch:", error);
+    return null;
   }
 };
 
-export const deleteBatch = async (
-  itemId: string,
-  batchId: string,
-  locationId: string
-): Promise<boolean> => {
+export const deleteBatch = async (id: string): Promise<boolean> => {
   try {
-    console.log(
-      "Deleting batch:",
-      batchId,
-      "for item:",
-      itemId,
-      "location:",
-      locationId
-    );
+    const { error } = await supabase
+      .from("batches")
+      .delete()
+      .eq("id", id);
 
-    // For now, return true as batch management needs a dedicated API endpoint
-    console.log("Batch deletion via dedicated API not yet implemented");
-    await new Promise((resolve) => setTimeout(resolve, 200));
+    if (error) {
+      console.error("Error deleting batch:", error);
+      return false;
+    }
 
     return true;
   } catch (error) {
-    console.error("Error deleting batch:", error);
+    console.error("Error in deleteBatch:", error);
     return false;
   }
 };

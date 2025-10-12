@@ -31,6 +31,7 @@ import {
   ReceiptData,
 } from "@/lib/utils/receipts";
 import type { CheckoutInput } from "@/lib/types/checkout";
+import { billNumberService, TransactionType } from "@/lib/services/bill-number-service";
 
 // Helper function to handle lubricant sales with precise bottle tracking
 async function handleLubricantSale(
@@ -229,8 +230,15 @@ export async function POST(req: NextRequest) {
       throw validationError;
     }
 
-    const { locationId, shopId, paymentMethod, cashierId, cart, tradeIns } =
-      validatedInput;
+    const {
+      locationId,
+      shopId,
+      paymentMethod,
+      cashierId,
+      cart,
+      tradeIns,
+      carPlateNumber,
+    } = validatedInput;
 
     // Additional business logic validation
     if (!cart || cart.length === 0) {
@@ -345,6 +353,16 @@ export async function POST(req: NextRequest) {
         console.log(`[${requestId}] Location verified: ${locationExists.id}`);
 
         // 2. Create transaction record
+        let transactionType = "SALE";
+        if (paymentMethod.toLowerCase() === "credit") {
+          transactionType = "CREDIT";
+        } else if (
+          paymentMethod === "ON_HOLD" ||
+          paymentMethod.toLowerCase() === "on hold"
+        ) {
+          transactionType = "ON_HOLD";
+        }
+
         const [newTransaction] = await tx
           .insert(transactions)
           .values({
@@ -352,10 +370,12 @@ export async function POST(req: NextRequest) {
             locationId,
             shopId: shopId || locationId, // Use locationId as shopId if not provided
             cashierId,
-            type: "SALE",
+            type: transactionType,
             totalAmount: totalAmount.toString(),
             itemsSold: cart,
             paymentMethod,
+            carPlateNumber:
+              transactionType === "ON_HOLD" ? carPlateNumber : null,
           })
           .returning();
 
@@ -368,7 +388,7 @@ export async function POST(req: NextRequest) {
             );
             continue;
           }
-          
+
           // Find inventory record
           const [inventoryRecord] = await tx
             .select()

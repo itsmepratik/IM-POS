@@ -58,7 +58,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { useStaffIDs } from "@/lib/hooks/useStaffIDs";
 
 interface TransactionDisplay extends Omit<Transaction, "items"> {
-  type: "sale" | "refund";
+  type: "sale" | "refund" | "credit" | "on-hold";
   items: string[];
   customerName?: string;
   reference: string;
@@ -68,6 +68,7 @@ interface TransactionDisplay extends Omit<Transaction, "items"> {
   cashier: string;
   receiptHtml?: string | null;
   batteryBillHtml?: string | null;
+  carPlateNumber?: string | null;
 }
 
 type DayTime = "morning" | "evening" | "full";
@@ -148,10 +149,20 @@ const TransactionCard = memo(
                   className={`text-base sm:text-lg font-medium ${
                     transaction.type === "refund"
                       ? "text-red-500"
+                      : transaction.type === "credit"
+                      ? "text-blue-600"
+                      : transaction.type === "on-hold"
+                      ? "text-yellow-600"
                       : "text-green-500"
                   }`}
                 >
-                  {transaction.type === "refund" ? "Refund" : "Sale"}
+                  {transaction.type === "refund"
+                    ? "Refund"
+                    : transaction.type === "credit"
+                    ? "Credit"
+                    : transaction.type === "on-hold"
+                    ? "On Hold"
+                    : "Sale"}
                 </span>
                 <span className="text-sm sm:text-base text-muted-foreground">
                   {transaction.time || transaction.date}
@@ -169,6 +180,10 @@ const TransactionCard = memo(
                 className={`font-semibold ${
                   transaction.type === "refund"
                     ? "text-red-500"
+                    : transaction.type === "credit"
+                    ? "text-blue-600"
+                    : transaction.type === "on-hold"
+                    ? "text-yellow-600"
                     : "text-green-500"
                 }`}
               >
@@ -264,6 +279,10 @@ function FixedSalesCard({
           ? "bg-gray-600"
           : transaction.type === "refund"
           ? "bg-red-500"
+          : transaction.type === "credit"
+          ? "bg-blue-600"
+          : transaction.type === "on-hold"
+          ? "bg-yellow-600"
           : "bg-green-600"
       }`}
     >
@@ -273,6 +292,10 @@ function FixedSalesCard({
             ? "No transactions"
             : transaction.type === "refund"
             ? "Refund"
+            : transaction.type === "credit"
+            ? "Credit"
+            : transaction.type === "on-hold"
+            ? "On Hold"
             : "Sale"}
         </div>
         {transaction && (
@@ -770,33 +793,52 @@ export default function TransactionsPage() {
       customer: "Anonymous", // This would come from a customer field if available
       items: t.items_sold?.length || 0,
       cashier: t.cashier_id || "Unknown",
-      status: t.type === "REFUND" ? "refunded" : "completed",
-      type: t.type === "REFUND" ? "refund" : "sale",
+      status:
+        t.type === "REFUND"
+          ? "refunded"
+          : t.type === "ON_HOLD"
+          ? "on-hold"
+          : "completed",
+      type:
+        t.type === "REFUND"
+          ? "refund"
+          : t.type === "CREDIT"
+          ? "credit"
+          : t.type === "ON_HOLD"
+          ? "on-hold"
+          : "sale",
       items: [`${t.items_sold?.length || 0} items`],
       customerName: "Anonymous",
       reference: t.reference_number,
       storeId: t.shop_id || "unknown",
       date: new Date(t.created_at).toLocaleDateString(),
-      notes: t.type === "REFUND" ? "Item returned" : undefined,
+      notes:
+        t.type === "REFUND"
+          ? "Item returned"
+          : t.type === "ON_HOLD"
+          ? `Car Plate: ${t.car_plate_number || "N/A"}`
+          : undefined,
       cashier: t.cashier_id || "Unknown",
       receiptHtml: t.receipt_html,
       batteryBillHtml: t.battery_bill_html,
+      carPlateNumber: t.car_plate_number,
     }));
   }, [apiTransactions]);
 
   const displayTransactions = useMemo(() => {
     const transactions = getTransactions();
-    
+
     if (!searchQuery.trim()) {
       return transactions;
     }
-    
+
     const query = searchQuery.toLowerCase().trim();
     return transactions.filter((transaction) => {
       return (
         transaction.reference.toLowerCase().includes(query) ||
         transaction.cashier.toLowerCase().includes(query) ||
-        (transaction.customerName && transaction.customerName.toLowerCase().includes(query)) ||
+        (transaction.customerName &&
+          transaction.customerName.toLowerCase().includes(query)) ||
         transaction.paymentMethod.toLowerCase().includes(query) ||
         transaction.type.toLowerCase().includes(query) ||
         transaction.amount.toString().includes(query)
@@ -1091,8 +1133,10 @@ export default function TransactionsPage() {
             <span>
               {displayTransactions.length === 0
                 ? "No transactions found"
-                : `Found ${displayTransactions.length} transaction${displayTransactions.length === 1 ? '' : 's'}`
-              } matching "{searchQuery}"
+                : `Found ${displayTransactions.length} transaction${
+                    displayTransactions.length === 1 ? "" : "s"
+                  }`}{" "}
+              matching "{searchQuery}"
             </span>
           </div>
         )}
@@ -1117,11 +1161,14 @@ export default function TransactionsPage() {
               <FileText className="h-8 w-8 text-muted-foreground" />
             </div>
             <h2 className="text-xl font-semibold mb-2">
-              {searchQuery.trim() ? "No matching transactions" : "No transactions"}
+              {searchQuery.trim()
+                ? "No matching transactions"
+                : "No transactions"}
             </h2>
             {searchQuery.trim() && (
               <p className="text-muted-foreground mb-4">
-                Try adjusting your search terms or clear the search to see all transactions.
+                Try adjusting your search terms or clear the search to see all
+                transactions.
               </p>
             )}
           </Card>

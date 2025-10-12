@@ -324,5 +324,3 @@ export function formatTime(date: Date): string {
     second: "2-digit",
   });
 }
-
-

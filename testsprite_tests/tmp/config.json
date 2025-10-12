@@ -1,0 +1,18 @@
+{
+  "status": "commited",
+  "type": "frontend",
+  "scope": "codebase",
+  "localEndpoint": "http://localhost:3000",
+  "loginUser": "admin@hnsautomotive.com",
+  "loginPassword": "Anchorpoint123.",
+  "executionArgs": {
+    "projectName": "pos",
+    "projectPath": "d:\\Coding Projects\\pos",
+    "testIds": [],
+    "additionalInstruction": "",
+    "envs": {
+      "API_KEY": "sk-user-FibOulRPKiHSZmQC2fnJgFojlHNZJjsNJKwqaAkM7x_gjnvjxX_-uFzbDzNlKjFkhiu9wO1aySK8f3OcI7o3-tQD9KOrLiVwP_yQi9Ep5lIWmZZUqJfSpyZbzKOQlbKKaLc"
+    }
+  },
+  "proxy": "http://a4601a0e-d62d-4c88-92f1-78e418853b04:PVM7NQ8aSCEJrNSEXyZEd6kpSJpUIQRk@tun.testsprite.com:8080"
+}

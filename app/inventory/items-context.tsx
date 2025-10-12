@@ -1,35 +1,39 @@
 "use client";
 
 import type React from "react";
-import { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useState, useEffect, useMemo } from "react";
+// Using actual Supabase service functions
 import {
   Item,
   Batch,
   Volume,
   BottleStates,
+  Brand,
+  Category,
+  Supplier,
   fetchItems,
   fetchItem,
   createItem,
   updateItem as updateItemService,
   deleteItem as deleteItemService,
+  fetchCategories,
+  fetchBrands,
+  fetchSuppliers,
+  fetchBranches,
+  addCategoryService,
+  updateCategoryService,
+  deleteCategoryService,
+  addBrandService,
+  updateBrandService,
+  deleteBrandService,
+  addSupplierService,
+  updateSupplierService,
+  deleteSupplierService,
   addBatch as addBatchService,
   updateBatch as updateBatchService,
   deleteBatch as deleteBatchService,
-  fetchCategories,
-  fetchBrands,
-  fetchBranches,
-  fetchSuppliers,
-  addCategory as addCategoryService,
-  updateCategory as updateCategoryService,
-  deleteCategory as deleteCategoryService,
-  addBrand as addBrandService,
-  updateBrand as updateBrandService,
-  deleteBrand as deleteBrandService,
-  Brand,
-  Category,
-  Supplier,
-} from "@/lib/services/inventoryService";
-import { useBranch } from "@/lib/contexts/DataProvider";
+} from "../../lib/services/inventoryService";
+import { useBranch } from "../branch-context";
 import { toast } from "@/components/ui/use-toast";
 
 interface ItemsContextType {
@@ -57,6 +61,9 @@ interface ItemsContextType {
   addBrand: (brand: string) => Promise<string | null>;
   updateBrand: (oldBrand: string, newBrand: string) => Promise<boolean>;
   deleteBrand: (brand: string) => Promise<boolean>;
+  addSupplier: (supplier: Omit<Supplier, "id">) => Promise<string | null>;
+  updateSupplier: (id: string, supplier: Partial<Omit<Supplier, "id">>) => Promise<boolean>;
+  deleteSupplier: (id: string) => Promise<boolean>;
   addBatch: (
     itemId: string,
     batchData: Pick<
@@ -97,6 +104,9 @@ const ItemsContext = createContext<ItemsContextType>({
   addBrand: async () => null,
   updateBrand: async () => false,
   deleteBrand: async () => false,
+  addSupplier: async () => null,
+  updateSupplier: async () => false,
+  deleteSupplier: async () => false,
   addBatch: async () => false,
   updateBatch: async () => false,
   deleteBatch: async () => false,
@@ -116,9 +126,7 @@ export const useItems = () => {
 export { type Item, type Batch, type Volume, type BottleStates };
 
 export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
-  const { currentBranch } = useBranch();
-  // Always use Supabase for data
-
+  // Using actual Supabase data
   const [items, setItems] = useState<Item[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [brands, setBrands] = useState<string[]>([]);
@@ -130,6 +138,8 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
   ); // id -> name
   const [brandMap, setBrandMap] = useState<Map<string, string>>(new Map()); // id -> name
 
+  const { currentBranch } = useBranch();
+
   // Helper function to convert Map to Record
   const mapToRecord = (map: Map<string, string>): Record<string, string> => {
     const record: Record<string, string> = {};
@@ -139,63 +149,49 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
     return record;
   };
 
-  // Fetch items when the current branch or showTradeIns changes
+  // Load data from Supabase on mount and when branch changes
   useEffect(() => {
-    if (currentBranch) {
-      loadItems();
+    if (currentBranch?.id) {
+      loadData();
     }
-  }, [currentBranch, showTradeIns]);
+  }, [currentBranch?.id]);
 
-  // Fetch categories, brands, and suppliers on initial load
-  useEffect(() => {
-    const loadMetadata = async () => {
-      try {
-        const [categoriesData, brandsData, suppliersData, branchesData] =
-          await Promise.all([
-            fetchCategories(),
-            fetchBrands(),
-            fetchSuppliers(),
-            fetchBranches(),
-          ]);
-
-        // Setting category data
-        setCategories(categoriesData.map((cat) => cat.name));
-        const catMap = new Map<string, string>();
-        categoriesData.forEach((cat: Category) => catMap.set(cat.id, cat.name));
-        setCategoryMap(catMap);
-
-        // Setting brand data
-        setBrands(brandsData.map((brand) => brand.name));
-        const brandMap = new Map<string, string>();
-        brandsData.forEach((brand: Brand) =>
-          brandMap.set(brand.id, brand.name)
-        );
-        setBrandMap(brandMap);
-
-        // Setting supplier data
-        setSuppliers(suppliersData);
-      } catch (error) {
-        console.error("Error loading metadata:", error);
-      }
-    };
-
-    loadMetadata();
-  }, []);
-
-  const loadItems = async () => {
-    if (!currentBranch) return;
-
+  const loadData = async () => {
     try {
       setIsLoading(true);
-      console.log(
-        `Loading items for branch: ${currentBranch.name} (${currentBranch.id})`
-      );
-      const itemsData = await fetchItems(currentBranch.id, showTradeIns);
-      console.log(`Loaded ${itemsData.length} items`);
+
+      if (!currentBranch?.id) {
+        console.warn("No current branch selected");
+        return;
+      }
+
+      // Load items for current branch
+      const itemsData = await fetchItems(currentBranch.id);
       setItems(itemsData);
+
+      // Load categories
+      const categoriesData = await fetchCategories();
+      const categoryNames = categoriesData.map(cat => cat.name);
+      setCategories(categoryNames);
+      const categoryMapInstance = new Map<string, string>();
+      categoriesData.forEach(cat => categoryMapInstance.set(cat.id, cat.name));
+      setCategoryMap(categoryMapInstance);
+
+      // Load brands
+      const brandsData = await fetchBrands();
+      const brandNames = brandsData.map(brand => brand.name);
+      setBrands(brandNames);
+      const brandMapInstance = new Map<string, string>();
+      brandsData.forEach(brand => brandMapInstance.set(brand.id, brand.name));
+      setBrandMap(brandMapInstance);
+
+      // Load suppliers
+      const suppliersData = await fetchSuppliers();
+      setSuppliers(suppliersData);
+
+      console.log(`Loaded ${itemsData.length} items for branch ${currentBranch.name}`);
     } catch (error) {
-      console.error("Error loading items:", error);
-      // Show toast error to user
+      console.error("Error loading data:", error);
       toast({
         title: "Error loading items",
         description: "Failed to load inventory items. Please try again.",
@@ -207,43 +203,30 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const refetchItems = async () => {
-    await loadItems();
+    await loadData();
   };
 
   const addItem = async (item: Omit<Item, "id">): Promise<Item | null> => {
-    if (!currentBranch) {
-      console.error("Cannot add item: No current branch selected");
-      toast({
-        title: "Error",
-        description: "No branch selected. Please select a branch.",
-        variant: "destructive",
-      });
-      return null;
-    }
-
-    console.log("Adding item with current branch:", currentBranch);
-    console.log("Item data:", item);
-
     try {
-      const newItem = await createItem(item, currentBranch.id);
+      if (!currentBranch?.id) {
+        toast({
+          title: "Error",
+          description: "No branch selected.",
+          variant: "destructive",
+        });
+        return null;
+      }
 
+      const newItem = await createItem({ ...item, location_id: currentBranch.id });
       if (newItem) {
-        console.log("Item added successfully:", newItem.id);
         setItems((prev) => [...prev, newItem]);
         toast({
           title: "Item added",
           description: `${newItem.name} has been added successfully.`,
         });
         return newItem;
-      } else {
-        console.error("Failed to add item: createItem returned null");
-        toast({
-          title: "Error adding item",
-          description: "Failed to add the item. Please try again.",
-          variant: "destructive",
-        });
-        return null;
       }
+      return null;
     } catch (error) {
       console.error("Error adding item:", error);
       const errorMessage =
@@ -262,49 +245,17 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
     updatedItem: Omit<Item, "id">
   ): Promise<Item | null> => {
     try {
-      if (!currentBranch) {
-        console.error("No branch selected");
-        toast({
-          title: "Error",
-          description: "No branch selected. Please select a branch.",
-          variant: "destructive",
-        });
-        return null;
-      }
-
-      console.log("Current branch:", currentBranch);
-      console.log("Updating item with ID:", id);
-      console.log("Update data:", updatedItem);
-
-      // Ensure that both the camelCase (UI) and snake_case (DB) versions of special fields are set
-      const normalizedItem = {
-        ...updatedItem,
-        is_oil: updatedItem.isOil || updatedItem.is_oil,
-        image_url: updatedItem.imageUrl || updatedItem.image_url,
-        description: updatedItem.description || updatedItem.notes || null,
-      };
-
-      console.log("Normalized item data:", normalizedItem);
-
-      const updated = await updateItemService(
-        id,
-        normalizedItem,
-        currentBranch.id
-      );
-
+      const updated = await updateItemService(id, updatedItem);
       if (updated) {
-        console.log("Item updated successfully, updating local state");
-
-        // Update the item in the local state
         setItems((prevItems) =>
           prevItems.map((item) => (item.id === id ? { ...updated } : item))
         );
-
-        console.log("✅ Item updated successfully");
-
+        toast({
+          title: "Item updated",
+          description: `${updated.name} has been updated successfully.`,
+        });
         return updated;
       } else {
-        console.error("Failed to update item: updateItemService returned null");
         toast({
           title: "Update failed",
           description: "The item could not be updated. Please try again.",
@@ -327,24 +278,8 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
 
   const deleteItem = async (id: string): Promise<boolean> => {
     try {
-      if (!currentBranch) {
-        console.error("No branch selected");
-        toast({
-          title: "Error",
-          description: "No branch selected. Please select a branch.",
-          variant: "destructive",
-        });
-        return false;
-      }
-
-      console.log(
-        `Attempting to delete item with ID: ${id} from branch: ${currentBranch.id}`
-      );
-
-      // Find the item in the current items array
       const itemToDelete = items.find((item) => item.id === id);
       if (!itemToDelete) {
-        console.error(`Item with ID ${id} not found in local data`);
         toast({
           title: "Error",
           description: "Item not found.",
@@ -353,39 +288,15 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
         return false;
       }
 
-      console.log(
-        `Calling deleteItemService with id: ${id}, branchId: ${currentBranch.id}`
-      );
-      // Call the service to delete the item
-      const success = await deleteItemService(id, currentBranch.id);
-
+      const success = await deleteItemService(id);
       if (success) {
-        console.log(
-          `Item ${id} deleted successfully from branch ${currentBranch.id}`
-        );
-
-        // Update the local state to remove the deleted item
         setItems((prevItems) => prevItems.filter((item) => item.id !== id));
-
-        // Force a complete data refresh
-        try {
-          console.log("Forcing data refresh after deletion");
-          await loadItems();
-          console.log("Data refresh complete");
-        } catch (refreshError) {
-          console.error("Error refreshing data after deletion:", refreshError);
-        }
-
         toast({
           title: "Item deleted",
-          description: `${itemToDelete.name} has been removed from ${currentBranch.name}.`,
+          description: `${itemToDelete.name} has been removed.`,
         });
-
         return true;
       } else {
-        console.error(
-          `Failed to delete item ${id} from branch ${currentBranch.id}`
-        );
         toast({
           title: "Deletion failed",
           description: "The item could not be deleted. Please try again.",
@@ -407,101 +318,84 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const duplicateItem = async (id: string): Promise<Item | null> => {
-    if (!currentBranch) return null;
-
     try {
-      // Find the original item
-      const original = items.find((item) => item.id === id);
-      if (!original) return null;
+      if (!currentBranch?.id) {
+        toast({
+          title: "Error",
+          description: "No branch selected.",
+          variant: "destructive",
+        });
+        return null;
+      }
 
-      console.log("Duplicating item:", original);
+      const originalItem = await fetchItem(id);
+      if (!originalItem) {
+        toast({
+          title: "Error",
+          description: "Original item not found.",
+          variant: "destructive",
+        });
+        return null;
+      }
 
-      // Create a new clean item object with only the essential fields
-      const newItemData: Omit<Item, "id"> = {
-        name: `${original.name} (Copy)`,
-        price: original.price || 0,
-        category_id: original.category_id,
-        brand_id: original.brand_id,
-        type: original.type,
-        is_oil: original.is_oil || false,
-        description: original.description,
-        image_url: original.image_url,
-        created_at: null,
-        updated_at: null,
+      // Create a duplicate with modified name
+      const duplicateData = {
+        ...originalItem,
+        name: `${originalItem.name} (Copy)`,
+        location_id: currentBranch.id,
       };
+      delete (duplicateData as any).id; // Remove id to create new item
 
-      // If it's an oil product with bottle states, include them
-      if (original.is_oil && original.bottleStates) {
-        newItemData.bottleStates = {
-          open: original.bottleStates.open || 0,
-          closed: original.bottleStates.closed || 0,
-        };
+      const duplicatedItem = await createItem(duplicateData);
+      if (duplicatedItem) {
+        setItems((prev) => [...prev, duplicatedItem]);
+        toast({
+          title: "Item duplicated",
+          description: `${duplicatedItem.name} has been duplicated.`,
+        });
+        return duplicatedItem;
+      } else {
+        toast({
+          title: "Duplication failed",
+          description: "The item could not be duplicated. Please try again.",
+          variant: "destructive",
+        });
+        return null;
       }
-
-      // If it's not an oil product with batches, set stock to 0
-      // as stock will be managed through batches
-      if (!original.is_oil && original.batches && original.batches.length > 0) {
-        newItemData.stock = 0;
-      }
-      // If it's not an oil product without batches, include the stock
-      else if (!original.is_oil && typeof original.stock === "number") {
-        newItemData.stock = original.stock;
-      }
-
-      // If it has volumes (for oil products), include them
-      if (original.is_oil && original.volumes && original.volumes.length > 0) {
-        // Looking at the createItem function, we see it only needs these properties
-        newItemData.volumes = original.volumes.map((v) => ({
-          size: v.size,
-          price: v.price,
-          // Dummy values that will be replaced by createItem
-          item_id: "",
-          id: "",
-          created_at: null,
-          updated_at: null,
-        }));
-      }
-
-      // If it has batches, include them
-      if (original.batches && original.batches.length > 0) {
-        // Looking at the createItem function, we see it only needs these properties
-        newItemData.batches = original.batches.map((b) => ({
-          purchase_date: b.purchase_date,
-          cost_price: b.cost_price,
-          initial_quantity: b.initial_quantity || b.current_quantity,
-          current_quantity: b.current_quantity,
-          supplier_id: b.supplier_id || null,
-          expiration_date: b.expiration_date,
-          // Dummy values that will be replaced by createItem
-          item_id: "",
-          id: "",
-          created_at: null,
-          updated_at: null,
-        }));
-      }
-
-      console.log("Creating new item with data:", newItemData);
-
-      // Add the copy as a new item
-      return await addItem(newItemData);
     } catch (error) {
       console.error("Error duplicating item:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      toast({
+        title: "Error duplicating item",
+        description: errorMessage,
+        variant: "destructive",
+      });
       return null;
     }
   };
 
   const addCategory = async (category: string): Promise<string | null> => {
     try {
-      const newCategory = await addCategoryService(category);
+      const newCategory = await addCategoryService({ name: category });
       if (newCategory) {
-        setCategories((prev) => [...prev, newCategory.name]);
-        categoryMap.set(newCategory.id, newCategory.name);
+        setCategories((prev) => [...prev, category]);
+        categoryMap.set(newCategory.id, category);
         setCategoryMap(new Map(categoryMap));
+        toast({
+          title: "Category added",
+          description: `${category} has been added successfully.`,
+        });
         return newCategory.id;
       }
       return null;
     } catch (error) {
       console.error("Error adding category:", error);
+      toast({
+        title: "Error adding category",
+        description: "Failed to add the category. Please try again.",
+        variant: "destructive",
+      });
       return null;
     }
   };
@@ -522,28 +416,32 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (!categoryId) return false;
 
-      const success = await updateCategoryService(categoryId, newCategory);
-      if (success) {
+      const updated = await updateCategoryService(categoryId, { name: newCategory });
+      if (updated) {
         setCategories((prev) =>
           prev.map((cat) => (cat === oldCategory ? newCategory : cat))
         );
         categoryMap.set(categoryId, newCategory);
         setCategoryMap(new Map(categoryMap));
 
-        // Update all items with this category
-        setItems((prev) =>
-          prev.map((item) =>
-            item.category === oldCategory
-              ? { ...item, category: newCategory }
-              : item
-          )
-        );
+        // Refresh items to get updated category names
+        await refetchItems();
+
+        toast({
+          title: "Category updated",
+          description: `Category has been updated to ${newCategory}.`,
+        });
 
         return true;
       }
       return false;
     } catch (error) {
       console.error("Error updating category:", error);
+      toast({
+        title: "Error updating category",
+        description: "Failed to update the category. Please try again.",
+        variant: "destructive",
+      });
       return false;
     }
   };
@@ -567,36 +465,49 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
         categoryMap.delete(categoryId);
         setCategoryMap(new Map(categoryMap));
 
-        // Update all items with this category
-        setItems((prev) =>
-          prev.map((item) =>
-            item.category === category
-              ? { ...item, category: "", category_id: null }
-              : item
-          )
-        );
+        // Refresh items to get updated category references
+        await refetchItems();
+
+        toast({
+          title: "Category deleted",
+          description: "The category has been removed.",
+        });
 
         return true;
       }
       return false;
     } catch (error) {
       console.error("Error deleting category:", error);
+      toast({
+        title: "Error deleting category",
+        description: "Failed to delete the category. Please try again.",
+        variant: "destructive",
+      });
       return false;
     }
   };
 
   const addBrand = async (brand: string): Promise<string | null> => {
     try {
-      const newBrand = await addBrandService(brand);
+      const newBrand = await addBrandService({ name: brand });
       if (newBrand) {
-        setBrands((prev) => [...prev, newBrand.name]);
-        brandMap.set(newBrand.id, newBrand.name);
+        setBrands((prev) => [...prev, brand]);
+        brandMap.set(newBrand.id, brand);
         setBrandMap(new Map(brandMap));
+        toast({
+          title: "Brand added",
+          description: `${brand} has been added successfully.`,
+        });
         return newBrand.id;
       }
       return null;
     } catch (error) {
       console.error("Error adding brand:", error);
+      toast({
+        title: "Error adding brand",
+        description: "Failed to add the brand. Please try again.",
+        variant: "destructive",
+      });
       return null;
     }
   };
@@ -617,26 +528,32 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (!brandId) return false;
 
-      const success = await updateBrandService(brandId, newBrand);
-      if (success) {
+      const updated = await updateBrandService(brandId, { name: newBrand });
+      if (updated) {
         setBrands((prev) =>
           prev.map((brand) => (brand === oldBrand ? newBrand : brand))
         );
         brandMap.set(brandId, newBrand);
         setBrandMap(new Map(brandMap));
 
-        // Update all items with this brand
-        setItems((prev) =>
-          prev.map((item) =>
-            item.brand === oldBrand ? { ...item, brand: newBrand } : item
-          )
-        );
+        // Refresh items to get updated brand names
+        await refetchItems();
+
+        toast({
+          title: "Brand updated",
+          description: `Brand has been updated to ${newBrand}.`,
+        });
 
         return true;
       }
       return false;
     } catch (error) {
       console.error("Error updating brand:", error);
+      toast({
+        title: "Error updating brand",
+        description: "Failed to update the brand. Please try again.",
+        variant: "destructive",
+      });
       return false;
     }
   };
@@ -660,20 +577,110 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
         brandMap.delete(brandId);
         setBrandMap(new Map(brandMap));
 
-        // Update all items with this brand
-        setItems((prev) =>
-          prev.map((item) =>
-            item.brand === brand
-              ? { ...item, brand: undefined, brand_id: null }
-              : item
-          )
-        );
+        // Refresh items to get updated brand references
+        await refetchItems();
+
+        toast({
+          title: "Brand deleted",
+          description: "The brand has been removed.",
+        });
 
         return true;
       }
       return false;
     } catch (error) {
       console.error("Error deleting brand:", error);
+      toast({
+        title: "Error deleting brand",
+        description: "Failed to delete the brand. Please try again.",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
+  const addSupplier = async (supplier: Omit<Supplier, "id">): Promise<string | null> => {
+    try {
+      const newSupplier = await addSupplierService(supplier);
+      if (newSupplier) {
+        setSuppliers((prev) => [...prev, newSupplier]);
+        toast({
+          title: "Supplier added",
+          description: `${supplier.name} has been added successfully.`,
+        });
+        return newSupplier.id;
+      }
+      return null;
+    } catch (error) {
+      console.error("Error adding supplier:", error);
+      toast({
+        title: "Error adding supplier",
+        description: "Failed to add the supplier. Please try again.",
+        variant: "destructive",
+      });
+      return null;
+    }
+  };
+
+  const updateSupplier = async (
+    id: string,
+    supplierData: Partial<Omit<Supplier, "id">>
+  ): Promise<boolean> => {
+    try {
+      const updated = await updateSupplierService(id, supplierData);
+      if (updated) {
+        setSuppliers((prev) =>
+          prev.map((supplier) =>
+            supplier.id === id ? { ...supplier, ...supplierData } : supplier
+          )
+        );
+
+        // Refresh items to get updated supplier references
+        await refetchItems();
+
+        toast({
+          title: "Supplier updated",
+          description: "Supplier has been updated successfully.",
+        });
+
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error("Error updating supplier:", error);
+      toast({
+        title: "Error updating supplier",
+        description: "Failed to update the supplier. Please try again.",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
+  const deleteSupplier = async (id: string): Promise<boolean> => {
+    try {
+      const success = await deleteSupplierService(id);
+      if (success) {
+        setSuppliers((prev) => prev.filter((supplier) => supplier.id !== id));
+
+        // Refresh items to get updated supplier references
+        await refetchItems();
+
+        toast({
+          title: "Supplier deleted",
+          description: "The supplier has been removed.",
+        });
+
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error("Error deleting supplier:", error);
+      toast({
+        title: "Error deleting supplier",
+        description: "Failed to delete the supplier. Please try again.",
+        variant: "destructive",
+      });
       return false;
     }
   };
@@ -690,35 +697,24 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
       | "expiration_date"
     >
   ): Promise<boolean> => {
-    if (!currentBranch) return false;
-
     try {
-      console.log("Adding batch with data:", batchData);
-      console.log("Current branch:", currentBranch.id);
+      const newBatch = await addBatchService({
+        ...batchData,
+        item_id: itemId,
+      });
 
-      const success = await addBatchService(
-        itemId,
-        {
-          purchase_date: batchData.purchase_date,
-          cost_price: batchData.cost_price,
-          initial_quantity:
-            batchData.initial_quantity || batchData.current_quantity,
-          current_quantity: batchData.current_quantity,
-          supplier_id: batchData.supplier_id,
-          expiration_date: batchData.expiration_date,
-        },
-        currentBranch.id
-      );
+      if (newBatch) {
+        // Refresh items to get updated batch data
+        await refetchItems();
 
-      if (success) {
-        console.log("Batch added successfully. Reloading items...");
-        // Reload the items to get the updated batch information
-        await loadItems();
+        toast({
+          title: "Batch added",
+          description: "Batch has been added successfully.",
+        });
+
         return true;
-      } else {
-        console.error("Failed to add batch - addBatchService returned false");
-        return false;
       }
+      return false;
     } catch (error) {
       console.error("Error adding batch:", error);
       const errorMessage =
@@ -737,24 +733,27 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
     batchId: string,
     batchData: Partial<Omit<Batch, "id" | "item_id">>
   ): Promise<boolean> => {
-    if (!currentBranch) return false;
-
     try {
-      console.log("Updating batch with data:", batchData);
-      const success = await updateBatchService(
-        itemId,
-        batchId,
-        batchData,
-        currentBranch.id
-      );
-      if (success) {
-        // Reload the items to get the updated batch information
-        await loadItems();
+      const updated = await updateBatchService(batchId, batchData);
+      if (updated) {
+        // Refresh items to get updated batch data
+        await refetchItems();
+
+        toast({
+          title: "Batch updated",
+          description: "Batch has been updated successfully.",
+        });
+
         return true;
       }
       return false;
     } catch (error) {
       console.error("Error updating batch:", error);
+      toast({
+        title: "Error updating batch",
+        description: "Failed to update the batch. Please try again.",
+        variant: "destructive",
+      });
       return false;
     }
   };
@@ -763,22 +762,27 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
     itemId: string,
     batchId: string
   ): Promise<boolean> => {
-    if (!currentBranch) return false;
-
     try {
-      const success = await deleteBatchService(
-        itemId,
-        batchId,
-        currentBranch.id
-      );
+      const success = await deleteBatchService(batchId);
       if (success) {
-        // Reload the items to get the updated batch information
-        await loadItems();
+        // Refresh items to get updated batch data
+        await refetchItems();
+
+        toast({
+          title: "Batch deleted",
+          description: "Batch has been removed successfully.",
+        });
+
         return true;
       }
       return false;
     } catch (error) {
       console.error("Error deleting batch:", error);
+      toast({
+        title: "Error deleting batch",
+        description: "Failed to delete the batch. Please try again.",
+        variant: "destructive",
+      });
       return false;
     }
   };
@@ -798,35 +802,70 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
     return totalQuantity > 0 ? totalCost / totalQuantity : 0;
   };
 
+  // Memoize context value to prevent unnecessary re-renders
+  const contextValue = useMemo(
+    () => ({
+      items,
+      categories,
+      brands,
+      suppliers,
+      categoryMap: mapToRecord(categoryMap),
+      brandMap: mapToRecord(brandMap),
+      addItem,
+      updateItem,
+      deleteItem,
+      duplicateItem,
+      addCategory,
+      updateCategory,
+      deleteCategory,
+      addBrand,
+      updateBrand,
+      deleteBrand,
+      addSupplier,
+      updateSupplier,
+      deleteSupplier,
+      addBatch: addBatchImpl,
+      updateBatch: updateBatchImpl,
+      deleteBatch: deleteBatchImpl,
+      calculateAverageCost,
+      isLoading,
+      refetchItems,
+      showTradeIns,
+      setShowTradeIns,
+    }),
+    [
+      items,
+      categories,
+      brands,
+      suppliers,
+      categoryMap,
+      brandMap,
+      addItem,
+      updateItem,
+      deleteItem,
+      duplicateItem,
+      addCategory,
+      updateCategory,
+      deleteCategory,
+      addBrand,
+      updateBrand,
+      deleteBrand,
+      addSupplier,
+      updateSupplier,
+      deleteSupplier,
+      addBatchImpl,
+      updateBatchImpl,
+      deleteBatchImpl,
+      calculateAverageCost,
+      isLoading,
+      refetchItems,
+      showTradeIns,
+      setShowTradeIns,
+    ]
+  );
+
   return (
-    <ItemsContext.Provider
-      value={{
-        items,
-        categories,
-        brands,
-        suppliers,
-        categoryMap: mapToRecord(categoryMap),
-        brandMap: mapToRecord(brandMap),
-        addItem,
-        updateItem,
-        deleteItem,
-        duplicateItem,
-        addCategory,
-        updateCategory,
-        deleteCategory,
-        addBrand,
-        updateBrand,
-        deleteBrand,
-        addBatch: addBatchImpl,
-        updateBatch: updateBatchImpl,
-        deleteBatch: deleteBatchImpl,
-        calculateAverageCost,
-        isLoading,
-        refetchItems,
-        showTradeIns,
-        setShowTradeIns,
-      }}
-    >
+    <ItemsContext.Provider value={contextValue}>
       {children}
     </ItemsContext.Provider>
   );

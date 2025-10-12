@@ -140,18 +140,30 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
     batches: item?.batches || [],
   });
   const [newBatch, setNewBatch] = useState<Omit<Batch, "id">>({
-    purchaseDate: "",
-    costPrice: 0,
-    quantity: 0,
+    item_id: "",
+    purchase_date: "",
+    expiration_date: null,
+    supplier_id: null,
+    cost_price: 0,
+    initial_quantity: 0,
+    current_quantity: 0,
+    created_at: null,
+    updated_at: null,
   });
   const [editingBatchId, setEditingBatchId] = useState<string | null>(null);
   const [isMounted, setIsMounted] = useState(false);
   const [isEditingBatch, setIsEditingBatch] = useState(false);
   const [editingBatch, setEditingBatch] = useState<Batch>({
     id: "",
-    purchaseDate: "",
-    costPrice: 0,
-    quantity: 0,
+    item_id: "",
+    purchase_date: "",
+    expiration_date: null,
+    supplier_id: null,
+    cost_price: 0,
+    initial_quantity: 0,
+    current_quantity: 0,
+    created_at: null,
+    updated_at: null,
   });
 
   // Set mounted state to track when component is mounted on client
@@ -481,9 +493,10 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
 
       if (success) {
         // Update local formData state to reflect the new batch
-        const newBatchWithId = {
+        const newBatchWithId: Batch = {
           id: uuidv4(), // Generate a temporary ID for UI purposes
           ...newBatch,
+          item_id: item.id,
         };
 
         // Sort batches by purchase date (oldest first) to maintain FIFO order
@@ -492,8 +505,8 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
           newBatchWithId,
         ].sort(
           (a, b) =>
-            new Date(a.purchaseDate).getTime() -
-            new Date(b.purchaseDate).getTime()
+            new Date(a.purchase_date || '').getTime() -
+            new Date(b.purchase_date || '').getTime()
         );
 
         setFormData((prev) => ({
@@ -1500,11 +1513,17 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
                                       });
 
                                       // Update local formData
-                                      const newBatchWithId = {
+                                      const newBatchWithId: Batch = {
                                         id: getClientOnlyId(), // Use stable ID generation function
-                                        purchaseDate: editingBatch.purchaseDate,
-                                        costPrice: editingBatch.costPrice,
-                                        quantity: editingBatch.quantity,
+                                        item_id: formData.id,
+                                        purchase_date: editingBatch.purchaseDate,
+                                        expiration_date: null,
+                                        supplier_id: null,
+                                        cost_price: editingBatch.costPrice,
+                                        initial_quantity: editingBatch.quantity,
+                                        current_quantity: editingBatch.quantity,
+                                        created_at: new Date().toISOString(),
+                                        updated_at: new Date().toISOString(),
                                       };
 
                                       // Sort batches by purchase date (oldest first) for FIFO
@@ -1513,15 +1532,15 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
                                         newBatchWithId,
                                       ].sort(
                                         (a, b) =>
-                                          new Date(a.purchaseDate).getTime() -
-                                          new Date(b.purchaseDate).getTime()
+                                          new Date(a.purchase_date || '').getTime() -
+                                          new Date(b.purchase_date || '').getTime()
                                       );
 
                                       setFormData((prev) => ({
                                         ...prev,
                                         batches: updatedBatches,
                                         stock: updatedBatches.reduce(
-                                          (sum, batch) => sum + batch.quantity,
+                                          (sum, batch) => sum + (batch.current_quantity || 0),
                                           0
                                         ),
                                       }));

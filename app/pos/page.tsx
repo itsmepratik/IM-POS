@@ -25,6 +25,7 @@ import {
   Printer,
   Smartphone,
   Ticket,
+  Receipt,
   RotateCcw,
   RefreshCw,
   ExternalLink,
@@ -112,6 +113,7 @@ import { TradeInDialog } from "./components/modals/trade-in-dialog";
 import { VolumeModal } from "./components/volume-modal";
 import { BrandCard } from "./components/brand-card";
 import { BrandLogo } from "./components/brand-logo";
+import { OnHoldTicket } from "./components/on-hold-ticket";
 
 // Import the BillComponent
 import { BillComponent } from "./components/bill-component";
@@ -399,13 +401,15 @@ function POSCustomerForm({
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>("");
-  const [existingCustomers, setExistingCustomers] = useState<Array<{
-    id: string;
-    name: string;
-    email: string;
-    phone: string;
-    displayText: string;
-  }>>([]);
+  const [existingCustomers, setExistingCustomers] = useState<
+    Array<{
+      id: string;
+      name: string;
+      email: string;
+      phone: string;
+      displayText: string;
+    }>
+  >([]);
   const [isLoadingCustomers, setIsLoadingCustomers] = useState(false);
   const [customerSearchTerm, setCustomerSearchTerm] = useState("");
 
@@ -413,13 +417,15 @@ function POSCustomerForm({
   const fetchCustomers = useCallback(async (search: string = "") => {
     setIsLoadingCustomers(true);
     try {
-      const response = await fetch(`/api/customers/dropdown?search=${encodeURIComponent(search)}&limit=50`);
+      const response = await fetch(
+        `/api/customers/dropdown?search=${encodeURIComponent(search)}&limit=50`
+      );
       if (response.ok) {
         const data = await response.json();
         setExistingCustomers(data.customers || []);
       }
     } catch (error) {
-      console.error('Error fetching customers:', error);
+      console.error("Error fetching customers:", error);
     } finally {
       setIsLoadingCustomers(false);
     }
@@ -456,7 +462,7 @@ function POSCustomerForm({
         });
       }
     } catch (error) {
-      console.error('Error fetching customer details:', error);
+      console.error("Error fetching customer details:", error);
     }
   }, []);
 
@@ -480,21 +486,21 @@ function POSCustomerForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (isSubmitting) return;
-    
+
     setIsSubmitting(true);
-    
+
     try {
       let customerData;
-      
+
       if (selectedCustomerId) {
         // Use existing customer - fetch fresh data to ensure we have the ID
         const response = await fetch(`/api/customers/${selectedCustomerId}`);
         if (response.ok) {
           customerData = await response.json();
         } else {
-          throw new Error('Failed to fetch existing customer');
+          throw new Error("Failed to fetch existing customer");
         }
       } else {
         // Create new customer
@@ -504,25 +510,25 @@ function POSCustomerForm({
           phone: formData.phone,
           address: formData.address,
           notes: formData.notes,
-          vehicles: formData.vehicles.map(v => ({
+          vehicles: formData.vehicles.map((v) => ({
             make: v.make,
             model: v.model,
             year: v.year,
             licensePlate: v.licensePlate,
-            color: v.color || '',
-            engineType: v.engineType || '',
-            notes: v.notes || '',
+            color: v.color || "",
+            engineType: v.engineType || "",
+            notes: v.notes || "",
           })),
         });
       }
-      
+
       if (customerData) {
         onSubmit(customerData);
       } else {
-        throw new Error('Failed to handle customer');
+        throw new Error("Failed to handle customer");
       }
     } catch (error) {
-      console.error('Error handling customer:', error);
+      console.error("Error handling customer:", error);
       // Error is already handled by the service with toast
     } finally {
       setIsSubmitting(false);
@@ -607,7 +613,9 @@ function POSCustomerForm({
                 <div className="space-y-4">
                   {/* Customer Selector Dropdown */}
                   <div className="space-y-2">
-                    <Label htmlFor="customer-select">Select Existing Customer</Label>
+                    <Label htmlFor="customer-select">
+                      Select Existing Customer
+                    </Label>
                     <Select
                       value={selectedCustomerId}
                       onValueChange={handleCustomerSelect}
@@ -620,7 +628,9 @@ function POSCustomerForm({
                           <Input
                             placeholder="Search customers..."
                             value={customerSearchTerm}
-                            onChange={(e) => setCustomerSearchTerm(e.target.value)}
+                            onChange={(e) =>
+                              setCustomerSearchTerm(e.target.value)
+                            }
                             className="mb-2"
                           />
                         </div>
@@ -630,7 +640,9 @@ function POSCustomerForm({
                           </SelectItem>
                         ) : existingCustomers.length > 0 ? (
                           <>
-                            <SelectItem value="new-customer">Create New Customer</SelectItem>
+                            <SelectItem value="new-customer">
+                              Create New Customer
+                            </SelectItem>
                             {existingCustomers.map((customer) => (
                               <SelectItem key={customer.id} value={customer.id}>
                                 {customer.displayText}
@@ -639,7 +651,9 @@ function POSCustomerForm({
                           </>
                         ) : (
                           <SelectItem value="no-customers" disabled>
-                            {customerSearchTerm ? "No customers found" : "No customers available"}
+                            {customerSearchTerm
+                              ? "No customers found"
+                              : "No customers available"}
                           </SelectItem>
                         )}
                       </SelectContent>
@@ -719,9 +733,6 @@ function POSCustomerForm({
                       className="h-20"
                     />
                   </div>
-
-
-
 
                   <div className="space-y-3 pt-2">
                     <div className="flex items-center justify-between">
@@ -923,7 +934,7 @@ function POSCustomerForm({
                 Adding...
               </>
             ) : (
-              'Add Customer'
+              "Add Customer"
             )}
           </Button>
         </DialogFooter>
@@ -953,6 +964,7 @@ function POSPageContent() {
 
   const { toast } = useToast();
   const { currentBranch } = useBranch();
+  const companyInfo = useCompanyInfo();
 
   const [cart, setCart] = useState<CartItem[]>([]);
   const [activeCategory, setActiveCategory] = useState<string>("Lubricants");
@@ -965,13 +977,18 @@ function POSPageContent() {
   const [lubricantImageError, setLubricantImageError] = useState(false);
   const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<
-    "card" | "cash" | "mobile" | "voucher" | null
+    "card" | "cash" | "mobile" | "on-hold" | "credit" | null
   >(null);
   const [showSuccess, setShowSuccess] = useState(false);
   const [showReceiptDialog, setShowReceiptDialog] = useState(false);
   const [showOtherOptions, setShowOtherOptions] = useState(false);
   const [isRefundDialogOpen, setIsRefundDialogOpen] = useState(false);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+
+  // On Hold functionality state
+  const [isOnHoldMode, setIsOnHoldMode] = useState(false);
+  const [carPlateNumber, setCarPlateNumber] = useState("");
+  const [showOnHoldTicket, setShowOnHoldTicket] = useState(false);
 
   // Add discount state
   const [isDiscountDialogOpen, setIsDiscountDialogOpen] = useState(false);
@@ -1331,10 +1348,10 @@ function POSPageContent() {
         const details =
           volume.size +
           (volume.bottleType ? ` (${volume.bottleType} bottle)` : "");
-        
+
         // Determine source based on bottle type for checkout API
         const source = volume.bottleType === "open" ? "OPEN" : "CLOSED";
-        
+
         addToCart(
           {
             id: selectedOil.id,
@@ -1488,47 +1505,47 @@ function POSPageContent() {
   const getAvailabilityByNumericId = (productId: number) => {
     // Find the product in either products or lubricantProducts arrays
     const allProducts = [...products, ...lubricantProducts];
-    const product = allProducts.find(p => p.id === productId);
-    
+    const product = allProducts.find((p) => p.id === productId);
+
     if (!product) {
       return {
         canSell: false,
         availableQuantity: 0,
-        errorMessage: "Product not found in inventory"
+        errorMessage: "Product not found in inventory",
       };
     }
-    
+
     // Use the hook's built-in getProductAvailability function with numeric ID
     const availability = getProductAvailability(productId);
-    
+
     // Handle null availability response
     if (!availability) {
       return {
         canSell: false,
         availableQuantity: 0,
-        errorMessage: "Product availability could not be determined"
+        errorMessage: "Product availability could not be determined",
       };
     }
-    
+
     // Transform to match the expected interface
     return {
       canSell: availability.canSell,
       availableQuantity: availability.availableQuantity,
-      errorMessage: availability.errorMessage
+      errorMessage: availability.errorMessage,
     };
   };
 
   const handleCheckout = async () => {
     if (isCheckoutLoading) {
-      console.log('⏳ Checkout already in progress, ignoring click');
+      console.log("⏳ Checkout already in progress, ignoring click");
       return;
     }
-    
+
     setIsCheckoutLoading(true);
-    
+
     try {
-      console.log('🛒 Checkout initiated with cart:', cart);
-      
+      console.log("🛒 Checkout initiated with cart:", cart);
+
       // Validate cart is not empty
       if (cart.length === 0) {
         toast({
@@ -1545,21 +1562,31 @@ function POSPageContent() {
 
       for (const cartItem of cart) {
         // Skip inventory validation for labor charges
-        if (cartItem.id === 9999 || cartItem.name === "Labor - Custom Service") {
-          console.log(`⚡ Skipping inventory check for labor charge: ${cartItem.name}`);
+        if (
+          cartItem.id === 9999 ||
+          cartItem.name === "Labor - Custom Service"
+        ) {
+          console.log(
+            `⚡ Skipping inventory check for labor charge: ${cartItem.name}`
+          );
           continue;
         }
-        
+
         console.log(`🔍 Checking availability for product ID: ${cartItem.id}`);
-        
+
         try {
           const availability = getAvailabilityByNumericId(cartItem.id);
-          console.log(`📊 Availability result for ${cartItem.name}:`, availability);
-          
+          console.log(
+            `📊 Availability result for ${cartItem.name}:`,
+            availability
+          );
+
           if (availability) {
             if (!availability.canSell) {
               stockValidationErrors.push(
-                `${cartItem.name}: ${availability.errorMessage || "Not available"}`
+                `${cartItem.name}: ${
+                  availability.errorMessage || "Not available"
+                }`
               );
             } else if (cartItem.quantity > availability.availableQuantity) {
               stockValidationErrors.push(
@@ -1567,13 +1594,18 @@ function POSPageContent() {
               );
             }
           } else {
-            console.warn(`⚠️ No availability data for product: ${cartItem.name}`);
+            console.warn(
+              `⚠️ No availability data for product: ${cartItem.name}`
+            );
             stockValidationErrors.push(
               `${cartItem.name}: Product not found in inventory`
             );
           }
         } catch (availabilityError) {
-          console.error(`❌ Error checking availability for ${cartItem.name}:`, availabilityError);
+          console.error(
+            `❌ Error checking availability for ${cartItem.name}:`,
+            availabilityError
+          );
           stockValidationErrors.push(
             `${cartItem.name}: Error checking availability`
           );
@@ -1582,7 +1614,7 @@ function POSPageContent() {
 
       // If there are stock validation errors, show them and don't proceed
       if (stockValidationErrors.length > 0) {
-        console.log('❌ Stock validation failed:', stockValidationErrors);
+        console.log("❌ Stock validation failed:", stockValidationErrors);
         toast({
           title: "Stock Validation Failed",
           description: (
@@ -1604,8 +1636,8 @@ function POSPageContent() {
         return;
       }
 
-      console.log('✅ Stock validation passed, proceeding with checkout');
-      
+      console.log("✅ Stock validation passed, proceeding with checkout");
+
       // If all validations pass, proceed with checkout
       setIsCustomerFormOpen(true);
 
@@ -1619,36 +1651,49 @@ function POSPageContent() {
         minute: "2-digit",
         second: "2-digit",
       });
-      
-      console.log('📋 Transaction data generated:', {
+
+      console.log("📋 Transaction data generated:", {
         receiptNumber: newReceiptNumber,
         currentDate: newCurrentDate,
         currentTime: newCurrentTime,
       });
-      
+
       setTransactionData({
         receiptNumber: newReceiptNumber,
         currentDate: newCurrentDate,
         currentTime: newCurrentTime,
       });
-      
-      console.log('🎯 Checkout process completed successfully');
-        
-      } catch (error) {
-        console.error('💥 Critical error in handleCheckout:', error);
-        toast({
-          title: "Checkout Error",
-          description: "An unexpected error occurred during checkout. Please try again.",
-          variant: "destructive",
-          duration: 5000,
-        });
-      } finally {
-        setIsCheckoutLoading(false);
-      }
-    };
+
+      console.log("🎯 Checkout process completed successfully");
+    } catch (error) {
+      console.error("💥 Critical error in handleCheckout:", error);
+      toast({
+        title: "Checkout Error",
+        description:
+          "An unexpected error occurred during checkout. Please try again.",
+        variant: "destructive",
+        duration: 5000,
+      });
+    } finally {
+      setIsCheckoutLoading(false);
+    }
+  };
 
   const handlePaymentComplete = () => {
-    // Instead of showing success immediately, show cashier selection dialog
+    // For on-hold mode, validate car plate number first, then proceed to cashier selection
+    if (isOnHoldMode) {
+      if (!carPlateNumber.trim()) {
+        toast({
+          title: "Missing Information",
+          description: "Car plate number is required for on-hold transactions.",
+          variant: "destructive",
+          duration: 3000,
+        });
+        return;
+      }
+    }
+
+    // For both regular payments and on-hold transactions, show cashier selection dialog
     setIsCheckoutModalOpen(false);
     // Reset cashier fields before opening the cashier selection dialog
     setEnteredCashierId("");
@@ -1659,6 +1704,149 @@ function POSPageContent() {
 
   // Add this new function to handle final payment completion
   const handleFinalizePayment = async () => {
+    // Handle On Hold workflow differently
+    if (isOnHoldMode) {
+      if (!carPlateNumber.trim()) {
+        toast({
+          title: "Missing Information",
+          description: "Car plate number is required for on-hold transactions.",
+          variant: "destructive",
+          duration: 3000,
+        });
+        return;
+      }
+
+      if (!selectedCashier) {
+        toast({
+          title: "Missing Information",
+          description: "Cashier selection is required for on-hold transactions.",
+          variant: "destructive",
+          duration: 3000,
+        });
+        return;
+      }
+
+      // Process the on-hold transaction through the API
+      try {
+        // Prepare cart items for the API call
+        const cartForAPI = cart.map((item) => {
+          // Handle labor charges specially
+          if (item.id === 9999 || item.name === "Labor - Custom Service") {
+            return {
+              productId: "9999", // Use string ID for labor charges
+              quantity: item.quantity,
+              sellingPrice: item.price,
+              volumeDescription: item.name,
+            };
+          }
+
+          // Handle regular inventory items
+          const productInfo = products.find((p) => p.id === item.id);
+          const lubricantProductInfo = lubricantProducts.find(
+            (p) => p.id === item.id
+          );
+          const isLubricant =
+            productInfo?.category === "Lubricants" ||
+            lubricantProductInfo !== undefined;
+
+          // Use the originalId (UUID) instead of the numeric id
+          const originalId =
+            productInfo?.originalId || lubricantProductInfo?.originalId;
+          if (!originalId) {
+            throw new Error(`Original ID not found for product ${item.id}`);
+          }
+
+          return {
+            productId: originalId, // Use the original UUID as expected by API
+            quantity: item.quantity,
+            sellingPrice: item.price,
+            volumeDescription: item.details || item.name,
+            // If it's a lubricant, ensure 'source' is set. Default to 'CLOSED' if bottleType is not specified.
+            source: isLubricant
+              ? item.bottleType === "open"
+                ? "OPEN"
+                : "CLOSED"
+              : undefined,
+          };
+        });
+
+        // Prepare trade-ins if any - Enable for battery checkouts
+        let tradeInsForAPI = undefined;
+
+        // Check if this is a battery sale and has trade-ins
+        const isBatterySale = cartContainsAnyBatteries(cart);
+        if (isBatterySale && tradeinBatteries.length > 0) {
+          // For battery sales, create trade-in entries using battery size as name
+          tradeInsForAPI = tradeinBatteries.map((battery) => ({
+            productId: `tradein-${battery.size
+              .toLowerCase()
+              .replace(/\s+/g, "-")}-${battery.status}`, // Generate consistent ID
+            quantity: 1,
+            tradeInValue: battery.amount,
+            size: battery.size,
+            condition: battery.status,
+            name: battery.size, // Use battery size as the name
+            costPrice: battery.amount, // Use trade-in amount as cost price
+          }));
+        }
+
+        // Use the enhanced checkout service with retry and offline support
+        const { checkoutService } = await import(
+          "@/lib/services/checkout-service"
+        );
+
+        const result = await checkoutService.processCheckout({
+          locationId: currentBranch?.id || "default-location",
+          shopId: currentBranch?.id || "default-shop",
+          paymentMethod: "ON_HOLD", // Use ON_HOLD as the payment method
+          cashierId: selectedCashier?.id || "on-hold-system", // Use the selected cashier ID
+          cart: cartForAPI,
+          carPlateNumber: carPlateNumber.trim(), // Include the car plate number
+          ...(tradeInsForAPI ? { tradeIns: tradeInsForAPI } : {}),
+        });
+
+        if (!result.success) {
+          throw new Error(result.error || "On-hold transaction processing failed");
+        }
+
+        // Store the transaction result for receipt display
+        console.log("✅ On-hold transaction completed:", result.data);
+
+        if (result.data?.offline) {
+          console.log("📱 On-hold transaction completed offline - will sync when online");
+          toast({
+            title: "On-Hold Transaction Completed Offline",
+            description:
+              "Transaction saved. Will sync when connection is restored.",
+            variant: "default",
+            duration: 5000,
+          });
+        } else {
+          console.log("🌐 On-hold transaction completed online");
+          toast({
+            title: "On-Hold Transaction Saved",
+            description: "Transaction has been recorded successfully.",
+            variant: "default",
+            duration: 3000,
+          });
+        }
+
+        // Generate and show ticket for On Hold after successful API call
+        setShowOnHoldTicket(true);
+        return;
+
+      } catch (error) {
+        console.error("On-hold checkout error:", error);
+        toast({
+          title: "Transaction Failed",
+          description: "Failed to save on-hold transaction. Please try again.",
+          variant: "destructive",
+          duration: 5000,
+        });
+        return;
+      }
+    }
+
     if (!selectedPaymentMethod || !selectedCashier) {
       toast({
         title: "Missing Information",
@@ -1700,7 +1888,7 @@ function POSPageContent() {
             volumeDescription: item.name,
           };
         }
-        
+
         // Handle regular inventory items
         const productInfo = products.find((p) => p.id === item.id);
         const lubricantProductInfo = lubricantProducts.find(
@@ -1733,13 +1921,15 @@ function POSPageContent() {
 
       // Prepare trade-ins if any - Enable for battery checkouts
       let tradeInsForAPI = undefined;
-      
+
       // Check if this is a battery sale and has trade-ins
       const isBatterySale = cartContainsAnyBatteries(cart);
       if (isBatterySale && tradeinBatteries.length > 0) {
         // For battery sales, create trade-in entries using battery size as name
         tradeInsForAPI = tradeinBatteries.map((battery) => ({
-          productId: `tradein-${battery.size.toLowerCase().replace(/\s+/g, '-')}-${battery.status}`, // Generate consistent ID
+          productId: `tradein-${battery.size
+            .toLowerCase()
+            .replace(/\s+/g, "-")}-${battery.status}`, // Generate consistent ID
           quantity: 1,
           tradeInValue: battery.amount,
           size: battery.size,
@@ -2067,6 +2257,15 @@ function POSPageContent() {
   const [isLaborDialogOpen, setIsLaborDialogOpen] = useState(false);
   const [laborAmount, setLaborAmount] = useState<number>(0.5);
 
+  // Settlement modal state
+  const [isSettlementModalOpen, setIsSettlementModalOpen] = useState(false);
+  const [settlementReference, setSettlementReference] = useState("");
+  const [isProcessingSettlement, setIsProcessingSettlement] = useState(false);
+  const [settlementStep, setSettlementStep] = useState<'reference' | 'id' | 'processing'>('reference');
+  const [settlementCashierId, setSettlementCashierId] = useState("");
+  const [settlementCashierError, setSettlementCashierError] = useState<string | null>(null);
+  const [fetchedSettlementCashier, setFetchedSettlementCashier] = useState<{ id: string; name: string } | null>(null);
+
   const isMobile = useIsMobile();
 
   // Keep cart view scrolled to the latest added item (desktop and mobile carts)
@@ -2182,7 +2381,7 @@ function POSPageContent() {
                   </CardTitle>
                   <BranchSelector compact={true} showLabel={false} />
                 </div>
-                
+
                 {/* Mobile: Show branch selector first, then title below */}
                 <div className="flex lg:hidden flex-col gap-2 w-full">
                   <div className="flex items-center justify-between w-full">
@@ -2221,66 +2420,20 @@ function POSPageContent() {
                   </CardTitle>
                 </div>
 
-                {/* Sync Status Indicator */}
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  {isLoading ? (
-                    <>
-                      <div className="animate-spin h-3 w-3 border-2 border-primary border-t-transparent rounded-full" />
-                      <span className="hidden sm:inline">Syncing...</span>
-                    </>
-                  ) : lastSyncTime ? (
-                    <>
-                      <div
-                        className={`h-2 w-2 rounded-full ${
-                          isBackgroundSyncing
-                            ? "bg-blue-500 animate-pulse"
-                            : "bg-green-500"
-                        }`}
-                      />
-                      <span className="hidden sm:inline">
-                        {isBackgroundSyncing
-                          ? "Syncing..."
-                          : lastSyncTime.toLocaleTimeString([], {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
-                      </span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={syncProducts}
-                        disabled={isBackgroundSyncing}
-                        className="h-6 px-1 ml-1 hover:bg-green-50 disabled:opacity-50"
-                        title="Refresh inventory data"
-                      >
-                        <RefreshCw
-                          className={`h-3 w-3 ${
-                            isBackgroundSyncing ? "animate-spin" : ""
-                          }`}
-                        />
-                      </Button>
-                    </>
-                  ) : error ? (
-                    <>
-                      <div className="h-2 w-2 bg-red-500 rounded-full" />
-                      <span className="hidden sm:inline text-red-600">
-                        Sync failed
-                      </span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={syncProducts}
-                        className="h-6 px-1 ml-1 hover:bg-red-50 text-red-600"
-                        title="Retry sync"
-                      >
-                        <RotateCcw className="h-3 w-3" />
-                      </Button>
-                    </>
-                  ) : null}
-                </div>
-                
-                {/* Desktop: Show buttons on the right */}
-                <div className="hidden lg:flex gap-2 items-center">
+                {/* Desktop: Show status indicators and buttons on the right */}
+                <div className="hidden lg:flex gap-4 items-center">
+                  {/* Status Indicator */}
+                  <div className="flex items-center gap-2">
+                    <div className="h-2 w-2 bg-green-500 rounded-full" />
+                    <span className="font-mono text-sm text-gray-600">
+                      {new Date().toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        second: "2-digit",
+                      })}
+                    </span>
+                  </div>
+
                   <Button
                     variant="outline"
                     size="default"
@@ -2924,6 +3077,8 @@ function POSPageContent() {
                     onClick={() => {
                       setSelectedPaymentMethod("mobile");
                       setShowOtherOptions(false);
+                      setIsOnHoldMode(false);
+                      setCarPlateNumber("");
                     }}
                   >
                     <Smartphone className="w-6 h-6" />
@@ -2940,6 +3095,8 @@ function POSPageContent() {
                     onClick={() => {
                       setSelectedPaymentMethod("cash");
                       setShowOtherOptions(false);
+                      setIsOnHoldMode(false);
+                      setCarPlateNumber("");
                     }}
                   >
                     <Banknote className="w-6 h-6" />
@@ -2950,7 +3107,8 @@ function POSPageContent() {
                     className={cn(
                       "h-24 flex flex-col items-center justify-center gap-2",
                       (selectedPaymentMethod === "card" ||
-                        selectedPaymentMethod === "voucher") &&
+                        selectedPaymentMethod === "on-hold" ||
+                        selectedPaymentMethod === "credit") &&
                         "ring-2 ring-primary"
                     )}
                     onClick={() => {
@@ -2970,7 +3128,7 @@ function POSPageContent() {
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: "auto" }}
                     exit={{ opacity: 0, height: 0 }}
-                    className="grid grid-cols-2 gap-4"
+                    className="grid grid-cols-3 gap-4"
                   >
                     <Button
                       variant={
@@ -2981,41 +3139,93 @@ function POSPageContent() {
                         selectedPaymentMethod === "card" &&
                           "ring-2 ring-primary"
                       )}
-                      onClick={() => setSelectedPaymentMethod("card")}
+                      onClick={() => {
+                        setSelectedPaymentMethod("card");
+                        setIsOnHoldMode(false);
+                        setCarPlateNumber("");
+                      }}
                     >
                       <CreditCard className="w-6 h-6" />
                       <span>Card</span>
                     </Button>
                     <Button
                       variant={
-                        selectedPaymentMethod === "voucher"
+                        selectedPaymentMethod === "on-hold"
                           ? "default"
                           : "outline"
                       }
                       className={cn(
                         "h-24 flex flex-col items-center justify-center gap-2",
-                        selectedPaymentMethod === "voucher" &&
+                        selectedPaymentMethod === "on-hold" &&
                           "ring-2 ring-primary"
                       )}
-                      onClick={() => setSelectedPaymentMethod("voucher")}
+                      onClick={() => {
+                        setSelectedPaymentMethod("on-hold");
+                        setIsOnHoldMode(true);
+                        setCarPlateNumber("");
+                      }}
                     >
                       <Ticket className="w-6 h-6" />
-                      <span>Voucher</span>
+                      <span>on-hold</span>
+                    </Button>
+                    <Button
+                      variant={
+                        selectedPaymentMethod === "credit"
+                          ? "default"
+                          : "outline"
+                      }
+                      className={cn(
+                        "h-24 flex flex-col items-center justify-center gap-2",
+                        selectedPaymentMethod === "credit" &&
+                          "ring-2 ring-primary"
+                      )}
+                      onClick={() => {
+                        setSelectedPaymentMethod("credit");
+                        setIsOnHoldMode(false);
+                        setCarPlateNumber("");
+                      }}
+                    >
+                      <Receipt className="w-6 h-6" />
+                      <span>Credit</span>
                     </Button>
                   </motion.div>
                 )}
 
                 <div className="border-t pt-6">
+                  {/* Car plate input - only show for on-hold payments */}
+                  {isOnHoldMode && (
+                    <div className="w-full mb-4">
+                      <div className="text-sm font-medium text-gray-600 mb-2">
+                        Car Plate Number
+                      </div>
+                      <input
+                        type="text"
+                        value={carPlateNumber}
+                        onChange={(e) =>
+                          setCarPlateNumber(e.target.value.toUpperCase())
+                        }
+                        placeholder="e.g., ABC-123"
+                        className="w-full h-10 px-3 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                        maxLength={10}
+                      />
+                    </div>
+                  )}
+
                   <div className="flex justify-between text-lg font-semibold mb-6">
                     <span>Total Amount</span>
                     <span>OMR {total.toFixed(3)}</span>
                   </div>
                   <Button
                     className="w-full h-12 text-base"
-                    disabled={!selectedPaymentMethod}
+                    disabled={
+                      !selectedPaymentMethod ||
+                      (selectedPaymentMethod === "mobile" &&
+                        !paymentRecipient) ||
+                      (isOnHoldMode && !carPlateNumber.trim())
+                    }
                     onClick={handlePaymentComplete}
                   >
-                    Complete Payment
+                    {isOnHoldMode ? "Confirm" : "Complete Payment"}
                   </Button>
                 </div>
               </div>
@@ -3037,6 +3247,312 @@ function POSPageContent() {
       <RefundDialog
         isOpen={isRefundDialogOpen}
         onClose={() => setIsRefundDialogOpen(false)}
+      />
+
+      {/* On Hold Ticket */}
+      <OnHoldTicket
+        isOpen={showOnHoldTicket}
+        onClose={() => {
+          setShowOnHoldTicket(false);
+          // Reset the cart and states after ticket is closed
+          setCart([]);
+          setIsOnHoldMode(false);
+          setCarPlateNumber("");
+          setSelectedPaymentMethod("");
+        }}
+        carPlateNumber={carPlateNumber}
+        cartItems={cart}
+        total={total}
+        onPrint={() => {
+          // Print functionality for on-hold ticket
+          const ticketContent = document.getElementById("ticket-content");
+          if (ticketContent) {
+            const printWindow = window.open("", "_blank");
+            if (printWindow) {
+              // Get current date and ticket number
+              const currentDate = new Date();
+              const ticketNumber = `OH-${Date.now().toString().slice(-6)}`;
+
+              printWindow.document.write(`
+                <html>
+                  <head>
+                    <title>On Hold Ticket</title>
+                    <style>
+                      body { 
+                        margin: 0; 
+                        padding: 10mm; 
+                        font-family: Arial, sans-serif; 
+                        background: white;
+                        color: black;
+                        font-size: 12px;
+                        line-height: 1.4;
+                      }
+                      .ticket { 
+                        width: 80mm; 
+                        margin: 0 auto; 
+                        background: white;
+                        padding: 8mm;
+                      }
+                      .header {
+                        text-align: center;
+                        margin-bottom: 6mm;
+                        border-bottom: 2px solid black;
+                        padding-bottom: 4mm;
+                      }
+                      .ticket-title {
+                        border: 2px solid black;
+                        padding: 4mm;
+                        margin-bottom: 4mm;
+                      }
+                      .ticket-title h2 {
+                        font-size: 16px;
+                        font-weight: bold;
+                        margin: 0 0 2mm 0;
+                        text-align: center;
+                      }
+                      .ticket-number {
+                        font-size: 14px;
+                        font-weight: bold;
+                        margin: 0;
+                        text-align: center;
+                      }
+                      .company-name {
+                        font-size: 14px;
+                        font-weight: bold;
+                        margin: 0 0 1mm 0;
+                      }
+                      .company-info {
+                        font-size: 11px;
+                        margin: 0.5mm 0;
+                      }
+                      .info-section {
+                        border: 1px solid black;
+                        padding: 3mm;
+                        margin-bottom: 4mm;
+                      }
+                      .info-row {
+                        display: flex;
+                        justify-content: space-between;
+                        margin-bottom: 2mm;
+                      }
+                      .info-label {
+                        font-weight: bold;
+                      }
+                      .vehicle-section {
+                        border-top: 1px solid black;
+                        padding-top: 3mm;
+                        margin-top: 3mm;
+                      }
+                      .plate-number {
+                        font-size: 14px;
+                        font-weight: bold;
+                        border: 2px solid black;
+                        padding: 2mm;
+                        text-align: center;
+                        margin-top: 2mm;
+                      }
+                      .items-section {
+                        margin-bottom: 4mm;
+                      }
+                      .items-header {
+                        font-weight: bold;
+                        text-align: center;
+                        border: 1px solid black;
+                        padding: 2mm;
+                        margin-bottom: 3mm;
+                      }
+                      .item {
+                        border: 1px solid black;
+                        padding: 3mm;
+                        margin-bottom: 2mm;
+                      }
+                      .item-header {
+                        display: flex;
+                        justify-content: space-between;
+                        margin-bottom: 1mm;
+                      }
+                      .item-name {
+                        font-weight: bold;
+                        flex: 1;
+                      }
+                      .item-qty {
+                        font-size: 11px;
+                        margin-left: 2mm;
+                      }
+                      .item-footer {
+                        display: flex;
+                        justify-content: space-between;
+                        font-size: 11px;
+                      }
+                      .item-amount {
+                        font-weight: bold;
+                      }
+                      .total-section {
+                        border: 2px solid black;
+                        padding: 3mm;
+                        margin-bottom: 4mm;
+                      }
+                      .total-row {
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                      }
+                      .total-label {
+                        font-size: 14px;
+                        font-weight: bold;
+                      }
+                      .total-amount {
+                        font-size: 16px;
+                        font-weight: bold;
+                      }
+                      .notice-section {
+                        border: 2px solid black;
+                        padding: 4mm;
+                        text-align: center;
+                        margin-bottom: 4mm;
+                      }
+                      .notice-title {
+                        font-weight: bold;
+                        font-size: 13px;
+                        margin-bottom: 2mm;
+                      }
+                      .notice-content {
+                        font-size: 11px;
+                        line-height: 1.3;
+                      }
+                      .notice-content p {
+                        margin: 1mm 0;
+                      }
+                      .notice-important {
+                        font-weight: bold;
+                        margin-top: 2mm;
+                      }
+                      .footer {
+                        text-align: center;
+                        padding-top: 3mm;
+                        border-top: 1px solid black;
+                        font-size: 11px;
+                      }
+                      .footer p {
+                        margin: 1mm 0;
+                      }
+                      .footer-company {
+                        font-weight: bold;
+                      }
+                      @media print {
+                        body { 
+                          padding: 5mm;
+                          -webkit-print-color-adjust: exact;
+                          print-color-adjust: exact;
+                        }
+                        .ticket { 
+                          width: 80mm; 
+                          margin: 0; 
+                        }
+                      }
+                      @page {
+                        margin: 5mm;
+                        size: 80mm auto;
+                      }
+                    </style>
+                  </head>
+                  <body>
+                    <div class="ticket">
+                      <div class="header">
+                        <div class="ticket-title">
+                          <h2>ON HOLD TICKET</h2>
+                          <p class="ticket-number">#${ticketNumber}</p>
+                        </div>
+                        <h3 class="company-name">${companyInfo.brand.name}</h3>
+                        <p class="company-info">${companyInfo.brand.addressLines.join(
+                          ", "
+                        )}</p>
+                        <p class="company-info">Tel: ${companyInfo.brand.phones.join(
+                          ", "
+                        )}</p>
+                      </div>
+
+                      <div class="info-section">
+                        <div class="info-row">
+                          <span class="info-label">Date:</span>
+                          <span>${currentDate.toLocaleDateString(
+                            "en-GB"
+                          )}</span>
+                        </div>
+                        <div class="info-row">
+                          <span class="info-label">Time:</span>
+                          <span>${currentDate.toLocaleTimeString("en-GB", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}</span>
+                        </div>
+                        <div class="vehicle-section">
+                          <div class="info-label">Vehicle Plate:</div>
+                          <div class="plate-number">${carPlateNumber}</div>
+                        </div>
+                      </div>
+
+                      <div class="items-section">
+                        <div class="items-header">RESERVED ITEMS</div>
+                        ${cart
+                          .map(
+                            (item, index) => `
+                          <div class="item">
+                            <div class="item-header">
+                              <span class="item-name">${
+                                item.name || item.product_name
+                              }</span>
+                              <span class="item-qty">Qty: ${
+                                item.quantity
+                              }</span>
+                            </div>
+                            <div class="item-footer">
+                              <span>OMR ${
+                                item.price?.toFixed(3) || "0.000"
+                              } each</span>
+                              <span class="item-amount">OMR ${(
+                                (item.price || 0) * item.quantity
+                              ).toFixed(3)}</span>
+                            </div>
+                          </div>
+                        `
+                          )
+                          .join("")}
+                      </div>
+
+                      <div class="total-section">
+                        <div class="total-row">
+                          <span class="total-label">TOTAL AMOUNT:</span>
+                          <span class="total-amount">OMR ${total.toFixed(
+                            3
+                          )}</span>
+                        </div>
+                      </div>
+
+                      <div class="notice-section">
+                        <div class="notice-title">IMPORTANT NOTICE</div>
+                        <div class="notice-content">
+                          <p>This ticket reserves your selected items.</p>
+                          <p>Present this ticket to complete your purchase.</p>
+                          <p class="notice-important">Valid for 24 hours from issue time</p>
+                          <p>Items will be released after expiry</p>
+                        </div>
+                      </div>
+
+                      <div class="footer">
+                        <p>Thank you for choosing</p>
+                        <p class="footer-company">${companyInfo.brand.name}</p>
+                      </div>
+                    </div>
+                  </body>
+                </html>
+              `);
+              printWindow.document.close();
+              printWindow.print();
+              printWindow.close();
+            }
+          }
+        }}
       />
 
       {/* Bottle Type Selection Dialog */}
@@ -3592,6 +4108,16 @@ function POSPageContent() {
           >
             Warranty Claim
           </Button>
+          <Button
+            className="w-full"
+            variant="outline"
+            onClick={() => {
+              setIsDisputeDialogOpen(false);
+              setIsSettlementModalOpen(true);
+            }}
+          >
+            Settlement
+          </Button>
         </DialogContent>
       </Dialog>
 
@@ -3727,6 +4253,221 @@ function POSPageContent() {
               Add to Cart
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Settlement Modal */}
+      <Dialog
+        open={isSettlementModalOpen}
+        onOpenChange={(open) => {
+          setIsSettlementModalOpen(open);
+          if (!open) {
+            // Reset all settlement state when closing
+            setSettlementStep('reference');
+            setSettlementReference("");
+            setSettlementCashierId("");
+            setSettlementCashierError(null);
+            setFetchedSettlementCashier(null);
+            setIsProcessingSettlement(false);
+          }
+        }}
+      >
+        <DialogContent 
+          className="w-[90%] max-w-md p-6 rounded-lg"
+          onPointerDownOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => e.preventDefault()}
+        >
+          {settlementStep === 'reference' && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="text-center text-xl font-semibold">
+                  Settlement
+                </DialogTitle>
+                <p className="text-center text-muted-foreground mt-2 text-sm">
+                  Convert a credited sale into a regular sale
+                </p>
+              </DialogHeader>
+
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <label
+                    htmlFor="settlement-reference"
+                    className="text-sm font-medium"
+                  >
+                    Reference/Bill Number
+                  </label>
+                  <Input
+                    id="settlement-reference"
+                    type="text"
+                    placeholder="Enter reference or bill number"
+                    value={settlementReference}
+                    onChange={(e) => setSettlementReference(e.target.value)}
+                    className="w-full"
+                    autoFocus
+                  />
+                </div>
+              </div>
+
+              <DialogFooter className="flex flex-row gap-3">
+                <Button
+                  variant="outline"
+                  className="flex-1 h-12 text-base"
+                  onClick={() => setIsSettlementModalOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  className="flex-1 h-12 text-base"
+                  onClick={() => {
+                    if (settlementReference.trim()) {
+                      setSettlementStep('id');
+                    }
+                  }}
+                  disabled={!settlementReference.trim()}
+                >
+                  Continue
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+
+          {settlementStep === 'id' && !fetchedSettlementCashier && (
+            <>
+              <DialogHeader className="pb-4">
+                <DialogTitle className="text-xl font-semibold text-center">
+                  Enter Cashier ID
+                </DialogTitle>
+                <DialogDescription className="text-center">
+                  Please enter your cashier ID to proceed with settlement.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex flex-col items-center">
+                <form
+                  className="flex flex-col items-center w-full"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const found = staffMembers.find(
+                      (c) => c.id === settlementCashierId
+                    );
+                    if (found) {
+                      setFetchedSettlementCashier(found);
+                      setSettlementCashierError(null);
+                    } else {
+                      setSettlementCashierError(
+                        "Invalid cashier ID. Please try again."
+                      );
+                    }
+                  }}
+                >
+                  <Input
+                    className="text-center text-2xl w-32 mb-2"
+                    value={settlementCashierId}
+                    onChange={(e) => {
+                      setSettlementCashierId(e.target.value.replace(/\D/g, ""));
+                      setSettlementCashierError(null);
+                    }}
+                    maxLength={6}
+                    inputMode="numeric"
+                    type="tel"
+                    pattern="[0-9]*"
+                    autoFocus
+                    placeholder="ID"
+                  />
+                  <Button
+                    className="w-full mt-4"
+                    type="submit"
+                    disabled={settlementCashierId.length === 0}
+                  >
+                    Verify ID
+                  </Button>
+                </form>
+                {settlementCashierError && (
+                  <div className="text-destructive text-sm mt-2">
+                    {settlementCashierError}
+                  </div>
+                )}
+                <Button
+                  variant="outline"
+                  className="w-full mt-4"
+                  onClick={() => setSettlementStep('reference')}
+                >
+                  Back
+                </Button>
+              </div>
+            </>
+          )}
+
+          {settlementStep === 'id' && fetchedSettlementCashier && (
+            <>
+              <DialogHeader className="pb-4">
+                <DialogTitle className="text-xl font-semibold text-center">
+                  Confirm Settlement
+                </DialogTitle>
+                <DialogDescription className="text-center">
+                  Welcome, {fetchedSettlementCashier.name}!
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex flex-col items-center my-4">
+                <div className="text-center space-y-2 mb-4">
+                  <div className="text-sm text-muted-foreground">
+                    Cashier ID: {fetchedSettlementCashier.id}
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    Reference: {settlementReference}
+                  </div>
+                </div>
+
+                {isProcessingSettlement && (
+                  <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground mb-4">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                    Processing settlement...
+                  </div>
+                )}
+
+                <div className="flex flex-row gap-3 w-full">
+                  <Button
+                    variant="outline"
+                    className="flex-1 h-12 text-base"
+                    onClick={() => {
+                      setFetchedSettlementCashier(null);
+                      setSettlementCashierId("");
+                      setSettlementCashierError(null);
+                    }}
+                    disabled={isProcessingSettlement}
+                  >
+                    Back
+                  </Button>
+                  <Button
+                    className="flex-1 h-12 text-base"
+                    onClick={async () => {
+                      setIsProcessingSettlement(true);
+
+                      // Simulate processing delay
+                      await new Promise((resolve) => setTimeout(resolve, 1500));
+
+                      // Show success toast
+                      toast({
+                        title: "Settlement Processed",
+                        description: `Reference ${settlementReference} has been converted to a regular sale by ${fetchedSettlementCashier.name}.`,
+                      });
+
+                      // Reset and close
+                      setSettlementStep('reference');
+                      setSettlementReference("");
+                      setSettlementCashierId("");
+                      setSettlementCashierError(null);
+                      setFetchedSettlementCashier(null);
+                      setIsProcessingSettlement(false);
+                      setIsSettlementModalOpen(false);
+                    }}
+                    disabled={isProcessingSettlement}
+                  >
+                    {isProcessingSettlement ? "Processing..." : "Confirm Settlement"}
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
         </DialogContent>
       </Dialog>
 
@@ -4212,8 +4953,10 @@ const ReceiptComponent = ({
         return "Cash";
       case "mobile":
         return "Mobile Pay";
-      case "voucher":
-        return "Voucher";
+      case "on-hold":
+        return "on-hold";
+      case "credit":
+        return "Credit";
       default:
         return method.charAt(0).toUpperCase() + method.slice(1);
     }

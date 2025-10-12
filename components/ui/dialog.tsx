@@ -1,18 +1,18 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import * as DialogPrimitive from "@radix-ui/react-dialog"
-import { X } from "lucide-react"
+import * as React from "react";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { X } from "lucide-react";
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/utils";
 
-const Dialog = DialogPrimitive.Root
+const Dialog = DialogPrimitive.Root;
 
-const DialogTrigger = DialogPrimitive.Trigger
+const DialogTrigger = DialogPrimitive.Trigger;
 
-const DialogPortal = DialogPrimitive.Portal
+const DialogPortal = DialogPrimitive.Portal;
 
-const DialogClose = DialogPrimitive.Close
+const DialogClose = DialogPrimitive.Close;
 
 const DialogOverlay = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Overlay>,
@@ -26,8 +26,8 @@ const DialogOverlay = React.forwardRef<
     )}
     {...props}
   />
-))
-DialogOverlay.displayName = DialogPrimitive.Overlay.displayName
+));
+DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
@@ -49,7 +49,7 @@ const DialogContent = React.forwardRef<
       }}
     >
       {children}
-      <DialogPrimitive.Close 
+      <DialogPrimitive.Close
         id="dialog-close-button"
         className="absolute right-5 top-5 z-[60] h-8 w-8 rounded-full flex items-center justify-center bg-background border shadow-sm opacity-100 hover:opacity-90 hover:bg-muted focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 transition-all"
       >
@@ -58,8 +58,8 @@ const DialogContent = React.forwardRef<
       </DialogPrimitive.Close>
     </DialogPrimitive.Content>
   </DialogPortal>
-))
-DialogContent.displayName = DialogPrimitive.Content.displayName
+));
+DialogContent.displayName = DialogPrimitive.Content.displayName;
 
 // New component without close button
 const DialogContentWithoutClose = React.forwardRef<
@@ -84,8 +84,8 @@ const DialogContentWithoutClose = React.forwardRef<
       {children}
     </DialogPrimitive.Content>
   </DialogPortal>
-))
-DialogContentWithoutClose.displayName = "DialogContentWithoutClose"
+));
+DialogContentWithoutClose.displayName = "DialogContentWithoutClose";
 
 const DialogHeader = ({
   className,
@@ -98,8 +98,8 @@ const DialogHeader = ({
     )}
     {...props}
   />
-)
-DialogHeader.displayName = "DialogHeader"
+);
+DialogHeader.displayName = "DialogHeader";
 
 const DialogFooter = ({
   className,
@@ -112,8 +112,8 @@ const DialogFooter = ({
     )}
     {...props}
   />
-)
-DialogFooter.displayName = "DialogFooter"
+);
+DialogFooter.displayName = "DialogFooter";
 
 const DialogTitle = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Title>,
@@ -127,8 +127,8 @@ const DialogTitle = React.forwardRef<
     )}
     {...props}
   />
-))
-DialogTitle.displayName = DialogPrimitive.Title.displayName
+));
+DialogTitle.displayName = DialogPrimitive.Title.displayName;
 
 const DialogDescription = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Description>,
@@ -139,8 +139,8 @@ const DialogDescription = React.forwardRef<
     className={cn("text-sm text-muted-foreground", className)}
     {...props}
   />
-))
-DialogDescription.displayName = DialogPrimitive.Description.displayName
+));
+DialogDescription.displayName = DialogPrimitive.Description.displayName;
 
 export {
   Dialog,
@@ -154,4 +154,4 @@ export {
   DialogFooter,
   DialogTitle,
   DialogDescription,
-}
+};

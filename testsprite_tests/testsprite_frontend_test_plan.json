@@ -1,0 +1,463 @@
+[
+  {
+    "id": "TC001",
+    "title": "Successful login with valid credentials",
+    "description": "Verify that users can log in successfully using valid username and password credentials.",
+    "category": "security",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to the login page."
+      },
+      {
+        "type": "action",
+        "description": "Enter valid username and password."
+      },
+      {
+        "type": "action",
+        "description": "Click the login button."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the user is authenticated and redirected to the POS dashboard."
+      }
+    ]
+  },
+  {
+    "id": "TC002",
+    "title": "Login failure with invalid credentials",
+    "description": "Verify that users cannot log in with invalid username or password and appropriate error message is displayed.",
+    "category": "security",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to the login page."
+      },
+      {
+        "type": "action",
+        "description": "Enter invalid username or password."
+      },
+      {
+        "type": "action",
+        "description": "Click the login button."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify login fails and error message indicating invalid credentials is displayed."
+      }
+    ]
+  },
+  {
+    "id": "TC003",
+    "title": "Add automotive products to POS cart",
+    "description": "Verify that a user can select products including oil with specified partial volume and add them to the cart successfully.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Login and access POS interface."
+      },
+      {
+        "type": "action",
+        "description": "Search and select an oil product."
+      },
+      {
+        "type": "action",
+        "description": "Specify partial oil volume less than full bottle volume."
+      },
+      {
+        "type": "action",
+        "description": "Add product with partial volume to cart."
+      },
+      {
+        "type": "action",
+        "description": "Add filter and parts products to cart with full quantities."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify all selected products appear in the cart with correct quantities and volumes."
+      }
+    ]
+  },
+  {
+    "id": "TC004",
+    "title": "Apply discounts during sales",
+    "description": "Verify that various discount types can be applied to products or entire cart and reflect accurately in the total amount.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Add multiple products to the cart."
+      },
+      {
+        "type": "action",
+        "description": "Apply percentage discount on one product."
+      },
+      {
+        "type": "action",
+        "description": "Apply fixed amount discount on the entire cart."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify that discounts are calculated correctly and total price is updated accordingly."
+      }
+    ]
+  },
+  {
+    "id": "TC005",
+    "title": "Complete sale with multiple payment methods",
+    "description": "Validate that a user can complete a sale using different payment methods (cash, credit card, digital wallets) and system generates receipt correctly.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Add items to cart."
+      },
+      {
+        "type": "action",
+        "description": "Select a payment method (test cash, credit card, digital wallet separately)."
+      },
+      {
+        "type": "action",
+        "description": "Complete the payment process."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify sale is successful, inventory is updated, and receipt is generated with correct payment and sale details."
+      }
+    ]
+  },
+  {
+    "id": "TC006",
+    "title": "Inventory auto-update after sale with partial oil volume handling",
+    "description": "Validate inventory is updated appropriately after a sale including decrementing partial volumes from open oil bottles.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Sell an oil product specifying partial volume usage."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify inventory stock updates by reducing the open bottle's remaining volume correctly."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify inventory level for other items in the sale decrements correctly."
+      }
+    ]
+  },
+  {
+    "id": "TC007",
+    "title": "Process refund and update inventory",
+    "description": "Verify that refunds can be processed by selecting previous sales, and inventory is correctly adjusted back with refund receipt generated.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Search previous sale by invoice or date."
+      },
+      {
+        "type": "action",
+        "description": "Select items and quantities to refund."
+      },
+      {
+        "type": "action",
+        "description": "Complete refund transaction."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify inventory is incremented properly, especially partial oil volumes if applicable."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify refund receipt is generated with correct refund details."
+      }
+    ]
+  },
+  {
+    "id": "TC008",
+    "title": "Add, edit, and batch track inventory items",
+    "description": "Validate inventory managers can add new products, edit existing ones including batch cost, quantity, expiration and verify these are tracked correctly.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to main inventory management page."
+      },
+      {
+        "type": "action",
+        "description": "Add a new product with batch information (cost, quantity, expiration date)."
+      },
+      {
+        "type": "action",
+        "description": "Edit an existing product to update batch details."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify batch tracking details are stored and displayed correctly."
+      }
+    ]
+  },
+  {
+    "id": "TC009",
+    "title": "Trigger stock alert for low inventory",
+    "description": "Verify system triggers alert notifications for inventory items at or below stock alert levels.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Set low-stock alert threshold for a product."
+      },
+      {
+        "type": "action",
+        "description": "Perform sales transactions reducing stock to alert threshold."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify that stock alert notification is triggered for the product."
+      }
+    ]
+  },
+  {
+    "id": "TC010",
+    "title": "Inventory transfer between branches",
+    "description": "Validate branch managers can transfer inventory between branches and that stock levels update appropriately at origin and destination.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to inventory transfer interface."
+      },
+      {
+        "type": "action",
+        "description": "Select source branch and destination branch."
+      },
+      {
+        "type": "action",
+        "description": "Select products and quantities to transfer."
+      },
+      {
+        "type": "action",
+        "description": "Confirm and complete transfer."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify source branch inventory is decremented and destination branch inventory incremented correctly."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify transfer record is logged with correct details."
+      }
+    ]
+  },
+  {
+    "id": "TC011",
+    "title": "Generate and export sales and inventory reports",
+    "description": "Verify managers can generate reports selecting various parameters and export data correctly in supported formats.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to reporting interface."
+      },
+      {
+        "type": "action",
+        "description": "Select report type (sales, inventory, profit margin)."
+      },
+      {
+        "type": "action",
+        "description": "Choose filtering parameters (date, branch, product category)."
+      },
+      {
+        "type": "action",
+        "description": "Generate report."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify report displays correct data based on selected parameters."
+      },
+      {
+        "type": "action",
+        "description": "Export the report in available formats (CSV, PDF)."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify exported report matches displayed data and file is correctly formatted."
+      }
+    ]
+  },
+  {
+    "id": "TC012",
+    "title": "Role-based access control enforcement",
+    "description": "Verify that system enforces access control policies preventing unauthorized users from accessing restricted features.",
+    "category": "security",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Log in as cashier."
+      },
+      {
+        "type": "action",
+        "description": "Attempt to access inventory management, batch editing, or branch transfer functions."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify access is denied or restricted functionality displayed."
+      },
+      {
+        "type": "action",
+        "description": "Log in as inventory manager."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify access to inventory management and batch editing is granted."
+      },
+      {
+        "type": "action",
+        "description": "Log in as branch manager."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify access to branch inventory transfer features is granted."
+      }
+    ]
+  },
+  {
+    "id": "TC013",
+    "title": "UI responsiveness and theme switching",
+    "description": "Verify that UI components render correctly on different screen sizes and support light/dark mode toggling.",
+    "category": "ui",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Open the application on desktop, tablet, and mobile screen sizes."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify UI components adapt properly and are usable on all screen sizes."
+      },
+      {
+        "type": "action",
+        "description": "Toggle between light and dark mode UI themes."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify UI colors and elements adjust correctly without visual defects."
+      }
+    ]
+  },
+  {
+    "id": "TC014",
+    "title": "Search functionality in inventory and sales",
+    "description": "Validate that users can search inventory and past sales by multiple fields including product name, batch, category, and invoice number.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to inventory screen."
+      },
+      {
+        "type": "action",
+        "description": "Search inventory by product name."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify search results match the search term."
+      },
+      {
+        "type": "action",
+        "description": "Navigate to sales history."
+      },
+      {
+        "type": "action",
+        "description": "Search sales by invoice number or date range."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify relevant sales records are shown matching search criteria."
+      }
+    ]
+  },
+  {
+    "id": "TC015",
+    "title": "Performance under concurrent usage",
+    "description": "Verify the system can sustain at least 20 concurrent active users performing transactions without degradation in response time or failures.",
+    "category": "performance",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Simulate 20 concurrent users performing sales, refunds, inventory updates and report generation."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify no significant performance degradation and system processes 1000+ transactions daily smoothly."
+      }
+    ]
+  },
+  {
+    "id": "TC016",
+    "title": "Handle insufficient inventory on sale",
+    "description": "Verify system prevents sales that exceed available inventory including partial oil volume availability and shows appropriate error messages.",
+    "category": "error handling",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Attempt to sell product quantity exceeding available stock."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify sale is blocked and user is notified about insufficient stock."
+      },
+      {
+        "type": "action",
+        "description": "Attempt to sell partial oil volume exceeding remaining volume in open bottle."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify sale is blocked with appropriate message."
+      }
+    ]
+  },
+  {
+    "id": "TC017",
+    "title": "Validate input fields with schema validation",
+    "description": "Validate that all input fields across forms such as product creation, sales, refunds enforce schema constraints and provide user-friendly error messages.",
+    "category": "error handling",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Enter invalid values (empty, incorrect data types, out of range) in product creation form."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify validation errors are shown guided by Zod schemas."
+      },
+      {
+        "type": "action",
+        "description": "Attempt sales with invalid quantities or missing payment details."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify form submission is blocked and relevant error messages shown."
+      }
+    ]
+  }
+]

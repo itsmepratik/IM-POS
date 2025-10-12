@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 
 // Redis import removed
-import { Item } from "@/lib/services/branchInventoryService";
+import { Item } from "@/lib/services/inventoryService";
 
 // Local storage keys
 const STORAGE_KEYS = {

@@ -30,6 +30,7 @@ export const CheckoutInputSchema = z.object({
   cashierId: z.string().min(1).optional(), // Changed from .uuid() to support non-UUID IDs
   cart: z.array(CartItemSchema),
   tradeIns: z.array(TradeInItemSchema).optional(),
+  carPlateNumber: z.string().min(1).optional(), // For 'on hold' payments
 });
 
 // Response schemas

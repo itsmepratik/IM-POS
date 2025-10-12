@@ -1,13 +1,14 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Item } from "@/lib/services/inventoryService";
-import {
-  fetchItems,
-  deleteItem,
-  fetchCategories,
-  fetchBrands,
-} from "@/lib/services/inventoryService";
+// Temporarily using mock data instead of database services
+// import {
+//   fetchItems,
+//   deleteItem,
+//   fetchCategories,
+//   fetchBrands,
+// } from "@/lib/services/inventoryService";
 import { toast } from "@/components/ui/use-toast";
 
 // Hafith Branch data (Branch ID: "2")
@@ -294,16 +295,15 @@ export function useHafithInventory(): UseHafithInventoryReturn {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch items, categories, and brands in parallel
-        const [itemsData, categoriesData, brandsData] = await Promise.all([
-          fetchBranchInventory(),
-          fetchCategories(),
-          fetchBrands(),
-        ]);
+        setIsLoading(true);
 
-        setBranchItems(itemsData);
-        setDbCategories(categoriesData.map((cat) => cat.name));
-        setDbBrands(brandsData.map((brand) => brand.name));
+        // Simulate loading delay
+        await new Promise((resolve) => setTimeout(resolve, 500));
+
+        // Use local mock data instead of database calls
+        setBranchItems(HAFITH_INVENTORY);
+        setDbCategories(["Lubricants", "Filters", "Fluids", "Brakes"]);
+        setDbBrands(["Mobil", "K&N", "Valvoline", "Rain-X", "Motul", "Brembo"]);
       } catch (error) {
         console.error("Error fetching data:", error);
         toast({
@@ -319,18 +319,26 @@ export function useHafithInventory(): UseHafithInventoryReturn {
     fetchData();
   }, []);
 
-  const fetchBranchInventory = async (): Promise<Item[]> => {
+  const fetchBranchInventory = useCallback(async () => {
     try {
-      // Use real database connection - Hafith branch ID
-      const hafithId = "8ae59a0c-1821-4ec0-b913-1900fdcaf7a1";
-      const data = await fetchItems(hafithId);
-      console.log(`✅ Fetched ${data.length} items for Hafith from database`);
-      return data;
-    } catch (error) {
-      console.error("Error fetching Hafith inventory:", error);
+      setIsLoading(true);
+      setError(null);
+
+      // Simulate loading delay
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
+      // Return mock items for Hafith branch
+      return HAFITH_INVENTORY;
+    } catch (err) {
+      console.error("Error fetching Hafith inventory:", err);
+      setError(
+        err instanceof Error ? err.message : "Failed to fetch inventory"
+      );
       return [];
+    } finally {
+      setIsLoading(false);
     }
-  };
+  }, []);
 
   // Derived states - use database categories and brands
   const categories = useMemo(() => {
@@ -385,24 +393,19 @@ export function useHafithInventory(): UseHafithInventoryReturn {
 
   const handleDeleteItem = async (id: string): Promise<void> => {
     try {
-      // Use real database connection - Hafith branch ID
-      const hafithId = "8ae59a0c-1821-4ec0-b913-1900fdcaf7a1";
-      const success = await deleteItem(id, hafithId);
+      // Simulate loading delay
+      await new Promise((resolve) => setTimeout(resolve, 300));
 
-      if (success) {
-        // Update local state
-        setBranchItems((prev) => prev.filter((item) => item.id !== id));
+      // Update local state (mock delete operation)
+      setBranchItems((prev) => prev.filter((item) => item.id !== id));
 
-        // Update selected items
-        setSelectedItems((prev) => prev.filter((itemId) => itemId !== id));
+      // Update selected items
+      setSelectedItems((prev) => prev.filter((itemId) => itemId !== id));
 
-        toast({
-          title: "Success",
-          description: "Item deleted successfully from Hafith inventory",
-        });
-      } else {
-        throw new Error("Delete operation failed");
-      }
+      toast({
+        title: "Success",
+        description: "Item deleted successfully from Hafith inventory",
+      });
     } catch (error) {
       console.error("Error deleting item:", error);
       toast({

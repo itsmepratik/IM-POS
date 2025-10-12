@@ -92,7 +92,7 @@ export function BranchSelector({
       </Select>
 
       {currentBranch && (
-        <Badge variant="secondary" className="ml-1">
+        <Badge variant="secondary" className="ml-1 hidden lg:inline-flex">
           Active
         </Badge>
       )}

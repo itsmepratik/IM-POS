@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -10,15 +11,27 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { Loader2 } from "lucide-react"
 
 interface DeleteDialogProps {
   isOpen: boolean
   onClose: () => void
-  onConfirm: () => void
+  onConfirm: () => Promise<void>
   customerName: string
 }
 
 export function DeleteDialog({ isOpen, onClose, onConfirm, customerName }: DeleteDialogProps) {
+  const [isDeleting, setIsDeleting] = useState(false)
+
+  const handleConfirm = async () => {
+    setIsDeleting(true)
+    try {
+      await onConfirm()
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
   return (
     <AlertDialog open={isOpen} onOpenChange={onClose}>
       <AlertDialogContent className="w-[90%] max-w-md rounded-lg">
@@ -29,15 +42,23 @@ export function DeleteDialog({ isOpen, onClose, onConfirm, customerName }: Delet
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
           <AlertDialogAction 
-            onClick={onConfirm}
-            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            onClick={handleConfirm}
+            disabled={isDeleting}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50"
           >
-            Delete
+            {isDeleting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Deleting...
+              </>
+            ) : (
+              "Delete"
+            )}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
   )
-} 
+}

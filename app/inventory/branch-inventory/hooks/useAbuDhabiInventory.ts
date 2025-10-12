@@ -1,13 +1,14 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Item } from "@/lib/services/inventoryService";
-import {
-  fetchItems,
-  deleteItem,
-  fetchCategories,
-  fetchBrands,
-} from "@/lib/services/inventoryService";
+// Temporarily using mock data instead of database services
+// import {
+//   fetchItems,
+//   deleteItem,
+//   fetchCategories,
+//   fetchBrands,
+// } from "@/lib/services/inventoryService";
 import { toast } from "@/components/ui/use-toast";
 
 // Abu Dhurus Branch data (Branch ID: "1")
@@ -267,16 +268,21 @@ export function useAbuDhabiInventory(): UseAbuDhabiInventoryReturn {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch items, categories, and brands in parallel
-        const [itemsData, categoriesData, brandsData] = await Promise.all([
-          fetchBranchInventory(),
-          fetchCategories(),
-          fetchBrands(),
-        ]);
+        setIsLoading(true);
 
-        setBranchItems(itemsData);
-        setDbCategories(categoriesData.map((cat) => cat.name));
-        setDbBrands(brandsData.map((brand) => brand.name));
+        // Simulate loading delay
+        await new Promise((resolve) => setTimeout(resolve, 500));
+
+        // Use local mock data instead of database calls
+        setBranchItems(ABU_DHABI_INVENTORY);
+        setDbCategories([
+          "Lubricants",
+          "Filters",
+          "Brakes",
+          "Fluids",
+          "Cleaning",
+        ]);
+        setDbBrands(["Castrol", "Bosch", "Akebono", "ATE", "Meguiar's"]);
       } catch (error) {
         console.error("Error fetching data:", error);
         toast({
@@ -292,20 +298,26 @@ export function useAbuDhabiInventory(): UseAbuDhabiInventoryReturn {
     fetchData();
   }, []);
 
-  const fetchBranchInventory = async (): Promise<Item[]> => {
+  const fetchBranchInventory = useCallback(async () => {
     try {
-      // Use real database connection - Abu Dhurus branch ID
-      const abuDhabiId = "11fb9800-37ec-41af-b034-c8bbbd8c4b3c";
-      const data = await fetchItems(abuDhabiId);
-      console.log(
-        `✅ Fetched ${data.length} items for Abu Dhurus from database`
+      setIsLoading(true);
+      setError(null);
+
+      // Simulate loading delay
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
+      // Return mock items for Abu Dhabi branch
+      return ABU_DHABI_INVENTORY;
+    } catch (err) {
+      console.error("Error fetching Abu Dhabi inventory:", err);
+      setError(
+        err instanceof Error ? err.message : "Failed to fetch inventory"
       );
-      return data;
-    } catch (error) {
-      console.error("Error fetching Abu Dhurus inventory:", error);
       return [];
+    } finally {
+      setIsLoading(false);
     }
-  };
+  }, []);
 
   // Derived states - use database categories and brands
   const categories = useMemo(() => {
@@ -360,24 +372,19 @@ export function useAbuDhabiInventory(): UseAbuDhabiInventoryReturn {
 
   const handleDeleteItem = async (id: string): Promise<void> => {
     try {
-      // Use real database connection - Abu Dhurus branch ID
-      const abuDhabiId = "11fb9800-37ec-41af-b034-c8bbbd8c4b3c";
-      const success = await deleteItem(id, abuDhabiId);
+      // Simulate loading delay
+      await new Promise((resolve) => setTimeout(resolve, 300));
 
-      if (success) {
-        // Update local state
-        setBranchItems((prev) => prev.filter((item) => item.id !== id));
+      // Update local state (mock data operation)
+      setBranchItems((prev) => prev.filter((item) => item.id !== id));
 
-        // Update selected items
-        setSelectedItems((prev) => prev.filter((itemId) => itemId !== id));
+      // Update selected items
+      setSelectedItems((prev) => prev.filter((itemId) => itemId !== id));
 
-        toast({
-          title: "Success",
-          description: "Item deleted successfully from Abu Dhurus inventory",
-        });
-      } else {
-        throw new Error("Delete operation failed");
-      }
+      toast({
+        title: "Success",
+        description: "Item deleted successfully from Abu Dhurus inventory",
+      });
     } catch (error) {
       console.error("Error deleting item:", error);
       toast({

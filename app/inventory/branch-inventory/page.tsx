@@ -453,22 +453,20 @@ function MobileView({
                   <ChevronDown className="h-4 w-4 ml-1" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-40">
+              <DropdownMenuContent placement="bottom end" className="w-40">
                 <DropdownMenuItem
-                  onClick={() => {
+                  onAction={() => {
                     setIsCategoryModalOpen(true);
                     setFiltersOpen(false);
                   }}
-                  className="cursor-pointer"
                 >
                   Categories
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                  onClick={() => {
+                  onAction={() => {
                     setIsBrandModalOpen(true);
                     setFiltersOpen(false);
                   }}
-                  className="cursor-pointer"
                 >
                   Brands
                 </DropdownMenuItem>
@@ -726,6 +724,12 @@ function BranchInventoryPage() {
     setShowOutOfStockOnly(false);
   };
 
+  // Memoized modal handlers to prevent re-renders
+  const handleItemModalOpenChange = useCallback((open: boolean) => {
+    setIsModalOpen(open);
+    if (!open) setEditingItem(null);
+  }, [setIsModalOpen, setEditingItem]);
+
   const [isMobile, setIsMobile] = useState(false);
   const [isClient, setIsClient] = useState(false);
 
@@ -833,16 +837,14 @@ function BranchInventoryPage() {
                     <ChevronDown className="h-4 w-4 ml-1" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-32">
+                <DropdownMenuContent placement="bottom end" className="w-32">
                   <DropdownMenuItem
-                    onClick={() => setIsCategoryModalOpen(true)}
-                    className="cursor-pointer"
+                    onAction={() => setIsCategoryModalOpen(true)}
                   >
                     Categories
                   </DropdownMenuItem>
                   <DropdownMenuItem
-                    onClick={() => setIsBrandModalOpen(true)}
-                    className="cursor-pointer"
+                    onAction={() => setIsBrandModalOpen(true)}
                   >
                     Brands
                   </DropdownMenuItem>
@@ -1190,10 +1192,7 @@ function BranchInventoryPage() {
 
       <ItemModal
         open={isModalOpen}
-        onOpenChange={(open) => {
-          setIsModalOpen(open);
-          if (!open) setEditingItem(null);
-        }}
+        onOpenChange={handleItemModalOpenChange}
         item={editingItem || undefined}
       />
       <CategoryModal

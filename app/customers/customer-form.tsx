@@ -26,12 +26,17 @@ interface CustomerFormProps {
   isOpen: boolean;
   onClose: () => void;
   customer?: CustomerData;
-  onSubmit: (customer: Omit<CustomerData, "id" | "createdAt" | "updatedAt">) => Promise<void>;
+  onSubmit: (
+    customer: Omit<CustomerData, "id" | "createdAt" | "updatedAt">
+  ) => Promise<void>;
   loading?: boolean;
 }
 
 // Form data type with address as string for form handling
-type CustomerFormData = Omit<CustomerData, "id" | "createdAt" | "updatedAt" | "address"> & {
+type CustomerFormData = Omit<
+  CustomerData,
+  "id" | "createdAt" | "updatedAt" | "address"
+> & {
   address: string;
 };
 
@@ -42,12 +47,12 @@ export function CustomerForm({
   onSubmit,
   loading = false,
 }: CustomerFormProps) {
-  console.log("🔄 CustomerForm: Component rendered", { 
-    isOpen, 
-    hasCustomer: !!customer, 
+  console.log("🔄 CustomerForm: Component rendered", {
+    isOpen,
+    hasCustomer: !!customer,
     customerId: customer?.id,
     loading,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
 
   // Helper function to convert address object to string
@@ -63,7 +68,7 @@ export function CustomerForm({
         address.city,
         address.state,
         address.zipCode,
-        address.country
+        address.country,
       ].filter(Boolean);
       return parts.join(", ");
     }
@@ -96,10 +101,10 @@ export function CustomerForm({
 
   // Reset form data when customer prop changes
   useEffect(() => {
-    console.log("🔄 CustomerForm: Customer prop changed", { 
+    console.log("🔄 CustomerForm: Customer prop changed", {
       customerId: customer?.id,
       customerName: customer?.name,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
     setFormData({
       name: customer?.name || "",
@@ -112,34 +117,37 @@ export function CustomerForm({
   }, [customer]);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    console.log("📝 CustomerForm: Form submission started", { 
+    console.log("📝 CustomerForm: Form submission started", {
       formData: { ...formData, vehicles: formData.vehicles.length },
       isSubmitting,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
-    
+
     e.preventDefault();
     if (isSubmitting) {
       console.log("⚠️ CustomerForm: Form already submitting, ignoring");
       return;
     }
-    
+
     setIsSubmitting(true);
     console.log("🔄 CustomerForm: Set isSubmitting to true");
-    
+
     try {
       // Convert address string back to object before submitting
       const submissionData = {
         ...formData,
         address: stringToAddress(formData.address as string),
       };
-      console.log("📤 CustomerForm: Calling onSubmit with data", { 
-        submissionData: { ...submissionData, vehicles: submissionData.vehicles.length }
+      console.log("📤 CustomerForm: Calling onSubmit with data", {
+        submissionData: {
+          ...submissionData,
+          vehicles: submissionData.vehicles.length,
+        },
       });
-      
+
       await onSubmit(submissionData);
       console.log("✅ CustomerForm: onSubmit completed successfully");
-      
+
       console.log("🚪 CustomerForm: Calling onClose");
       onClose();
     } catch (error) {
@@ -151,11 +159,11 @@ export function CustomerForm({
   };
 
   const addVehicle = () => {
-    console.log("🚗 CustomerForm: Adding new vehicle", { 
+    console.log("🚗 CustomerForm: Adding new vehicle", {
       currentVehicleCount: formData.vehicles.length,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
-    
+
     setFormData((prev) => {
       const newVehicles = [
         ...prev.vehicles,
@@ -167,9 +175,9 @@ export function CustomerForm({
           plateNumber: "",
         },
       ];
-      console.log("🔄 CustomerForm: Vehicle added", { 
+      console.log("🔄 CustomerForm: Vehicle added", {
         newVehicleCount: newVehicles.length,
-        newVehicleId: newVehicles[newVehicles.length - 1].id
+        newVehicleId: newVehicles[newVehicles.length - 1].id,
       });
       return {
         ...prev,
@@ -179,13 +187,13 @@ export function CustomerForm({
   };
 
   const updateVehicle = (id: string, field: keyof Vehicle, value: string) => {
-    console.log("🔧 CustomerForm: Updating vehicle", { 
-      vehicleId: id, 
-      field, 
+    console.log("🔧 CustomerForm: Updating vehicle", {
+      vehicleId: id,
+      field,
       value,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
-    
+
     setFormData((prev) => ({
       ...prev,
       vehicles: prev.vehicles.map((vehicle) =>
@@ -195,16 +203,16 @@ export function CustomerForm({
   };
 
   const removeVehicle = (id: string) => {
-    console.log("🗑️ CustomerForm: Removing vehicle", { 
+    console.log("🗑️ CustomerForm: Removing vehicle", {
       vehicleId: id,
       currentVehicleCount: formData.vehicles.length,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
-    
+
     setFormData((prev) => {
       const newVehicles = prev.vehicles.filter((vehicle) => vehicle.id !== id);
-      console.log("🔄 CustomerForm: Vehicle removed", { 
-        newVehicleCount: newVehicles.length
+      console.log("🔄 CustomerForm: Vehicle removed", {
+        newVehicleCount: newVehicles.length,
       });
       return {
         ...prev,
@@ -214,17 +222,20 @@ export function CustomerForm({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => {
-      console.log("🚪 CustomerForm: Dialog onOpenChange", { 
-        open, 
-        isOpen, 
-        timestamp: new Date().toISOString() 
-      });
-      if (!open) {
-        console.log("🚪 CustomerForm: Dialog closing, calling onClose");
-        onClose();
-      }
-    }}>
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        console.log("🚪 CustomerForm: Dialog onOpenChange", {
+          open,
+          isOpen,
+          timestamp: new Date().toISOString(),
+        });
+        if (!open) {
+          console.log("🚪 CustomerForm: Dialog closing, calling onClose");
+          onClose();
+        }
+      }}
+    >
       <DialogContent className="w-[90%] max-w-[600px] max-h-[90vh] rounded-lg overflow-hidden flex flex-col">
         <DialogHeader className="px-6 pt-6 pb-2 shrink-0">
           <DialogTitle>
@@ -249,10 +260,10 @@ export function CustomerForm({
                       id="name"
                       value={formData.name}
                       onChange={(e) => {
-                        console.log("📝 CustomerForm: Name field changed", { 
+                        console.log("📝 CustomerForm: Name field changed", {
                           newValue: e.target.value,
                           previousValue: formData.name,
-                          timestamp: new Date().toISOString()
+                          timestamp: new Date().toISOString(),
                         });
                         setFormData({ ...formData, name: e.target.value });
                       }}
@@ -267,10 +278,10 @@ export function CustomerForm({
                       id="email"
                       value={formData.email}
                       onChange={(e) => {
-                        console.log("📝 CustomerForm: Email field changed", { 
+                        console.log("📝 CustomerForm: Email field changed", {
                           newValue: e.target.value,
                           previousValue: formData.email,
-                          timestamp: new Date().toISOString()
+                          timestamp: new Date().toISOString(),
                         });
                         setFormData({ ...formData, email: e.target.value });
                       }}
@@ -285,10 +296,10 @@ export function CustomerForm({
                       id="phone"
                       value={formData.phone}
                       onChange={(e) => {
-                        console.log("📝 CustomerForm: Phone field changed", { 
+                        console.log("📝 CustomerForm: Phone field changed", {
                           newValue: e.target.value,
                           previousValue: formData.phone,
-                          timestamp: new Date().toISOString()
+                          timestamp: new Date().toISOString(),
                         });
                         setFormData({ ...formData, phone: e.target.value });
                       }}
@@ -303,10 +314,10 @@ export function CustomerForm({
                       id="address"
                       value={formData.address}
                       onChange={(e) => {
-                        console.log("📝 CustomerForm: Address field changed", { 
+                        console.log("📝 CustomerForm: Address field changed", {
                           newValue: e.target.value,
                           previousValue: formData.address,
-                          timestamp: new Date().toISOString()
+                          timestamp: new Date().toISOString(),
                         });
                         setFormData({ ...formData, address: e.target.value });
                       }}
@@ -321,10 +332,10 @@ export function CustomerForm({
                       id="notes"
                       value={formData.notes}
                       onChange={(e) => {
-                        console.log("📝 CustomerForm: Notes field changed", { 
+                        console.log("📝 CustomerForm: Notes field changed", {
                           newValue: e.target.value,
                           previousValue: formData.notes,
-                          timestamp: new Date().toISOString()
+                          timestamp: new Date().toISOString(),
                         });
                         setFormData({ ...formData, notes: e.target.value });
                       }}
@@ -518,7 +529,11 @@ export function CustomerForm({
           >
             Cancel
           </Button>
-          <Button type="submit" form="customer-form" disabled={isSubmitting || loading}>
+          <Button
+            type="submit"
+            form="customer-form"
+            disabled={isSubmitting || loading}
+          >
             {isSubmitting || loading ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />

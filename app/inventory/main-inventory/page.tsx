@@ -72,6 +72,7 @@ import { StockIndicator } from "../components/stock-indicator";
 import { BatteryStateSwitch } from "../components/battery-state-switch";
 import { TradeInsModal } from "../components/trade-ins-modal";
 import Image from "next/image";
+import { Pagination } from "@/components/ui/pagination";
 
 // Using Batch type from services via Item; no local Batch interface needed
 
@@ -550,6 +551,8 @@ TableRow.displayName = "TableRow";
 
 function MobileView() {
   const [isPending, startTransition] = useTransition();
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 50;
 
   const {
     filteredItems,
@@ -658,6 +661,11 @@ function MobileView() {
     setFiltersOpen(false);
   }, []);
 
+  // Handle trade-ins modal close
+  const handleTradeInsModalClose = useCallback(() => {
+    setTradeInsModalOpen(false);
+  }, []);
+
   // Handle search input change
   const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     startTransition(() => setSearchQuery(e.target.value));
@@ -723,22 +731,19 @@ function MobileView() {
                   <ChevronDown className="h-4 w-4 ml-1" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-40">
+              <DropdownMenuContent placement="bottom end" className="w-40">
                 <DropdownMenuItem
-                  onClick={handleCategoryModalOpen}
-                  className="cursor-pointer"
+                  onAction={handleCategoryModalOpen}
                 >
                   Categories
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                  onClick={handleBrandModalOpen}
-                  className="cursor-pointer"
+                  onAction={handleBrandModalOpen}
                 >
                   Brands
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                  onClick={handleTradeInsModalOpen}
-                  className="cursor-pointer"
+                  onAction={handleTradeInsModalOpen}
                 >
                   Trade-ins
                 </DropdownMenuItem>
@@ -910,15 +915,20 @@ function MobileView() {
 
       <div className="space-y-2">
         {!isLoading &&
-          filteredItems.map((item) => (
-            <MobileItemCard
-              key={item.id}
-              item={item}
-              onEdit={openEditItemModal}
-              onDelete={handleDelete}
-              onDuplicate={handleDuplicate}
-            />
-          ))}
+          (() => {
+            const indexOfLastItem = currentPage * itemsPerPage;
+            const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+            const currentItems = filteredItems.slice(indexOfFirstItem, indexOfLastItem);
+            return currentItems.map((item) => (
+              <MobileItemCard
+                key={item.id}
+                item={item}
+                onEdit={openEditItemModal}
+                onDelete={handleDelete}
+                onDuplicate={handleDuplicate}
+              />
+            ));
+          })()}
         {isLoading && (
           <div className="text-center py-8">
             <div className="flex flex-col items-center justify-center gap-3">
@@ -944,6 +954,14 @@ function MobileView() {
         )}
       </div>
 
+      {filteredItems.length > 0 && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={Math.ceil(filteredItems.length / itemsPerPage)}
+          onPageChange={setCurrentPage}
+        />
+      )}
+
       <ItemModal
         open={itemModalOpen}
         onOpenChange={handleItemModalOpenChange}
@@ -956,7 +974,7 @@ function MobileView() {
       <BrandModal open={brandModalOpen} onOpenChange={setBrandModalOpen} />
       <TradeInsModal
         isOpen={tradeInsModalOpen}
-        onClose={() => setTradeInsModalOpen(false)}
+        onClose={handleTradeInsModalClose}
       />
     </div>
   );
@@ -964,6 +982,8 @@ function MobileView() {
 
 function DesktopView() {
   const [isPending, startTransition] = useTransition();
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 50;
 
   const {
     filteredItems,
@@ -1081,6 +1101,11 @@ function DesktopView() {
     setTradeInsModalOpen(true);
   }, []);
 
+  // Handle trade-ins modal close
+  const handleTradeInsModalClose = useCallback(() => {
+    setTradeInsModalOpen(false);
+  }, []);
+
   // Handle clear all filters
   const handleClearAllFilters = useCallback(() => {
     setMinPrice("");
@@ -1181,22 +1206,19 @@ function DesktopView() {
                 <ChevronDown className="h-4 w-4 ml-1" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-40">
+            <DropdownMenuContent placement="bottom end" className="w-40">
               <DropdownMenuItem
-                onClick={handleCategoryModalOpen}
-                className="cursor-pointer"
+                onAction={handleCategoryModalOpen}
               >
                 Categories
               </DropdownMenuItem>
               <DropdownMenuItem
-                onClick={handleBrandModalOpen}
-                className="cursor-pointer"
+                onAction={handleBrandModalOpen}
               >
                 Brands
               </DropdownMenuItem>
               <DropdownMenuItem
-                onClick={handleTradeInsModalOpen}
-                className="cursor-pointer"
+                onAction={handleTradeInsModalOpen}
               >
                 Trade-ins
               </DropdownMenuItem>
@@ -1497,17 +1519,17 @@ function DesktopView() {
                 </tr>
               ) : (
                 <>
-                  {filteredItems.map((item) => (
-                    <TableRow
-                      key={item.id}
-                      item={item}
-                      isSelected={selectedItems.includes(item.id)}
-                      onToggle={toggleItemSelection}
-                      onEdit={openEditItemModal}
-                      onDelete={handleDelete}
-                      onDuplicate={handleDuplicate}
-                    />
-                  ))}
+                  {filteredItems.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((item) => (
+  <TableRow
+    key={item.id}
+    item={item}
+    isSelected={selectedItems.includes(item.id)}
+    onToggle={toggleItemSelection}
+    onEdit={openEditItemModal}
+    onDelete={handleDelete}
+    onDuplicate={handleDuplicate}
+  />
+))}
                   {filteredItems.length === 0 && (
                     <tr>
                       <td
@@ -1532,6 +1554,14 @@ function DesktopView() {
         </div>
       </div>
 
+      {filteredItems.length > 0 && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={Math.ceil(filteredItems.length / itemsPerPage)}
+          onPageChange={setCurrentPage}
+        />
+      )}
+
       <ItemModal
         open={itemModalOpen}
         onOpenChange={handleItemModalOpenChange}
@@ -1544,7 +1574,7 @@ function DesktopView() {
       <BrandModal open={brandModalOpen} onOpenChange={setBrandModalOpen} />
       <TradeInsModal
         isOpen={tradeInsModalOpen}
-        onClose={() => setTradeInsModalOpen(false)}
+        onClose={handleTradeInsModalClose}
       />
     </div>
   );
