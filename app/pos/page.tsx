@@ -575,6 +575,11 @@ function POSCustomerForm({
             <DialogTitle>
               {selectedCustomerId ? "Selected Customer" : "Add New Customer"}
             </DialogTitle>
+            <DialogDescription className="sr-only">
+              {selectedCustomerId
+                ? "View and manage customer details"
+                : "Add a new customer to the system"}
+            </DialogDescription>
             <Button
               type="button"
               variant="ghost"
@@ -1719,7 +1724,8 @@ function POSPageContent() {
       if (!selectedCashier) {
         toast({
           title: "Missing Information",
-          description: "Cashier selection is required for on-hold transactions.",
+          description:
+            "Cashier selection is required for on-hold transactions.",
           variant: "destructive",
           duration: 3000,
         });
@@ -1806,14 +1812,18 @@ function POSPageContent() {
         });
 
         if (!result.success) {
-          throw new Error(result.error || "On-hold transaction processing failed");
+          throw new Error(
+            result.error || "On-hold transaction processing failed"
+          );
         }
 
         // Store the transaction result for receipt display
         console.log("✅ On-hold transaction completed:", result.data);
 
         if (result.data?.offline) {
-          console.log("📱 On-hold transaction completed offline - will sync when online");
+          console.log(
+            "📱 On-hold transaction completed offline - will sync when online"
+          );
           toast({
             title: "On-Hold Transaction Completed Offline",
             description:
@@ -1834,7 +1844,6 @@ function POSPageContent() {
         // Generate and show ticket for On Hold after successful API call
         setShowOnHoldTicket(true);
         return;
-
       } catch (error) {
         console.error("On-hold checkout error:", error);
         toast({
@@ -2000,34 +2009,90 @@ function POSPageContent() {
     } catch (error) {
       console.error("Checkout error:", error);
 
-      // Enhanced error handling based on error type
+      // Enhanced error handling based on error type with actionable guidance
       let errorTitle = "Checkout Processing Issue";
       let errorDescription = "There was an issue processing the payment.";
+      let errorActions = [];
 
       if (error instanceof Error) {
-        if (error.message.includes("Database")) {
+        if (
+          error.message.includes("Database") ||
+          error.message.includes("authentication failed")
+        ) {
           errorTitle = "Database Connection Issue";
           errorDescription =
-            "Unable to connect to database. Transaction saved offline.";
+            "Unable to connect to database. Please check your configuration.";
+          errorActions = [
+            "1. Check your DATABASE_URL in environment variables",
+            "2. Verify the password in Supabase Dashboard",
+            "3. Run GET /api/diagnose-db for diagnostics",
+            "4. Try again in a few moments",
+          ];
         } else if (
           error.message.includes("network") ||
-          error.message.includes("fetch")
+          error.message.includes("fetch") ||
+          error.message.includes("connection")
         ) {
-          errorTitle = "Network Issue";
+          errorTitle = "Network Connection Issue";
           errorDescription =
-            "Connection problem detected. Transaction saved offline.";
+            "Connection problem detected. Please check your internet connection.";
+          errorActions = [
+            "1. Check your internet connection",
+            "2. Verify Supabase project is active",
+            "3. Check if your IP is blocked in Supabase settings",
+            "4. Try again in a few moments",
+          ];
         } else if (error.message.includes("timeout")) {
           errorTitle = "Request Timeout";
+          errorDescription = "Request took too long. The service may be busy.";
+          errorActions = [
+            "1. Wait a moment and try again",
+            "2. Check if the database is under heavy load",
+            "3. Contact support if this persists",
+          ];
+        } else if (error.message.includes("Server error")) {
+          errorTitle = "Server Error";
           errorDescription =
-            "Request took too long. Transaction completed offline.";
+            "The server encountered an error. Please try again.";
+          errorActions = [
+            "1. Try the transaction again",
+            "2. Check your database connection",
+            "3. Run GET /api/diagnose-db for diagnostics",
+            "4. Contact support if this persists",
+          ];
+        } else if (error.message.includes("Invalid request data")) {
+          errorTitle = "Data Validation Error";
+          errorDescription =
+            "The request data is invalid. Please check your input.";
+          errorActions = [
+            "1. Verify all required fields are filled",
+            "2. Check product IDs and quantities",
+            "3. Try again with corrected data",
+          ];
         }
       }
 
       toast({
         title: errorTitle,
-        description: errorDescription,
+        description: (
+          <div className="space-y-2">
+            <p>{errorDescription}</p>
+            {errorActions.length > 0 && (
+              <div className="mt-2">
+                <p className="font-medium text-sm">What to do:</p>
+                <ul className="text-sm mt-1 space-y-0.5">
+                  {errorActions.map((action, index) => (
+                    <li key={index} className="text-muted-foreground">
+                      {action}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        ),
         variant: "destructive",
-        duration: 5000,
+        duration: 8000,
       });
 
       // Fallback: Complete the transaction locally even if API fails
@@ -2046,14 +2111,34 @@ function POSPageContent() {
         discountForReceipt
       );
 
-      // Show additional warning toast after a delay
+      // Show additional warning toast after a delay with actionable steps
       setTimeout(() => {
         toast({
           title: "Manual Transaction Completed",
-          description:
-            "Transaction completed offline. Please verify inventory sync later.",
+          description: (
+            <div className="space-y-2">
+              <p>Transaction completed offline due to server issues.</p>
+              <div className="mt-2">
+                <p className="font-medium text-sm">Next steps:</p>
+                <ul className="text-sm mt-1 space-y-0.5">
+                  <li className="text-muted-foreground">
+                    1. Verify inventory was updated correctly
+                  </li>
+                  <li className="text-muted-foreground">
+                    2. Check database connectivity
+                  </li>
+                  <li className="text-muted-foreground">
+                    3. Run GET /api/diagnose-db for diagnostics
+                  </li>
+                  <li className="text-muted-foreground">
+                    4. Contact support if issues persist
+                  </li>
+                </ul>
+              </div>
+            </div>
+          ),
           variant: "default",
-          duration: 8000,
+          duration: 10000,
         });
       }, 1500);
     }
@@ -2261,10 +2346,17 @@ function POSPageContent() {
   const [isSettlementModalOpen, setIsSettlementModalOpen] = useState(false);
   const [settlementReference, setSettlementReference] = useState("");
   const [isProcessingSettlement, setIsProcessingSettlement] = useState(false);
-  const [settlementStep, setSettlementStep] = useState<'reference' | 'id' | 'processing'>('reference');
+  const [settlementStep, setSettlementStep] = useState<
+    "reference" | "id" | "processing"
+  >("reference");
   const [settlementCashierId, setSettlementCashierId] = useState("");
-  const [settlementCashierError, setSettlementCashierError] = useState<string | null>(null);
-  const [fetchedSettlementCashier, setFetchedSettlementCashier] = useState<{ id: string; name: string } | null>(null);
+  const [settlementCashierError, setSettlementCashierError] = useState<
+    string | null
+  >(null);
+  const [fetchedSettlementCashier, setFetchedSettlementCashier] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
 
   const isMobile = useIsMobile();
 
@@ -2829,6 +2921,9 @@ function POSPageContent() {
                 <DialogTitle className="text-base sm:text-xl font-semibold">
                   {selectedOil?.brand} - {selectedOil?.type}
                 </DialogTitle>
+                <DialogDescription className="sr-only">
+                  Select the volume for this lubricant product
+                </DialogDescription>
               </DialogHeader>
 
               <div className="flex justify-center mb-4 sm:mb-6">
@@ -3056,6 +3151,9 @@ function POSPageContent() {
                 <DialogTitle className="text-xl font-semibold text-center">
                   Select Payment Method
                 </DialogTitle>
+                <DialogDescription className="sr-only">
+                  Choose how the customer will pay for this transaction
+                </DialogDescription>
               </DialogHeader>
 
               <div className="space-y-6">
@@ -3570,6 +3668,9 @@ function POSPageContent() {
             <DialogTitle className="text-center text-xl">
               Select Bottle Type
             </DialogTitle>
+            <DialogDescription className="sr-only">
+              Choose whether to sell from a closed or open bottle
+            </DialogDescription>
           </DialogHeader>
 
           <div className="p-6">
@@ -4263,7 +4364,7 @@ function POSPageContent() {
           setIsSettlementModalOpen(open);
           if (!open) {
             // Reset all settlement state when closing
-            setSettlementStep('reference');
+            setSettlementStep("reference");
             setSettlementReference("");
             setSettlementCashierId("");
             setSettlementCashierError(null);
@@ -4272,12 +4373,12 @@ function POSPageContent() {
           }
         }}
       >
-        <DialogContent 
+        <DialogContent
           className="w-[90%] max-w-md p-6 rounded-lg"
           onPointerDownOutside={(e) => e.preventDefault()}
           onEscapeKeyDown={(e) => e.preventDefault()}
         >
-          {settlementStep === 'reference' && (
+          {settlementStep === "reference" && (
             <>
               <DialogHeader>
                 <DialogTitle className="text-center text-xl font-semibold">
@@ -4320,7 +4421,7 @@ function POSPageContent() {
                   className="flex-1 h-12 text-base"
                   onClick={() => {
                     if (settlementReference.trim()) {
-                      setSettlementStep('id');
+                      setSettlementStep("id");
                     }
                   }}
                   disabled={!settlementReference.trim()}
@@ -4331,7 +4432,7 @@ function POSPageContent() {
             </>
           )}
 
-          {settlementStep === 'id' && !fetchedSettlementCashier && (
+          {settlementStep === "id" && !fetchedSettlementCashier && (
             <>
               <DialogHeader className="pb-4">
                 <DialogTitle className="text-xl font-semibold text-center">
@@ -4389,7 +4490,7 @@ function POSPageContent() {
                 <Button
                   variant="outline"
                   className="w-full mt-4"
-                  onClick={() => setSettlementStep('reference')}
+                  onClick={() => setSettlementStep("reference")}
                 >
                   Back
                 </Button>
@@ -4397,7 +4498,7 @@ function POSPageContent() {
             </>
           )}
 
-          {settlementStep === 'id' && fetchedSettlementCashier && (
+          {settlementStep === "id" && fetchedSettlementCashier && (
             <>
               <DialogHeader className="pb-4">
                 <DialogTitle className="text-xl font-semibold text-center">
@@ -4452,7 +4553,7 @@ function POSPageContent() {
                       });
 
                       // Reset and close
-                      setSettlementStep('reference');
+                      setSettlementStep("reference");
                       setSettlementReference("");
                       setSettlementCashierId("");
                       setSettlementCashierError(null);
@@ -4462,7 +4563,9 @@ function POSPageContent() {
                     }}
                     disabled={isProcessingSettlement}
                   >
-                    {isProcessingSettlement ? "Processing..." : "Confirm Settlement"}
+                    {isProcessingSettlement
+                      ? "Processing..."
+                      : "Confirm Settlement"}
                   </Button>
                 </div>
               </div>

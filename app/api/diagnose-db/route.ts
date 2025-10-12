@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import postgres from "postgres";
+import { validateDatabaseUrl } from "@/lib/db/client";
 
 /**
  * Comprehensive Database Diagnostic Tool
@@ -122,47 +123,38 @@ async function checkEnvironmentVariables(): Promise<DiagnosticResult> {
 }
 
 async function validateDatabaseUrl(): Promise<DiagnosticResult> {
-  try {
-    const dbUrl = process.env.DATABASE_URL!;
-    const url = new URL(dbUrl);
+  const validation = validateDatabaseUrl();
 
-    const validation = {
-      protocol: url.protocol === "postgres:",
-      hostname: url.hostname.includes("supabase.co"),
-      port: url.port === "5432",
-      username: url.username === "postgres",
-      database: url.pathname === "/postgres",
-    };
-
-    const issues = Object.entries(validation)
-      .filter(([key, valid]) => !valid)
-      .map(([key]) => key);
-
-    if (issues.length > 0) {
-      return {
-        step: "URL Validation",
-        status: "error",
-        message: `DATABASE_URL has invalid components: ${issues.join(", ")}`,
-        details: validation,
-        solution:
-          "Check your DATABASE_URL format in Supabase Dashboard → Settings → Database",
-      };
-    }
-
-    return {
-      step: "URL Validation",
-      status: "success",
-      message: "DATABASE_URL format is valid",
-    };
-  } catch (error) {
+  if (!validation.isValid) {
     return {
       step: "URL Validation",
       status: "error",
-      message: "DATABASE_URL is not a valid URL",
-      details: error instanceof Error ? error.message : "Unknown error",
-      solution: "Check your DATABASE_URL format",
+      message: `DATABASE_URL has issues: ${validation.issues.join(", ")}`,
+      details: {
+        currentUrl: process.env.DATABASE_URL?.replace(/:[^:@]{8,}@/, ":***@"), // Mask password
+        issues: validation.issues,
+        suggestions: validation.suggestions,
+      },
+      solution: `Fix the following issues:\n${validation.suggestions
+        .map((s) => `• ${s}`)
+        .join(
+          "\n"
+        )}\n\nGet your correct DATABASE_URL from: Supabase Dashboard → Settings → Database → Connection string`,
     };
   }
+
+  return {
+    step: "URL Validation",
+    status: "success",
+    message: "DATABASE_URL format is valid",
+    details: {
+      protocol: "postgres://",
+      hostname: "supabase.co domain",
+      port: "5432 or 6543",
+      username: "postgres",
+      database: "/postgres",
+    },
+  };
 }
 
 async function testConnectionVariants(): Promise<DiagnosticResult[]> {
@@ -449,4 +441,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-

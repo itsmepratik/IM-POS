@@ -98,7 +98,7 @@ export const transactions = pgTable("transactions", {
   shopId: uuid("shop_id").references(() => locations.id, {
     onDelete: "restrict",
   }),
-  cashierId: text("cashier_id"),
+  cashierId: text("cashier_id"), // Changed back to text to support staff IDs like "0010"
   type: text("type").notNull(), // 'SALE' | 'REFUND' | 'WARRANTY_CLAIM' | 'CREDIT' | 'ON_HOLD'
   totalAmount: numeric("total_amount").notNull(),
   itemsSold: jsonb("items_sold").$type<unknown[]>(),
@@ -174,21 +174,3 @@ export const openBottleDetails = pgTable("open_bottle_details", {
   openedAt: timestamp("opened_at", { withTimezone: true }).defaultNow(),
   isEmpty: boolean("is_empty").default(false),
 });
-
-export const billSequences = pgTable("bill_sequences", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  transactionType: text("transaction_type").notNull(), // 'SALE', 'BATTERY', 'ON_HOLD', 'CREDIT'
-  month: integer("month").notNull(), // 1-12
-  year: integer("year").notNull(), // e.g., 2025
-  currentSequence: integer("current_sequence").notNull().default(0),
-  locationId: uuid("location_id").notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
-}, (table) => ({
-  uniqueTypeMonthYearLocation: unique().on(
-    table.transactionType,
-    table.month,
-    table.year,
-    table.locationId
-  ),
-}));

@@ -716,6 +716,9 @@ export default function TransactionsPage() {
   const [scrollActive, setScrollActive] = useState(false);
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
 
+  // Get staff data for transaction display
+  const { staffMembers } = useStaffIDs();
+
   // Get cashier options for the select
   const cashierOptions = useCashiersSelect();
 
@@ -785,45 +788,57 @@ export default function TransactionsPage() {
   const getTransactions = useCallback((): TransactionDisplay[] => {
     if (!apiTransactions) return [];
 
-    return apiTransactions.map((t) => ({
-      id: t.id,
-      amount: parseFloat(t.total_amount),
-      time: new Date(t.created_at).toLocaleString(),
-      paymentMethod: t.payment_method || "Cash",
-      customer: "Anonymous", // This would come from a customer field if available
-      items: t.items_sold?.length || 0,
-      cashier: t.cashier_id || "Unknown",
-      status:
-        t.type === "REFUND"
-          ? "refunded"
-          : t.type === "ON_HOLD"
-          ? "on-hold"
-          : "completed",
-      type:
-        t.type === "REFUND"
-          ? "refund"
-          : t.type === "CREDIT"
-          ? "credit"
-          : t.type === "ON_HOLD"
-          ? "on-hold"
-          : "sale",
-      items: [`${t.items_sold?.length || 0} items`],
-      customerName: "Anonymous",
-      reference: t.reference_number,
-      storeId: t.shop_id || "unknown",
-      date: new Date(t.created_at).toLocaleDateString(),
-      notes:
-        t.type === "REFUND"
-          ? "Item returned"
-          : t.type === "ON_HOLD"
-          ? `Car Plate: ${t.car_plate_number || "N/A"}`
-          : undefined,
-      cashier: t.cashier_id || "Unknown",
-      receiptHtml: t.receipt_html,
-      batteryBillHtml: t.battery_bill_html,
-      carPlateNumber: t.car_plate_number,
-    }));
-  }, [apiTransactions]);
+    // Create a lookup function for staff members
+    const findStaffMemberById = (id: string) => {
+      return staffMembers.find((staff) => staff.id === id);
+    };
+
+    return apiTransactions.map((t) => {
+      // Convert cashier_id to staff name
+      const cashierName = t.cashier_id
+        ? findStaffMemberById(t.cashier_id)?.name || `Staff ${t.cashier_id}`
+        : "Unknown";
+
+      return {
+        id: t.id,
+        amount: parseFloat(t.total_amount),
+        time: new Date(t.created_at).toLocaleString(),
+        paymentMethod: t.payment_method || "Cash",
+        customer: "Anonymous", // This would come from a customer field if available
+        items: t.items_sold?.length || 0,
+        cashier: cashierName,
+        status:
+          t.type === "REFUND"
+            ? "refunded"
+            : t.type === "ON_HOLD"
+            ? "on-hold"
+            : "completed",
+        type:
+          t.type === "REFUND"
+            ? "refund"
+            : t.type === "CREDIT"
+            ? "credit"
+            : t.type === "ON_HOLD"
+            ? "on-hold"
+            : "sale",
+        items: [`${t.items_sold?.length || 0} items`],
+        customerName: "Anonymous",
+        reference: t.reference_number,
+        storeId: t.shop_id || "unknown",
+        date: new Date(t.created_at).toLocaleDateString(),
+        notes:
+          t.type === "REFUND"
+            ? "Item returned"
+            : t.type === "ON_HOLD"
+            ? `Car Plate: ${t.car_plate_number || "N/A"}`
+            : undefined,
+        cashier: cashierName,
+        receiptHtml: t.receipt_html,
+        batteryBillHtml: t.battery_bill_html,
+        carPlateNumber: t.car_plate_number,
+      };
+    });
+  }, [apiTransactions, staffMembers]);
 
   const displayTransactions = useMemo(() => {
     const transactions = getTransactions();

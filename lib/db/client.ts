@@ -63,7 +63,8 @@ try {
     // Enhanced connection health monitoring
     const performHealthCheck = async () => {
       try {
-        await queryClient!`SELECT 1, current_timestamp as server_time`;
+        // Use a simpler query to avoid potential issues with complex queries
+        const result = await queryClient!`SELECT 1 as test_value`;
         connectionHealth.isHealthy = true;
         connectionHealth.consecutiveFailures = 0;
         connectionHealth.lastCheck = Date.now();
@@ -72,6 +73,7 @@ try {
         connectionHealth.isHealthy = false;
         connectionHealth.consecutiveFailures++;
         connectionHealth.lastCheck = Date.now();
+
         console.error(
           `❌ Database health check failed (${connectionHealth.consecutiveFailures} consecutive failures):`,
           error
@@ -85,6 +87,13 @@ try {
             poolSize: CONNECTION_POOL_SIZE,
             timeout: CONNECTION_TIMEOUT,
           });
+
+          // Log URL format issue if detected
+          if (dbConfig.url && dbConfig.url.includes("postgresql://")) {
+            console.error(
+              "⚠️ DATABASE_URL uses 'postgresql://' protocol. Consider using 'postgres://' for better compatibility."
+            );
+          }
         }
       }
     };
@@ -112,6 +121,11 @@ export { db };
 // Helper function to check if database is available with health status
 export function isDatabaseAvailable(): boolean {
   const isConfigured = db !== undefined && queryClient !== undefined;
+
+  if (!isConfigured) {
+    return false;
+  }
+
   const isHealthy = connectionHealth.isHealthy;
   const recentlyChecked =
     Date.now() - connectionHealth.lastCheck < HEALTH_CHECK_INTERVAL * 2;
@@ -121,8 +135,15 @@ export function isDatabaseAvailable(): boolean {
   const isStartup = connectionHealth.lastCheck === 0;
 
   // If configured and either healthy, recently checked, or during startup, consider available
-  // Also allow if consecutive failures are low (< 3) to be more permissive
-  return isConfigured && (isHealthy || !recentlyChecked || isStartup || connectionHealth.consecutiveFailures < 3);
+  // Also allow if consecutive failures are low (< 5) to be more permissive for development
+  const maxConsecutiveFailures = 5;
+  return (
+    isConfigured &&
+    (isHealthy ||
+      !recentlyChecked ||
+      isStartup ||
+      connectionHealth.consecutiveFailures < maxConsecutiveFailures)
+  );
 }
 
 // Helper function to get database instance with enhanced error handling
@@ -159,6 +180,86 @@ export function getDatabaseHealth() {
 }
 
 // Helper function to test database connection manually
+// Helper function to validate DATABASE_URL format
+export function validateDatabaseUrl(url?: string): {
+  isValid: boolean;
+  issues: string[];
+  suggestions: string[];
+} {
+  const dbUrl = url || dbConfig.url;
+  const issues: string[] = [];
+  const suggestions: string[] = [];
+
+  if (!dbUrl) {
+    issues.push("DATABASE_URL is not configured");
+    suggestions.push("Add DATABASE_URL to your environment variables");
+    return { isValid: false, issues, suggestions };
+  }
+
+  try {
+    const parsedUrl = new URL(dbUrl);
+
+    // Check protocol
+    if (
+      parsedUrl.protocol !== "postgres:" &&
+      parsedUrl.protocol !== "postgresql:"
+    ) {
+      issues.push(
+        `Invalid protocol: ${parsedUrl.protocol}. Expected 'postgres:' or 'postgresql:'`
+      );
+      suggestions.push("Use 'postgres://' or 'postgresql://' as the protocol");
+    }
+
+    // Check hostname format for Supabase
+    if (
+      !parsedUrl.hostname.includes("supabase.co") &&
+      !parsedUrl.hostname.includes("localhost")
+    ) {
+      issues.push(
+        `Hostname ${parsedUrl.hostname} doesn't appear to be a Supabase database`
+      );
+      suggestions.push("Verify this is your correct Supabase database URL");
+    }
+
+    // Check port
+    if (
+      parsedUrl.port &&
+      parsedUrl.port !== "5432" &&
+      parsedUrl.port !== "6543"
+    ) {
+      issues.push(
+        `Unusual port: ${parsedUrl.port}. Expected 5432 for standard PostgreSQL or 6543 for Supabase pooling`
+      );
+      suggestions.push(
+        "Use port 5432 for direct connection or 6543 for connection pooling"
+      );
+    }
+
+    // Check username
+    if (parsedUrl.username !== "postgres") {
+      issues.push(`Username ${parsedUrl.username} is not 'postgres'`);
+      suggestions.push("Use 'postgres' as the username for Supabase databases");
+    }
+
+    // Check database name
+    if (parsedUrl.pathname !== "/postgres") {
+      issues.push(`Database name ${parsedUrl.pathname} is not '/postgres'`);
+      suggestions.push("Use '/postgres' as the database name for Supabase");
+    }
+  } catch (error) {
+    issues.push("DATABASE_URL is not a valid URL format");
+    suggestions.push(
+      "Check that your DATABASE_URL follows the format: postgres://username:password@host:port/database"
+    );
+  }
+
+  return {
+    isValid: issues.length === 0,
+    issues,
+    suggestions,
+  };
+}
+
 export async function testDatabaseConnection(): Promise<{
   success: boolean;
   latency?: number;

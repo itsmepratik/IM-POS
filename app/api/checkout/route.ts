@@ -31,7 +31,6 @@ import {
   ReceiptData,
 } from "@/lib/utils/receipts";
 import type { CheckoutInput } from "@/lib/types/checkout";
-import { billNumberService, TransactionType } from "@/lib/services/bill-number-service";
 
 // Helper function to handle lubricant sales with precise bottle tracking
 async function handleLubricantSale(
@@ -785,26 +784,30 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Enhanced database error handling
+    // Enhanced database error handling with specific error types
     if (error instanceof Error) {
       const errorMessage = error.message.toLowerCase();
 
       // Authentication errors
       if (
         errorMessage.includes("password authentication failed") ||
-        errorMessage.includes("authentication failed")
+        errorMessage.includes("authentication failed") ||
+        errorMessage.includes("invalid password")
       ) {
         return NextResponse.json(
           {
             success: false,
             error:
-              "Database authentication failed. Please check your database configuration.",
+              "Database authentication failed. Please check your DATABASE_URL and password.",
             details: {
               requestId,
               errorType: "AUTH_FAILED",
               processingTime,
               timestamp: new Date().toISOString(),
-              recovery: "Check database credentials and connection string",
+              recovery:
+                "1. Check your DATABASE_URL in environment variables\n2. Verify the password in Supabase Dashboard\n3. Ensure the database URL format is correct",
+              suggestion:
+                "Run GET /api/diagnose-db to check your database configuration",
             },
           },
           { status: 503 }
@@ -816,20 +819,24 @@ export async function POST(req: NextRequest) {
         errorMessage.includes("connection") ||
         errorMessage.includes("timeout") ||
         errorMessage.includes("econnreset") ||
-        errorMessage.includes("enotfound")
+        errorMessage.includes("enotfound") ||
+        errorMessage.includes("network") ||
+        errorMessage.includes("dns")
       ) {
         return NextResponse.json(
           {
             success: false,
             error:
-              "Database connection failed. The service may be temporarily unavailable.",
+              "Database connection failed. Please check your internet connection and database configuration.",
             details: {
               requestId,
               errorType: "CONNECTION_FAILED",
               processingTime,
               timestamp: new Date().toISOString(),
               recovery:
-                "Transaction will be retried automatically. Check network connectivity.",
+                "1. Check your internet connection\n2. Verify DATABASE_URL format\n3. Check if Supabase project is active\n4. Run GET /api/diagnose-db for detailed diagnostics",
+              suggestion:
+                "The checkout service will retry automatically. If this persists, check your database configuration.",
             },
           },
           { status: 503 }
@@ -885,19 +892,22 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Generic server error with enhanced details
+    // Generic server error with enhanced details and specific guidance
+    const errorMsg =
+      error instanceof Error ? error.message : "Unknown error occurred";
     return NextResponse.json(
       {
         success: false,
-        error:
-          error instanceof Error ? error.message : "Unknown error occurred",
+        error: errorMsg,
         details: {
           requestId,
           errorType: "INTERNAL_ERROR",
           processingTime,
           timestamp: new Date().toISOString(),
           recovery:
-            "Please try again. If the problem persists, contact system administrator.",
+            "1. Try the transaction again\n2. Check your database connection\n3. Verify product data integrity\n4. Run GET /api/diagnose-db for diagnostics",
+          suggestion:
+            "If this error persists, the issue may be with product data or database constraints. Please check the logs for more details.",
         },
       },
       { status: 500 }

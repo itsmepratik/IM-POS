@@ -46,6 +46,7 @@ export async function GET(req: Request) {
         total_amount,
         items_sold,
         payment_method,
+        car_plate_number,
         receipt_html,
         battery_bill_html,
         original_reference_number,

@@ -132,16 +132,34 @@ class CheckoutService {
       clearTimeout(timeoutId);
 
       if (!response.ok) {
-        // Handle specific HTTP errors
+        // Handle specific HTTP errors with better error messages
         if (response.status === 503) {
-          throw new Error("Service temporarily unavailable");
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(
+            errorData.error ||
+              "Database service is temporarily unavailable. Please try again in a moment."
+          );
         } else if (response.status >= 500) {
-          throw new Error("Server error occurred");
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(
+            errorData.error ||
+              `Server error (${response.status}). Please check your database connection and try again.`
+          );
         } else if (response.status === 400) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || "Invalid request data");
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(
+            errorData.error ||
+              "Invalid request data. Please check your input and try again."
+          );
+        } else if (response.status === 404) {
+          throw new Error(
+            "Checkout endpoint not found. Please check your API configuration."
+          );
         } else {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(
+            errorData.error || `HTTP ${response.status}: ${response.statusText}`
+          );
         }
       }
 
