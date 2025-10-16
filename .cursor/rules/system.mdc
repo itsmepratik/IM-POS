@@ -1,13 +1,13 @@
 ---
-alwaysApply: true
+alwaysApply:
 ---
-# Expertise
-You are an expert in modern web development (JavaScript, TypeScript, React, Tailwind CSS, Node.js, Next.js—App Router & Pages Router) and Supabase (Auth, Database, Storage, Realtime). Prioritize minimal and maintainable tool choices, justifying them based on performance, security, and Next.js server-first architecture.
 
 # General Workflow
+
 Begin with a concise checklist (3-7 bullets) of what you will do; keep items conceptual, not implementation-level.
 
 # Code Review
+
 - Review specific files before proposing changes (e.g., `@app/page.tsx`).
 - If editing code: state key assumptions, create or outline minimal test(s) for changes, and produce a ready-to-review diff. Follow repository coding styles and conventions.
 - Include: intent, minimal snippet, targeted test, expected outcome, edge cases.
@@ -15,44 +15,50 @@ Begin with a concise checklist (3-7 bullets) of what you will do; keep items con
 - Prefer small, incremental patches. Request missing context via `@` references or `status.md`.
 
 # Security
+
 - Conduct a security review for authentication or input-sensitive areas: identify vulnerabilities, propose zod/validation, apply OWASP/Next.js mitigations, and outline test steps.
 - Use secure defaults. Avoid `eval` and unsafe client-only secrets. Secrets must be managed with server-side clients.
 
 # Performance & Robustness
+
 - Minimize re-renders, bundle size, and server load (leverage `React.memo`, lazy imports, ISR where appropriate).
 - Wrap API/DB calls with `try/catch`; provide user-friendly fallbacks and error logging (use Sentry in production).
 - Measure with Lighthouse and `@next/bundle-analyzer`.
 
 # Operational Procedures
+
 - Use `.env.local` for secrets and ensure compatibility with Vercel, AWS, or Netlify.
 - CI: run linting, type checking, tests, and `npm audit`.
 - Document trade-offs in `status.md`.
 
 # Coding Standards
+
 - Use early returns, functional TypeScript, types/interfaces, and `const` arrow functions.
 - Limit 'use client'; prefer Server Components and Server Actions. Wrap client components with Suspense and lightweight fallbacks.
 - Use `next/image`, `next/dynamic`, and Tailwind (mobile-first); avoid inline styles unless necessary.
 
 # Supabase-specific Practices
+
 - Use `@supabase/supabase-js` for client usage and server-side client helpers (use server client for secrets and server-side auth flows).
 - Follow Supabase Next.js examples for authentication, SSR, and route handlers. Keep tokens and server clients out of the client bundle.
 
 # Do's
+
 - Prefer server-side Supabase clients for secrets and authentication checks.
 - Validate all inputs with zod (or equivalent) and sanitize outputs.
 - Keep examples minimal and reproducible (small snippets + tests).
 - Document environment variables and runtime requirements in `status.md`.
 
 # Don'ts
+
 - Never embed service keys in client bundles or commit them to git.
 - Avoid mixing overlapping libraries; use focused, well-maintained packages.
 - Do not rely on client-only authentication for sensitive flows.
 - Avoid lengthy examples; keep snippets minimal and actionable.
 
 # Feedback & Handling Uncertainty
-- If context is missing: reply with "I lack sufficient information. Please provide details (e.g., @app/page.tsx)."
-- If there is no clear solution: reply with "No definitive solution is available."
 
-# Reasoning & Output
-Set reasoning_effort = medium/high (if applicable) unless task complexity indicates otherwise; make tool calls terse, provide fuller final outputs where appropriate.
+- If context is missing: reply with "I lack sufficient information. Please provide details (e.g., @app/page.tsx)."
+- If there is no clear solution: reply with "No definitive solution is available.".
+
 ---

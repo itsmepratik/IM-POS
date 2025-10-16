@@ -788,6 +788,15 @@ export default function TransactionsPage() {
   const getTransactions = useCallback((): TransactionDisplay[] => {
     if (!apiTransactions) return [];
 
+    // Debug: Log first transaction to check customer data
+    if (apiTransactions.length > 0) {
+      console.log("📊 Frontend - First transaction data:", {
+        id: apiTransactions[0].id,
+        customer_id: apiTransactions[0].customer_id,
+        customers: apiTransactions[0].customers,
+      });
+    }
+
     // Create a lookup function for staff members
     const findStaffMemberById = (id: string) => {
       return staffMembers.find((staff) => staff.id === id);
@@ -799,12 +808,24 @@ export default function TransactionsPage() {
         ? findStaffMemberById(t.cashier_id)?.name || `Staff ${t.cashier_id}`
         : "Unknown";
 
+      // Extract customer name from joined data
+      const customerName = t.customers?.name || "Anonymous";
+
+      // Debug: Log if we have a customer_id but no customer name
+      if (t.customer_id && !t.customers?.name) {
+        console.warn("⚠️ Transaction has customer_id but no customer data:", {
+          transaction_id: t.id,
+          customer_id: t.customer_id,
+          customers_object: t.customers,
+        });
+      }
+
       return {
         id: t.id,
         amount: parseFloat(t.total_amount),
         time: new Date(t.created_at).toLocaleString(),
         paymentMethod: t.payment_method || "Cash",
-        customer: "Anonymous", // This would come from a customer field if available
+        customer: customerName, // Use customer name from joined data
         items: t.items_sold?.length || 0,
         cashier: cashierName,
         status:
@@ -822,7 +843,7 @@ export default function TransactionsPage() {
             ? "on-hold"
             : "sale",
         items: [`${t.items_sold?.length || 0} items`],
-        customerName: "Anonymous",
+        customerName: customerName, // Use customer name from joined data
         reference: t.reference_number,
         storeId: t.shop_id || "unknown",
         date: new Date(t.created_at).toLocaleDateString(),

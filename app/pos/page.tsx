@@ -382,11 +382,13 @@ function POSCustomerForm({
   onClose,
   onSubmit,
   onSkip,
+  setCurrentCustomer,
 }: {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (customer: Omit<CustomerData, "id" | "lastVisit">) => void;
+  onSubmit: (customer: CustomerData) => void;
   onSkip: () => void;
+  setCurrentCustomer: (customer: CustomerData) => void;
 }) {
   const [formData, setFormData] = useState<
     Omit<CustomerData, "id" | "lastVisit">
@@ -432,39 +434,74 @@ function POSCustomerForm({
   }, []);
 
   // Handle customer selection from dropdown
-  const handleCustomerSelect = useCallback(async (customerId: string) => {
-    if (!customerId || customerId === "new-customer") {
-      setSelectedCustomerId("");
-      setFormData({
-        name: "",
-        email: "",
-        phone: "",
-        address: "",
-        notes: "",
-        vehicles: [],
-      });
-      return;
-    }
+  const handleCustomerSelect = useCallback(
+    async (customerId: string) => {
+      console.log(
+        "🔍 POSCustomerForm: handleCustomerSelect called with ID:",
+        customerId
+      );
 
-    try {
-      const response = await fetch(`/api/customers/${customerId}`);
-      if (response.ok) {
-        const responseData = await response.json();
-        const customer = responseData.customer;
-        setSelectedCustomerId(customerId);
+      if (!customerId || customerId === "new-customer") {
+        console.log("🔍 POSCustomerForm: Clearing customer selection");
+        setSelectedCustomerId("");
         setFormData({
-          name: customer.name || "",
-          email: customer.email || "",
-          phone: customer.phone || "",
-          address: customer.address || "",
-          notes: customer.notes || "",
-          vehicles: customer.vehicles || [],
+          name: "",
+          email: "",
+          phone: "",
+          address: "",
+          notes: "",
+          vehicles: [],
         });
+        return;
       }
-    } catch (error) {
-      console.error("Error fetching customer details:", error);
-    }
-  }, []);
+
+      try {
+        const response = await fetch(`/api/customers/${customerId}`);
+        if (response.ok) {
+          const responseData = await response.json();
+          const customer = responseData.customer;
+
+          if (!customer || !customer.id) {
+            console.error("❌ POSCustomerForm: Invalid customer data received");
+            return;
+          }
+
+          setSelectedCustomerId(customer.id);
+          // Set currentCustomer with the full customer data including id
+          const fullCustomerData: CustomerData = {
+            id: customer.id,
+            name: customer.name || "",
+            email: customer.email || "",
+            phone: customer.phone || "",
+            address: customer.address || "",
+            notes: customer.notes || "",
+            vehicles: customer.vehicles || [],
+            lastVisit: new Date().toISOString(), // Set a default last visit as ISO string
+          };
+
+          console.log(
+            "✅ POSCustomerForm: Setting currentCustomer with ID:",
+            fullCustomerData.id
+          );
+          setCurrentCustomer(fullCustomerData);
+          setFormData({
+            name: customer.name || "",
+            email: customer.email || "",
+            phone: customer.phone || "",
+            address: customer.address || "",
+            notes: customer.notes || "",
+            vehicles: customer.vehicles || [],
+          });
+        }
+      } catch (error) {
+        console.error(
+          "❌ POSCustomerForm: Error fetching customer details:",
+          error
+        );
+      }
+    },
+    [setCurrentCustomer]
+  );
 
   // Load customers when dialog opens
   useEffect(() => {
@@ -498,7 +535,13 @@ function POSCustomerForm({
         // Use existing customer - fetch fresh data to ensure we have the ID
         const response = await fetch(`/api/customers/${selectedCustomerId}`);
         if (response.ok) {
-          customerData = await response.json();
+          const responseData = await response.json();
+          // Extract the customer object from the response
+          customerData = responseData.customer;
+          console.log(
+            "✅ POSCustomerForm: Fetched existing customer with ID:",
+            customerData?.id
+          );
         } else {
           throw new Error("Failed to fetch existing customer");
         }
@@ -520,15 +563,25 @@ function POSCustomerForm({
             notes: v.notes || "",
           })),
         });
+        console.log(
+          "✅ POSCustomerForm: Created new customer with ID:",
+          customerData?.id
+        );
       }
 
-      if (customerData) {
+      if (customerData && customerData.id) {
+        // Set currentCustomer with the returned data that includes id
+        console.log(
+          "✅ POSCustomerForm: Setting currentCustomer with ID:",
+          customerData.id
+        );
+        setCurrentCustomer(customerData);
         onSubmit(customerData);
       } else {
-        throw new Error("Failed to handle customer");
+        throw new Error("Failed to handle customer - missing customer ID");
       }
     } catch (error) {
-      console.error("Error handling customer:", error);
+      console.error("❌ POSCustomerForm: Error handling customer:", error);
       // Error is already handled by the service with toast
     } finally {
       setIsSubmitting(false);
@@ -1801,6 +1854,13 @@ function POSPageContent() {
           "@/lib/services/checkout-service"
         );
 
+        console.log("🔍 POS: Checkout data:", {
+          customerId: currentCustomer?.id,
+          customerName: currentCustomer?.name,
+          cartLength: cartForAPI.length,
+          paymentMethod: "ON_HOLD",
+        });
+
         const result = await checkoutService.processCheckout({
           locationId: currentBranch?.id || "default-location",
           shopId: currentBranch?.id || "default-shop",
@@ -1808,6 +1868,7 @@ function POSPageContent() {
           cashierId: selectedCashier?.id || "on-hold-system", // Use the selected cashier ID
           cart: cartForAPI,
           carPlateNumber: carPlateNumber.trim(), // Include the car plate number
+          customerId: currentCustomer?.id, // Include customer ID if available
           ...(tradeInsForAPI ? { tradeIns: tradeInsForAPI } : {}),
         });
 
@@ -1953,12 +2014,20 @@ function POSPageContent() {
         "@/lib/services/checkout-service"
       );
 
+      console.log("🔍 POS: Regular checkout data:", {
+        customerId: currentCustomer?.id,
+        customerName: currentCustomer?.name,
+        cartLength: cartForAPI.length,
+        paymentMethod: selectedPaymentMethod.toUpperCase(),
+      });
+
       const result = await checkoutService.processCheckout({
         locationId: currentBranch?.id || "default-location",
         shopId: currentBranch?.id || "default-shop",
         paymentMethod: selectedPaymentMethod.toUpperCase(),
         cashierId: selectedCashier?.id || "default-cashier",
         cart: cartForAPI,
+        customerId: currentCustomer?.id, // Include customer ID if available
         ...(tradeInsForAPI ? { tradeIns: tradeInsForAPI } : {}),
       });
 
@@ -2168,6 +2237,7 @@ function POSPageContent() {
 
     // Reset customer info
     setCurrentCustomer(null);
+    setSelectedCustomerId("");
   };
 
   // Replace the handleImportCustomers function definition with this one
@@ -2377,10 +2447,10 @@ function POSPageContent() {
 
   // Add new state for customer form
   const [isCustomerFormOpen, setIsCustomerFormOpen] = useState(false);
-  const [currentCustomer, setCurrentCustomer] = useState<Omit<
-    CustomerData,
-    "id" | "lastVisit"
-  > | null>(null);
+  const [currentCustomer, setCurrentCustomer] = useState<CustomerData | null>(
+    null
+  );
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string>("");
 
   // Add new state for customer add success animation
   const [showCustomerSuccess, setShowCustomerSuccess] = useState(false);
@@ -2391,10 +2461,10 @@ function POSPageContent() {
   }, [cart]);
 
   // Handle customer form submission
-  const handleAddCustomer = (
-    customerData: Omit<CustomerData, "id" | "lastVisit">
-  ) => {
-    // Save customer data
+  const handleAddCustomer = (customerData: CustomerData) => {
+    // Save customer data (includes id)
+    console.log("🎯 POS: Setting currentCustomer with ID:", customerData.id);
+    console.log("🎯 POS: Customer data received:", customerData);
     setCurrentCustomer(customerData);
 
     // Show customer add success animation
@@ -4580,6 +4650,7 @@ function POSPageContent() {
         onClose={() => setIsCustomerFormOpen(false)}
         onSubmit={handleAddCustomer}
         onSkip={handleSkipCustomerForm}
+        setCurrentCustomer={setCurrentCustomer}
       />
 
       {/* Render the customer add success animation dialog */}

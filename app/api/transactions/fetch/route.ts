@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { createClient } from "@/supabase/client";
+import { createClient } from "@/supabase/server";
 
 const QuerySchema = z.object({
   shopId: z.string().uuid().optional(),
@@ -13,7 +13,7 @@ type QueryParams = z.infer<typeof QuerySchema>;
 
 export async function GET(req: Request) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     const url = new URL(req.url);
     const parsed = QuerySchema.safeParse({
@@ -32,7 +32,7 @@ export async function GET(req: Request) {
 
     const qp: QueryParams = parsed.data;
 
-    // Build the query
+    // Build the query with customer information
     let query = supabase
       .from("transactions")
       .select(
@@ -50,7 +50,14 @@ export async function GET(req: Request) {
         receipt_html,
         battery_bill_html,
         original_reference_number,
-        created_at
+        created_at,
+        customer_id,
+        customers!transactions_customer_id_fkey (
+          id,
+          name,
+          email,
+          phone
+        )
       `
       )
       .order("created_at", { ascending: false });
@@ -79,6 +86,22 @@ export async function GET(req: Request) {
       return NextResponse.json(
         { error: "Failed to fetch transactions data" },
         { status: 500 }
+      );
+    }
+
+    // Debug: Log first transaction to check customer data structure
+    if (transactionsData && transactionsData.length > 0) {
+      console.log(
+        "📊 Sample transaction data:",
+        JSON.stringify(
+          {
+            id: transactionsData[0].id,
+            customer_id: transactionsData[0].customer_id,
+            customers: transactionsData[0].customers,
+          },
+          null,
+          2
+        )
       );
     }
 

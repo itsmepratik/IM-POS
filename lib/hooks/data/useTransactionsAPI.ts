@@ -16,6 +16,13 @@ export interface TransactionAPI {
   battery_bill_html: string | null;
   original_reference_number: string | null;
   created_at: string;
+  customer_id: string | null;
+  customers?: {
+    id: string;
+    name: string;
+    email: string | null;
+    phone: string | null;
+  } | null;
 }
 
 export interface TransactionsAPIResponse {

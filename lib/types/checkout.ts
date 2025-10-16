@@ -31,6 +31,7 @@ export const CheckoutInputSchema = z.object({
   cart: z.array(CartItemSchema),
   tradeIns: z.array(TradeInItemSchema).optional(),
   carPlateNumber: z.string().min(1).optional(), // For 'on hold' payments
+  customerId: z.string().uuid().optional(), // Optional customer ID for linking transactions to customers
 });
 
 // Response schemas

@@ -38,6 +38,7 @@ export interface CheckoutRequest {
   cart: CheckoutItem[];
   tradeIns?: CheckoutTradeIn[];
   carPlateNumber?: string; // For 'on hold' payments
+  customerId?: string; // Optional customer ID for linking transactions to customers
 }
 
 export interface CheckoutResponse {

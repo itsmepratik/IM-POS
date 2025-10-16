@@ -237,7 +237,13 @@ export async function POST(req: NextRequest) {
       cart,
       tradeIns,
       carPlateNumber,
+      customerId,
     } = validatedInput;
+
+    console.log(
+      `[${requestId}] Customer ID received:`,
+      customerId || "None (Anonymous)"
+    );
 
     // Additional business logic validation
     if (!cart || cart.length === 0) {
@@ -362,20 +368,27 @@ export async function POST(req: NextRequest) {
           transactionType = "ON_HOLD";
         }
 
+        const transactionData = {
+          referenceNumber,
+          locationId,
+          shopId: shopId || locationId, // Use locationId as shopId if not provided
+          cashierId,
+          type: transactionType,
+          totalAmount: totalAmount.toString(),
+          itemsSold: cart,
+          paymentMethod,
+          carPlateNumber: transactionType === "ON_HOLD" ? carPlateNumber : null,
+          customerId: customerId || null, // Add customer_id to transaction
+        };
+
+        console.log(
+          `[${requestId}] Creating transaction with customer ID:`,
+          transactionData.customerId
+        );
+
         const [newTransaction] = await tx
           .insert(transactions)
-          .values({
-            referenceNumber,
-            locationId,
-            shopId: shopId || locationId, // Use locationId as shopId if not provided
-            cashierId,
-            type: transactionType,
-            totalAmount: totalAmount.toString(),
-            itemsSold: cart,
-            paymentMethod,
-            carPlateNumber:
-              transactionType === "ON_HOLD" ? carPlateNumber : null,
-          })
+          .values(transactionData)
           .returning();
 
         // 2. Process each cart item with FIFO logic

@@ -107,6 +107,9 @@ export const transactions = pgTable("transactions", {
   receiptHtml: text("receipt_html"),
   batteryBillHtml: text("battery_bill_html"),
   originalReferenceNumber: text("original_reference_number"),
+  customerId: uuid("customer_id").references(() => customers.id, {
+    onDelete: "set null",
+  }), // Link to customers table
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });
 

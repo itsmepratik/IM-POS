@@ -1,0 +1,5 @@
+---
+alwaysApply: true
+---
+
+Stack: Next.js 15 (frontend) + bun + Supabase Cloud (free-tier Postgres DB).
