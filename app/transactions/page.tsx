@@ -190,6 +190,7 @@ const TransactionCard = memo(
                 <div className="flex flex-col items-end">
                   <span className="text-sm sm:text-base">OMR</span>
                   <span className="text-lg sm:text-2xl font-bold">
+                    {transaction.type === "refund" ? "-" : ""}
                     {Math.abs(transaction.amount).toFixed(2)}
                   </span>
                 </div>
@@ -1229,6 +1230,7 @@ export default function TransactionsPage() {
                   OMR
                 </span>
                 <span className="text-xl sm:text-2xl font-bold text-orange-800">
+                  {totalCredit < 0 ? "-" : ""}
                   {Math.abs(totalCredit).toFixed(2)}
                 </span>
               </div>

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { createClient } from "@/supabase/client";
+import { createClient } from "@/supabase/server";
 
 const ParamsSchema = z.object({
   id: z.string().uuid(),

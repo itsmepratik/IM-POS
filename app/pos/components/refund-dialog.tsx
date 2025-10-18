@@ -35,6 +35,7 @@ import { RefundReceipt } from "./refund-receipt";
 import { format } from "date-fns";
 import { useStaffIDs } from "@/lib/hooks/useStaffIDs";
 import { useCompanyInfo } from "@/lib/hooks/useCompanyInfo";
+import { useBranch } from "@/lib/contexts/DataProvider";
 
 interface CartItem {
   id: number;
@@ -59,188 +60,31 @@ interface RefundDialogProps {
   onClose: () => void;
 }
 
-// This would normally come from a database
-// For this mock, we'll create some sample receipts
-const mockReceipts: Receipt[] = [
-  {
-    receiptNumber: "A1234",
-    date: "01/05/2023",
-    time: "14:30:45",
-    paymentMethod: "Card",
-    total: 129.99,
-    items: [
-      {
-        id: 1028,
-        name: "Premium Battery",
-        price: 129.99,
-        quantity: 1,
-        uniqueId: "1028-battery",
-      },
-    ],
-  },
-  {
-    receiptNumber: "A2345",
-    date: "02/05/2023",
-    time: "10:15:22",
-    paymentMethod: "Cash",
-    total: 69.99,
-    items: [
-      {
-        id: 1029,
-        name: "Economy Battery",
-        price: 69.99,
-        quantity: 1,
-        uniqueId: "1029-battery",
-      },
-    ],
-  },
-  {
-    receiptNumber: "A3456",
-    date: "03/05/2023",
-    time: "16:45:10",
-    paymentMethod: "Mobile Pay",
-    total: 149.99,
-    items: [
-      {
-        id: 1030,
-        name: "Heavy Duty Battery",
-        price: 149.99,
-        quantity: 1,
-        uniqueId: "1030-battery",
-      },
-    ],
-  },
-  {
-    receiptNumber: "A4567",
-    date: "04/05/2023",
-    time: "13:22:18",
-    paymentMethod: "Cash",
-    total: 99.99,
-    items: [
-      {
-        id: 1031,
-        name: "Premium Battery with Trade-in",
-        price: 129.99,
-        quantity: 1,
-        uniqueId: "1031-battery",
-      },
-      {
-        id: 1032,
-        name: "Discount on old battery",
-        price: -30.0,
-        quantity: 1,
-        uniqueId: "1032-discount",
-      },
-    ],
-  },
-  {
-    receiptNumber: "B1234",
-    date: "05/05/2023",
-    time: "09:20:15",
-    paymentMethod: "Card",
-    total: 89.75,
-    items: [
-      {
-        id: 2001,
-        name: "Shell Helix Ultra 5W-30",
-        price: 45.99,
-        quantity: 1,
-        uniqueId: "2001-lubricant",
-        details: "Synthetic Engine Lubricant",
-      },
-      {
-        id: 2002,
-        name: "Toyota Lubricant Filter",
-        price: 12.5,
-        quantity: 1,
-        uniqueId: "2002-filter",
-      },
-      {
-        id: 2003,
-        name: "Air Filter Premium",
-        price: 18.99,
-        quantity: 1,
-        uniqueId: "2003-filter",
-      },
-      {
-        id: 2004,
-        name: "Lubricant Change Service",
-        price: 12.27,
-        quantity: 1,
-        uniqueId: "2004-service",
-      },
-    ],
-  },
-  {
-    receiptNumber: "B2345",
-    date: "07/05/2023",
-    time: "11:35:40",
-    paymentMethod: "Cash",
-    total: 156.45,
-    items: [
-      {
-        id: 3001,
-        name: "Castrol EDGE 0W-20",
-        price: 52.99,
-        quantity: 2,
-        uniqueId: "3001-lubricant",
-        details: "Full Synthetic",
-      },
-      {
-        id: 3002,
-        name: "Mobil 1 Extended Performance Lubricant Filter",
-        price: 24.99,
-        quantity: 1,
-        uniqueId: "3002-filter",
-      },
-      {
-        id: 3003,
-        name: "Fuel System Cleaner",
-        price: 15.49,
-        quantity: 1,
-        uniqueId: "3003-additive",
-      },
-      {
-        id: 3004,
-        name: "Wiper Blade Set",
-        price: 9.99,
-        quantity: 1,
-        uniqueId: "3004-parts",
-      },
-    ],
-  },
-  {
-    receiptNumber: "B3456",
-    date: "10/05/2023",
-    time: "14:15:30",
-    paymentMethod: "Mobile Pay",
-    total: 67.98,
-    items: [
-      {
-        id: 4001,
-        name: "Brake Fluid DOT 4",
-        price: 12.99,
-        quantity: 2,
-        uniqueId: "4001-fluid",
-      },
-      {
-        id: 4002,
-        name: "Cabin Air Filter",
-        price: 22.5,
-        quantity: 1,
-        uniqueId: "4002-filter",
-      },
-      {
-        id: 4003,
-        name: "Coolant 1L",
-        price: 19.5,
-        quantity: 1,
-        uniqueId: "4003-fluid",
-        details: "Long Life",
-      },
-    ],
-  },
-];
+// Transaction data will now come from the API
+
+// Helper function to parse items_sold from transaction
+function parseTransactionItems(items: any[]): CartItem[] {
+  return items.map((item: any, index: number) => {
+    // Handle both old format (name, price) and new format (productId, sellingPrice)
+    const itemName =
+      item.name ||
+      item.productName ||
+      item.product_name ||
+      `Product ${item.productId || index}`;
+    const itemPrice = item.price || item.sellingPrice || 0;
+    const itemQuantity = item.quantity || 1;
+    const itemId = item.id || item.productId || index;
+
+    return {
+      id: typeof itemId === "string" ? parseInt(itemId) || index : itemId,
+      name: itemName,
+      price: parseFloat(itemPrice.toString()),
+      quantity: itemQuantity,
+      uniqueId: `${itemId}-${Date.now()}-${index}`,
+      details: item.details || item.volumeDescription || undefined,
+    };
+  });
+}
 
 // Get cashier data from the hook
 
@@ -248,6 +92,7 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
   const { toast } = useToast();
   const { staffMembers } = useStaffIDs();
   const { brand, registered } = useCompanyInfo();
+  const { currentBranch } = useBranch();
   const [receiptNumber, setReceiptNumber] = useState("");
   const [currentReceipt, setCurrentReceipt] = useState<Receipt | null>(null);
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
@@ -270,6 +115,14 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
   const [showRefundReceipt, setShowRefundReceipt] = useState(false);
   const [customerName, setCustomerName] = useState<string>("");
   const [tradeInAmount, setTradeInAmount] = useState<number>(0);
+  const [isProcessingRefund, setIsProcessingRefund] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+  const [currentCustomer, setCurrentCustomer] = useState<{
+    id: string;
+    name: string;
+    email?: string;
+    phone?: string;
+  } | null>(null);
 
   // Calculate refund amount
   const refundAmount =
@@ -278,20 +131,92 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
       .reduce((sum, item) => sum + item.price * item.quantity, 0) || 0;
 
   // Handle looking up a receipt
-  const handleLookupReceipt = () => {
-    const receipt = mockReceipts.find(
-      (r) => r.receiptNumber.toLowerCase() === receiptNumber.toLowerCase()
-    );
-    if (receipt) {
-      setCurrentReceipt(receipt);
-      setStep("select");
-      setSelectedItems([]);
-    } else {
+  const handleLookupReceipt = async () => {
+    if (!receiptNumber.trim()) {
       toast({
-        title: "Receipt not found",
-        description: "Please check the receipt number and try again.",
+        title: "Receipt number required",
+        description: "Please enter a receipt number to search.",
         variant: "destructive",
       });
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      // Call the transactions API to find the receipt
+      const response = await fetch(
+        `/api/transactions/fetch?referenceNumber=${encodeURIComponent(
+          receiptNumber.trim()
+        )}`
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error("API Error Response:", data);
+        throw new Error(
+          data.details ||
+            data.error ||
+            `Failed to fetch transaction: ${response.statusText}`
+        );
+      }
+
+      if (!data.ok || !data.transactions || data.transactions.length === 0) {
+        toast({
+          title: "Receipt not found",
+          description: `No transaction found with reference number: ${receiptNumber}`,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Convert API response to the format expected by the UI
+      const transaction = data.transactions[0];
+
+      // Convert the transaction to Receipt format for the UI
+      const receiptData: Receipt = {
+        receiptNumber: transaction.reference_number,
+        date: new Date(transaction.created_at).toLocaleDateString("en-GB"),
+        time: new Date(transaction.created_at).toLocaleTimeString("en-GB", {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        }),
+        paymentMethod: transaction.payment_method || "Cash",
+        total: Math.abs(parseFloat(transaction.total_amount.toString())),
+        items: parseTransactionItems(transaction.items_sold || []),
+      };
+
+      // Store customer info if available
+      if (transaction.customers) {
+        setCurrentCustomer({
+          id: transaction.customers.id,
+          name: transaction.customers.name,
+          email: transaction.customers.email,
+          phone: transaction.customers.phone,
+        });
+      }
+
+      setCurrentReceipt(receiptData);
+      setStep("select");
+      setSelectedItems([]);
+
+      toast({
+        title: "Receipt found",
+        description: `Found transaction ${receiptNumber} with ${receiptData.items.length} items.`,
+      });
+    } catch (error) {
+      console.error("Error looking up receipt:", error);
+      toast({
+        title: "Search failed",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to search for receipt. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSearching(false);
     }
   };
 
@@ -320,10 +245,83 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
     setIsCashierSelectOpen(true);
   };
 
-  const handleFinalizeRefund = () => {
+  const handleFinalizeRefund = async () => {
+    if (!currentReceipt || !selectedCashier) return;
+
     setIsCashierSelectOpen(false);
-    setStep("complete");
-    setRefundComplete(true);
+    setIsProcessingRefund(true);
+
+    try {
+      // Get the selected items for the refund
+      const selectedRefundItems = currentReceipt.items
+        .filter((item) => selectedItems.includes(item.uniqueId))
+        .map((item) => ({
+          id: item.id,
+          name: item.name,
+          price: item.price,
+          quantity: item.quantity,
+        }));
+
+      const refundAmount = selectedRefundItems.reduce(
+        (sum, item) => sum + item.price * item.quantity,
+        0
+      );
+
+      // Call the refund API
+      const response = await fetch("/api/transactions/refund", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          originalReferenceNumber: currentReceipt.receiptNumber,
+          refundAmount,
+          refundItems: selectedRefundItems,
+          reason: "Customer refund request",
+          cashierId: selectedCashier.id,
+          shopId: currentBranch?.id || "default-shop",
+          locationId: currentBranch?.id || "default-location",
+          customerId: currentCustomer?.id,
+          carPlateNumber: currentReceipt.receiptNumber.includes("B")
+            ? "N/A"
+            : undefined,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to process refund");
+      }
+
+      console.log("✅ Refund processed successfully:", result.refund);
+
+      // Show success message
+      toast({
+        title: "Refund Processed Successfully",
+        description: `Refund of OMR ${refundAmount.toFixed(
+          3
+        )} has been recorded. Reference: ${result.refund.referenceNumber}`,
+      });
+
+      setStep("complete");
+      setRefundComplete(true);
+    } catch (error) {
+      console.error("❌ Refund processing failed:", error);
+      toast({
+        title: "Refund Failed",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to process refund. Please try again.",
+        variant: "destructive",
+      });
+
+      // Go back to confirm step on error
+      setStep("confirm");
+    } finally {
+      setIsProcessingRefund(false);
+    }
   };
 
   const handleCloseDialog = () => {
@@ -349,56 +347,7 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
     }
   };
 
-  // Add test handlers to pre-populate receipt and selections for testing
-  const testLubricantFilterRefund = () => {
-    // Use receipt B1234 which has lubricants and filters
-    setReceiptNumber("B1234");
-    const receipt = mockReceipts.find((r) => r.receiptNumber === "B1234");
-    if (receipt) {
-      setCurrentReceipt(receipt);
-      // Select the lubricant and filter items
-      setSelectedItems(["2001-lubricant", "2002-filter"]);
-      setStep("select");
-    }
-  };
-
-  const testMultipleItemsRefund = () => {
-    // Use receipt B2345 which has multiple items
-    setReceiptNumber("B2345");
-    const receipt = mockReceipts.find((r) => r.receiptNumber === "B2345");
-    if (receipt) {
-      setCurrentReceipt(receipt);
-      // Select all items
-      setSelectedItems(receipt.items.map((item) => item.uniqueId));
-      setStep("select");
-    }
-  };
-
-  // Add test for a battery refund
-  const testBatteryRefund = () => {
-    // Use receipt A1234 which has a battery
-    setReceiptNumber("A1234");
-    const receipt = mockReceipts.find((r) => r.receiptNumber === "A1234");
-    if (receipt) {
-      setCurrentReceipt(receipt);
-      setSelectedItems(["1028-battery"]);
-      setStep("select");
-    }
-  };
-
-  // Add test for a battery with trade-in refund
-  const testBatteryWithTradeInRefund = () => {
-    // Use receipt A4567 which has a battery with trade-in
-    setReceiptNumber("A4567");
-    const receipt = mockReceipts.find((r) => r.receiptNumber === "A4567");
-    if (receipt) {
-      setCurrentReceipt(receipt);
-      // Select all items including the discount
-      setSelectedItems(receipt.items.map((item) => item.uniqueId));
-      setTradeInAmount(30.0); // Set the trade-in amount
-      setStep("select");
-    }
-  };
+  // Test handlers removed - now using real API calls
 
   // When preparing a refund, calculate if there's a trade-in amount
   useEffect(() => {
@@ -692,69 +641,65 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
                       </div>
                       <Button
                         onClick={handleLookupReceipt}
-                        disabled={!receiptNumber}
+                        disabled={!receiptNumber || isSearching}
                       >
-                        Search
+                        {isSearching ? (
+                          <>
+                            <motion.div
+                              animate={{ rotate: 360 }}
+                              transition={{
+                                duration: 1,
+                                repeat: Infinity,
+                                ease: "linear",
+                              }}
+                              className="h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2"
+                            />
+                            Searching...
+                          </>
+                        ) : (
+                          "Search"
+                        )}
                       </Button>
                     </div>
 
-                    {/* Add test buttons for quick testing */}
-                    <div className="flex flex-col gap-2 rounded-lg border p-3 bg-muted/50">
+                    {isSearching && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center gap-3"
+                      >
+                        <motion.div
+                          animate={{ rotate: 360 }}
+                          transition={{
+                            duration: 1,
+                            repeat: Infinity,
+                            ease: "linear",
+                          }}
+                          className="h-5 w-5 border-2 border-blue-500 border-t-transparent rounded-full flex-shrink-0"
+                        />
+                        <div>
+                          <p className="text-sm font-medium text-blue-900">
+                            Fetching transaction details...
+                          </p>
+                          <p className="text-xs text-blue-700">
+                            Please wait while we retrieve the receipt
+                            information
+                          </p>
+                        </div>
+                      </motion.div>
+                    )}
+
+                    <div className="rounded-lg border p-3 bg-muted/50">
                       <div className="flex items-center gap-2 text-sm font-medium mb-1">
                         <AlertCircle className="h-4 w-4 text-amber-500" />
-                        Test Refund Scenarios
+                        Enter Transaction Reference Number
                       </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={testBatteryRefund}
-                          className="h-auto py-1.5 text-xs"
-                        >
-                          Test Battery Refund
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={testBatteryWithTradeInRefund}
-                          className="h-auto py-1.5 text-xs"
-                        >
-                          Test Battery with Trade-in
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={testLubricantFilterRefund}
-                          className="h-auto py-1.5 text-xs"
-                        >
-                          Test Lubricant & Filter Refund
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={testMultipleItemsRefund}
-                          className="h-auto py-1.5 text-xs"
-                        >
-                          Test Multiple Items Refund
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div className="rounded-lg border p-4 bg-muted/50">
-                      <div className="flex items-center gap-2 text-sm font-medium mb-2">
-                        <AlertCircle className="h-4 w-4 text-amber-500" />
-                        Sample Receipt Numbers
-                      </div>
-                      <div className="text-xs text-muted-foreground grid grid-cols-2 gap-x-2">
-                        {mockReceipts.map((receipt) => (
-                          <div
-                            key={receipt.receiptNumber}
-                            className="flex justify-between"
-                          >
-                            <span>{receipt.receiptNumber}</span>
-                            <span>OMR {receipt.total.toFixed(2)}</span>
-                          </div>
-                        ))}
+                      <div className="text-xs text-muted-foreground">
+                        <p>Example: A1234, B5678, etc.</p>
+                        <p>
+                          Search will find transactions by reference number.
+                        </p>
                       </div>
                     </div>
                   </motion.div>
@@ -1193,8 +1138,9 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
                     setCashierIdError("Invalid cashier ID. Please try again.");
                   }
                 }}
+                disabled={isProcessingRefund}
               >
-                Authorize
+                {isProcessingRefund ? "Processing..." : "Authorize"}
               </AlertDialogAction>
             </div>
           </AlertDialogFooter>
@@ -1230,6 +1176,7 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
   const [showRefundReceipt, setShowRefundReceipt] = useState(false);
   const [customerName, setCustomerName] = useState<string>("");
   const [tradeInAmount, setTradeInAmount] = useState<number>(0);
+  const [isSearching, setIsSearching] = useState(false);
 
   // Calculate claim amount (same as refund for now)
   const claimAmount =
@@ -1238,20 +1185,92 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
       .reduce((sum, item) => sum + item.price * item.quantity, 0) || 0;
 
   // Handle looking up a receipt
-  const handleLookupReceipt = () => {
-    const receipt = mockReceipts.find(
-      (r) => r.receiptNumber.toLowerCase() === receiptNumber.toLowerCase()
-    );
-    if (receipt) {
-      setCurrentReceipt(receipt);
-      setStep("select");
-      setSelectedItems([]);
-    } else {
+  const handleLookupReceipt = async () => {
+    if (!receiptNumber.trim()) {
       toast({
-        title: "Receipt not found",
-        description: "Please check the receipt number and try again.",
+        title: "Receipt number required",
+        description: "Please enter a receipt number to search.",
         variant: "destructive",
       });
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      // Call the transactions API to find the receipt
+      const response = await fetch(
+        `/api/transactions/fetch?referenceNumber=${encodeURIComponent(
+          receiptNumber.trim()
+        )}`
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error("API Error Response:", data);
+        throw new Error(
+          data.details ||
+            data.error ||
+            `Failed to fetch transaction: ${response.statusText}`
+        );
+      }
+
+      if (!data.ok || !data.transactions || data.transactions.length === 0) {
+        toast({
+          title: "Receipt not found",
+          description: `No transaction found with reference number: ${receiptNumber}`,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Convert API response to the format expected by the UI
+      const transaction = data.transactions[0];
+
+      // Convert the transaction to Receipt format for the UI
+      const receiptData: Receipt = {
+        receiptNumber: transaction.reference_number,
+        date: new Date(transaction.created_at).toLocaleDateString("en-GB"),
+        time: new Date(transaction.created_at).toLocaleTimeString("en-GB", {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        }),
+        paymentMethod: transaction.payment_method || "Cash",
+        total: Math.abs(parseFloat(transaction.total_amount.toString())),
+        items: parseTransactionItems(transaction.items_sold || []),
+      };
+
+      // Store customer info if available
+      if (transaction.customers) {
+        setCurrentCustomer({
+          id: transaction.customers.id,
+          name: transaction.customers.name,
+          email: transaction.customers.email,
+          phone: transaction.customers.phone,
+        });
+      }
+
+      setCurrentReceipt(receiptData);
+      setStep("select");
+      setSelectedItems([]);
+
+      toast({
+        title: "Receipt found",
+        description: `Found transaction ${receiptNumber} with ${receiptData.items.length} items.`,
+      });
+    } catch (error) {
+      console.error("Error looking up receipt:", error);
+      toast({
+        title: "Search failed",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to search for receipt. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSearching(false);
     }
   };
 
@@ -1819,26 +1838,65 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
                       </div>
                       <Button
                         onClick={handleLookupReceipt}
-                        disabled={!receiptNumber}
+                        disabled={!receiptNumber || isSearching}
                       >
-                        Search
+                        {isSearching ? (
+                          <>
+                            <motion.div
+                              animate={{ rotate: 360 }}
+                              transition={{
+                                duration: 1,
+                                repeat: Infinity,
+                                ease: "linear",
+                              }}
+                              className="h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2"
+                            />
+                            Searching...
+                          </>
+                        ) : (
+                          "Search"
+                        )}
                       </Button>
                     </div>
+
+                    {isSearching && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center gap-3"
+                      >
+                        <motion.div
+                          animate={{ rotate: 360 }}
+                          transition={{
+                            duration: 1,
+                            repeat: Infinity,
+                            ease: "linear",
+                          }}
+                          className="h-5 w-5 border-2 border-blue-500 border-t-transparent rounded-full flex-shrink-0"
+                        />
+                        <div>
+                          <p className="text-sm font-medium text-blue-900">
+                            Fetching transaction details...
+                          </p>
+                          <p className="text-xs text-blue-700">
+                            Please wait while we retrieve the receipt
+                            information
+                          </p>
+                        </div>
+                      </motion.div>
+                    )}
+
                     <div className="rounded-lg border p-3 bg-muted/50">
                       <div className="flex items-center gap-2 text-sm font-medium mb-1">
                         <AlertCircle className="h-4 w-4 text-amber-500" />
-                        Sample Receipt Numbers
+                        Enter Transaction Reference Number
                       </div>
-                      <div className="text-xs text-muted-foreground grid grid-cols-2 gap-x-2">
-                        {mockReceipts.map((receipt) => (
-                          <div
-                            key={receipt.receiptNumber}
-                            className="flex justify-between"
-                          >
-                            <span>{receipt.receiptNumber}</span>
-                            <span>OMR {receipt.total.toFixed(2)}</span>
-                          </div>
-                        ))}
+                      <div className="text-xs text-muted-foreground">
+                        <p>Example: A1234, B5678, etc.</p>
+                        <p>
+                          Search will find transactions by reference number.
+                        </p>
                       </div>
                     </div>
                   </motion.div>

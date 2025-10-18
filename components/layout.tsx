@@ -110,9 +110,16 @@ export function Layout({ children, pageTitle }: LayoutProps) {
           willChange: "margin-left",
         }}
       >
-        <main className="flex-1 w-full pt-4 pb-4 pl-4 pr-4 md:pt-10 md:pb-6 md:pl-6 md:pr-6 lg:pt-12 lg:pb-8 lg:pl-8 lg:pr-8 overflow-auto rounded-tl-2xl rounded-tr-2xl bg-white shadow-md border border-gray-200">
+        <main className="flex-1 w-full pt-4 pb-4 pl-4 pr-4 md:pt-10 md:pb-6 md:pl-6 md:pr-6 lg:pt-12 lg:pb-8 lg:pl-8 lg:pr-8 overflow-auto rounded-tl-2xl rounded-tr-2xl rounded-bl-2xl rounded-br-2xl bg-white border border-gray-200">
           {children}
         </main>
+
+        {/* Footer */}
+        <footer className="w-full bg-gray-50 py-4 px-4 md:px-6 lg:px-8">
+          <div className="text-center text-sm text-gray-600">
+            © 2025 Developed by Pratik. All rights reserved.
+          </div>
+        </footer>
       </div>
     </div>
   );

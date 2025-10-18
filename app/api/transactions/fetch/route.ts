@@ -7,6 +7,7 @@ const QuerySchema = z.object({
   locationId: z.string().uuid().optional(),
   startDate: z.string().optional(),
   endDate: z.string().optional(),
+  referenceNumber: z.string().optional(),
 });
 
 type QueryParams = z.infer<typeof QuerySchema>;
@@ -21,6 +22,7 @@ export async function GET(req: Request) {
       locationId: url.searchParams.get("locationId") || undefined,
       startDate: url.searchParams.get("startDate") || undefined,
       endDate: url.searchParams.get("endDate") || undefined,
+      referenceNumber: url.searchParams.get("referenceNumber") || undefined,
     });
 
     if (!parsed.success) {
@@ -32,7 +34,7 @@ export async function GET(req: Request) {
 
     const qp: QueryParams = parsed.data;
 
-    // Build the query with customer information
+    // Build the query with customer information (left join to handle null customer_id)
     let query = supabase
       .from("transactions")
       .select(
@@ -52,7 +54,7 @@ export async function GET(req: Request) {
         original_reference_number,
         created_at,
         customer_id,
-        customers!transactions_customer_id_fkey (
+        customers (
           id,
           name,
           email,
@@ -79,12 +81,17 @@ export async function GET(req: Request) {
       query = query.lte("created_at", qp.endDate);
     }
 
+    if (qp.referenceNumber) {
+      query = query.eq("reference_number", qp.referenceNumber);
+    }
+
     const { data: transactionsData, error } = await query;
 
     if (error) {
       console.error("Transactions query error:", error);
+      console.error("Full error details:", JSON.stringify(error, null, 2));
       return NextResponse.json(
-        { error: "Failed to fetch transactions data" },
+        { error: "Failed to fetch transactions data", details: error.message },
         { status: 500 }
       );
     }
