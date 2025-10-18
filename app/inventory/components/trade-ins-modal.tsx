@@ -78,7 +78,7 @@ export function TradeInsModal({ isOpen, onClose }: TradeInsModalProps) {
       }
     } catch (error) {
       // Don't show error if request was aborted
-      if (error instanceof Error && error.name === 'AbortError') {
+      if (error instanceof Error && error.name === "AbortError") {
         return;
       }
       console.error("Error loading trade-in prices:", error);
@@ -130,7 +130,7 @@ export function TradeInsModal({ isOpen, onClose }: TradeInsModalProps) {
       }
     } catch (error) {
       // Don't show error if request was aborted
-      if (error instanceof Error && error.name === 'AbortError') {
+      if (error instanceof Error && error.name === "AbortError") {
         return;
       }
       console.error("Error saving trade-in prices:", error);
@@ -149,7 +149,7 @@ export function TradeInsModal({ isOpen, onClose }: TradeInsModalProps) {
     if (isOpen) {
       const abortController = new AbortController();
       loadTradeInPrices(abortController);
-      
+
       // Cleanup function to abort request if modal closes
       return () => {
         abortController.abort();
@@ -283,7 +283,7 @@ export function TradeInsModal({ isOpen, onClose }: TradeInsModalProps) {
                 <div className="md:pt-6 flex gap-2">
                   <Button
                     onClick={handleAddItem}
-                    className="w-full md:w-auto rounded-lg bg-blue-600 hover:bg-blue-700"
+                    className="w-full md:w-auto rounded-lg bg-orange-600 hover:bg-orange-700"
                     disabled={!newSize || !newPrice}
                   >
                     <Plus className="h-4 w-4 mr-2" />
@@ -444,7 +444,7 @@ export function TradeInsModal({ isOpen, onClose }: TradeInsModalProps) {
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => setEditingItem(item.id)}
-                                className="h-7 w-7 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                className="h-7 w-7 p-0 text-orange-600 hover:text-orange-700 hover:bg-orange-50"
                               >
                                 <Edit3 className="h-3.5 w-3.5" />
                               </Button>

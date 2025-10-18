@@ -75,10 +75,10 @@ export function IntegrationStatus({ className }: IntegrationStatusProps) {
         status: "loading" as const,
         message: "Syncing Data",
         description: "Fetching latest inventory data...",
-        color: "text-blue-600",
-        bgColor: "bg-blue-50",
-        borderColor: "border-blue-200",
-        icon: <Sync className="h-5 w-5 text-blue-600 animate-spin" />,
+        color: "text-orange-600",
+        bgColor: "bg-orange-50",
+        borderColor: "border-orange-200",
+        icon: <Sync className="h-5 w-5 text-orange-600 animate-spin" />,
       };
     }
 
@@ -150,7 +150,7 @@ export function IntegrationStatus({ className }: IntegrationStatusProps) {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
               {/* Product Stats */}
               <div className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30">
-                <Database className="h-8 w-8 text-blue-600" />
+                <Database className="h-8 w-8 text-orange-600" />
                 <div>
                   <p className="font-medium">Total Products</p>
                   <p className="text-2xl font-bold">{totalProducts}</p>

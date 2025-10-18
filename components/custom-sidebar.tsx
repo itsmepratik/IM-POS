@@ -197,7 +197,7 @@ export function CustomSidebar({ className }: { className?: string }) {
                       <span className="mr-2 inline-flex">{item.icon}</span>
                       <span>{item.title}</span>
                       {notifications.length > 0 && (
-                        <Badge className="absolute top-0 -right-1 h-4 min-w-4 px-1 flex items-center justify-center bg-blue-500 text-[10px]">
+                        <Badge className="absolute top-0 -right-1 h-4 min-w-4 px-1 flex items-center justify-center bg-orange-500 text-[10px]">
                           {notifications.length}
                         </Badge>
                       )}

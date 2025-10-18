@@ -671,7 +671,7 @@ export default function TransferPage() {
                       ? "bg-green-50 border-green-200"
                       : order.status === "partially_received"
                       ? "bg-yellow-50 border-yellow-200"
-                      : "bg-blue-50 border-blue-200"
+                      : "bg-orange-50 border-orange-200"
                   }`}
                 >
                   <CardContent className="p-3 sm:p-4">
@@ -690,7 +690,7 @@ export default function TransferPage() {
                             <Button
                               variant="outline"
                               size="sm"
-                              className="border-blue-500 text-blue-500 hover:bg-blue-50 h-8 px-2 text-xs sm:text-sm"
+                              className="border-orange-500 text-orange-500 hover:bg-orange-50 h-8 px-2 text-xs sm:text-sm"
                               onClick={() => openReviewModal(order)}
                             >
                               <Package className="h-3.5 w-3.5 mr-1" />
@@ -1196,7 +1196,7 @@ export default function TransferPage() {
                           )}
                         </label>
                         <div className="flex items-center ml-auto gap-2 sm:gap-4 text-xs sm:text-sm flex-shrink-0">
-                          <div className="px-1.5 py-0.5 sm:px-2 sm:py-1 bg-blue-50 text-blue-700 rounded whitespace-nowrap">
+                          <div className="px-1.5 py-0.5 sm:px-2 sm:py-1 bg-orange-50 text-orange-700 rounded whitespace-nowrap">
                             {item.quantitySold} units
                           </div>
                           <div className="text-muted-foreground whitespace-nowrap text-right">

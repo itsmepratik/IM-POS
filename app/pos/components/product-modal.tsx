@@ -179,7 +179,7 @@ export function ProductModal({
                 key={variant.id}
                 variant={isSelected ? "secondary" : "outline"}
                 className={`h-auto py-4 px-4 flex flex-col items-center gap-1.5 ${
-                  isSelected ? "bg-blue-50" : ""
+                  isSelected ? "bg-orange-50" : ""
                 }`}
                 onClick={() => handleVariantClick(variant)}
               >
@@ -234,7 +234,7 @@ export function ProductModal({
                           (variant.name === "1L" ||
                             variant.name === "500ml") && (
                             <div
-                              className="text-sm cursor-pointer text-blue-500"
+                              className="text-sm cursor-pointer text-orange-500"
                               onClick={() => toggleOpenBottle(variant.id)}
                             >
                               Open Bottle

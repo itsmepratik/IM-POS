@@ -176,7 +176,7 @@ export function Sidebar({
   return (
     <aside
       className={cn(
-        "fixed inset-y-0 left-0 z-50 flex w-full flex-col border-r bg-background transition-all duration-300 shadow-sm lg:w-auto",
+        "fixed inset-y-0 left-0 z-50 flex w-full flex-col bg-background transition-all duration-300 lg:w-auto",
         isCollapsed ? "lg:w-14" : "lg:w-56",
         className
       )}
@@ -185,7 +185,7 @@ export function Sidebar({
         {/* Header with logo and toggle */}
         <div
           className={cn(
-            "flex h-14 items-center border-b px-3",
+            "flex h-14 items-center px-3",
             isCollapsed ? "justify-center" : "justify-between px-4"
           )}
         >
@@ -395,7 +395,7 @@ export function Sidebar({
         </div>
 
         {/* Bottom actions section */}
-        <div className="mt-auto border-t p-2">
+        <div className="mt-auto p-2">
           {/* Notifications Inbox Link */}
           <Link
             href="/notifications"
@@ -410,7 +410,7 @@ export function Sidebar({
             <span className="flex-shrink-0 relative">
               <Inbox className="h-4 w-4" />
               {notifications.length > 0 && (
-                <Badge className="absolute -top-2 -right-2 h-4 min-w-4 px-1 flex items-center justify-center bg-blue-500 text-[10px]">
+                <Badge className="absolute -top-2 -right-2 h-4 min-w-4 px-1 flex items-center justify-center bg-orange-500 text-[10px]">
                   {notifications.length}
                 </Badge>
               )}

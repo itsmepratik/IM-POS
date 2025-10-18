@@ -196,7 +196,7 @@ function HomePageContent() {
                           percentage={payment.percentage}
                           color={
                             index === 0
-                              ? "bg-blue-500"
+                              ? "bg-orange-500"
                               : index === 1
                               ? "bg-green-500"
                               : "bg-yellow-500"

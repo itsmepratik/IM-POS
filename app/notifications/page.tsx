@@ -150,7 +150,11 @@ export default function NotificationsPage() {
                             ? "border-amber-500"
                             : ""
                         }
-                        ${notification.type === "info" ? "border-blue-500" : ""}
+                        ${
+                          notification.type === "info"
+                            ? "border-orange-500"
+                            : ""
+                        }
                       `}
                       style={{
                         backdropFilter: "blur(16px)",
@@ -171,7 +175,7 @@ export default function NotificationsPage() {
                             <div className="h-3 w-3 rounded-full bg-amber-500" />
                           )}
                           {notification.type === "info" && (
-                            <div className="h-3 w-3 rounded-full bg-blue-500" />
+                            <div className="h-3 w-3 rounded-full bg-orange-500" />
                           )}
                         </div>
                         <div className="flex-1 min-w-0">

@@ -397,7 +397,7 @@ function getRoleBadge(role: string) {
   const baseClass = "px-2 py-0.5 text-xs sm:text-sm leading-tight";
   switch (role) {
     case "admin":
-      return <Badge className={`bg-blue-500 ${baseClass}`}>Admin</Badge>;
+      return <Badge className={`bg-orange-500 ${baseClass}`}>Admin</Badge>;
     case "manager":
       return <Badge className={`bg-green-500 ${baseClass}`}>Manager</Badge>;
     case "staff":

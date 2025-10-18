@@ -634,10 +634,10 @@ export const BillComponent: React.FC<BillComponentProps> = ({
         >
           {/* Header - three column layout */}
           <div className="text-center mb-2">
-            <h3 className="font-bold text-lg text-blue-800">
+            <h3 className="font-bold text-lg text-orange-800">
               {companyDetails.name}
             </h3>
-            <p className="font-bold text-blue-800 text-sm">
+            <p className="font-bold text-orange-800 text-sm">
               {companyDetails.arabicName}
             </p>
             <div className="flex text-xs text-gray-500 justify-between mt-1">
@@ -770,7 +770,7 @@ export const BillComponent: React.FC<BillComponentProps> = ({
 
             <div className="border-t border-gray-800 my-1"></div>
 
-            <div className="flex justify-between text-xs font-bold text-blue-800">
+            <div className="flex justify-between text-xs font-bold text-orange-800">
               <span>
                 {isWarrantyClaim ? "WARRANTY AMOUNT:" : "TOTAL AMOUNT:"}
               </span>

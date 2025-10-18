@@ -153,7 +153,7 @@ function POSPageContent() {
                   variant="outline"
                   size="sm"
                   onClick={() => setShowWarrantyDialog(true)}
-                  className="text-blue-600 border-blue-600 hover:bg-blue-50"
+                  className="text-orange-600 border-orange-600 hover:bg-orange-50"
                 >
                   <Ticket className="h-4 w-4 mr-2" />
                   Warranty

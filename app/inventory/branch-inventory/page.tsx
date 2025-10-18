@@ -725,10 +725,13 @@ function BranchInventoryPage() {
   };
 
   // Memoized modal handlers to prevent re-renders
-  const handleItemModalOpenChange = useCallback((open: boolean) => {
-    setIsModalOpen(open);
-    if (!open) setEditingItem(null);
-  }, [setIsModalOpen, setEditingItem]);
+  const handleItemModalOpenChange = useCallback(
+    (open: boolean) => {
+      setIsModalOpen(open);
+      if (!open) setEditingItem(null);
+    },
+    [setIsModalOpen, setEditingItem]
+  );
 
   const [isMobile, setIsMobile] = useState(false);
   const [isClient, setIsClient] = useState(false);
@@ -811,7 +814,7 @@ function BranchInventoryPage() {
               <Input
                 type="search"
                 placeholder="Search items..."
-                className="pl-9 pr-4 w-full rounded-[2.0625rem] border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                className="pl-9 pr-4 w-full rounded-[2.0625rem] border border-gray-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -843,9 +846,7 @@ function BranchInventoryPage() {
                   >
                     Categories
                   </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onAction={() => setIsBrandModalOpen(true)}
-                  >
+                  <DropdownMenuItem onAction={() => setIsBrandModalOpen(true)}>
                     Brands
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -881,11 +882,11 @@ function BranchInventoryPage() {
 
           {/* Awesome Filter Section - Desktop Only */}
           {showFilters && !isMobile && (
-            <div className="bg-gradient-to-r from-blue-50/50 via-white to-purple-50/50 backdrop-blur-sm border border-blue-200/50 rounded-[1.125rem] p-6 shadow-lg">
+            <div className="bg-gradient-to-r from-orange-50/50 via-white to-purple-50/50 backdrop-blur-sm border border-orange-200/50 rounded-[1.125rem] p-6 shadow-lg">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-blue-100 rounded-full">
-                    <Filter className="h-5 w-5 text-blue-600" />
+                  <div className="p-2 bg-orange-100 rounded-full">
+                    <Filter className="h-5 w-5 text-orange-600" />
                   </div>
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900">
@@ -927,7 +928,7 @@ function BranchInventoryPage() {
                       placeholder="Min"
                       value={minPrice}
                       onChange={(e) => setMinPrice(e.target.value)}
-                      className="flex-1 rounded-[2.0625rem] border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                      className="flex-1 rounded-[2.0625rem] border-gray-300 focus:border-orange-500 focus:ring-orange-500"
                     />
                     <span className="text-gray-400">-</span>
                     <Input
@@ -935,7 +936,7 @@ function BranchInventoryPage() {
                       placeholder="Max"
                       value={maxPrice}
                       onChange={(e) => setMaxPrice(e.target.value)}
-                      className="flex-1 rounded-[2.0625rem] border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                      className="flex-1 rounded-[2.0625rem] border-gray-300 focus:border-orange-500 focus:ring-orange-500"
                     />
                   </div>
                 </div>
@@ -943,14 +944,14 @@ function BranchInventoryPage() {
                 {/* Category Filter */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                    <span className="text-blue-600">📂</span>
+                    <span className="text-orange-600">📂</span>
                     Category
                   </label>
                   <Select
                     value={selectedCategory}
                     onValueChange={setSelectedCategory}
                   >
-                    <SelectTrigger className="w-full rounded-[2.0625rem] border-gray-300 focus:border-blue-500 focus:ring-blue-500">
+                    <SelectTrigger className="w-full rounded-[2.0625rem] border-gray-300 focus:border-orange-500 focus:ring-orange-500">
                       <SelectValue placeholder="All Categories" />
                     </SelectTrigger>
                     <SelectContent>
@@ -971,7 +972,7 @@ function BranchInventoryPage() {
                     Brand
                   </label>
                   <Select value={brandFilter} onValueChange={setBrandFilter}>
-                    <SelectTrigger className="w-full rounded-[2.0625rem] border-gray-300 focus:border-blue-500 focus:ring-blue-500">
+                    <SelectTrigger className="w-full rounded-[2.0625rem] border-gray-300 focus:border-orange-500 focus:ring-orange-500">
                       <SelectValue placeholder="All Brands" />
                     </SelectTrigger>
                     <SelectContent>
@@ -993,7 +994,7 @@ function BranchInventoryPage() {
                     Stock Status
                   </label>
                   <Select value={stockStatus} onValueChange={setStockStatus}>
-                    <SelectTrigger className="w-full rounded-[2.0625rem] border-gray-300 focus:border-blue-500 focus:ring-blue-500">
+                    <SelectTrigger className="w-full rounded-[2.0625rem] border-gray-300 focus:border-orange-500 focus:ring-orange-500">
                       <SelectValue placeholder="All Stock" />
                     </SelectTrigger>
                     <SelectContent>

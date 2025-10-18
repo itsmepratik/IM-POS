@@ -5,21 +5,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Printer, Download, FileText, X } from "lucide-react";
 import { useCompanyInfo } from "@/lib/hooks/useCompanyInfo";
-
-interface Product {
-  id: string;
-  name: string;
-  price: number;
-  category: string;
-  brand?: string;
-}
-
-interface CartItem extends Product {
-  quantity: number;
-  details?: string;
-  uniqueId: string;
-  bottleType?: "open" | "closed";
-}
+import { CartItem } from "@/app/pos/types";
 
 interface OnHoldTicketProps {
   isOpen: boolean;
@@ -51,25 +37,31 @@ export function OnHoldTicket({
 ═══════════════════════════════════════════════
 
 ${companyInfo.brand.name}
-${companyInfo.brand.addressLines.join(', ')}
-Tel: ${companyInfo.brand.phones.join(', ')}
+${companyInfo.brand.addressLines.join(", ")}
+Tel: ${companyInfo.brand.phones.join(", ")}
 
 ───────────────────────────────────────────────
 TICKET INFORMATION
 ───────────────────────────────────────────────
-Date: ${currentDate.toLocaleDateString('en-GB')}
-Time: ${currentDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+Date: ${currentDate.toLocaleDateString("en-GB")}
+Time: ${currentDate.toLocaleTimeString("en-GB", {
+      hour: "2-digit",
+      minute: "2-digit",
+    })}
 Vehicle Plate: ${carPlateNumber}
 
 ───────────────────────────────────────────────
 RESERVED ITEMS
 ───────────────────────────────────────────────
-${cartItems.map((item, index) => 
-  `${index + 1}. ${item.name || item.product_name}
+${cartItems
+  .map(
+    (item, index) =>
+      `${index + 1}. ${item.name || item.product_name}
    Quantity: ${item.quantity}
    Price: OMR ${item.price?.toFixed(3) || "0.000"} each
    Amount: OMR ${((item.price || 0) * item.quantity).toFixed(3)}`
-).join('\n\n')}
+  )
+  .join("\n\n")}
 
 ───────────────────────────────────────────────
 TOTAL AMOUNT: OMR ${total.toFixed(3)}
@@ -85,9 +77,9 @@ Thank you for choosing ${companyInfo.brand.name}
 ═══════════════════════════════════════════════
     `.trim();
 
-    const blob = new Blob([ticketContent], { type: 'text/plain' });
+    const blob = new Blob([ticketContent], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
     a.download = `on-hold-ticket-${ticketNumber}.txt`;
     document.body.appendChild(a);
@@ -102,7 +94,9 @@ Thank you for choosing ${companyInfo.brand.name}
         <DialogTitle className="sr-only">On Hold Ticket</DialogTitle>
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold text-center flex-1">On Hold Ticket</h2>
+          <h2 className="text-xl font-semibold text-center flex-1">
+            On Hold Ticket
+          </h2>
           <Button
             variant="ghost"
             size="sm"
@@ -132,8 +126,12 @@ Thank you for choosing ${companyInfo.brand.name}
               <h3 className="text-lg font-bold text-gray-800">
                 {companyInfo.brand.name}
               </h3>
-              <p className="text-sm text-gray-600">{companyInfo.brand.addressLines.join(', ')}</p>
-              <p className="text-sm text-gray-600">Tel: {companyInfo.brand.phones.join(', ')}</p>
+              <p className="text-sm text-gray-600">
+                {companyInfo.brand.addressLines.join(", ")}
+              </p>
+              <p className="text-sm text-gray-600">
+                Tel: {companyInfo.brand.phones.join(", ")}
+              </p>
             </div>
 
             {/* Ticket Information */}
@@ -141,16 +139,25 @@ Thank you for choosing ${companyInfo.brand.name}
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
                   <span className="font-medium text-gray-700">Date:</span>
-                  <p className="font-semibold">{currentDate.toLocaleDateString('en-GB')}</p>
+                  <p className="font-semibold">
+                    {currentDate.toLocaleDateString("en-GB")}
+                  </p>
                 </div>
                 <div>
                   <span className="font-medium text-gray-700">Time:</span>
-                  <p className="font-semibold">{currentDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</p>
+                  <p className="font-semibold">
+                    {currentDate.toLocaleTimeString("en-GB", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </p>
                 </div>
               </div>
               <div className="mt-3 pt-3 border-t border-gray-200">
-                <span className="font-medium text-gray-700">Vehicle Plate:</span>
-                <p className="text-xl font-bold text-blue-800 bg-blue-50 rounded px-2 py-1 mt-1 text-center">
+                <span className="font-medium text-gray-700">
+                  Vehicle Plate:
+                </span>
+                <p className="text-xl font-bold text-orange-800 bg-orange-50 rounded px-2 py-1 mt-1 text-center">
                   {carPlateNumber}
                 </p>
               </div>
@@ -163,7 +170,10 @@ Thank you for choosing ${companyInfo.brand.name}
               </h4>
               <div className="space-y-2">
                 {cartItems.map((item, index) => (
-                  <div key={index} className="bg-white border border-gray-200 rounded p-3">
+                  <div
+                    key={index}
+                    className="bg-white border border-gray-200 rounded p-3"
+                  >
                     <div className="flex justify-between items-start mb-1">
                       <span className="font-medium text-gray-800 flex-1">
                         {item.name || item.product_name}
@@ -188,7 +198,9 @@ Thank you for choosing ${companyInfo.brand.name}
             {/* Total Section */}
             <div className="bg-green-50 border-2 border-green-300 rounded-lg p-3 mb-4">
               <div className="flex justify-between items-center">
-                <span className="text-lg font-bold text-green-800">TOTAL AMOUNT:</span>
+                <span className="text-lg font-bold text-green-800">
+                  TOTAL AMOUNT:
+                </span>
                 <span className="text-xl font-bold text-green-800">
                   OMR {total.toFixed(3)}
                 </span>
@@ -201,7 +213,9 @@ Thank you for choosing ${companyInfo.brand.name}
                 ⚠️ IMPORTANT NOTICE ⚠️
               </h4>
               <div className="text-sm text-red-700 space-y-1">
-                <p className="font-semibold">This ticket reserves your selected items.</p>
+                <p className="font-semibold">
+                  This ticket reserves your selected items.
+                </p>
                 <p>Present this ticket to complete your purchase.</p>
                 <p className="font-bold text-red-800 mt-2">
                   Valid for 24 hours from issue time
@@ -215,7 +229,9 @@ Thank you for choosing ${companyInfo.brand.name}
             {/* Footer */}
             <div className="text-center mt-4 pt-3 border-t border-gray-300">
               <p className="text-sm text-gray-600">Thank you for choosing</p>
-              <p className="font-bold text-gray-800">{companyInfo.brand.name}</p>
+              <p className="font-bold text-gray-800">
+                {companyInfo.brand.name}
+              </p>
             </div>
           </div>
         </div>

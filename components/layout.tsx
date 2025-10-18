@@ -87,7 +87,7 @@ export function Layout({ children, pageTitle }: LayoutProps) {
       />
 
       {/* Mobile header - show on mobile screens only */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 h-16 border-b bg-background z-50 flex items-center justify-between px-4">
+      <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-background z-50 flex items-center justify-between px-4">
         <div className="flex items-center">
           <MobileNav className="mr-2" />
         </div>
@@ -102,7 +102,7 @@ export function Layout({ children, pageTitle }: LayoutProps) {
       {/* Main content - push to the side based on sidebar state */}
       <div
         className={cn(
-          "flex-1 w-full flex flex-col mt-16 lg:mt-0 overflow-auto",
+          "flex-1 w-full flex flex-col mt-16 lg:mt-2 lg:mr-2 overflow-auto",
           sidebarCollapsed ? "lg:ml-14" : "lg:ml-56"
         )}
         style={{
@@ -110,7 +110,7 @@ export function Layout({ children, pageTitle }: LayoutProps) {
           willChange: "margin-left",
         }}
       >
-        <main className="flex-1 w-full p-4 md:p-6 lg:p-8 overflow-auto">
+        <main className="flex-1 w-full pt-4 pb-4 pl-4 pr-4 md:pt-10 md:pb-6 md:pl-6 md:pr-6 lg:pt-12 lg:pb-8 lg:pl-8 lg:pr-8 overflow-auto rounded-tl-2xl rounded-tr-2xl bg-white shadow-md border border-gray-200">
           {children}
         </main>
       </div>

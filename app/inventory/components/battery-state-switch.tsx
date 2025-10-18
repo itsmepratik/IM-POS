@@ -51,9 +51,9 @@ export function BatteryStateSwitch({
         return {
           label: "Resellable",
           icon: RefreshCw,
-          color: "bg-blue-100 text-blue-800 border-blue-300",
-          hoverColor: "hover:bg-blue-200",
-          iconColor: "text-blue-600",
+          color: "bg-orange-100 text-orange-800 border-orange-300",
+          hoverColor: "hover:bg-orange-200",
+          iconColor: "text-orange-600",
         };
     }
   };

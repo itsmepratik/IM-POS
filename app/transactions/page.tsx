@@ -150,7 +150,7 @@ const TransactionCard = memo(
                     transaction.type === "refund"
                       ? "text-red-500"
                       : transaction.type === "credit"
-                      ? "text-blue-600"
+                      ? "text-orange-600"
                       : transaction.type === "on-hold"
                       ? "text-yellow-600"
                       : "text-green-500"
@@ -250,7 +250,7 @@ const TransactionCard = memo(
                 <Button
                   variant="outline"
                   size="sm"
-                  className="flex items-center gap-1.5 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                  className="flex items-center gap-1.5 text-orange-600 hover:text-orange-700 hover:bg-orange-50"
                   onClick={() => onViewReceipt(transaction)}
                 >
                   <FileText className="h-4 w-4 sm:h-5 sm:w-5" />
@@ -280,7 +280,7 @@ function FixedSalesCard({
           : transaction.type === "refund"
           ? "bg-red-500"
           : transaction.type === "credit"
-          ? "bg-blue-600"
+          ? "bg-orange-600"
           : transaction.type === "on-hold"
           ? "bg-yellow-600"
           : "bg-green-600"
@@ -1217,18 +1217,18 @@ export default function TransactionsPage() {
         style={{ transition: "left 300ms ease-in-out", willChange: "left" }}
       >
         <div className="p-3 sm:p-4 px-4 sm:px-6 pb-4 sm:pb-6 w-full max-w-2xl">
-          <Card className="p-3 sm:p-4 bg-blue-50 border shadow-md">
+          <Card className="p-3 sm:p-4 bg-orange-50 border shadow-md">
             <div className="flex items-center justify-between">
               <div>
-                <span className="text-base sm:text-lg font-semibold text-blue-800">
+                <span className="text-base sm:text-lg font-semibold text-orange-800">
                   Total credit:
                 </span>
               </div>
               <div className="flex items-center">
-                <span className="text-sm sm:text-base text-blue-700 mr-1">
+                <span className="text-sm sm:text-base text-orange-700 mr-1">
                   OMR
                 </span>
-                <span className="text-xl sm:text-2xl font-bold text-blue-800">
+                <span className="text-xl sm:text-2xl font-bold text-orange-800">
                   {Math.abs(totalCredit).toFixed(2)}
                 </span>
               </div>

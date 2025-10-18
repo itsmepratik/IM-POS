@@ -2628,7 +2628,7 @@ function POSPageContent() {
                     {/* Labor Pill Button */}
                     <Button
                       variant="outline"
-                      className="w-full rounded-full border-2 border-blue-300 bg-blue-50 hover:bg-blue-100 text-blue-700 px-8 py-1 font-medium hover:border-blue-400 transition-colors shadow-sm mt-2 mb-2"
+                      className="w-full rounded-full border-2 border-orange-300 bg-orange-50 hover:bg-orange-100 text-orange-700 px-8 py-1 font-medium hover:border-orange-400 transition-colors shadow-sm mt-2 mb-2"
                       onClick={() => setIsLaborDialogOpen(true)}
                     >
                       <Wrench className="h-4 w-4 mr-2" />
@@ -2867,7 +2867,7 @@ function POSPageContent() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-9 w-9 bg-blue-100/70 hover:bg-blue-200/80 text-blue-700 border border-blue-200 shadow-sm rounded-lg transition-colors"
+                      className="h-9 w-9 bg-orange-100/70 hover:bg-orange-200/80 text-orange-700 border border-orange-200 shadow-sm rounded-lg transition-colors"
                       onClick={() => setShowCart(false)}
                     >
                       <X className="h-4 w-4" />
@@ -3435,289 +3435,305 @@ function POSPageContent() {
           // Print functionality for on-hold ticket
           const ticketContent = document.getElementById("ticket-content");
           if (ticketContent) {
-            const printWindow = window.open("", "_blank");
-            if (printWindow) {
-              // Get current date and ticket number
-              const currentDate = new Date();
-              const ticketNumber = `OH-${Date.now().toString().slice(-6)}`;
+            // Use iframe approach like regular receipts (more reliable, less likely to be blocked by popup blockers)
+            const iframe = document.createElement("iframe");
+            iframe.style.position = "fixed";
+            iframe.style.right = "0";
+            iframe.style.bottom = "0";
+            iframe.style.width = "0";
+            iframe.style.height = "0";
+            iframe.style.border = "0";
+            document.body.appendChild(iframe);
 
-              printWindow.document.write(`
-                <html>
-                  <head>
-                    <title>On Hold Ticket</title>
-                    <style>
-                      body { 
-                        margin: 0; 
-                        padding: 10mm; 
-                        font-family: Arial, sans-serif; 
-                        background: white;
-                        color: black;
-                        font-size: 12px;
-                        line-height: 1.4;
+            // Get current date and ticket number
+            const currentDate = new Date();
+            const ticketNumber = `OH-${Date.now().toString().slice(-6)}`;
+
+            const htmlContent = `
+              <html>
+                <head>
+                  <title>On Hold Ticket</title>
+                  <style>
+                    body {
+                      margin: 0;
+                      padding: 10mm;
+                      font-family: Arial, sans-serif;
+                      background: white;
+                      color: black;
+                      font-size: 12px;
+                      line-height: 1.4;
+                    }
+                    .ticket {
+                      width: 80mm;
+                      margin: 0 auto;
+                      background: white;
+                      padding: 8mm;
+                    }
+                    .header {
+                      text-align: center;
+                      margin-bottom: 6mm;
+                      border-bottom: 2px solid black;
+                      padding-bottom: 4mm;
+                    }
+                    .ticket-title {
+                      border: 2px solid black;
+                      padding: 4mm;
+                      margin-bottom: 4mm;
+                    }
+                    .ticket-title h2 {
+                      font-size: 16px;
+                      font-weight: bold;
+                      margin: 0 0 2mm 0;
+                      text-align: center;
+                    }
+                    .ticket-number {
+                      font-size: 14px;
+                      font-weight: bold;
+                      margin: 0;
+                      text-align: center;
+                    }
+                    .company-name {
+                      font-size: 14px;
+                      font-weight: bold;
+                      margin: 0 0 1mm 0;
+                    }
+                    .company-info {
+                      font-size: 11px;
+                      margin: 0.5mm 0;
+                    }
+                    .info-section {
+                      border: 1px solid black;
+                      padding: 3mm;
+                      margin-bottom: 4mm;
+                    }
+                    .info-row {
+                      display: flex;
+                      justify-content: space-between;
+                      margin-bottom: 2mm;
+                    }
+                    .info-label {
+                      font-weight: bold;
+                    }
+                    .vehicle-section {
+                      border-top: 1px solid black;
+                      padding-top: 3mm;
+                      margin-top: 3mm;
+                    }
+                    .plate-number {
+                      font-size: 14px;
+                      font-weight: bold;
+                      border: 2px solid black;
+                      padding: 2mm;
+                      text-align: center;
+                      margin-top: 2mm;
+                    }
+                    .items-section {
+                      margin-bottom: 4mm;
+                    }
+                    .items-header {
+                      font-weight: bold;
+                      text-align: center;
+                      border: 1px solid black;
+                      padding: 2mm;
+                      margin-bottom: 3mm;
+                    }
+                    .item {
+                      border: 1px solid black;
+                      padding: 3mm;
+                      margin-bottom: 2mm;
+                    }
+                    .item-header {
+                      display: flex;
+                      justify-content: space-between;
+                      margin-bottom: 1mm;
+                    }
+                    .item-name {
+                      font-weight: bold;
+                      flex: 1;
+                    }
+                    .item-qty {
+                      font-size: 11px;
+                      margin-left: 2mm;
+                    }
+                    .item-footer {
+                      display: flex;
+                      justify-content: space-between;
+                      font-size: 11px;
+                    }
+                    .item-amount {
+                      font-weight: bold;
+                    }
+                    .total-section {
+                      border: 2px solid black;
+                      padding: 3mm;
+                      margin-bottom: 4mm;
+                    }
+                    .total-row {
+                      display: flex;
+                      justify-content: space-between;
+                      align-items: center;
+                    }
+                    .total-label {
+                      font-size: 14px;
+                      font-weight: bold;
+                    }
+                    .total-amount {
+                      font-size: 16px;
+                      font-weight: bold;
+                    }
+                    .notice-section {
+                      border: 2px solid black;
+                      padding: 4mm;
+                      text-align: center;
+                      margin-bottom: 4mm;
+                    }
+                    .notice-title {
+                      font-weight: bold;
+                      font-size: 13px;
+                      margin-bottom: 2mm;
+                    }
+                    .notice-content {
+                      font-size: 11px;
+                      line-height: 1.3;
+                    }
+                    .notice-content p {
+                      margin: 1mm 0;
+                    }
+                    .notice-important {
+                      font-weight: bold;
+                      margin-top: 2mm;
+                    }
+                    .footer {
+                      text-align: center;
+                      padding-top: 3mm;
+                      border-top: 1px solid black;
+                      font-size: 11px;
+                    }
+                    .footer p {
+                      margin: 1mm 0;
+                    }
+                    .footer-company {
+                      font-weight: bold;
+                    }
+                    @media print {
+                      body {
+                        padding: 5mm;
+                        -webkit-print-color-adjust: exact;
+                        print-color-adjust: exact;
                       }
-                      .ticket { 
-                        width: 80mm; 
-                        margin: 0 auto; 
-                        background: white;
-                        padding: 8mm;
-                      }
-                      .header {
-                        text-align: center;
-                        margin-bottom: 6mm;
-                        border-bottom: 2px solid black;
-                        padding-bottom: 4mm;
-                      }
-                      .ticket-title {
-                        border: 2px solid black;
-                        padding: 4mm;
-                        margin-bottom: 4mm;
-                      }
-                      .ticket-title h2 {
-                        font-size: 16px;
-                        font-weight: bold;
-                        margin: 0 0 2mm 0;
-                        text-align: center;
-                      }
-                      .ticket-number {
-                        font-size: 14px;
-                        font-weight: bold;
+                      .ticket {
+                        width: 80mm;
                         margin: 0;
-                        text-align: center;
                       }
-                      .company-name {
-                        font-size: 14px;
-                        font-weight: bold;
-                        margin: 0 0 1mm 0;
-                      }
-                      .company-info {
-                        font-size: 11px;
-                        margin: 0.5mm 0;
-                      }
-                      .info-section {
-                        border: 1px solid black;
-                        padding: 3mm;
-                        margin-bottom: 4mm;
-                      }
-                      .info-row {
-                        display: flex;
-                        justify-content: space-between;
-                        margin-bottom: 2mm;
-                      }
-                      .info-label {
-                        font-weight: bold;
-                      }
-                      .vehicle-section {
-                        border-top: 1px solid black;
-                        padding-top: 3mm;
-                        margin-top: 3mm;
-                      }
-                      .plate-number {
-                        font-size: 14px;
-                        font-weight: bold;
-                        border: 2px solid black;
-                        padding: 2mm;
-                        text-align: center;
-                        margin-top: 2mm;
-                      }
-                      .items-section {
-                        margin-bottom: 4mm;
-                      }
-                      .items-header {
-                        font-weight: bold;
-                        text-align: center;
-                        border: 1px solid black;
-                        padding: 2mm;
-                        margin-bottom: 3mm;
-                      }
-                      .item {
-                        border: 1px solid black;
-                        padding: 3mm;
-                        margin-bottom: 2mm;
-                      }
-                      .item-header {
-                        display: flex;
-                        justify-content: space-between;
-                        margin-bottom: 1mm;
-                      }
-                      .item-name {
-                        font-weight: bold;
-                        flex: 1;
-                      }
-                      .item-qty {
-                        font-size: 11px;
-                        margin-left: 2mm;
-                      }
-                      .item-footer {
-                        display: flex;
-                        justify-content: space-between;
-                        font-size: 11px;
-                      }
-                      .item-amount {
-                        font-weight: bold;
-                      }
-                      .total-section {
-                        border: 2px solid black;
-                        padding: 3mm;
-                        margin-bottom: 4mm;
-                      }
-                      .total-row {
-                        display: flex;
-                        justify-content: space-between;
-                        align-items: center;
-                      }
-                      .total-label {
-                        font-size: 14px;
-                        font-weight: bold;
-                      }
-                      .total-amount {
-                        font-size: 16px;
-                        font-weight: bold;
-                      }
-                      .notice-section {
-                        border: 2px solid black;
-                        padding: 4mm;
-                        text-align: center;
-                        margin-bottom: 4mm;
-                      }
-                      .notice-title {
-                        font-weight: bold;
-                        font-size: 13px;
-                        margin-bottom: 2mm;
-                      }
-                      .notice-content {
-                        font-size: 11px;
-                        line-height: 1.3;
-                      }
-                      .notice-content p {
-                        margin: 1mm 0;
-                      }
-                      .notice-important {
-                        font-weight: bold;
-                        margin-top: 2mm;
-                      }
-                      .footer {
-                        text-align: center;
-                        padding-top: 3mm;
-                        border-top: 1px solid black;
-                        font-size: 11px;
-                      }
-                      .footer p {
-                        margin: 1mm 0;
-                      }
-                      .footer-company {
-                        font-weight: bold;
-                      }
-                      @media print {
-                        body { 
-                          padding: 5mm;
-                          -webkit-print-color-adjust: exact;
-                          print-color-adjust: exact;
-                        }
-                        .ticket { 
-                          width: 80mm; 
-                          margin: 0; 
-                        }
-                      }
-                      @page {
-                        margin: 5mm;
-                        size: 80mm auto;
-                      }
-                    </style>
-                  </head>
-                  <body>
-                    <div class="ticket">
-                      <div class="header">
-                        <div class="ticket-title">
-                          <h2>ON HOLD TICKET</h2>
-                          <p class="ticket-number">#${ticketNumber}</p>
-                        </div>
-                        <h3 class="company-name">${companyInfo.brand.name}</h3>
-                        <p class="company-info">${companyInfo.brand.addressLines.join(
-                          ", "
-                        )}</p>
-                        <p class="company-info">Tel: ${companyInfo.brand.phones.join(
-                          ", "
-                        )}</p>
+                    }
+                    @page {
+                      margin: 5mm;
+                      size: 80mm auto;
+                    }
+                  </style>
+                </head>
+                <body>
+                  <div class="ticket">
+                    <div class="header">
+                      <div class="ticket-title">
+                        <h2>ON HOLD TICKET</h2>
+                        <p class="ticket-number">#${ticketNumber}</p>
                       </div>
+                      <h3 class="company-name">${companyInfo.brand.name}</h3>
+                      <p class="company-info">${companyInfo.brand.addressLines.join(
+                        ", "
+                      )}</p>
+                      <p class="company-info">Tel: ${companyInfo.brand.phones.join(
+                        ", "
+                      )}</p>
+                    </div>
 
-                      <div class="info-section">
-                        <div class="info-row">
-                          <span class="info-label">Date:</span>
-                          <span>${currentDate.toLocaleDateString(
-                            "en-GB"
-                          )}</span>
-                        </div>
-                        <div class="info-row">
-                          <span class="info-label">Time:</span>
-                          <span>${currentDate.toLocaleTimeString("en-GB", {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}</span>
-                        </div>
-                        <div class="vehicle-section">
-                          <div class="info-label">Vehicle Plate:</div>
-                          <div class="plate-number">${carPlateNumber}</div>
-                        </div>
+                    <div class="info-section">
+                      <div class="info-row">
+                        <span class="info-label">Date:</span>
+                        <span>${currentDate.toLocaleDateString("en-GB")}</span>
                       </div>
-
-                      <div class="items-section">
-                        <div class="items-header">RESERVED ITEMS</div>
-                        ${cart
-                          .map(
-                            (item, index) => `
-                          <div class="item">
-                            <div class="item-header">
-                              <span class="item-name">${
-                                item.name || item.product_name
-                              }</span>
-                              <span class="item-qty">Qty: ${
-                                item.quantity
-                              }</span>
-                            </div>
-                            <div class="item-footer">
-                              <span>OMR ${
-                                item.price?.toFixed(3) || "0.000"
-                              } each</span>
-                              <span class="item-amount">OMR ${(
-                                (item.price || 0) * item.quantity
-                              ).toFixed(3)}</span>
-                            </div>
-                          </div>
-                        `
-                          )
-                          .join("")}
+                      <div class="info-row">
+                        <span class="info-label">Time:</span>
+                        <span>${currentDate.toLocaleTimeString("en-GB", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}</span>
                       </div>
-
-                      <div class="total-section">
-                        <div class="total-row">
-                          <span class="total-label">TOTAL AMOUNT:</span>
-                          <span class="total-amount">OMR ${total.toFixed(
-                            3
-                          )}</span>
-                        </div>
-                      </div>
-
-                      <div class="notice-section">
-                        <div class="notice-title">IMPORTANT NOTICE</div>
-                        <div class="notice-content">
-                          <p>This ticket reserves your selected items.</p>
-                          <p>Present this ticket to complete your purchase.</p>
-                          <p class="notice-important">Valid for 24 hours from issue time</p>
-                          <p>Items will be released after expiry</p>
-                        </div>
-                      </div>
-
-                      <div class="footer">
-                        <p>Thank you for choosing</p>
-                        <p class="footer-company">${companyInfo.brand.name}</p>
+                      <div class="vehicle-section">
+                        <div class="info-label">Vehicle Plate:</div>
+                        <div class="plate-number">${carPlateNumber}</div>
                       </div>
                     </div>
-                  </body>
-                </html>
-              `);
-              printWindow.document.close();
-              printWindow.print();
-              printWindow.close();
+
+                    <div class="items-section">
+                      <div class="items-header">RESERVED ITEMS</div>
+                      ${cart
+                        .map(
+                          (item, index) => `
+                        <div class="item">
+                          <div class="item-header">
+                            <span class="item-name">${item.name}</span>
+                            <span class="item-qty">Qty: ${item.quantity}</span>
+                          </div>
+                          <div class="item-footer">
+                            <span>OMR ${
+                              item.price?.toFixed(3) || "0.000"
+                            } each</span>
+                            <span class="item-amount">OMR ${(
+                              (item.price || 0) * item.quantity
+                            ).toFixed(3)}</span>
+                          </div>
+                        </div>
+                      `
+                        )
+                        .join("")}
+                    </div>
+
+                    <div class="total-section">
+                      <div class="total-row">
+                        <span class="total-label">TOTAL AMOUNT:</span>
+                        <span class="total-amount">OMR ${total.toFixed(
+                          3
+                        )}</span>
+                      </div>
+                    </div>
+
+                    <div class="notice-section">
+                      <div class="notice-title">IMPORTANT NOTICE</div>
+                      <div class="notice-content">
+                        <p>This ticket reserves your selected items.</p>
+                        <p>Present this ticket to complete your purchase.</p>
+                        <p class="notice-important">Valid for 24 hours from issue time</p>
+                        <p>Items will be released after expiry</p>
+                      </div>
+                    </div>
+
+                    <div class="footer">
+                      <p>Thank you for choosing</p>
+                      <p class="footer-company">${companyInfo.brand.name}</p>
+                    </div>
+                  </div>
+                </body>
+              </html>
+            `;
+
+            iframe.onload = () => {
+              try {
+                iframe.contentWindow?.focus();
+                iframe.contentWindow?.print();
+              } finally {
+                setTimeout(() => {
+                  document.body.removeChild(iframe);
+                }, 500);
+              }
+            };
+
+            const doc = iframe.contentWindow?.document;
+            if (doc) {
+              doc.open();
+              doc.write(htmlContent);
+              doc.close();
             }
           }
         }}
@@ -4405,7 +4421,7 @@ function POSPageContent() {
               Cancel
             </Button>
             <Button
-              className="flex-1 h-12 text-base bg-blue-500 hover:bg-blue-600"
+              className="flex-1 h-12 text-base bg-orange-500 hover:bg-orange-600"
               onClick={() => {
                 if (laborAmount > 0) {
                   // Add labor charge to cart

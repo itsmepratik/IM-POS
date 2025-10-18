@@ -298,7 +298,7 @@ export function TradeInDialog({
                                       variant="outline"
                                       size="sm"
                                       onClick={() => onStartEdit(b.id)}
-                                      className="h-7 w-7 sm:h-8 sm:w-8 p-0 rounded-md hover:bg-blue-50 hover:border-blue-200"
+                                      className="h-7 w-7 sm:h-8 sm:w-8 p-0 rounded-md hover:bg-orange-50 hover:border-orange-200"
                                     >
                                       <Edit2 className="h-3 w-3" />
                                     </Button>

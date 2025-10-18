@@ -167,8 +167,8 @@ export function MobileNav({ className }: { className?: string }) {
               <span
                 className="text-base font-wide"
                 style={{
-                  fontWeight: 750,
-                  color: "#6e6a6a",
+                  fontWeight: 700,
+                  color: "#000000",
                   letterSpacing: "0px",
                 }}
               >
@@ -357,7 +357,7 @@ export function MobileNav({ className }: { className?: string }) {
                   <span className="relative">
                     <Inbox className="h-4 w-4" />
                     {notifications.length > 0 && (
-                      <Badge className="absolute -top-2 -right-2 h-4 min-w-4 px-1 flex items-center justify-center bg-blue-500 text-[10px]">
+                      <Badge className="absolute -top-2 -right-2 h-4 min-w-4 px-1 flex items-center justify-center bg-orange-500 text-[10px]">
                         {notifications.length}
                       </Badge>
                     )}
