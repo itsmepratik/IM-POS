@@ -63,14 +63,96 @@ interface RefundDialogProps {
 // Transaction data will now come from the API
 
 // Helper function to parse items_sold from transaction
-function parseTransactionItems(items: any[]): CartItem[] {
+// Helper function to fetch product names by IDs from Supabase directly
+const fetchProductNames = async (
+  productIds: string[]
+): Promise<Map<string, string>> => {
+  if (productIds.length === 0) return new Map();
+
+  try {
+    // Import Supabase client dynamically
+    const { createClient } = await import("@/supabase/client");
+    const supabase = createClient();
+
+    console.log("🔍 Fetching product names for IDs:", productIds);
+
+    // Query products table directly for these specific IDs (UUIDs)
+    const { data: productsData, error } = await supabase
+      .from("products")
+      .select("id, name, brand")
+      .in("id", productIds);
+
+    if (error) {
+      console.error("❌ Error fetching product names:", error);
+      return new Map();
+    }
+
+    console.log("✅ Fetched products:", productsData);
+
+    // Create a map of product ID (UUID string) to product name
+    const productNameMap = new Map<string, string>();
+    productsData?.forEach((product: any) => {
+      const fullName = product.brand
+        ? `${product.brand} ${product.name}`
+        : product.name;
+      productNameMap.set(product.id, fullName);
+    });
+
+    console.log("📊 Product name map:", Object.fromEntries(productNameMap));
+
+    return productNameMap;
+  } catch (error) {
+    console.error("❌ Exception fetching product names:", error);
+    return new Map();
+  }
+};
+
+async function parseTransactionItems(items: any[]): Promise<CartItem[]> {
+  console.log("🔄 Parsing transaction items:", JSON.stringify(items, null, 2));
+
+  // Extract product IDs that need name lookup
+  const productIds = items
+    .map((item: any) => {
+      const id = item.productId || item.id || item.product_id;
+      console.log(`  📦 Item raw data:`, JSON.stringify(item, null, 2));
+      console.log(`  🔑 Extracted ID: "${id}" (type: ${typeof id})`);
+      return id;
+    })
+    .filter((id: any) => {
+      if (!id) {
+        console.log(`  ❌ Filtered out: ID is null/undefined`);
+        return false;
+      }
+      if (typeof id !== "string") {
+        console.log(`  ❌ Filtered out: "${id}" is not a string`);
+        return false;
+      }
+      console.log(`  ✅ Keeping ID: ${id}`);
+      return true;
+    });
+
+  console.log("🔢 Final extracted product IDs (UUIDs):", productIds);
+
+  // Fetch product names for these IDs
+  const productNameMap = await fetchProductNames(productIds);
+
   return items.map((item: any, index: number) => {
     // Handle both old format (name, price) and new format (productId, sellingPrice)
+    const productId = item.productId || item.id || `${index}`;
+
+    // Try to get name from multiple sources, with fallback to fetched product name
+    const fetchedName = productNameMap.get(productId);
     const itemName =
       item.name ||
       item.productName ||
       item.product_name ||
-      `Product ${item.productId || index}`;
+      fetchedName || // Use fetched product name with brand
+      `Product ${productId}`;
+
+    console.log(
+      `  🏷️ Product ${productId}: Fetched="${fetchedName}", Final="${itemName}"`
+    );
+
     const itemPrice = item.price || item.sellingPrice || 0;
     const itemQuantity = item.quantity || 1;
     const itemId = item.id || item.productId || index;
@@ -99,7 +181,7 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
   const [refundComplete, setRefundComplete] = useState(false);
   const [step, setStep] = useState<
-    "search" | "select" | "confirm" | "complete"
+    "search" | "select" | "confirm" | "processing" | "complete"
   >("search");
   const [isCashierSelectOpen, setIsCashierSelectOpen] = useState(false);
   const [enteredCashierId, setEnteredCashierId] = useState<string>("");
@@ -174,6 +256,9 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
       const transaction = data.transactions[0];
 
       // Convert the transaction to Receipt format for the UI
+      const parsedItems = await parseTransactionItems(
+        transaction.items_sold || []
+      );
       const receiptData: Receipt = {
         receiptNumber: transaction.reference_number,
         date: new Date(transaction.created_at).toLocaleDateString("en-GB"),
@@ -184,7 +269,7 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
         }),
         paymentMethod: transaction.payment_method || "Cash",
         total: Math.abs(parseFloat(transaction.total_amount.toString())),
-        items: parseTransactionItems(transaction.items_sold || []),
+        items: parsedItems,
       };
 
       // Store customer info if available
@@ -245,10 +330,15 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
     setIsCashierSelectOpen(true);
   };
 
-  const handleFinalizeRefund = async () => {
-    if (!currentReceipt || !selectedCashier) return;
+  const handleFinalizeRefund = async (cashier?: {
+    id: string;
+    name: string;
+  }) => {
+    // Use passed cashier or fallback to selectedCashier
+    const activeCashier = cashier || selectedCashier;
 
-    setIsCashierSelectOpen(false);
+    if (!currentReceipt || !activeCashier || isProcessingRefund) return;
+
     setIsProcessingRefund(true);
 
     try {
@@ -267,6 +357,15 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
         0
       );
 
+      // Close cashier dialog first to show main dialog loading state
+      setIsCashierSelectOpen(false);
+      setEnteredCashierId("");
+      setFetchedCashier(null);
+      setCashierIdError(null);
+
+      // Set loading state in main dialog
+      setStep("processing");
+
       // Call the refund API
       const response = await fetch("/api/transactions/refund", {
         method: "POST",
@@ -278,7 +377,7 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
           refundAmount,
           refundItems: selectedRefundItems,
           reason: "Customer refund request",
-          cashierId: selectedCashier.id,
+          cashierId: activeCashier.id,
           shopId: currentBranch?.id || "default-shop",
           locationId: currentBranch?.id || "default-location",
           customerId: currentCustomer?.id,
@@ -308,6 +407,8 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
       setRefundComplete(true);
     } catch (error) {
       console.error("❌ Refund processing failed:", error);
+
+      // Show error message and go back to confirm step for retry
       toast({
         title: "Refund Failed",
         description:
@@ -316,6 +417,12 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
             : "Failed to process refund. Please try again.",
         variant: "destructive",
       });
+
+      // Reset cashier dialog state on error
+      setIsCashierSelectOpen(true);
+      setEnteredCashierId("");
+      setFetchedCashier(null);
+      setCashierIdError(null);
 
       // Go back to confirm step on error
       setStep("confirm");
@@ -339,6 +446,9 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
       onClose();
     } else if (step === "search") {
       onClose();
+    } else if (step === "processing") {
+      // Don't allow closing during processing
+      return;
     } else {
       setReceiptNumber("");
       setCurrentReceipt(null);
@@ -592,7 +702,7 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
         <DialogContent className="w-[95%] max-w-[600px] h-auto max-h-[80vh] rounded-lg flex flex-col print:p-0 print:border-0 print:max-h-none print:h-auto print:overflow-visible p-3 sm:p-4">
           <DialogHeader className="px-3 pt-2 pb-2 flex-shrink-0 z-10 bg-background sticky top-0">
             <DialogTitle className="text-xl flex items-center gap-2">
-              {step !== "search" && (
+              {step !== "search" && step !== "processing" && (
                 <Button
                   variant="ghost"
                   size="icon"
@@ -605,6 +715,7 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
               {step === "search" && "Refund Process"}
               {step === "select" && "Select Items to Refund"}
               {step === "confirm" && "Confirm Refund"}
+              {step === "processing" && "Processing Refund"}
               {step === "complete" && "Refund Complete"}
             </DialogTitle>
           </DialogHeader>
@@ -676,16 +787,28 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
                             repeat: Infinity,
                             ease: "linear",
                           }}
-                          className="h-5 w-5 border-2 border-blue-500 border-t-transparent rounded-full flex-shrink-0"
+                          className="h-6 w-6 border-3 border-blue-500 border-t-transparent rounded-full flex-shrink-0"
                         />
-                        <div>
+                        <div className="flex-1">
                           <p className="text-sm font-medium text-blue-900">
-                            Fetching transaction details...
+                            Searching for receipt...
                           </p>
                           <p className="text-xs text-blue-700">
-                            Please wait while we retrieve the receipt
-                            information
+                            Please wait while we retrieve the transaction
+                            details
                           </p>
+                          <div className="mt-2 w-full bg-blue-100 rounded-full h-1.5">
+                            <motion.div
+                              className="bg-blue-500 h-1.5 rounded-full"
+                              initial={{ width: "0%" }}
+                              animate={{ width: "100%" }}
+                              transition={{
+                                duration: 2,
+                                repeat: Infinity,
+                                ease: "easeInOut",
+                              }}
+                            />
+                          </div>
                         </div>
                       </motion.div>
                     )}
@@ -893,6 +1016,88 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
                     </div>
                   </motion.div>
                 )}
+                {step === "processing" && (
+                  <motion.div
+                    key="processing"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="flex flex-col items-center justify-center py-12 space-y-6"
+                  >
+                    <div className="relative">
+                      <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{
+                          duration: 1.5,
+                          repeat: Infinity,
+                          ease: "linear",
+                        }}
+                        className="h-16 w-16 border-4 border-primary border-t-transparent rounded-full"
+                      />
+                      <motion.div
+                        animate={{ scale: [1, 1.2, 1] }}
+                        transition={{
+                          duration: 2,
+                          repeat: Infinity,
+                          ease: "easeInOut",
+                        }}
+                        className="absolute inset-0 h-16 w-16 border-4 border-primary/20 rounded-full"
+                      />
+                    </div>
+
+                    <div className="text-center space-y-2">
+                      <h3 className="text-xl font-semibold text-primary">
+                        Processing Refund
+                      </h3>
+                      <p className="text-muted-foreground">
+                        Please wait while we process your refund...
+                      </p>
+                      <div className="w-full max-w-xs mx-auto">
+                        <div className="w-full bg-muted rounded-full h-2">
+                          <motion.div
+                            className="bg-primary h-2 rounded-full"
+                            initial={{ width: "0%" }}
+                            animate={{ width: "100%" }}
+                            transition={{
+                              duration: 3,
+                              repeat: Infinity,
+                              ease: "easeInOut",
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-muted/50 rounded-lg p-4 w-full max-w-sm">
+                      <div className="text-sm space-y-1">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">
+                            Receipt #:
+                          </span>
+                          <span className="font-medium">
+                            {currentReceipt?.receiptNumber}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">
+                            Refund Amount:
+                          </span>
+                          <span className="font-medium">
+                            OMR {refundAmount.toFixed(2)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">
+                            Authorized by:
+                          </span>
+                          <span className="font-medium">
+                            {selectedCashier?.name}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
                 {step === "complete" && (
                   <motion.div
                     key="complete"
@@ -1018,6 +1223,22 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
                 </Button>
               </div>
             )}
+            {step === "processing" && (
+              <div className="flex justify-center w-full">
+                <div className="text-sm text-muted-foreground flex items-center gap-2">
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{
+                      duration: 1,
+                      repeat: Infinity,
+                      ease: "linear",
+                    }}
+                    className="h-4 w-4 border-2 border-primary border-t-transparent rounded-full"
+                  />
+                  Processing refund...
+                </div>
+              </div>
+            )}
             {step === "complete" && (
               <div className="flex gap-2 sm:gap-3 w-full justify-end flex-wrap">
                 {!showRefundReceipt && (
@@ -1080,7 +1301,7 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
       <AlertDialog
         open={isCashierSelectOpen}
         onOpenChange={(open) => {
-          if (!open) {
+          if (!open && !isProcessingRefund) {
             setIsCashierSelectOpen(false);
             setEnteredCashierId("");
             setFetchedCashier(null);
@@ -1095,7 +1316,36 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
               Please enter your cashier ID to authorize this refund.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <div className="flex flex-col items-center py-2">
+
+          {/* Processing overlay */}
+          {isProcessingRefund && (
+            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm rounded-lg flex items-center justify-center z-50">
+              <div className="bg-background border rounded-lg p-6 flex flex-col items-center gap-3 shadow-lg">
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{
+                    duration: 1,
+                    repeat: Infinity,
+                    ease: "linear",
+                  }}
+                  className="h-8 w-8 border-4 border-primary border-t-transparent rounded-full"
+                />
+                <div className="text-center">
+                  <p className="font-medium text-primary">Processing Refund</p>
+                  <p className="text-sm text-muted-foreground">
+                    Please wait while we process your refund...
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div
+            className={cn(
+              "flex flex-col items-center py-2",
+              isProcessingRefund && "opacity-50 pointer-events-none"
+            )}
+          >
             <Input
               className="text-center text-2xl w-32 mb-2"
               value={enteredCashierId}
@@ -1107,23 +1357,53 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
               inputMode="numeric"
               type="tel"
               pattern="[0-9]*"
-              autoFocus
+              autoFocus={!isProcessingRefund}
               placeholder="ID"
+              disabled={isProcessingRefund}
             />
             {cashierIdError && (
-              <div className="text-destructive text-sm mt-2">
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="text-destructive text-sm mt-2"
+              >
                 {cashierIdError}
-              </div>
+              </motion.div>
             )}
-            {fetchedCashier && (
-              <div className="text-green-600 text-sm mt-2">
+            {fetchedCashier && !isProcessingRefund && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="text-green-600 text-sm mt-2 flex items-center gap-2"
+              >
+                <Check className="h-4 w-4" />
                 Authorized: {fetchedCashier.name}
-              </div>
+              </motion.div>
+            )}
+            {isProcessingRefund && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="text-blue-600 text-sm mt-2 flex items-center gap-2"
+              >
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{
+                    duration: 1,
+                    repeat: Infinity,
+                    ease: "linear",
+                  }}
+                  className="h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full"
+                />
+                Processing refund...
+              </motion.div>
             )}
           </div>
           <AlertDialogFooter className="flex-wrap gap-y-2">
             <div className="flex gap-2 sm:gap-3 w-full justify-end flex-wrap">
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogCancel disabled={isProcessingRefund}>
+                Cancel
+              </AlertDialogCancel>
               <AlertDialogAction
                 onClick={() => {
                   const found = staffMembers.find(
@@ -1133,14 +1413,30 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
                     setFetchedCashier(found);
                     setSelectedCashier(found);
                     setCashierIdError(null);
-                    handleFinalizeRefund();
+                    // Pass the cashier directly to avoid async state issues
+                    handleFinalizeRefund(found);
                   } else {
                     setCashierIdError("Invalid cashier ID. Please try again.");
                   }
                 }}
-                disabled={isProcessingRefund}
+                disabled={isProcessingRefund || !enteredCashierId.trim()}
               >
-                {isProcessingRefund ? "Processing..." : "Authorize"}
+                {isProcessingRefund ? (
+                  <>
+                    <motion.div
+                      animate={{ rotate: 360 }}
+                      transition={{
+                        duration: 1,
+                        repeat: Infinity,
+                        ease: "linear",
+                      }}
+                      className="h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2"
+                    />
+                    Processing...
+                  </>
+                ) : (
+                  "Authorize"
+                )}
               </AlertDialogAction>
             </div>
           </AlertDialogFooter>
@@ -1159,8 +1455,9 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
   const [claimComplete, setClaimComplete] = useState(false);
+  const [isProcessingRefund, setIsProcessingRefund] = useState(false);
   const [step, setStep] = useState<
-    "search" | "select" | "confirm" | "complete"
+    "search" | "select" | "confirm" | "processing" | "complete"
   >("search");
   const [isCashierSelectOpen, setIsCashierSelectOpen] = useState(false);
   const [enteredCashierId, setEnteredCashierId] = useState<string>("");
@@ -1228,6 +1525,9 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
       const transaction = data.transactions[0];
 
       // Convert the transaction to Receipt format for the UI
+      const parsedItems = await parseTransactionItems(
+        transaction.items_sold || []
+      );
       const receiptData: Receipt = {
         receiptNumber: transaction.reference_number,
         date: new Date(transaction.created_at).toLocaleDateString("en-GB"),
@@ -1238,7 +1538,7 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
         }),
         paymentMethod: transaction.payment_method || "Cash",
         total: Math.abs(parseFloat(transaction.total_amount.toString())),
-        items: parseTransactionItems(transaction.items_sold || []),
+        items: parsedItems,
       };
 
       // Store customer info if available
@@ -1299,10 +1599,51 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
     setIsCashierSelectOpen(true);
   };
 
-  const handleFinalizeClaim = () => {
-    setIsCashierSelectOpen(false);
-    setStep("complete");
-    setClaimComplete(true);
+  const handleFinalizeClaim = async (cashier?: {
+    id: string;
+    name: string;
+  }) => {
+    // Use passed cashier or fallback to selectedCashier
+    const activeCashier = cashier || selectedCashier;
+
+    if (!currentReceipt || !activeCashier || isProcessingRefund) return;
+
+    setIsProcessingRefund(true);
+
+    try {
+      // Close cashier dialog first to show main dialog loading state
+      setIsCashierSelectOpen(false);
+      setEnteredCashierId("");
+      setFetchedCashier(null);
+      setCashierIdError(null);
+
+      // Set loading state in main dialog
+      setStep("processing");
+
+      // Simulate processing time for warranty claim
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      setStep("complete");
+      setClaimComplete(true);
+    } catch (error) {
+      console.error("Warranty claim processing error:", error);
+      toast({
+        title: "Claim Failed",
+        description: "Failed to process warranty claim. Please try again.",
+        variant: "destructive",
+        duration: 5000,
+      });
+
+      // Reset cashier dialog state on error
+      setIsCashierSelectOpen(true);
+      setEnteredCashierId("");
+      setFetchedCashier(null);
+      setCashierIdError(null);
+
+      setStep("confirm");
+    } finally {
+      setIsProcessingRefund(false);
+    }
   };
 
   const handleCloseDialog = () => {
@@ -1790,7 +2131,7 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
         <DialogContent className="w-[95%] max-w-[600px] h-auto max-h-[80vh] rounded-lg overflow-auto flex flex-col p-3 sm:p-4">
           <DialogHeader className="px-3 pt-2 pb-2">
             <DialogTitle className="text-xl flex items-center gap-2">
-              {step !== "search" && (
+              {step !== "search" && step !== "processing" && (
                 <Button
                   variant="ghost"
                   size="icon"
@@ -1803,6 +2144,7 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
               {step === "search" && "Warranty Claim"}
               {step === "select" && "Select Items for Claim"}
               {step === "confirm" && "Confirm Warranty Claim"}
+              {step === "processing" && "Processing Warranty Claim"}
               {step === "complete" && "Claim Complete"}
             </DialogTitle>
           </DialogHeader>
@@ -1873,16 +2215,28 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
                             repeat: Infinity,
                             ease: "linear",
                           }}
-                          className="h-5 w-5 border-2 border-blue-500 border-t-transparent rounded-full flex-shrink-0"
+                          className="h-6 w-6 border-3 border-blue-500 border-t-transparent rounded-full flex-shrink-0"
                         />
-                        <div>
+                        <div className="flex-1">
                           <p className="text-sm font-medium text-blue-900">
-                            Fetching transaction details...
+                            Searching for receipt...
                           </p>
                           <p className="text-xs text-blue-700">
-                            Please wait while we retrieve the receipt
-                            information
+                            Please wait while we retrieve the transaction
+                            details
                           </p>
+                          <div className="mt-2 w-full bg-blue-100 rounded-full h-1.5">
+                            <motion.div
+                              className="bg-blue-500 h-1.5 rounded-full"
+                              initial={{ width: "0%" }}
+                              animate={{ width: "100%" }}
+                              transition={{
+                                duration: 2,
+                                repeat: Infinity,
+                                ease: "easeInOut",
+                              }}
+                            />
+                          </div>
                         </div>
                       </motion.div>
                     )}
@@ -2213,6 +2567,22 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
                 </Button>
               </div>
             )}
+            {step === "processing" && (
+              <div className="flex justify-center w-full">
+                <div className="text-sm text-muted-foreground flex items-center gap-2">
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{
+                      duration: 1,
+                      repeat: Infinity,
+                      ease: "linear",
+                    }}
+                    className="h-4 w-4 border-2 border-primary border-t-transparent rounded-full"
+                  />
+                  Processing warranty claim...
+                </div>
+              </div>
+            )}
             {step === "complete" && (
               <div className="flex gap-2 sm:gap-3 w-full justify-end flex-wrap">
                 {!showRefundReceipt && (
@@ -2319,7 +2689,9 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
           </div>
           <AlertDialogFooter className="flex-wrap gap-y-2">
             <div className="flex gap-2 sm:gap-3 w-full justify-end flex-wrap">
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogCancel disabled={isProcessingRefund}>
+                Cancel
+              </AlertDialogCancel>
               <AlertDialogAction
                 onClick={() => {
                   const found = staffMembers.find(
@@ -2329,13 +2701,30 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
                     setFetchedCashier(found);
                     setSelectedCashier(found);
                     setCashierIdError(null);
-                    handleFinalizeClaim();
+                    // Pass the cashier directly to avoid async state issues
+                    handleFinalizeClaim(found);
                   } else {
                     setCashierIdError("Invalid cashier ID. Please try again.");
                   }
                 }}
+                disabled={isProcessingRefund || !enteredCashierId.trim()}
               >
-                Authorize
+                {isProcessingRefund ? (
+                  <>
+                    <motion.div
+                      animate={{ rotate: 360 }}
+                      transition={{
+                        duration: 1,
+                        repeat: Infinity,
+                        ease: "linear",
+                      }}
+                      className="h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2"
+                    />
+                    Processing...
+                  </>
+                ) : (
+                  "Authorize"
+                )}
               </AlertDialogAction>
             </div>
           </AlertDialogFooter>

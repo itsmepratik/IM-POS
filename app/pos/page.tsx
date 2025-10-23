@@ -40,6 +40,9 @@ import {
   Car,
   Eraser,
   Edit2,
+  Shield,
+  DollarSign,
+  MoreHorizontal,
 } from "lucide-react";
 import {
   Dialog,
@@ -1138,6 +1141,9 @@ function POSPageContent() {
   // Add state for payment recipient
   const [paymentRecipient, setPaymentRecipient] = useState<string | null>(null);
 
+  // Add loading state for checkout processing
+  const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
+
   // Trade-in battery states
   const [tradeinBatteries, setTradeinBatteries] = useState<TradeinBattery[]>(
     []
@@ -1762,6 +1768,8 @@ function POSPageContent() {
 
   // Add this new function to handle final payment completion
   const handleFinalizePayment = async () => {
+    if (isProcessingCheckout) return;
+
     // Handle On Hold workflow differently
     if (isOnHoldMode) {
       if (!carPlateNumber.trim()) {
@@ -1904,6 +1912,7 @@ function POSPageContent() {
 
         // Generate and show ticket for On Hold after successful API call
         setShowOnHoldTicket(true);
+        setIsProcessingCheckout(false);
         return;
       } catch (error) {
         console.error("On-hold checkout error:", error);
@@ -1944,6 +1953,9 @@ function POSPageContent() {
         currentTime: newCurrentTime,
       });
     }
+
+    // Set loading state for checkout processing
+    setIsProcessingCheckout(true);
 
     try {
       // Prepare cart items for the API call
@@ -2058,6 +2070,7 @@ function POSPageContent() {
 
       setIsCashierSelectOpen(false);
       setShowSuccess(true);
+      setIsProcessingCheckout(false);
 
       // Auto-sync offline transactions periodically
       if (typeof window !== "undefined") {
@@ -2164,12 +2177,19 @@ function POSPageContent() {
         duration: 8000,
       });
 
+      // Reset cashier dialog state on error
+      setIsCashierSelectOpen(true);
+      setEnteredCashierId("");
+      setFetchedCashier(null);
+      setCashierIdError(null);
+      setPaymentRecipient(null);
+
       // Fallback: Complete the transaction locally even if API fails
       // This ensures the POS doesn't get stuck and customers can still get receipts
       console.log("⚠️ API checkout failed, completing transaction manually");
 
-      setIsCashierSelectOpen(false);
       setShowSuccess(true);
+      setIsProcessingCheckout(false);
 
       // Make a copy of the appliedDiscount for the receipt display
       const discountForReceipt = appliedDiscount
@@ -2427,6 +2447,25 @@ function POSPageContent() {
     id: string;
     name: string;
   } | null>(null);
+
+  // Miscellaneous deduction modal state
+  const [isMiscellaneousDialogOpen, setIsMiscellaneousDialogOpen] =
+    useState(false);
+  const [miscellaneousAmount, setMiscellaneousAmount] = useState<number>(0.5);
+  const [miscellaneousStep, setMiscellaneousStep] = useState<
+    "amount" | "id" | "processing"
+  >("amount");
+  const [miscellaneousCashierId, setMiscellaneousCashierId] = useState("");
+  const [miscellaneousCashierError, setMiscellaneousCashierError] = useState<
+    string | null
+  >(null);
+  const [fetchedMiscellaneousCashier, setFetchedMiscellaneousCashier] =
+    useState<{
+      id: string;
+      name: string;
+    } | null>(null);
+  const [isProcessingMiscellaneous, setIsProcessingMiscellaneous] =
+    useState(false);
 
   const isMobile = useIsMobile();
 
@@ -3456,7 +3495,7 @@ function POSPageContent() {
                   <style>
                     body {
                       margin: 0;
-                      padding: 10mm;
+                      padding: 2mm;
                       font-family: Arial, sans-serif;
                       background: white;
                       color: black;
@@ -3467,18 +3506,18 @@ function POSPageContent() {
                       width: 80mm;
                       margin: 0 auto;
                       background: white;
-                      padding: 8mm;
+                      padding: 2mm;
                     }
                     .header {
                       text-align: center;
-                      margin-bottom: 6mm;
+                      margin-bottom: 3mm;
                       border-bottom: 2px solid black;
-                      padding-bottom: 4mm;
+                      padding-bottom: 2mm;
                     }
                     .ticket-title {
                       border: 2px solid black;
-                      padding: 4mm;
-                      margin-bottom: 4mm;
+                      padding: 2mm;
+                      margin-bottom: 2mm;
                     }
                     .ticket-title h2 {
                       font-size: 16px;
@@ -3503,8 +3542,8 @@ function POSPageContent() {
                     }
                     .info-section {
                       border: 1px solid black;
-                      padding: 3mm;
-                      margin-bottom: 4mm;
+                      padding: 2mm;
+                      margin-bottom: 2mm;
                     }
                     .info-row {
                       display: flex;
@@ -3516,30 +3555,34 @@ function POSPageContent() {
                     }
                     .vehicle-section {
                       border-top: 1px solid black;
-                      padding-top: 3mm;
-                      margin-top: 3mm;
+                      padding-top: 2mm;
+                      margin-top: 2mm;
                     }
                     .plate-number {
                       font-size: 14px;
                       font-weight: bold;
                       border: 2px solid black;
-                      padding: 2mm;
+                      padding: 1mm;
                       text-align: center;
-                      margin-top: 2mm;
+                      margin-top: 1mm;
                     }
                     .items-section {
-                      margin-bottom: 4mm;
+                      margin-bottom: 2mm;
                     }
-                    .items-header {
+                    .items-container {
+                      margin-bottom: 2mm;
+                    }
+                    .items-label {
                       font-weight: bold;
                       text-align: center;
+                      padding: 1mm;
+                      margin-bottom: 2mm;
+                    }
+                    .items-box {
                       border: 1px solid black;
                       padding: 2mm;
-                      margin-bottom: 3mm;
                     }
-                    .item {
-                      border: 1px solid black;
-                      padding: 3mm;
+                    .item-row {
                       margin-bottom: 2mm;
                     }
                     .item-header {
@@ -3563,10 +3606,14 @@ function POSPageContent() {
                     .item-amount {
                       font-weight: bold;
                     }
+                    .item-separator {
+                      border-top: 1px solid black;
+                      margin: 2mm 0;
+                    }
                     .total-section {
                       border: 2px solid black;
-                      padding: 3mm;
-                      margin-bottom: 4mm;
+                      padding: 2mm;
+                      margin-bottom: 2mm;
                     }
                     .total-row {
                       display: flex;
@@ -3581,53 +3628,32 @@ function POSPageContent() {
                       font-size: 16px;
                       font-weight: bold;
                     }
-                    .notice-section {
-                      border: 2px solid black;
-                      padding: 4mm;
-                      text-align: center;
-                      margin-bottom: 4mm;
-                    }
-                    .notice-title {
-                      font-weight: bold;
-                      font-size: 13px;
-                      margin-bottom: 2mm;
-                    }
-                    .notice-content {
-                      font-size: 11px;
-                      line-height: 1.3;
-                    }
-                    .notice-content p {
-                      margin: 1mm 0;
-                    }
-                    .notice-important {
-                      font-weight: bold;
-                      margin-top: 2mm;
-                    }
                     .footer {
                       text-align: center;
-                      padding-top: 3mm;
+                      padding-top: 2mm;
                       border-top: 1px solid black;
-                      font-size: 11px;
+                      font-size: 10px;
                     }
                     .footer p {
-                      margin: 1mm 0;
+                      margin: 0.5mm 0;
                     }
                     .footer-company {
                       font-weight: bold;
                     }
                     @media print {
                       body {
-                        padding: 5mm;
+                        padding: 1mm;
                         -webkit-print-color-adjust: exact;
                         print-color-adjust: exact;
                       }
                       .ticket {
                         width: 80mm;
                         margin: 0;
+                        padding: 1mm;
                       }
                     }
                     @page {
-                      margin: 5mm;
+                      margin: 1mm;
                       size: 80mm auto;
                     }
                   </style>
@@ -3667,27 +3693,38 @@ function POSPageContent() {
                     </div>
 
                     <div class="items-section">
-                      <div class="items-header">RESERVED ITEMS</div>
-                      ${cart
-                        .map(
-                          (item, index) => `
-                        <div class="item">
-                          <div class="item-header">
-                            <span class="item-name">${item.name}</span>
-                            <span class="item-qty">Qty: ${item.quantity}</span>
-                          </div>
-                          <div class="item-footer">
-                            <span>OMR ${
-                              item.price?.toFixed(3) || "0.000"
-                            } each</span>
-                            <span class="item-amount">OMR ${(
-                              (item.price || 0) * item.quantity
-                            ).toFixed(3)}</span>
-                          </div>
+                      <div class="items-container">
+                        <div class="items-label">ITEMS</div>
+                        <div class="items-box">
+                          ${cart
+                            .map(
+                              (item, index) => `
+                            <div class="item-row">
+                              <div class="item-header">
+                                <span class="item-name">${item.name}</span>
+                                <span class="item-qty">Qty: ${
+                                  item.quantity
+                                }</span>
+                              </div>
+                              <div class="item-footer">
+                                <span>OMR ${
+                                  item.price?.toFixed(3) || "0.000"
+                                } each</span>
+                                <span class="item-amount">OMR ${(
+                                  (item.price || 0) * item.quantity
+                                ).toFixed(3)}</span>
+                              </div>
+                              ${
+                                index < cart.length - 1
+                                  ? '<hr class="item-separator">'
+                                  : ""
+                              }
+                            </div>
+                          `
+                            )
+                            .join("")}
                         </div>
-                      `
-                        )
-                        .join("")}
+                      </div>
                     </div>
 
                     <div class="total-section">
@@ -3699,15 +3736,6 @@ function POSPageContent() {
                       </div>
                     </div>
 
-                    <div class="notice-section">
-                      <div class="notice-title">IMPORTANT NOTICE</div>
-                      <div class="notice-content">
-                        <p>This ticket reserves your selected items.</p>
-                        <p>Present this ticket to complete your purchase.</p>
-                        <p class="notice-important">Valid for 24 hours from issue time</p>
-                        <p>Items will be released after expiry</p>
-                      </div>
-                    </div>
 
                     <div class="footer">
                       <p>Thank you for choosing</p>
@@ -3954,10 +3982,26 @@ function POSPageContent() {
                   className="w-full h-12 text-base"
                   onClick={handleFinalizePayment}
                   disabled={
-                    selectedPaymentMethod === "mobile" && !paymentRecipient
+                    (selectedPaymentMethod === "mobile" && !paymentRecipient) ||
+                    isProcessingCheckout
                   }
                 >
-                  Confirm Payment
+                  {isProcessingCheckout ? (
+                    <>
+                      <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{
+                          duration: 1,
+                          repeat: Infinity,
+                          ease: "linear",
+                        }}
+                        className="h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2"
+                      />
+                      Processing...
+                    </>
+                  ) : (
+                    "Confirm Payment"
+                  )}
                 </Button>
               </div>
             </>
@@ -4269,42 +4313,67 @@ function POSPageContent() {
 
       {/* Dispute Dialog */}
       <Dialog open={isDisputeDialogOpen} onOpenChange={setIsDisputeDialogOpen}>
-        <DialogContent className="w-[90%] max-w-xs p-6 rounded-lg flex flex-col items-center gap-4">
+        <DialogContent className="w-[90%] max-w-sm p-6 rounded-lg">
           <DialogHeader>
             <DialogTitle className="text-center text-lg font-semibold">
               Dispute Options
             </DialogTitle>
           </DialogHeader>
-          <Button
-            className="w-full"
-            variant="outline"
-            onClick={() => {
-              setIsDisputeDialogOpen(false);
-              setIsRefundDialogOpen(true);
-            }}
-          >
-            Refund
-          </Button>
-          <Button
-            className="w-full"
-            variant="outline"
-            onClick={() => {
-              setIsDisputeDialogOpen(false);
-              setIsWarrantyDialogOpen(true);
-            }}
-          >
-            Warranty Claim
-          </Button>
-          <Button
-            className="w-full"
-            variant="outline"
-            onClick={() => {
-              setIsDisputeDialogOpen(false);
-              setIsSettlementModalOpen(true);
-            }}
-          >
-            Settlement
-          </Button>
+
+          {/* 2x2 Grid Layout for Dispute Options */}
+          <div className="grid grid-cols-2 gap-3 mt-4">
+            {/* Refund Option */}
+            <Button
+              className="flex flex-col items-center justify-center gap-2 h-20 p-3"
+              variant="outline"
+              onClick={() => {
+                setIsDisputeDialogOpen(false);
+                setIsRefundDialogOpen(true);
+              }}
+            >
+              <RotateCcw className="h-6 w-6 text-blue-600" />
+              <span className="font-medium text-sm">Refund</span>
+            </Button>
+
+            {/* Warranty Claim Option */}
+            <Button
+              className="flex flex-col items-center justify-center gap-2 h-20 p-3"
+              variant="outline"
+              onClick={() => {
+                setIsDisputeDialogOpen(false);
+                setIsWarrantyDialogOpen(true);
+              }}
+            >
+              <Shield className="h-6 w-6 text-green-600" />
+              <span className="font-medium text-sm">Warranty</span>
+            </Button>
+
+            {/* Settlement Option */}
+            <Button
+              className="flex flex-col items-center justify-center gap-2 h-20 p-3"
+              variant="outline"
+              onClick={() => {
+                setIsDisputeDialogOpen(false);
+                setIsSettlementModalOpen(true);
+              }}
+            >
+              <DollarSign className="h-6 w-6 text-purple-600" />
+              <span className="font-medium text-sm">Settlement</span>
+            </Button>
+
+            {/* Miscellaneous Option */}
+            <Button
+              className="flex flex-col items-center justify-center gap-2 h-20 p-3"
+              variant="outline"
+              onClick={() => {
+                setIsDisputeDialogOpen(false);
+                setIsMiscellaneousDialogOpen(true);
+              }}
+            >
+              <MoreHorizontal className="h-6 w-6 text-orange-600" />
+              <span className="font-medium text-sm">Misc</span>
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
 
@@ -4605,9 +4674,38 @@ function POSPageContent() {
                 </div>
 
                 {isProcessingSettlement && (
-                  <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground mb-4">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
-                    Processing settlement...
+                  <div className="flex flex-col items-center justify-center gap-4 mb-4 py-4">
+                    <motion.div
+                      animate={{ rotate: 360 }}
+                      transition={{
+                        duration: 1.2,
+                        repeat: Infinity,
+                        ease: "linear",
+                      }}
+                      className="h-12 w-12 border-3 border-primary border-t-transparent rounded-full"
+                    />
+                    <div className="text-center space-y-2">
+                      <h3 className="text-lg font-semibold text-primary">
+                        Processing Settlement
+                      </h3>
+                      <p className="text-muted-foreground text-sm">
+                        Converting credit sale to regular sale...
+                      </p>
+                      <div className="w-full max-w-xs mx-auto">
+                        <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
+                          <motion.div
+                            className="bg-gradient-to-r from-primary to-primary/80 h-2 rounded-full"
+                            initial={{ width: "0%" }}
+                            animate={{ width: "100%" }}
+                            transition={{
+                              duration: 2,
+                              repeat: Infinity,
+                              ease: "easeInOut",
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 )}
 
@@ -4652,6 +4750,370 @@ function POSPageContent() {
                     {isProcessingSettlement
                       ? "Processing..."
                       : "Confirm Settlement"}
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Miscellaneous Deduction Modal */}
+      <Dialog
+        open={isMiscellaneousDialogOpen}
+        onOpenChange={(open) => {
+          setIsMiscellaneousDialogOpen(open);
+          if (!open) {
+            // Reset all miscellaneous state when closing
+            setMiscellaneousStep("amount");
+            setMiscellaneousAmount(0.5);
+            setMiscellaneousCashierId("");
+            setMiscellaneousCashierError(null);
+            setFetchedMiscellaneousCashier(null);
+            setIsProcessingMiscellaneous(false);
+          }
+        }}
+      >
+        <DialogContent
+          className="w-[90%] max-w-md p-6 rounded-lg"
+          onPointerDownOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => e.preventDefault()}
+        >
+          {miscellaneousStep === "amount" && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="text-center text-xl">
+                  Miscellaneous Deduction
+                </DialogTitle>
+                <p className="text-center text-muted-foreground mt-2 text-sm">
+                  Enter the amount to deduct from the transaction
+                </p>
+              </DialogHeader>
+
+              <div className="flex flex-col items-center justify-center py-4">
+                <div className="flex items-center justify-center gap-4 mb-6">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-12 w-12 rounded-full"
+                    onClick={() =>
+                      setMiscellaneousAmount(
+                        Math.max(
+                          0,
+                          Math.round((miscellaneousAmount - 0.5) * 10) / 10
+                        )
+                      )
+                    }
+                  >
+                    <Minus className="h-5 w-5" />
+                  </Button>
+
+                  <div className="relative">
+                    <Input
+                      id="miscellaneous-amount"
+                      type="number"
+                      inputMode="decimal"
+                      className="w-32 text-center text-xl font-medium h-12"
+                      value={miscellaneousAmount}
+                      onChange={(e) => {
+                        const value = parseFloat(e.target.value);
+                        if (!isNaN(value)) {
+                          setMiscellaneousAmount(value);
+                        } else {
+                          setMiscellaneousAmount(0);
+                        }
+                      }}
+                      step="0.5"
+                      min="0"
+                      autoFocus
+                    />
+                  </div>
+
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-12 w-12 rounded-full"
+                    onClick={() =>
+                      setMiscellaneousAmount(
+                        Math.round((miscellaneousAmount + 0.5) * 10) / 10
+                      )
+                    }
+                  >
+                    <Plus className="h-5 w-5" />
+                  </Button>
+                </div>
+              </div>
+
+              {/* Quick Select Section */}
+              <div className="w-full mb-3 mt-auto">
+                <p className="text-sm font-medium mb-3 px-2 text-left">
+                  Quick Select
+                </p>
+                <div className="grid grid-cols-4 gap-2 px-2">
+                  <Button
+                    variant="outline"
+                    className="w-full text-sm"
+                    onClick={() => setMiscellaneousAmount(0.5)}
+                  >
+                    0.5
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="w-full text-sm"
+                    onClick={() => setMiscellaneousAmount(1)}
+                  >
+                    1
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="w-full text-sm"
+                    onClick={() => setMiscellaneousAmount(2)}
+                  >
+                    2
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="w-full text-sm"
+                    onClick={() => setMiscellaneousAmount(5)}
+                  >
+                    5
+                  </Button>
+                </div>
+              </div>
+
+              <DialogFooter className="flex flex-row gap-3 px-2">
+                <Button
+                  variant="outline"
+                  className="flex-1 h-12 text-base"
+                  onClick={() => setIsMiscellaneousDialogOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  className="flex-1 h-12 text-base bg-orange-500 hover:bg-orange-600"
+                  onClick={() => {
+                    if (miscellaneousAmount > 0) {
+                      setMiscellaneousStep("id");
+                    }
+                  }}
+                  disabled={miscellaneousAmount <= 0}
+                >
+                  Continue
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+
+          {miscellaneousStep === "id" && !fetchedMiscellaneousCashier && (
+            <>
+              <DialogHeader className="pb-4">
+                <DialogTitle className="text-xl font-semibold text-center">
+                  Enter Cashier ID
+                </DialogTitle>
+                <DialogDescription className="text-center">
+                  Please enter your cashier ID to proceed with the deduction.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex flex-col items-center">
+                <form
+                  className="flex flex-col items-center w-full"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const found = staffMembers.find(
+                      (c) => c.id === miscellaneousCashierId
+                    );
+                    if (found) {
+                      setFetchedMiscellaneousCashier(found);
+                      setMiscellaneousCashierError(null);
+                    } else {
+                      setMiscellaneousCashierError(
+                        "Invalid cashier ID. Please try again."
+                      );
+                    }
+                  }}
+                >
+                  <Input
+                    className="text-center text-2xl w-32 mb-2"
+                    value={miscellaneousCashierId}
+                    onChange={(e) => {
+                      setMiscellaneousCashierId(
+                        e.target.value.replace(/\D/g, "")
+                      );
+                      setMiscellaneousCashierError(null);
+                    }}
+                    maxLength={6}
+                    inputMode="numeric"
+                    type="tel"
+                    pattern="[0-9]*"
+                    autoFocus
+                    placeholder="ID"
+                  />
+                  <Button
+                    className="w-full mt-4"
+                    type="submit"
+                    disabled={miscellaneousCashierId.length === 0}
+                  >
+                    Verify ID
+                  </Button>
+                </form>
+                {miscellaneousCashierError && (
+                  <div className="text-destructive text-sm mt-2">
+                    {miscellaneousCashierError}
+                  </div>
+                )}
+                <Button
+                  variant="outline"
+                  className="w-full mt-4"
+                  onClick={() => setMiscellaneousStep("amount")}
+                >
+                  Back
+                </Button>
+              </div>
+            </>
+          )}
+
+          {miscellaneousStep === "id" && fetchedMiscellaneousCashier && (
+            <>
+              <DialogHeader className="pb-4">
+                <DialogTitle className="text-xl font-semibold text-center">
+                  Confirm Deduction
+                </DialogTitle>
+                <DialogDescription className="text-center">
+                  Welcome, {fetchedMiscellaneousCashier.name}!
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex flex-col items-center my-4">
+                <div className="text-center space-y-2 mb-4">
+                  <div className="text-sm text-muted-foreground">
+                    Cashier ID: {fetchedMiscellaneousCashier.id}
+                  </div>
+                  <div className="text-lg font-semibold text-red-600">
+                    Amount to Deduct: OMR {miscellaneousAmount.toFixed(3)}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    This will create a negative transaction
+                  </div>
+                </div>
+
+                {isProcessingMiscellaneous && (
+                  <div className="flex flex-col items-center justify-center gap-4 mb-4 py-4">
+                    <motion.div
+                      animate={{ rotate: 360 }}
+                      transition={{
+                        duration: 1.2,
+                        repeat: Infinity,
+                        ease: "linear",
+                      }}
+                      className="h-12 w-12 border-3 border-primary border-t-transparent rounded-full"
+                    />
+                    <div className="text-center space-y-2">
+                      <h3 className="text-lg font-semibold text-primary">
+                        Processing Deduction
+                      </h3>
+                      <p className="text-muted-foreground text-sm">
+                        Creating transaction record...
+                      </p>
+                      <div className="w-full max-w-xs mx-auto">
+                        <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
+                          <motion.div
+                            className="bg-gradient-to-r from-primary to-primary/80 h-2 rounded-full"
+                            initial={{ width: "0%" }}
+                            animate={{ width: "100%" }}
+                            transition={{
+                              duration: 2,
+                              repeat: Infinity,
+                              ease: "easeInOut",
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex flex-row gap-3 w-full">
+                  <Button
+                    variant="outline"
+                    className="flex-1 h-12 text-base"
+                    onClick={() => {
+                      setFetchedMiscellaneousCashier(null);
+                      setMiscellaneousCashierId("");
+                      setMiscellaneousCashierError(null);
+                    }}
+                    disabled={isProcessingMiscellaneous}
+                  >
+                    Back
+                  </Button>
+                  <Button
+                    className="flex-1 h-12 text-base bg-red-600 hover:bg-red-700"
+                    onClick={async () => {
+                      setIsProcessingMiscellaneous(true);
+
+                      try {
+                        // Create a negative transaction for miscellaneous deduction
+                        const response = await fetch(
+                          "/api/transactions/miscellaneous",
+                          {
+                            method: "POST",
+                            headers: {
+                              "Content-Type": "application/json",
+                            },
+                            body: JSON.stringify({
+                              amount: miscellaneousAmount,
+                              cashierId: fetchedMiscellaneousCashier.id,
+                              locationId:
+                                currentBranch?.id || "default-location",
+                              shopId: currentBranch?.id || "default-shop",
+                            }),
+                          }
+                        );
+
+                        if (!response.ok) {
+                          const errorData = await response.json();
+                          throw new Error(
+                            errorData.message || "Failed to process deduction"
+                          );
+                        }
+
+                        const result = await response.json();
+
+                        // Show success toast
+                        toast({
+                          title: "Deduction Processed",
+                          description: `OMR ${miscellaneousAmount.toFixed(
+                            3
+                          )} deducted. Reference: ${result.referenceNumber}`,
+                        });
+
+                        // Reset and close
+                        setMiscellaneousStep("amount");
+                        setMiscellaneousAmount(0.5);
+                        setMiscellaneousCashierId("");
+                        setMiscellaneousCashierError(null);
+                        setFetchedMiscellaneousCashier(null);
+                        setIsProcessingMiscellaneous(false);
+                        setIsMiscellaneousDialogOpen(false);
+                      } catch (error) {
+                        console.error(
+                          "Error processing miscellaneous deduction:",
+                          error
+                        );
+                        toast({
+                          title: "Error",
+                          description:
+                            error instanceof Error
+                              ? error.message
+                              : "Failed to process deduction",
+                          variant: "destructive",
+                        });
+                        setIsProcessingMiscellaneous(false);
+                      }
+                    }}
+                    disabled={isProcessingMiscellaneous}
+                  >
+                    {isProcessingMiscellaneous
+                      ? "Processing..."
+                      : "Confirm Deduction"}
                   </Button>
                 </div>
               </div>

@@ -36,6 +36,7 @@ import {
   MoreHorizontal,
   Loader2,
   Receipt,
+  Printer,
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -364,6 +365,476 @@ export default function Transfer2Page() {
     });
   };
 
+  // Handle print functionality for transfer orders
+  const handlePrint = (order: SubmittedTransferOrder) => {
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) {
+      toast({
+        title: "Print Error",
+        description: "Please allow popups to print receipt",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Format current date and time in the format shown in the image (19/05/2025 19:04:18)
+    const now = new Date();
+    const day = String(now.getDate()).padStart(2, "0");
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const year = now.getFullYear();
+    const hours = String(now.getHours()).padStart(2, "0");
+    const minutes = String(now.getMinutes()).padStart(2, "0");
+    const seconds = String(now.getSeconds()).padStart(2, "0");
+
+    const formattedDate = `${day}/${month}/${year}`;
+    const formattedTime = `${hours}:${minutes}:${seconds}`;
+    const printedDateTime = `${formattedDate} ${formattedTime}`;
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Transfer Order ${order.transferId}</title>
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <style>
+            @page {
+              size: A4;
+              margin: 0;
+              padding: 0;
+            }
+
+            body {
+              font-family: Arial, sans-serif;
+              margin: 0;
+              padding: 0;
+              font-size: 10pt;
+              line-height: 1.3;
+              color: #333;
+              position: relative;
+              box-sizing: border-box;
+            }
+
+            .document-container {
+              width: 21cm;
+              margin: 0 auto;
+              min-height: 29.7cm;
+              position: relative;
+              display: flex;
+              flex-direction: column;
+              padding: 0;
+            }
+
+            .header-box {
+              background-color: white;
+              padding: 5px 10px;
+              margin-bottom: 10px;
+              text-align: center;
+            }
+
+            .header h1 {
+              font-size: 20pt;
+              margin: 0;
+              margin-bottom: 0;
+              font-weight: bold;
+              color: #333;
+            }
+
+            .header h2 {
+              font-size: 14pt;
+              margin: 0;
+              font-weight: normal;
+              text-transform: uppercase;
+              color: #333;
+            }
+
+            .main-divider {
+              border-top: 1px solid #000;
+              margin: 5px 0;
+              height: 0;
+            }
+
+            .info-grid {
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              column-gap: 20px;
+              row-gap: 4px;
+              margin-bottom: 10px;
+              padding: 0 15px;
+            }
+
+            .info-row {
+              display: flex;
+              align-items: center;
+              margin-bottom: 0;
+              line-height: 1.2;
+              font-size: 13pt;
+            }
+
+            .info-label {
+              font-weight: bold;
+              width: 100px;
+              display: inline-block;
+            }
+
+            .info-value {
+              display: inline-block;
+            }
+
+            .status-badge {
+              display: inline-block;
+              padding: 2px 8px;
+              background-color: #FFCC00;
+              font-weight: bold;
+              text-transform: uppercase;
+              width: 200px;
+              text-align: center;
+            }
+
+            .items-table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-bottom: 10px;
+              background-color: #f9f9f9;
+              table-layout: fixed;
+            }
+
+            .items-table th {
+              border-bottom: 1px solid #ddd;
+              padding: 4px 8px;
+              text-align: left;
+              font-weight: bold;
+              font-size: 13pt;
+              background-color: #f5f5f5;
+            }
+
+            .items-table td {
+              padding: 4px 8px;
+              border-bottom: 1px solid #ddd;
+              font-size: 13pt;
+              height: 20px;
+            }
+
+            .items-table th:nth-child(1) {
+              width: 5%;
+            }
+
+            .items-table th:nth-child(2) {
+              width: 45%;
+            }
+
+            .items-table th:nth-child(3) {
+              width: 15%;
+              text-align: center;
+            }
+
+            .items-table th:nth-child(4) {
+              width: 15%;
+              text-align: right;
+            }
+
+            .items-table th:nth-child(5) {
+              width: 20%;
+              text-align: right;
+            }
+
+            .items-table td:nth-child(3) {
+              text-align: center;
+            }
+
+            .items-table td:nth-child(4),
+            .items-table td:nth-child(5) {
+              text-align: right;
+            }
+
+            .total-row {
+              border-top: 1px solid #000;
+              font-weight: bold;
+            }
+
+            .total-amount {
+              text-align: right;
+              padding: 8px;
+              font-weight: bold;
+              margin-top: 10px;
+              border-top: 1px solid #000;
+              font-size: 14pt;
+            }
+
+            .footer-box {
+              position: fixed;
+              bottom: 0;
+              left: 0;
+              right: 0;
+              padding: 10px;
+              text-align: center;
+              background-color: white;
+              margin-top: auto;
+            }
+
+            .footer p {
+              margin: 5px 0;
+              line-height: 1.4;
+              font-size: 10pt;
+            }
+
+            .timestamp {
+              position: absolute;
+              top: 20px;
+              left: 15px;
+              font-size: 9pt;
+              color: #333;
+            }
+
+            .order-number {
+              position: absolute;
+              top: 20px;
+              right: 15px;
+              font-size: 9pt;
+              color: #333;
+              text-align: right;
+            }
+
+            .page-number {
+              position: absolute;
+              bottom: 15px;
+              right: 15px;
+              font-size: 9pt;
+            }
+
+            .content-area {
+              margin: 0;
+              padding: 70px 15px 70px;
+            }
+
+            /* Add page break styling */
+            .page-break {
+              page-break-after: always;
+              break-after: page;
+              height: 20px;
+              margin-bottom: 20px;
+            }
+
+            @media print {
+              body {
+                background: white;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+              }
+
+              .header-box {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                z-index: 100;
+                background-color: white;
+              }
+
+              .footer-box {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                z-index: 100;
+                background-color: white;
+              }
+
+              /* Ensure table header repeats on each printed page */
+              .items-table thead {
+                display: table-header-group;
+              }
+
+              /* Add styling for each subsequent page after break */
+              .page-break + .items-table {
+                margin-top: 30px;
+              }
+
+              /* Prevent table, its body rows, and individual rows from breaking across pages */
+              .items-table,
+              .items-table tbody tr,
+              .items-table tr {
+                page-break-inside: avoid !important;
+              }
+
+              .content-area {
+                margin: 0;
+                padding: 80px 15px 70px; /* increased top padding */
+              }
+            }
+
+            /* Style for page header after page break */
+            .page-header {
+              text-align: center;
+              margin-bottom: 15px;
+            }
+
+            .page-header h1 {
+              font-size: 18pt;
+              margin: 0;
+              font-weight: bold;
+            }
+
+            .page-header h2 {
+              font-size: 14pt;
+              margin: 0;
+              text-transform: uppercase;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="document-container">
+            <div class="timestamp">${formattedDate}, ${formattedTime}</div>
+            <div class="order-number">Transfer Order ${order.transferId}</div>
+
+            <div class="header-box">
+              <div class="header">
+                <h1>HNS AUTOMOTIVES</h1>
+                <h2>TRANSFER ORDER</h2>
+              </div>
+            </div>
+
+            <div class="content-area">
+              <div class="main-divider"></div>
+
+              <div class="info-grid">
+                <div class="info-row">
+                  <span class="info-label">Order #:</span>
+                  <span class="info-value">${order.transferId}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">From:</span>
+                  <span class="info-value">${
+                    locations.find((l) => l.id === order.sourceLocation)
+                      ?.name || "Unknown"
+                  }</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Date:</span>
+                  <span class="info-value">${new Date(
+                    order.orderDate
+                  ).toLocaleDateString()}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">To:</span>
+                  <span class="info-value">${
+                    locations.find((l) => l.id === order.destinationLocation)
+                      ?.name || "Unknown"
+                  }</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Status:</span>
+                  <span class="status-badge">${order.status
+                    .replace("_", " ")
+                    .toUpperCase()}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Printed on:</span>
+                  <span class="info-value">${printedDateTime}</span>
+                </div>
+              </div>
+
+              <table class="items-table">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Item</th>
+                    <th>Quantity</th>
+                    <th>Unit Price<br/>(OMR)</th>
+                    <th>Total<br/>(OMR)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${
+                    order.items && order.items.length > 0
+                      ? order.items
+                          .map((item, index) => {
+                            // Insert page break after each 20th item
+                            const pageBreak =
+                              index > 0 && index % 20 === 0
+                                ? `</tbody></table><div class="page-break"></div><div class="page-header"><h1>HNS AUTOMOTIVES</h1><h2>TRANSFER ORDER</h2></div><table class="items-table"><thead><tr><th>#</th><th>Item</th><th>Quantity</th><th>Unit Price<br/>(OMR)</th><th>Total<br/>(OMR)</th></tr></thead><tbody>`
+                                : "";
+                            return `
+                    ${pageBreak}
+                    <tr>
+                      <td>${index + 1}</td>
+                      <td>${item.name}</td>
+                      <td>${item.quantitySold}</td>
+                      <td>${item.price.toFixed(3)}</td>
+                      <td>${(item.price * item.quantitySold).toFixed(3)}</td>
+                    </tr>
+                  `;
+                          })
+                          .join("")
+                      : '<tr><td colspan="5">No items available</td></tr>'
+                  }
+                  ${
+                    // Add empty rows to match the image
+                    Array.from({
+                      length: Math.max(0, 4 - (order.items?.length || 0)),
+                    })
+                      .map((_, i) => {
+                        const rowNum = (order.items?.length || 0) + i + 1;
+                        return `
+                    <tr>
+                      <td>${rowNum}</td>
+                      <td></td>
+                      <td></td>
+                      <td></td>
+                      <td></td>
+                    </tr>
+                  `;
+                      })
+                      .join("")
+                  }
+                </tbody>
+              </table>
+
+              <div class="total-amount">
+                <span style="margin-right: 20px;">Total Amount:</span>
+                <span>OMR ${order.items
+                  .reduce(
+                    (sum, item) => sum + item.price * item.quantitySold,
+                    0
+                  )
+                  .toFixed(3)}</span>
+              </div>
+            </div>
+
+            <div class="footer-box">
+              <p>This is a computer generated document and does not require signature.</p>
+              <p>HNS Automotive - Thank you for your business</p>
+              <span class="page-number">1/1</span>
+            </div>
+          </div>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.open();
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+
+    // On mobile, we need a slight delay before printing
+    setTimeout(() => {
+      printWindow.print();
+      // Close the window after print on desktop, but keep it open on mobile
+      // as mobile browsers handle print differently
+      if (
+        !/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+          navigator.userAgent
+        )
+      ) {
+        printWindow.close();
+      }
+    }, 500);
+
+    // Log the print action
+    toast({
+      title: "Printing Order",
+      description: `Printing transfer order ${order.transferId}`,
+    });
+  };
+
   const getStatusColor = (status: SubmittedTransferOrder["status"]) => {
     switch (status) {
       case "pending":
@@ -605,53 +1076,65 @@ export default function Transfer2Page() {
                                 {new Date(order.orderDate).toLocaleDateString()}
                               </div>
                             </div>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="sm">
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem
-                                  onClick={() => handleReviewOrder(order)}
-                                  disabled={isPending}
-                                >
-                                  {isPending ? (
-                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                  ) : (
-                                    <FileText className="h-4 w-4 mr-2" />
-                                  )}
-                                  Review
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                  onClick={() =>
-                                    handleStatusUpdate(order.id, "in_transit")
-                                  }
-                                  disabled={order.status === "in_transit"}
-                                >
-                                  <Truck className="h-4 w-4 mr-2" />
-                                  Mark In Transit
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={() =>
-                                    handleStatusUpdate(order.id, "delivered")
-                                  }
-                                  disabled={order.status === "delivered"}
-                                >
-                                  <CheckCircle className="h-4 w-4 mr-2" />
-                                  Mark Delivered
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                  onClick={() => handleDeleteOrder(order.id)}
-                                  className="text-red-600"
-                                >
-                                  <XCircle className="h-4 w-4 mr-2" />
-                                  Delete
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handlePrint(order)}
+                                className="flex items-center gap-1 h-8 px-2 text-xs sm:text-sm"
+                                title="Print Transfer Order"
+                              >
+                                <Printer className="h-3.5 w-3.5" />
+                                <span className="hidden sm:inline">Print</span>
+                              </Button>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="sm">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem
+                                    onClick={() => handleReviewOrder(order)}
+                                    disabled={isPending}
+                                  >
+                                    {isPending ? (
+                                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                    ) : (
+                                      <FileText className="h-4 w-4 mr-2" />
+                                    )}
+                                    Review
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    onClick={() =>
+                                      handleStatusUpdate(order.id, "in_transit")
+                                    }
+                                    disabled={order.status === "in_transit"}
+                                  >
+                                    <Truck className="h-4 w-4 mr-2" />
+                                    Mark In Transit
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={() =>
+                                      handleStatusUpdate(order.id, "delivered")
+                                    }
+                                    disabled={order.status === "delivered"}
+                                  >
+                                    <CheckCircle className="h-4 w-4 mr-2" />
+                                    Mark Delivered
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    onClick={() => handleDeleteOrder(order.id)}
+                                    className="text-red-600"
+                                  >
+                                    <XCircle className="h-4 w-4 mr-2" />
+                                    Delete
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
                           </div>
                         </div>
                       ))}

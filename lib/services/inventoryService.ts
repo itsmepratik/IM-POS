@@ -100,7 +100,7 @@ export const fetchItems = async (
         .select("id")
         .eq("name", locationId === "sanaiya" ? "Sanaiya" : "Main Branch")
         .single();
-      
+
       if (location) {
         actualLocationId = location.id;
       }
@@ -108,8 +108,10 @@ export const fetchItems = async (
 
     const { data: inventoryData, error } = await supabase
       .from("inventory")
-      .select(`
+      .select(
+        `
         id,
+        product_id,
         standard_stock,
         selling_price,
         open_bottles_stock,
@@ -136,7 +138,8 @@ export const fetchItems = async (
             name
           )
         )
-      `)
+      `
+      )
       .eq("location_id", actualLocationId);
 
     if (error) {
@@ -148,22 +151,22 @@ export const fetchItems = async (
     const items: Item[] = await Promise.all(
       (inventoryData || []).map(async (inv: any) => {
         const product = inv.products;
-        
+
         // Determine if this is an oil product based on product_type and category
-        const isOilProduct = 
-          product.product_type === "Oil" || 
-          product.product_type === "Synthetic" || 
+        const isOilProduct =
+          product.product_type === "Oil" ||
+          product.product_type === "Synthetic" ||
           product.product_type === "Semi-Synthetic" ||
           (product.categories && product.categories.name === "Lubricants");
-        
+
         // Fetch volumes for oil products
         let volumes: Volume[] = [];
         if (isOilProduct) {
           const { data: volumeData } = await supabase
             .from("product_volumes")
             .select("*")
-            .eq("product_id", product.id);
-          
+            .eq("product_id", inv.product_id);
+
           volumes = (volumeData || []).map((vol: any) => ({
             id: vol.id,
             item_id: product.id,
@@ -174,11 +177,11 @@ export const fetchItems = async (
           }));
         }
 
-        // Fetch batches
+        // Fetch batches using the correct product_id from inventory
         const { data: batchData } = await supabase
           .from("batches")
           .select("*")
-          .eq("product_id", product.id)
+          .eq("product_id", inv.product_id)
           .eq("location_id", actualLocationId);
 
         const batches: Batch[] = (batchData || []).map((batch: any) => ({
@@ -201,10 +204,12 @@ export const fetchItems = async (
           name: product.name,
           price: inv.selling_price ? parseFloat(inv.selling_price) : 0,
           stock: totalStock,
-          bottleStates: isOilProduct ? {
-            open: inv.open_bottles_stock || 0,
-            closed: inv.closed_bottles_stock || 0,
-          } : undefined,
+          bottleStates: isOilProduct
+            ? {
+                open: inv.open_bottles_stock || 0,
+                closed: inv.closed_bottles_stock || 0,
+              }
+            : undefined,
           category: product.categories?.name || "Uncategorized", // Using the actual category name
           brand: product.brands?.name || product.brand || "N/A", // Use brands table first, fallback to deprecated brand column
           brand_id: product.brand_id,
@@ -222,7 +227,9 @@ export const fetchItems = async (
           lowStockAlert: product.low_stock_threshold,
           isBattery: false, // Not available in current schema
           batteryState: undefined, // Not available in current schema
-          costPrice: product.cost_price ? parseFloat(product.cost_price) : undefined,
+          costPrice: product.cost_price
+            ? parseFloat(product.cost_price)
+            : undefined,
           manufacturingDate: product.manufacturing_date,
         };
       })
@@ -242,7 +249,7 @@ export const fetchItem = async (
 ): Promise<Item | null> => {
   try {
     const items = await fetchItems(locationId);
-    return items.find(item => item.id === id) || null;
+    return items.find((item) => item.id === id) || null;
   } catch (error) {
     console.error("Error in fetchItem:", error);
     return null;
@@ -263,7 +270,7 @@ export const createItem = async (
         .select("id")
         .eq("name", locationId === "sanaiya" ? "Sanaiya" : "Main Branch")
         .single();
-      
+
       if (location) {
         actualLocationId = location.id;
       }
@@ -315,15 +322,13 @@ export const createItem = async (
 
     // Create volumes if it's an oil product
     if (item.is_oil && item.volumes && item.volumes.length > 0) {
-      const volumeInserts = item.volumes.map(vol => ({
+      const volumeInserts = item.volumes.map((vol) => ({
         product_id: productData.id,
         volume_description: vol.size,
         selling_price: vol.price,
       }));
 
-      await supabase
-        .from("product_volumes")
-        .insert(volumeInserts);
+      await supabase.from("product_volumes").insert(volumeInserts);
     }
 
     return await fetchItem(productData.id, locationId);
@@ -348,7 +353,7 @@ export const updateItem = async (
         .select("id")
         .eq("name", locationId === "sanaiya" ? "Sanaiya" : "Main Branch")
         .single();
-      
+
       if (location) {
         actualLocationId = location.id;
       }
@@ -357,15 +362,23 @@ export const updateItem = async (
     // Update product
     const productUpdates: any = {};
     if (updates.name !== undefined) productUpdates.name = updates.name;
-    if (updates.category_id !== undefined) productUpdates.category_id = updates.category_id;
-    if (updates.brand_id !== undefined) productUpdates.brand_id = updates.brand_id;
+    if (updates.category_id !== undefined)
+      productUpdates.category_id = updates.category_id;
+    if (updates.brand_id !== undefined)
+      productUpdates.brand_id = updates.brand_id;
     if (updates.type !== undefined) productUpdates.product_type = updates.type;
-    if (updates.description !== undefined) productUpdates.description = updates.description;
-    if (updates.image_url !== undefined) productUpdates.image_url = updates.image_url;
-    if (updates.imageUrl !== undefined) productUpdates.image_url = updates.imageUrl;
-    if (updates.lowStockAlert !== undefined) productUpdates.low_stock_threshold = updates.lowStockAlert;
-    if (updates.costPrice !== undefined) productUpdates.cost_price = updates.costPrice;
-    if (updates.manufacturingDate !== undefined) productUpdates.manufacturing_date = updates.manufacturingDate;
+    if (updates.description !== undefined)
+      productUpdates.description = updates.description;
+    if (updates.image_url !== undefined)
+      productUpdates.image_url = updates.image_url;
+    if (updates.imageUrl !== undefined)
+      productUpdates.image_url = updates.imageUrl;
+    if (updates.lowStockAlert !== undefined)
+      productUpdates.low_stock_threshold = updates.lowStockAlert;
+    if (updates.costPrice !== undefined)
+      productUpdates.cost_price = updates.costPrice;
+    if (updates.manufacturingDate !== undefined)
+      productUpdates.manufacturing_date = updates.manufacturingDate;
     // Note: is_oil column doesn't exist in database, so we skip this update
 
     if (Object.keys(productUpdates).length > 0) {
@@ -380,7 +393,7 @@ export const updateItem = async (
           message: productError.message || "Unknown database error",
           details: productError.details || "No additional details",
           hint: productError.hint || "No hint available",
-          code: productError.code || "No error code"
+          code: productError.code || "No error code",
         });
         return null;
       }
@@ -388,11 +401,15 @@ export const updateItem = async (
 
     // Update inventory
     const inventoryUpdates: any = {};
-    if (updates.stock !== undefined) inventoryUpdates.standard_stock = updates.stock;
-    if (updates.price !== undefined) inventoryUpdates.selling_price = updates.price;
+    if (updates.stock !== undefined)
+      inventoryUpdates.standard_stock = updates.stock;
+    if (updates.price !== undefined)
+      inventoryUpdates.selling_price = updates.price;
     // Note: is_battery, battery_state columns don't exist in inventory table
-    if (updates.bottleStates?.open !== undefined) inventoryUpdates.open_bottles_stock = updates.bottleStates.open;
-    if (updates.bottleStates?.closed !== undefined) inventoryUpdates.closed_bottles_stock = updates.bottleStates.closed;
+    if (updates.bottleStates?.open !== undefined)
+      inventoryUpdates.open_bottles_stock = updates.bottleStates.open;
+    if (updates.bottleStates?.closed !== undefined)
+      inventoryUpdates.closed_bottles_stock = updates.bottleStates.closed;
 
     if (Object.keys(inventoryUpdates).length > 0) {
       const { error: inventoryError } = await supabase
@@ -407,9 +424,61 @@ export const updateItem = async (
           message: inventoryError.message || "Unknown database error",
           details: inventoryError.details || "No additional details",
           hint: inventoryError.hint || "No hint available",
-          code: inventoryError.code || "No error code"
+          code: inventoryError.code || "No error code",
         });
         return null;
+      }
+    }
+
+    // Update volumes if provided (for oil/lubricant products)
+    if (
+      updates.volumes !== undefined &&
+      updates.is_oil !== false &&
+      updates.isOil !== false
+    ) {
+      // Get existing volumes
+      const { data: existingVolumes } = await supabase
+        .from("product_volumes")
+        .select("id, volume_description")
+        .eq("product_id", id);
+
+      const existingVolumeMap = new Map<string, string>();
+      (existingVolumes || []).forEach((v: any) => {
+        existingVolumeMap.set(v.volume_description, v.id);
+      });
+
+      const newVolumeDescriptions = new Set<string>();
+
+      // Process each volume from updates
+      for (const volume of updates.volumes || []) {
+        if (!volume.size || volume.size.trim() === "") continue;
+
+        newVolumeDescriptions.add(volume.size);
+
+        if (existingVolumeMap.has(volume.size)) {
+          // Update existing volume
+          const volumeId = existingVolumeMap.get(volume.size);
+          await supabase
+            .from("product_volumes")
+            .update({
+              selling_price: volume.price,
+            })
+            .eq("id", volumeId);
+        } else {
+          // Insert new volume
+          await supabase.from("product_volumes").insert({
+            product_id: id,
+            volume_description: volume.size,
+            selling_price: volume.price,
+          });
+        }
+      }
+
+      // Delete volumes that are no longer in the list
+      for (const [volumeDesc, volumeId] of existingVolumeMap.entries()) {
+        if (!newVolumeDescriptions.has(volumeDesc)) {
+          await supabase.from("product_volumes").delete().eq("id", volumeId);
+        }
       }
     }
 
@@ -419,7 +488,7 @@ export const updateItem = async (
       error,
       message: error instanceof Error ? error.message : "Unknown error",
       stack: error instanceof Error ? error.stack : "No stack trace",
-      type: typeof error
+      type: typeof error,
     });
     return null;
   }
@@ -439,7 +508,7 @@ export const deleteItem = async (
         .select("id")
         .eq("name", locationId === "sanaiya" ? "Sanaiya" : "Main Branch")
         .single();
-      
+
       if (location) {
         actualLocationId = location.id;
       }
@@ -534,8 +603,12 @@ export const fetchSuppliers = async (): Promise<Supplier[]> => {
     if (error) {
       // Handle specific case where suppliers table doesn't exist
       if (error.code === "PGRST205" && error.message.includes("suppliers")) {
-        console.warn("Suppliers table not found. Please create the suppliers table in your Supabase dashboard.");
-        console.warn("SQL to create table:", `
+        console.warn(
+          "Suppliers table not found. Please create the suppliers table in your Supabase dashboard."
+        );
+        console.warn(
+          "SQL to create table:",
+          `
 CREATE TABLE IF NOT EXISTS public.suppliers (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   name TEXT NOT NULL,
@@ -545,15 +618,16 @@ CREATE TABLE IF NOT EXISTS public.suppliers (
   address TEXT,
   created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL,
   updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL
-);`);
+);`
+        );
         return [];
       }
-      
+
       console.error("Error fetching suppliers:", error);
       return [];
     }
 
-    return (data || []).map(supplier => ({
+    return (data || []).map((supplier) => ({
       id: supplier.id,
       name: supplier.name,
       contact: supplier.contact,
@@ -579,7 +653,7 @@ export const fetchBranches = async (): Promise<Branch[]> => {
       return [];
     }
 
-    const branches = (data || []).map(location => ({
+    const branches = (data || []).map((location) => ({
       id: location.id,
       name: location.name,
       address: location.address || "",
@@ -589,15 +663,17 @@ export const fetchBranches = async (): Promise<Branch[]> => {
 
     // Prioritize Sanaiya as the main branch (first in the list)
     // This ensures main inventory displays Sanaiya items by default
-    const sanaiyaIndex = branches.findIndex(branch => 
-      branch.name.toLowerCase().includes('sanaiya')
+    const sanaiyaIndex = branches.findIndex((branch) =>
+      branch.name.toLowerCase().includes("sanaiya")
     );
-    
+
     if (sanaiyaIndex > 0) {
       // Move Sanaiya to the front
       const sanaiyaBranch = branches.splice(sanaiyaIndex, 1)[0];
       branches.unshift(sanaiyaBranch);
-      console.log("✅ Prioritized Sanaiya as main branch for inventory display");
+      console.log(
+        "✅ Prioritized Sanaiya as main branch for inventory display"
+      );
     }
 
     return branches;
@@ -608,7 +684,9 @@ export const fetchBranches = async (): Promise<Branch[]> => {
 };
 
 // Category management functions
-export const addCategoryService = async (category: Omit<Category, "id">): Promise<Category> => {
+export const addCategoryService = async (
+  category: Omit<Category, "id">
+): Promise<Category> => {
   try {
     const { data, error } = await supabase
       .from("categories")
@@ -628,7 +706,10 @@ export const addCategoryService = async (category: Omit<Category, "id">): Promis
   }
 };
 
-export const updateCategoryService = async (id: string, updates: Partial<Category>): Promise<Category> => {
+export const updateCategoryService = async (
+  id: string,
+  updates: Partial<Category>
+): Promise<Category> => {
   try {
     const { data, error } = await supabase
       .from("categories")
@@ -651,10 +732,7 @@ export const updateCategoryService = async (id: string, updates: Partial<Categor
 
 export const deleteCategoryService = async (id: string): Promise<void> => {
   try {
-    const { error } = await supabase
-      .from("categories")
-      .delete()
-      .eq("id", id);
+    const { error } = await supabase.from("categories").delete().eq("id", id);
 
     if (error) {
       console.error("Error deleting category:", error);
@@ -667,7 +745,9 @@ export const deleteCategoryService = async (id: string): Promise<void> => {
 };
 
 // Brand management functions
-export const addBrandService = async (brand: Omit<Brand, "id">): Promise<Brand> => {
+export const addBrandService = async (
+  brand: Omit<Brand, "id">
+): Promise<Brand> => {
   try {
     const { data, error } = await supabase
       .from("brands")
@@ -687,7 +767,10 @@ export const addBrandService = async (brand: Omit<Brand, "id">): Promise<Brand> 
   }
 };
 
-export const updateBrandService = async (id: string, updates: Partial<Brand>): Promise<Brand> => {
+export const updateBrandService = async (
+  id: string,
+  updates: Partial<Brand>
+): Promise<Brand> => {
   try {
     const { data, error } = await supabase
       .from("brands")
@@ -710,10 +793,7 @@ export const updateBrandService = async (id: string, updates: Partial<Brand>): P
 
 export const deleteBrandService = async (id: string): Promise<void> => {
   try {
-    const { error } = await supabase
-      .from("brands")
-      .delete()
-      .eq("id", id);
+    const { error } = await supabase.from("brands").delete().eq("id", id);
 
     if (error) {
       console.error("Error deleting brand:", error);
@@ -726,7 +806,9 @@ export const deleteBrandService = async (id: string): Promise<void> => {
 };
 
 // Supplier management functions
-export const addSupplierService = async (supplier: Omit<Supplier, "id">): Promise<Supplier> => {
+export const addSupplierService = async (
+  supplier: Omit<Supplier, "id">
+): Promise<Supplier> => {
   try {
     const { data, error } = await supabase
       .from("suppliers")
@@ -757,7 +839,10 @@ export const addSupplierService = async (supplier: Omit<Supplier, "id">): Promis
   }
 };
 
-export const updateSupplierService = async (id: string, updates: Partial<Supplier>): Promise<Supplier> => {
+export const updateSupplierService = async (
+  id: string,
+  updates: Partial<Supplier>
+): Promise<Supplier> => {
   try {
     const { data, error } = await supabase
       .from("suppliers")
@@ -817,7 +902,10 @@ export const deleteSupplierService = async (id: string): Promise<Supplier> => {
 };
 
 // Legacy function aliases for backward compatibility
-export const deleteItemService = async (id: string, branchId: string): Promise<void> => {
+export const deleteItemService = async (
+  id: string,
+  branchId: string
+): Promise<void> => {
   await deleteItem(id, branchId);
 };
 
@@ -891,7 +979,7 @@ export const addBatch = async (
         .select("id")
         .eq("name", locationId === "sanaiya" ? "Sanaiya" : "Main Branch")
         .single();
-      
+
       if (location) {
         actualLocationId = location.id;
       }
@@ -941,12 +1029,18 @@ export const updateBatch = async (
 ): Promise<Batch | null> => {
   try {
     const batchUpdates: any = {};
-    if (updates.purchase_date !== undefined) batchUpdates.purchase_date = updates.purchase_date;
-    if (updates.expiration_date !== undefined) batchUpdates.expiration_date = updates.expiration_date;
-    if (updates.supplier_id !== undefined) batchUpdates.supplier_id = updates.supplier_id;
-    if (updates.cost_price !== undefined) batchUpdates.cost_price = updates.cost_price;
-    if (updates.initial_quantity !== undefined) batchUpdates.initial_quantity = updates.initial_quantity;
-    if (updates.current_quantity !== undefined) batchUpdates.current_quantity = updates.current_quantity;
+    if (updates.purchase_date !== undefined)
+      batchUpdates.purchase_date = updates.purchase_date;
+    if (updates.expiration_date !== undefined)
+      batchUpdates.expiration_date = updates.expiration_date;
+    if (updates.supplier_id !== undefined)
+      batchUpdates.supplier_id = updates.supplier_id;
+    if (updates.cost_price !== undefined)
+      batchUpdates.cost_price = updates.cost_price;
+    if (updates.initial_quantity !== undefined)
+      batchUpdates.initial_quantity = updates.initial_quantity;
+    if (updates.current_quantity !== undefined)
+      batchUpdates.current_quantity = updates.current_quantity;
 
     const { data, error } = await supabase
       .from("batches")
@@ -980,10 +1074,7 @@ export const updateBatch = async (
 
 export const deleteBatch = async (id: string): Promise<boolean> => {
   try {
-    const { error } = await supabase
-      .from("batches")
-      .delete()
-      .eq("id", id);
+    const { error } = await supabase.from("batches").delete().eq("id", id);
 
     if (error) {
       console.error("Error deleting batch:", error);

@@ -50,9 +50,7 @@ Time: ${currentDate.toLocaleTimeString("en-GB", {
     })}
 Vehicle Plate: ${carPlateNumber}
 
-───────────────────────────────────────────────
-RESERVED ITEMS
-───────────────────────────────────────────────
+ITEMS
 ${cartItems
   .map(
     (item, index) =>
@@ -66,12 +64,6 @@ ${cartItems
 ───────────────────────────────────────────────
 TOTAL AMOUNT: OMR ${total.toFixed(3)}
 ───────────────────────────────────────────────
-
-⚠️  IMPORTANT NOTICE  ⚠️
-This ticket reserves your selected items.
-Present this ticket to complete your purchase.
-Valid for 24 hours from issue time.
-Items will be released after expiry.
 
 Thank you for choosing ${companyInfo.brand.name}
 ═══════════════════════════════════════════════
@@ -165,33 +157,35 @@ Thank you for choosing ${companyInfo.brand.name}
 
             {/* Items Section */}
             <div className="mb-4">
-              <h4 className="font-bold text-gray-800 mb-3 text-center bg-gray-100 py-2 rounded">
-                RESERVED ITEMS
-              </h4>
-              <div className="space-y-2">
-                {cartItems.map((item, index) => (
-                  <div
-                    key={index}
-                    className="bg-white border border-gray-200 rounded p-3"
-                  >
-                    <div className="flex justify-between items-start mb-1">
-                      <span className="font-medium text-gray-800 flex-1">
-                        {item.name || item.product_name}
-                      </span>
-                      <span className="text-sm text-gray-600 ml-2">
-                        Qty: {item.quantity}
-                      </span>
+              <div className="font-bold text-gray-800 mb-3 text-center py-2">
+                ITEMS
+              </div>
+              <div className="bg-white border border-gray-200 rounded p-3">
+                <div className="space-y-3">
+                  {cartItems.map((item, index) => (
+                    <div key={index}>
+                      <div className="flex justify-between items-start mb-1">
+                        <span className="font-medium text-gray-800 flex-1">
+                          {item.name || item.product_name}
+                        </span>
+                        <span className="text-sm text-gray-600 ml-2">
+                          Qty: {item.quantity}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center text-sm">
+                        <span className="text-gray-600">
+                          OMR {item.price?.toFixed(3) || "0.000"} each
+                        </span>
+                        <span className="font-semibold text-green-700">
+                          OMR {((item.price || 0) * item.quantity).toFixed(3)}
+                        </span>
+                      </div>
+                      {index < cartItems.length - 1 && (
+                        <hr className="mt-2 border-gray-200" />
+                      )}
                     </div>
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="text-gray-600">
-                        OMR {item.price?.toFixed(3) || "0.000"} each
-                      </span>
-                      <span className="font-semibold text-green-700">
-                        OMR {((item.price || 0) * item.quantity).toFixed(3)}
-                      </span>
-                    </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             </div>
 
@@ -204,25 +198,6 @@ Thank you for choosing ${companyInfo.brand.name}
                 <span className="text-xl font-bold text-green-800">
                   OMR {total.toFixed(3)}
                 </span>
-              </div>
-            </div>
-
-            {/* Important Instructions */}
-            <div className="bg-red-50 border-2 border-red-300 rounded-lg p-4 text-center">
-              <h4 className="font-bold text-red-800 text-lg mb-2">
-                ⚠️ IMPORTANT NOTICE ⚠️
-              </h4>
-              <div className="text-sm text-red-700 space-y-1">
-                <p className="font-semibold">
-                  This ticket reserves your selected items.
-                </p>
-                <p>Present this ticket to complete your purchase.</p>
-                <p className="font-bold text-red-800 mt-2">
-                  Valid for 24 hours from issue time
-                </p>
-                <p className="text-xs mt-3 text-red-600">
-                  Items will be released after expiry
-                </p>
               </div>
             </div>
 

@@ -552,7 +552,7 @@ TableRow.displayName = "TableRow";
 function MobileView() {
   const [isPending, startTransition] = useTransition();
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 50;
+  const itemsPerPage = 7;
 
   const {
     filteredItems,
@@ -721,7 +721,7 @@ function MobileView() {
   );
 
   return (
-    <div className="space-y-4 mt-[0px]">
+    <div className="space-y-4 mt-[0px] pt-3 pb-4">
       <div className="mb-2 flex flex-col gap-4">
         {/* Search bar and stock indicators */}
         <div className="flex items-center gap-2">
@@ -977,11 +977,13 @@ function MobileView() {
       </div>
 
       {filteredItems.length > 0 && (
-        <Pagination
-          currentPage={currentPage}
-          totalPages={Math.ceil(filteredItems.length / itemsPerPage)}
-          onPageChange={setCurrentPage}
-        />
+        <div className="w-full overflow-x-auto overflow-y-visible py-6 my-2">
+          <Pagination
+            currentPage={currentPage}
+            totalPages={Math.ceil(filteredItems.length / itemsPerPage)}
+            onPageChange={setCurrentPage}
+          />
+        </div>
       )}
 
       <ItemModal
@@ -1005,7 +1007,7 @@ function MobileView() {
 function DesktopView() {
   const [isPending, startTransition] = useTransition();
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 50;
+  const itemsPerPage = 7;
 
   const {
     filteredItems,
@@ -1233,7 +1235,7 @@ function DesktopView() {
     selectedItems.length === filteredItems.length && filteredItems.length > 0;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 pt-3 pb-4">
       <div className="flex items-center gap-2">
         <div className="relative flex-1 min-w-0">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -1521,8 +1523,8 @@ function DesktopView() {
         </div>
       )}
 
-      <div className="rounded-[1.125rem] border bg-white shadow-sm">
-        <div className="overflow-x-auto">
+      <div className="rounded-[1.125rem] border bg-white shadow-sm mb-4">
+        <div className="overflow-x-auto pb-2">
           <table className="w-full min-w-[800px]">
             <thead>
               <tr className="border-b bg-muted/50">
@@ -1613,11 +1615,13 @@ function DesktopView() {
       </div>
 
       {filteredItems.length > 0 && (
-        <Pagination
-          currentPage={currentPage}
-          totalPages={Math.ceil(filteredItems.length / itemsPerPage)}
-          onPageChange={setCurrentPage}
-        />
+        <div className="w-full overflow-x-auto overflow-y-visible py-6 my-2">
+          <Pagination
+            currentPage={currentPage}
+            totalPages={Math.ceil(filteredItems.length / itemsPerPage)}
+            onPageChange={setCurrentPage}
+          />
+        </div>
       )}
 
       <ItemModal

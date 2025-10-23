@@ -149,6 +149,8 @@ const TransactionCard = memo(
                   className={`text-base sm:text-lg font-medium ${
                     transaction.type === "refund"
                       ? "text-red-500"
+                      : transaction.type === "expense"
+                      ? "text-purple-600"
                       : transaction.type === "credit"
                       ? "text-orange-600"
                       : transaction.type === "on-hold"
@@ -158,6 +160,8 @@ const TransactionCard = memo(
                 >
                   {transaction.type === "refund"
                     ? "Refund"
+                    : transaction.type === "expense"
+                    ? "Expense"
                     : transaction.type === "credit"
                     ? "Credit"
                     : transaction.type === "on-hold"
@@ -180,6 +184,8 @@ const TransactionCard = memo(
                 className={`font-semibold ${
                   transaction.type === "refund"
                     ? "text-red-500"
+                    : transaction.type === "expense"
+                    ? "text-purple-600"
                     : transaction.type === "credit"
                     ? "text-blue-600"
                     : transaction.type === "on-hold"
@@ -280,6 +286,8 @@ function FixedSalesCard({
           ? "bg-gray-600"
           : transaction.type === "refund"
           ? "bg-red-500"
+          : transaction.type === "expense"
+          ? "bg-purple-600"
           : transaction.type === "credit"
           ? "bg-orange-600"
           : transaction.type === "on-hold"
@@ -293,6 +301,8 @@ function FixedSalesCard({
             ? "No transactions"
             : transaction.type === "refund"
             ? "Refund"
+            : transaction.type === "expense"
+            ? "Expense"
             : transaction.type === "credit"
             ? "Credit"
             : transaction.type === "on-hold"
@@ -832,12 +842,16 @@ export default function TransactionsPage() {
         status:
           t.type === "REFUND"
             ? "refunded"
+            : t.type === "EXPENSE"
+            ? "expensed"
             : t.type === "ON_HOLD"
             ? "on-hold"
             : "completed",
         type:
           t.type === "REFUND"
             ? "refund"
+            : t.type === "EXPENSE"
+            ? "expense"
             : t.type === "CREDIT"
             ? "credit"
             : t.type === "ON_HOLD"
@@ -851,6 +865,8 @@ export default function TransactionsPage() {
         notes:
           t.type === "REFUND"
             ? "Item returned"
+            : t.type === "EXPENSE"
+            ? "Miscellaneous expense"
             : t.type === "ON_HOLD"
             ? `Car Plate: ${t.car_plate_number || "N/A"}`
             : undefined,
@@ -888,11 +904,9 @@ export default function TransactionsPage() {
     if (!displayTransactions || displayTransactions.length === 0) return 0;
 
     return displayTransactions.reduce((total, transaction) => {
-      const amount =
-        transaction.type === "refund"
-          ? -transaction.amount
-          : transaction.amount;
-      return total + amount;
+      // transaction.amount already contains the correct sign from the database
+      // Sales are positive, refunds are negative
+      return total + transaction.amount;
     }, 0);
   }, [displayTransactions]);
 
@@ -1244,7 +1258,11 @@ export default function TransactionsPage() {
         <DialogContent className="w-[95vw] sm:max-w-md md:max-w-lg max-h-[90vh] p-0 flex flex-col overflow-hidden">
           <DialogHeader className="p-6 flex flex-row items-center justify-between border-b shrink-0">
             <DialogTitle className="text-xl font-bold">
-              {selectedTransaction?.type === "refund" ? "Refund" : "Sale"}{" "}
+              {selectedTransaction?.type === "refund"
+                ? "Refund"
+                : selectedTransaction?.type === "expense"
+                ? "Expense"
+                : "Sale"}{" "}
               Receipt
             </DialogTitle>
             <Button
