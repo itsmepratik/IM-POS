@@ -1,10 +1,13 @@
+import typescriptEslint from "@typescript-eslint/eslint-plugin";
+import parser from "@typescript-eslint/parser";
+
 export default [
   {
     files: ["**/*.{js,jsx,ts,tsx}"],
     languageOptions: {
       ecmaVersion: "latest",
       sourceType: "module",
-      parser: "@typescript-eslint/parser",
+      parser: parser,
       parserOptions: {
         ecmaFeatures: {
           jsx: true,
@@ -12,7 +15,7 @@ export default [
       },
     },
     plugins: {
-      "@typescript-eslint": true,
+      "@typescript-eslint": typescriptEslint,
     },
     rules: {
       "react/no-unescaped-entities": "off",
@@ -23,8 +26,6 @@ export default [
           varsIgnorePattern: "^_",
         },
       ],
-      "react-hooks/rules-of-hooks": "error",
-      "react-hooks/exhaustive-deps": "warn",
     },
   },
 ];

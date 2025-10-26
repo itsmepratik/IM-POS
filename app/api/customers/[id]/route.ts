@@ -6,9 +6,17 @@ import { eq } from "drizzle-orm";
 
 // Validation schemas
 const UpdateCustomerSchema = z.object({
-  name: z.string().min(1, "Name is required").max(255, "Name too long").optional(),
+  name: z
+    .string()
+    .min(1, "Name is required")
+    .max(255, "Name too long")
+    .optional(),
   email: z.string().email("Invalid email").optional().or(z.literal("")),
-  phone: z.string().max(20, "Phone number too long").optional().or(z.literal("")),
+  phone: z
+    .string()
+    .max(20, "Phone number too long")
+    .optional()
+    .or(z.literal("")),
   address: z.string().max(500, "Address too long").optional().or(z.literal("")),
   notes: z.string().max(1000, "Notes too long").optional().or(z.literal("")),
 });
@@ -16,7 +24,7 @@ const UpdateCustomerSchema = z.object({
 // GET /api/customers/[id] - Get single customer
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Check database availability
@@ -27,10 +35,11 @@ export async function GET(
       );
     }
 
-    const { id } = params;
+    const { id } = await params;
 
     // Validate UUID format
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const uuidRegex =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(id)) {
       return NextResponse.json(
         { error: "Invalid customer ID format" },
@@ -61,7 +70,7 @@ export async function GET(
       .where(eq(customerVehicles.customerId, id));
 
     // Transform vehicles to match the expected format
-    const transformedVehicles = vehicles.map(vehicle => ({
+    const transformedVehicles = vehicles.map((vehicle) => ({
       id: vehicle.id,
       make: vehicle.make,
       model: vehicle.model,
@@ -92,7 +101,7 @@ export async function GET(
 // PUT /api/customers/[id] - Update customer
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Check database availability
@@ -103,10 +112,11 @@ export async function PUT(
       );
     }
 
-    const { id } = params;
+    const { id } = await params;
 
     // Validate UUID format
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const uuidRegex =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(id)) {
       return NextResponse.json(
         { error: "Invalid customer ID format" },
@@ -115,14 +125,14 @@ export async function PUT(
     }
 
     const body = await request.json();
-    
+
     // Validate input
     const validationResult = UpdateCustomerSchema.safeParse(body);
     if (!validationResult.success) {
       return NextResponse.json(
-        { 
-          error: "Validation failed", 
-          details: validationResult.error.errors 
+        {
+          error: "Validation failed",
+          details: validationResult.error.issues,
         },
         { status: 400 }
       );
@@ -174,7 +184,7 @@ export async function PUT(
     });
   } catch (error) {
     console.error("Error updating customer:", error);
-    
+
     // Handle unique constraint violations
     if (error instanceof Error && error.message.includes("unique")) {
       return NextResponse.json(
@@ -193,7 +203,7 @@ export async function PUT(
 // DELETE /api/customers/[id] - Delete customer
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Check database availability
@@ -204,10 +214,11 @@ export async function DELETE(
       );
     }
 
-    const { id } = params;
+    const { id } = await params;
 
     // Validate UUID format
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const uuidRegex =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(id)) {
       return NextResponse.json(
         { error: "Invalid customer ID format" },
@@ -244,7 +255,7 @@ export async function DELETE(
     });
   } catch (error) {
     console.error("Error deleting customer:", error);
-    
+
     // Handle foreign key constraint violations
     if (error instanceof Error && error.message.includes("foreign key")) {
       return NextResponse.json(

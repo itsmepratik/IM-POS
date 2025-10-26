@@ -24,6 +24,14 @@ export async function POST(req: NextRequest) {
 
     // Validate input
     const validatedInput = DisputeInputSchema.parse(body);
+
+    // Ensure database is available
+    if (!db) {
+      return NextResponse.json(
+        { success: false, error: "Database connection not available" },
+        { status: 503 }
+      );
+    }
     const {
       originalBillNumber,
       disputeType,
@@ -127,7 +135,8 @@ export async function POST(req: NextRequest) {
               .update(inventory)
               .set({
                 closedBottlesStock:
-                  inventoryRecord.closedBottlesStock + disputedItem.quantity,
+                  (inventoryRecord.closedBottlesStock ?? 0) +
+                  disputedItem.quantity,
               })
               .where(eq(inventory.id, inventoryRecord.id));
           } else {
@@ -136,7 +145,7 @@ export async function POST(req: NextRequest) {
               .update(inventory)
               .set({
                 standardStock:
-                  inventoryRecord.standardStock + disputedItem.quantity,
+                  (inventoryRecord.standardStock ?? 0) + disputedItem.quantity,
               })
               .where(eq(inventory.id, inventoryRecord.id));
           }
@@ -211,7 +220,7 @@ export async function POST(req: NextRequest) {
         {
           success: false,
           error: "Invalid input data",
-          details: error.errors,
+          details: error.issues,
         },
         { status: 400 }
       );

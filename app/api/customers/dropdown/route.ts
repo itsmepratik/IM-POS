@@ -19,39 +19,46 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get("search");
     const limit = parseInt(searchParams.get("limit") || "100");
 
-    let query = db
-      .select({
-        id: customers.id,
-        name: customers.name,
-        email: customers.email,
-        phone: customers.phone,
-      })
-      .from(customers);
-
-    // Add search filter if provided
-    if (search && search.trim()) {
-      const searchTerm = `%${search.trim()}%`;
-      query = query.where(
-        or(
-          ilike(customers.name, searchTerm),
-          ilike(customers.email, searchTerm),
-          ilike(customers.phone, searchTerm)
-        )
-      );
-    }
-
-    // Get customers ordered by most recent
-    const customerList = await query
-      .orderBy(desc(customers.createdAt))
-      .limit(limit);
+    // Build query with conditional search
+    const customerList =
+      search && search.trim()
+        ? await db
+            .select({
+              id: customers.id,
+              name: customers.name,
+              email: customers.email,
+              phone: customers.phone,
+            })
+            .from(customers)
+            .where(
+              or(
+                ilike(customers.name, `%${search.trim()}%`),
+                ilike(customers.email, `%${search.trim()}%`),
+                ilike(customers.phone, `%${search.trim()}%`)
+              )
+            )
+            .orderBy(desc(customers.createdAt))
+            .limit(limit)
+        : await db
+            .select({
+              id: customers.id,
+              name: customers.name,
+              email: customers.email,
+              phone: customers.phone,
+            })
+            .from(customers)
+            .orderBy(desc(customers.createdAt))
+            .limit(limit);
 
     // Format for dropdown display
-    const formattedCustomers = customerList.map(customer => ({
+    const formattedCustomers = customerList.map((customer) => ({
       id: customer.id,
       name: customer.name,
       email: customer.email,
       phone: customer.phone,
-      displayText: `${customer.name}${customer.phone ? ` - ${customer.phone}` : ''}${customer.email ? ` (${customer.email})` : ''}`,
+      displayText: `${customer.name}${
+        customer.phone ? ` - ${customer.phone}` : ""
+      }${customer.email ? ` (${customer.email})` : ""}`,
     }));
 
     return NextResponse.json({

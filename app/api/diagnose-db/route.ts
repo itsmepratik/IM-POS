@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import postgres from "postgres";
-import { validateDatabaseUrl } from "@/lib/db/client";
+import { validateDatabaseUrl as validateDbUrl } from "@/lib/db/client";
 
 /**
  * Comprehensive Database Diagnostic Tool
@@ -123,7 +123,7 @@ async function checkEnvironmentVariables(): Promise<DiagnosticResult> {
 }
 
 async function validateDatabaseUrl(): Promise<DiagnosticResult> {
-  const validation = validateDatabaseUrl();
+  const validation = validateDbUrl();
 
   if (!validation.isValid) {
     return {

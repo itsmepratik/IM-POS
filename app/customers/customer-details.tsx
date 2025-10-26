@@ -50,7 +50,7 @@ export function CustomerDetails({
         address.city,
         address.state,
         address.zipCode,
-        address.country
+        address.country,
       ].filter(Boolean);
       return parts.join(", ");
     }

@@ -320,4 +320,3 @@ export function CheckoutHealthMonitor({
     </Card>
   );
 }
-

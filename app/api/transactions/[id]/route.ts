@@ -8,12 +8,13 @@ const ParamsSchema = z.object({
 
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = createClient();
 
-    const parsed = ParamsSchema.safeParse({ id: params.id });
+    const { id } = await params;
+    const parsed = ParamsSchema.safeParse({ id });
 
     if (!parsed.success) {
       return NextResponse.json(
@@ -22,7 +23,7 @@ export async function GET(
       );
     }
 
-    const { id } = parsed.data;
+    // id is already validated from params above
 
     const { data: transactionData, error } = await supabase
       .from("transactions")

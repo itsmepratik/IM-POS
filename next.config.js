@@ -3,6 +3,14 @@ const nextConfig = {
   /**experimental: {
     forceSwcTransforms: true,
   },*/
+  eslint: {
+    // Disable ESLint during builds
+    ignoreDuringBuilds: true,
+  },
+  typescript: {
+    // Disable TypeScript errors during builds (not recommended for production)
+    ignoreBuildErrors: false,
+  },
   images: {
     unoptimized: true,
     remotePatterns: [

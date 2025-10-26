@@ -215,7 +215,7 @@ export async function POST(req: NextRequest) {
             details: {
               requestId,
               errorType: "VALIDATION_ERROR",
-              validationErrors: validationError.errors.map((err) => ({
+              validationErrors: validationError.issues.map((err) => ({
                 field: err.path.join("."),
                 message: err.message,
                 code: err.code,
@@ -394,7 +394,7 @@ export async function POST(req: NextRequest) {
         // 2. Process each cart item with FIFO logic
         for (const cartItem of processedCart) {
           // Skip inventory processing for labor charges
-          if (cartItem.productId === "9999" || cartItem.productId === 9999) {
+          if (cartItem.productId === "9999") {
             console.log(
               `[${requestId}] Skipping inventory processing for labor charge: ${cartItem.productId}`
             );
@@ -601,12 +601,16 @@ export async function POST(req: NextRequest) {
             });
 
             // For battery trade-ins, create/update inventory with battery size as name
-            if (isBatterySale && tradeIn.name && tradeIn.costPrice) {
+            if (
+              isBatterySale &&
+              (tradeIn as any).name &&
+              (tradeIn as any).costPrice
+            ) {
               // Check if a product with this name already exists
               const [existingProduct] = await tx
                 .select()
                 .from(products)
-                .where(eq(products.name, tradeIn.name))
+                .where(eq(products.name, (tradeIn as any).name))
                 .limit(1);
 
               let productId = tradeIn.productId;
@@ -617,7 +621,7 @@ export async function POST(req: NextRequest) {
                   .insert(products)
                   .values({
                     id: tradeIn.productId,
-                    name: tradeIn.name, // Battery size as name
+                    name: (tradeIn as any).name, // Battery size as name
                     categoryId: "parts-category-id", // Default to parts category
                     productType: "Trade-in Battery",
                     description: `Trade-in battery - ${tradeIn.size} (${tradeIn.condition})`,
@@ -659,7 +663,7 @@ export async function POST(req: NextRequest) {
               // Create a batch record with the trade-in amount as cost price
               await tx.insert(batches).values({
                 inventoryId: tradeInInventory?.id || productId, // Use inventory ID if available
-                costPrice: tradeIn.costPrice.toString(),
+                costPrice: (tradeIn as any).costPrice.toString(),
                 quantityReceived: tradeIn.quantity,
                 stockRemaining: tradeIn.quantity,
                 supplier: `Trade-in (${tradeIn.condition})`,
@@ -788,7 +792,7 @@ export async function POST(req: NextRequest) {
           error: "Invalid input data",
           details: {
             requestId,
-            validationErrors: error.errors,
+            validationErrors: error.issues,
             processingTime,
             timestamp: new Date().toISOString(),
           },

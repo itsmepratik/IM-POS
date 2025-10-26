@@ -200,9 +200,9 @@ export async function GET(req: NextRequest) {
                 originalStock,
                 currentStock,
                 expectedReduction,
-                actualReduction: originalStock - currentStock,
+                actualReduction: originalStock - (currentStock ?? 0),
                 stockDeductedCorrectly:
-                  originalStock - currentStock === expectedReduction,
+                  originalStock - (currentStock ?? 0) === expectedReduction,
               };
 
               testResults.summary.stockDeducted =
@@ -223,7 +223,7 @@ export async function GET(req: NextRequest) {
               };
 
               testResults.summary.batchUpdated = updatedBatches.some(
-                (batch) => batch.stockRemaining < batch.quantity
+                (batch) => batch.stockRemaining < batch.quantityReceived
               );
             }
           }

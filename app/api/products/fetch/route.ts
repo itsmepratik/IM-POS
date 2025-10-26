@@ -114,7 +114,7 @@ export async function GET(req: Request) {
     const brandIds = [
       ...new Set(productsData?.map((p) => p.brand_id).filter(Boolean) || []),
     ];
-    let brandsData = [];
+    let brandsData: any[] = [];
     if (brandIds.length > 0) {
       const { data: brandData, error: brandError } = await supabase
         .from("brands")

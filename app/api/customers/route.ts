@@ -8,7 +8,11 @@ import { eq, ilike, or, desc } from "drizzle-orm";
 const CreateCustomerSchema = z.object({
   name: z.string().min(1, "Name is required").max(255, "Name too long"),
   email: z.string().email("Invalid email").optional().or(z.literal("")),
-  phone: z.string().max(20, "Phone number too long").optional().or(z.literal("")),
+  phone: z
+    .string()
+    .max(20, "Phone number too long")
+    .optional()
+    .or(z.literal("")),
   address: z.string().max(500, "Address too long").optional().or(z.literal("")),
   notes: z.string().max(1000, "Notes too long").optional().or(z.literal("")),
 });
@@ -32,25 +36,28 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get("limit") || "50");
     const offset = parseInt(searchParams.get("offset") || "0");
 
-    let query = db.select().from(customers);
-
-    // Add search filter if provided
-    if (search && search.trim()) {
-      const searchTerm = `%${search.trim()}%`;
-      query = query.where(
-        or(
-          ilike(customers.name, searchTerm),
-          ilike(customers.email, searchTerm),
-          ilike(customers.phone, searchTerm)
-        )
-      );
-    }
-
-    // Add pagination and ordering
-    const customerList = await query
-      .orderBy(desc(customers.createdAt))
-      .limit(limit)
-      .offset(offset);
+    // Build query with conditional search
+    const customerList =
+      search && search.trim()
+        ? await db
+            .select()
+            .from(customers)
+            .where(
+              or(
+                ilike(customers.name, `%${search.trim()}%`),
+                ilike(customers.email, `%${search.trim()}%`),
+                ilike(customers.phone, `%${search.trim()}%`)
+              )
+            )
+            .orderBy(desc(customers.createdAt))
+            .limit(limit)
+            .offset(offset)
+        : await db
+            .select()
+            .from(customers)
+            .orderBy(desc(customers.createdAt))
+            .limit(limit)
+            .offset(offset);
 
     return NextResponse.json({
       customers: customerList,
@@ -81,14 +88,14 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    
+
     // Validate input
     const validationResult = CreateCustomerSchema.safeParse(body);
     if (!validationResult.success) {
       return NextResponse.json(
-        { 
-          error: "Validation failed", 
-          details: validationResult.error.errors 
+        {
+          error: "Validation failed",
+          details: validationResult.error.issues,
         },
         { status: 400 }
       );
@@ -113,15 +120,15 @@ export async function POST(request: NextRequest) {
       .returning();
 
     return NextResponse.json(
-      { 
-        message: "Customer created successfully", 
-        customer: newCustomer 
+      {
+        message: "Customer created successfully",
+        customer: newCustomer,
       },
       { status: 201 }
     );
   } catch (error) {
     console.error("Error creating customer:", error);
-    
+
     // Handle unique constraint violations
     if (error instanceof Error && error.message.includes("unique")) {
       return NextResponse.json(
