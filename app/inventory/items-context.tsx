@@ -62,7 +62,10 @@ interface ItemsContextType {
   updateBrand: (oldBrand: string, newBrand: string) => Promise<boolean>;
   deleteBrand: (brand: string) => Promise<boolean>;
   addSupplier: (supplier: Omit<Supplier, "id">) => Promise<string | null>;
-  updateSupplier: (id: string, supplier: Partial<Omit<Supplier, "id">>) => Promise<boolean>;
+  updateSupplier: (
+    id: string,
+    supplier: Partial<Omit<Supplier, "id">>
+  ) => Promise<boolean>;
   deleteSupplier: (id: string) => Promise<boolean>;
   addBatch: (
     itemId: string,
@@ -171,25 +174,29 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
 
       // Load categories
       const categoriesData = await fetchCategories();
-      const categoryNames = categoriesData.map(cat => cat.name);
+      const categoryNames = categoriesData.map((cat) => cat.name);
       setCategories(categoryNames);
       const categoryMapInstance = new Map<string, string>();
-      categoriesData.forEach(cat => categoryMapInstance.set(cat.id, cat.name));
+      categoriesData.forEach((cat) =>
+        categoryMapInstance.set(cat.id, cat.name)
+      );
       setCategoryMap(categoryMapInstance);
 
       // Load brands
       const brandsData = await fetchBrands();
-      const brandNames = brandsData.map(brand => brand.name);
+      const brandNames = brandsData.map((brand) => brand.name);
       setBrands(brandNames);
       const brandMapInstance = new Map<string, string>();
-      brandsData.forEach(brand => brandMapInstance.set(brand.id, brand.name));
+      brandsData.forEach((brand) => brandMapInstance.set(brand.id, brand.name));
       setBrandMap(brandMapInstance);
 
       // Load suppliers
       const suppliersData = await fetchSuppliers();
       setSuppliers(suppliersData);
 
-      console.log(`Loaded ${itemsData.length} items for branch ${currentBranch.name}`);
+      console.log(
+        `Loaded ${itemsData.length} items for branch ${currentBranch.name}`
+      );
     } catch (error) {
       console.error("Error loading data:", error);
       toast({
@@ -217,7 +224,10 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
         return null;
       }
 
-      const newItem = await createItem({ ...item, location_id: currentBranch.id });
+      const newItem = await createItem({
+        ...item,
+        location_id: currentBranch.id,
+      });
       if (newItem) {
         setItems((prev) => [...prev, newItem]);
         toast({
@@ -416,7 +426,9 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (!categoryId) return false;
 
-      const updated = await updateCategoryService(categoryId, { name: newCategory });
+      const updated = await updateCategoryService(categoryId, {
+        name: newCategory,
+      });
       if (updated) {
         setCategories((prev) =>
           prev.map((cat) => (cat === oldCategory ? newCategory : cat))
@@ -599,7 +611,9 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  const addSupplier = async (supplier: Omit<Supplier, "id">): Promise<string | null> => {
+  const addSupplier = async (
+    supplier: Omit<Supplier, "id">
+  ): Promise<string | null> => {
     try {
       const newSupplier = await addSupplierService(supplier);
       if (newSupplier) {

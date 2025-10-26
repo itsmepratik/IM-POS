@@ -92,8 +92,13 @@ export const fetchItems = async (
   locationId: string = "sanaiya"
 ): Promise<Item[]> => {
   try {
-    // Get location ID by name if string is passed
+    // Get location ID
     let actualLocationId = locationId;
+
+    // Check if locationId is a UUID (not a name like "sanaiya")
+    const uuidRegex =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
     if (locationId === "sanaiya" || locationId === "main") {
       const { data: location } = await supabase
         .from("locations")
@@ -103,6 +108,31 @@ export const fetchItems = async (
 
       if (location) {
         actualLocationId = location.id;
+      } else {
+        console.warn(
+          "Location lookup failed in fetchItems, using provided locationId:",
+          locationId
+        );
+      }
+    } else if (!uuidRegex.test(locationId)) {
+      // If it's not a UUID and not a known name, try to look it up by name
+      console.warn(
+        "Location ID is not a UUID in fetchItems, attempting lookup:",
+        locationId
+      );
+      const { data: location } = await supabase
+        .from("locations")
+        .select("id")
+        .eq("name", locationId)
+        .single();
+
+      if (location) {
+        actualLocationId = location.id;
+      } else {
+        console.warn(
+          "Location lookup failed in fetchItems, using provided locationId:",
+          locationId
+        );
       }
     }
 
@@ -116,7 +146,6 @@ export const fetchItems = async (
         selling_price,
         open_bottles_stock,
         closed_bottles_stock,
-        total_stock,
         products (
           id,
           name,
@@ -133,7 +162,7 @@ export const fetchItems = async (
             id,
             name
           ),
-          brands!products_brand_id_fkey (
+          brands (
             id,
             name
           )
@@ -197,7 +226,11 @@ export const fetchItems = async (
           updated_at: batch.updated_at,
         }));
 
-        const totalStock = inv.total_stock || inv.standard_stock || 0;
+        // For lubricants (oil products), stock = open bottles + closed bottles
+        // For non-lubricants, stock = standard stock
+        const totalStock = isOilProduct
+          ? (inv.open_bottles_stock || 0) + (inv.closed_bottles_stock || 0)
+          : inv.standard_stock || 0;
 
         return {
           id: product.id,
@@ -216,7 +249,6 @@ export const fetchItems = async (
           category_id: product.category_id,
           type: product.product_type,
           description: product.description,
-          is_oil: isOilProduct,
           isOil: isOilProduct,
           imageUrl: product.image_url,
           image_url: product.image_url,
@@ -264,6 +296,11 @@ export const createItem = async (
   try {
     // Get location ID
     let actualLocationId = locationId;
+
+    // Check if locationId is a UUID (not a name like "sanaiya")
+    const uuidRegex =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
     if (locationId === "sanaiya" || locationId === "main") {
       const { data: location } = await supabase
         .from("locations")
@@ -273,7 +310,48 @@ export const createItem = async (
 
       if (location) {
         actualLocationId = location.id;
+      } else {
+        console.warn(
+          "Location lookup failed, using provided locationId:",
+          locationId
+        );
       }
+    } else if (!uuidRegex.test(locationId)) {
+      // If it's not a UUID and not a known name, try to look it up by name
+      console.warn("Location ID is not a UUID, attempting lookup:", locationId);
+      const { data: location } = await supabase
+        .from("locations")
+        .select("id")
+        .eq("name", locationId)
+        .single();
+
+      if (location) {
+        actualLocationId = location.id;
+      } else {
+        console.warn(
+          "Location lookup failed, using provided locationId:",
+          locationId
+        );
+      }
+    }
+
+    console.log("Creating item with:", {
+      locationId,
+      actualLocationId,
+      item: {
+        name: item.name,
+        category_id: item.category_id,
+        brand_id: item.brand_id,
+        price: item.price,
+        stock: item.stock,
+        is_oil: item.is_oil,
+      },
+    });
+
+    // Validate required fields
+    if (!item.category_id) {
+      console.error("Error: category_id is required");
+      return null;
     }
 
     // Create product first
@@ -286,14 +364,23 @@ export const createItem = async (
         product_type: item.type,
         description: item.description,
         image_url: item.image_url,
-        is_oil: item.is_oil,
         low_stock_threshold: item.lowStockAlert || 0,
+        cost_price:
+          item.costPrice && item.costPrice > 0 ? item.costPrice : null,
+        manufacturing_date: item.manufacturingDate,
       })
       .select()
       .single();
 
     if (productError || !productData) {
-      console.error("Error creating product:", productError);
+      console.error("Error creating product:", {
+        error: productError,
+        message: productError?.message || "Unknown product error",
+        details: productError?.details || "No details",
+        hint: productError?.hint || "No hint",
+        code: productError?.code || "No code",
+        itemData: item,
+      });
       return null;
     }
 
@@ -304,19 +391,29 @@ export const createItem = async (
         product_id: productData.id,
         location_id: actualLocationId,
         standard_stock: item.stock || 0,
-        selling_price: item.price,
-        cost_price: item.costPrice,
+        selling_price: item.price && item.price > 0 ? item.price : null,
         open_bottles_stock: item.bottleStates?.open || 0,
         closed_bottles_stock: item.bottleStates?.closed || 0,
-        is_battery: item.isBattery || false,
-        battery_state: item.batteryState,
-        manufacturing_date: item.manufacturingDate,
       })
       .select()
       .single();
 
     if (inventoryError) {
-      console.error("Error creating inventory:", inventoryError);
+      console.error("Error creating inventory:", {
+        error: inventoryError,
+        message: inventoryError?.message || "Unknown inventory error",
+        details: inventoryError?.details || "No details",
+        hint: inventoryError?.hint || "No hint",
+        code: inventoryError?.code || "No code",
+        inventoryData: {
+          product_id: productData.id,
+          location_id: actualLocationId,
+          standard_stock: item.stock || 0,
+          selling_price: item.price || null,
+          open_bottles_stock: item.bottleStates?.open || 0,
+          closed_bottles_stock: item.bottleStates?.closed || 0,
+        },
+      });
       return null;
     }
 
@@ -347,6 +444,11 @@ export const updateItem = async (
   try {
     // Get location ID
     let actualLocationId = locationId;
+
+    // Check if locationId is a UUID (not a name like "sanaiya")
+    const uuidRegex =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
     if (locationId === "sanaiya" || locationId === "main") {
       const { data: location } = await supabase
         .from("locations")
@@ -356,6 +458,31 @@ export const updateItem = async (
 
       if (location) {
         actualLocationId = location.id;
+      } else {
+        console.warn(
+          "Location lookup failed in updateItem, using provided locationId:",
+          locationId
+        );
+      }
+    } else if (!uuidRegex.test(locationId)) {
+      // If it's not a UUID and not a known name, try to look it up by name
+      console.warn(
+        "Location ID is not a UUID in updateItem, attempting lookup:",
+        locationId
+      );
+      const { data: location } = await supabase
+        .from("locations")
+        .select("id")
+        .eq("name", locationId)
+        .single();
+
+      if (location) {
+        actualLocationId = location.id;
+      } else {
+        console.warn(
+          "Location lookup failed in updateItem, using provided locationId:",
+          locationId
+        );
       }
     }
 
@@ -376,7 +503,8 @@ export const updateItem = async (
     if (updates.lowStockAlert !== undefined)
       productUpdates.low_stock_threshold = updates.lowStockAlert;
     if (updates.costPrice !== undefined)
-      productUpdates.cost_price = updates.costPrice;
+      productUpdates.cost_price =
+        updates.costPrice && updates.costPrice > 0 ? updates.costPrice : null;
     if (updates.manufacturingDate !== undefined)
       productUpdates.manufacturing_date = updates.manufacturingDate;
     // Note: is_oil column doesn't exist in database, so we skip this update
@@ -404,7 +532,8 @@ export const updateItem = async (
     if (updates.stock !== undefined)
       inventoryUpdates.standard_stock = updates.stock;
     if (updates.price !== undefined)
-      inventoryUpdates.selling_price = updates.price;
+      inventoryUpdates.selling_price =
+        updates.price && updates.price > 0 ? updates.price : null;
     // Note: is_battery, battery_state columns don't exist in inventory table
     if (updates.bottleStates?.open !== undefined)
       inventoryUpdates.open_bottles_stock = updates.bottleStates.open;
@@ -502,6 +631,11 @@ export const deleteItem = async (
   try {
     // Get location ID
     let actualLocationId = locationId;
+
+    // Check if locationId is a UUID (not a name like "sanaiya")
+    const uuidRegex =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
     if (locationId === "sanaiya" || locationId === "main") {
       const { data: location } = await supabase
         .from("locations")
@@ -511,6 +645,31 @@ export const deleteItem = async (
 
       if (location) {
         actualLocationId = location.id;
+      } else {
+        console.warn(
+          "Location lookup failed in deleteItem, using provided locationId:",
+          locationId
+        );
+      }
+    } else if (!uuidRegex.test(locationId)) {
+      // If it's not a UUID and not a known name, try to look it up by name
+      console.warn(
+        "Location ID is not a UUID in deleteItem, attempting lookup:",
+        locationId
+      );
+      const { data: location } = await supabase
+        .from("locations")
+        .select("id")
+        .eq("name", locationId)
+        .single();
+
+      if (location) {
+        actualLocationId = location.id;
+      } else {
+        console.warn(
+          "Location lookup failed in deleteItem, using provided locationId:",
+          locationId
+        );
       }
     }
 
@@ -973,6 +1132,11 @@ export const addBatch = async (
   try {
     // Get location ID
     let actualLocationId = locationId;
+
+    // Check if locationId is a UUID (not a name like "sanaiya")
+    const uuidRegex =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
     if (locationId === "sanaiya" || locationId === "main") {
       const { data: location } = await supabase
         .from("locations")
@@ -982,6 +1146,31 @@ export const addBatch = async (
 
       if (location) {
         actualLocationId = location.id;
+      } else {
+        console.warn(
+          "Location lookup failed in addBatch, using provided locationId:",
+          locationId
+        );
+      }
+    } else if (!uuidRegex.test(locationId)) {
+      // If it's not a UUID and not a known name, try to look it up by name
+      console.warn(
+        "Location ID is not a UUID in addBatch, attempting lookup:",
+        locationId
+      );
+      const { data: location } = await supabase
+        .from("locations")
+        .select("id")
+        .eq("name", locationId)
+        .single();
+
+      if (location) {
+        actualLocationId = location.id;
+      } else {
+        console.warn(
+          "Location lookup failed in addBatch, using provided locationId:",
+          locationId
+        );
       }
     }
 
