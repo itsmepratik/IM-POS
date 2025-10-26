@@ -24,7 +24,12 @@ export const categories = pgTable("categories", {
 export const brands = pgTable("brands", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull().unique(),
+  images: jsonb("images"), // JSONB column to store brand images (URLs, metadata, etc.)
 });
+
+// Type inference for the brands table
+export type Brand = typeof brands.$inferSelect;
+export type NewBrand = typeof brands.$inferInsert;
 
 export const products = pgTable("products", {
   id: uuid("id").primaryKey().defaultRandom(),

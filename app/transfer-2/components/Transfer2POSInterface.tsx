@@ -24,6 +24,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
 import { useIntegratedPOSData } from "@/lib/hooks/data/useIntegratedPOSData";
+import { ProductImage } from "./ProductImage";
 
 // Interface for POS items that will be selected
 interface POSCartItem {
@@ -368,7 +369,7 @@ export function Transfer2POSInterface({
                           <Button
                             key={product.id}
                             variant="outline"
-                            className="h-auto min-h-[120px] flex flex-col items-center justify-between p-3 hover:shadow-md transition-all overflow-hidden"
+                            className="h-auto min-h-[140px] flex flex-col items-center justify-between p-4 hover:shadow-lg hover:border-primary/50 transition-all duration-200 overflow-hidden border-2"
                             onClick={() => {
                               if (activeCategory === "Lubricants") {
                                 handleLubricantSelect(product);
@@ -377,14 +378,24 @@ export function Transfer2POSInterface({
                               }
                             }}
                           >
-                            <div className="w-8 h-8 mb-2 flex items-center justify-center rounded-md bg-muted">
-                              {getCategoryIcon(activeCategory)}
+                            <div className="mb-3 flex justify-center">
+                              <ProductImage
+                                product={{
+                                  id: product.id,
+                                  name: product.name,
+                                  brand: product.brand,
+                                  category: activeCategory,
+                                  ...(product as any), // Spread all other properties including image fields
+                                }}
+                                size="lg"
+                                className="shadow-sm ring-1 ring-border/50"
+                              />
                             </div>
-                            <div className="text-center flex-1 flex flex-col justify-between min-h-0">
-                              <span className="text-xs font-medium line-clamp-2 leading-tight">
+                            <div className="text-center flex-1 flex flex-col justify-between min-h-0 gap-2">
+                              <span className="text-sm font-semibold line-clamp-2 leading-tight text-foreground">
                                 {product.name}
                               </span>
-                              <span className="text-sm text-primary font-medium mt-1">
+                              <span className="text-base text-primary font-bold">
                                 OMR{" "}
                                 {(
                                   product.basePrice ||

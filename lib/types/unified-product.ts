@@ -25,6 +25,7 @@ export interface UnifiedProduct {
   basePrice: number;
   costPrice?: number | null;
   lowStockThreshold: number;
+  manufacturingDate?: string | null;
 
   // Location-specific inventory
   inventory?: ProductInventory;
@@ -137,6 +138,7 @@ export const UnifiedProductSchema = z.object({
   lowStockThreshold: z
     .number()
     .min(0, "Low stock threshold must be non-negative"),
+  manufacturingDate: z.string().nullable().optional(),
 
   isLubricant: z.boolean(),
 

@@ -1,6 +1,6 @@
 ---
 Name: System Rules
-alwaysApply: true
+alwaysApply: false
 ---
 
 # Development Rules & Standards (Always follow them strictly)

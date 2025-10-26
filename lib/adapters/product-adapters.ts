@@ -67,6 +67,69 @@ export function itemToUnifiedProduct(
       isActiveBatch: true, // Derive from batch data if needed
     })) || [];
 
+  // Format manufacturing date for HTML date input (YYYY-MM-DD)
+  let formattedManufacturingDate: string | null = null;
+  if (item.manufacturingDate) {
+    try {
+      console.log(
+        "Raw manufacturing date from item:",
+        item.manufacturingDate,
+        typeof item.manufacturingDate
+      );
+
+      // Handle different date formats from database
+      if (typeof item.manufacturingDate === "string") {
+        // If it's already in YYYY-MM-DD format, use it directly
+        if (/^\d{4}-\d{2}-\d{2}$/.test(item.manufacturingDate)) {
+          formattedManufacturingDate = item.manufacturingDate;
+          console.log(
+            "Date already in YYYY-MM-DD format:",
+            formattedManufacturingDate
+          );
+        } else {
+          // Try to parse the string as a date
+          const date = new Date(item.manufacturingDate);
+          if (!isNaN(date.getTime())) {
+            formattedManufacturingDate = date.toISOString().split("T")[0];
+            console.log(
+              "Parsed string date to YYYY-MM-DD:",
+              formattedManufacturingDate
+            );
+          }
+        }
+      } else if (item.manufacturingDate instanceof Date) {
+        // Handle Date objects directly
+        formattedManufacturingDate = item.manufacturingDate
+          .toISOString()
+          .split("T")[0];
+        console.log(
+          "Converted Date object to YYYY-MM-DD:",
+          formattedManufacturingDate
+        );
+      } else {
+        // Try to convert to Date and format
+        const date = new Date(item.manufacturingDate as any);
+        if (!isNaN(date.getTime())) {
+          formattedManufacturingDate = date.toISOString().split("T")[0];
+          console.log(
+            "Converted unknown type to YYYY-MM-DD:",
+            formattedManufacturingDate
+          );
+        }
+      }
+    } catch (error) {
+      console.warn(
+        "Error formatting manufacturing date:",
+        error,
+        "Raw value:",
+        item.manufacturingDate
+      );
+      formattedManufacturingDate = null;
+    }
+  } else {
+    console.log("No manufacturing date provided in item");
+  }
+
   return {
     id: item.id,
     name: item.name,
@@ -80,6 +143,7 @@ export function itemToUnifiedProduct(
     basePrice: item.price || 0,
     costPrice: item.costPrice,
     lowStockThreshold: item.lowStockAlert || 5,
+    manufacturingDate: formattedManufacturingDate,
     inventory,
     isLubricant: Boolean(item.is_oil || item.isOil),
     volumes: volumes.length > 0 ? volumes : undefined,

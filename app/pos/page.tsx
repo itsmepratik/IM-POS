@@ -1014,6 +1014,7 @@ function POSPageContent() {
     partBrands,
     partTypes,
     lubricantBrands,
+    brands,
     isLoading,
     isBackgroundSyncing,
     error,
@@ -2705,6 +2706,7 @@ function POSPageContent() {
                           setIsFilterBrandModalOpen={setIsFilterBrandModalOpen}
                           filterTypes={filterTypes}
                           filterBrands={filterBrands}
+                          brands={brands}
                           isLoading={isLoading}
                         />
                       ) : activeCategory === "Parts" ? (
@@ -2717,6 +2719,7 @@ function POSPageContent() {
                           setIsPartBrandModalOpen={setIsPartBrandModalOpen}
                           partTypes={partTypes}
                           partBrands={partBrands}
+                          brands={brands}
                           isLoading={isLoading}
                         />
                       ) : activeCategory === "Additives & Fluids" ? (
@@ -3199,9 +3202,15 @@ function POSPageContent() {
             selectedFilterType={selectedFilterType}
             filters={getFiltersByType(selectedFilterType || "")
               .filter((filter) => filter.brand === selectedFilterBrand)
-              .map(({ id, name, price }) => ({ id, name, price }))}
+              .map(({ id, name, price, imageUrl, originalId }) => ({
+                id,
+                name,
+                price,
+                imageUrl,
+                originalId,
+              }))}
             selectedFilters={selectedFilters}
-            onFilterClick={({ id, name, price }) => {
+            onFilterClick={({ id, name, price, imageUrl, originalId }) => {
               // Find the full product to pass to handleFilterClick
               const product = getFiltersByType(selectedFilterType || "").find(
                 (f) => f.id === id

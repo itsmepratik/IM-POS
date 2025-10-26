@@ -7,14 +7,23 @@ import {
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ArrowRight, Minus, Plus, ImageIcon } from "lucide-react";
-import { useState } from "react";
+import React, { useState, useMemo } from "react";
 import Image from "next/image";
+import {
+  isValidImageUrl,
+  cacheImageValid,
+  cacheImageInvalid,
+} from "@/lib/utils/imageCache";
+import { ImageErrorFallback } from "@/components/ui/image-error-boundary";
+import { useImagePreloader } from "@/lib/hooks/useImagePreloader";
 
 interface Filter {
   id: number;
   name: string;
   price: number;
   quantity: number;
+  imageUrl?: string;
+  originalId?: string;
 }
 
 interface FilterModalProps {
@@ -22,9 +31,21 @@ interface FilterModalProps {
   onOpenChange: (open: boolean) => void;
   selectedFilterBrand: string | null;
   selectedFilterType: string | null;
-  filters: Array<{ id: number; name: string; price: number }>;
+  filters: Array<{
+    id: number;
+    name: string;
+    price: number;
+    imageUrl?: string;
+    originalId?: string;
+  }>;
   selectedFilters: Filter[];
-  onFilterClick: (filter: { id: number; name: string; price: number }) => void;
+  onFilterClick: (filter: {
+    id: number;
+    name: string;
+    price: number;
+    imageUrl?: string;
+    originalId?: string;
+  }) => void;
   onQuantityChange: (filterId: number, change: number) => void;
   onAddToCart: () => void;
   onNext: () => void;
@@ -32,18 +53,63 @@ interface FilterModalProps {
 
 // Helper for filter image
 function FilterImage({
+  imageUrl,
   brand,
   type,
   filterName,
 }: {
+  imageUrl?: string;
   brand: string;
   type: string;
   filterName: string;
 }) {
-  const imgSrc = `/filters/${brand?.toLowerCase()}-${type
-    ?.toLowerCase()
-    .replace(" ", "-")}-${filterName?.toLowerCase().replace(" ", "-")}.jpg`;
+  const [imgSrc, setImgSrc] = useState<string>("");
   const [error, setError] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorCount, setErrorCount] = useState(0);
+
+  // Use database image URL if available, fallback to category-specific placeholder
+  React.useEffect(() => {
+    let selectedSrc = "";
+
+    if (imageUrl && isValidImageUrl(imageUrl)) {
+      selectedSrc = imageUrl;
+    } else {
+      // Fallback to category-specific placeholder image
+      selectedSrc = `/images/products/filters.svg`;
+    }
+
+    setImgSrc(selectedSrc);
+    setIsLoading(true);
+    setError(false);
+    setErrorCount(0);
+  }, [imageUrl]);
+
+  const handleError = () => {
+    console.log(
+      `Filter image error for ${brand} ${type} ${filterName}:`,
+      imgSrc
+    );
+    if (imgSrc) {
+      cacheImageInvalid(imgSrc);
+    }
+    setError(true);
+    setIsLoading(false);
+    setErrorCount((prev) => prev + 1);
+  };
+
+  const handleLoad = () => {
+    console.log(
+      `Filter image loaded successfully: ${brand} ${type} ${filterName}`
+    );
+    if (imgSrc) {
+      cacheImageValid(imgSrc);
+    }
+    setIsLoading(false);
+    setError(false);
+    setErrorCount(0);
+  };
+
   if (error) {
     return (
       <div className="w-full h-full flex items-center justify-center bg-muted rounded-md">
@@ -51,15 +117,33 @@ function FilterImage({
       </div>
     );
   }
+
   return (
-    <Image
-      src={imgSrc}
-      alt={`${brand} ${type} ${filterName}`}
-      className="object-contain w-full h-full p-2"
-      fill
-      sizes="(max-width: 768px) 64px, 96px"
-      onError={() => setError(true)}
-    />
+    <ImageErrorFallback
+      onError={(error) => {
+        console.error(
+          `Filter image boundary error for ${brand} ${type} ${filterName}:`,
+          error
+        );
+        handleError();
+      }}
+      className="w-full h-full"
+    >
+      <Image
+        src={imgSrc}
+        alt={`${brand} ${type} ${filterName}`}
+        className="object-contain w-full h-full p-2 transition-opacity duration-200"
+        fill
+        sizes="(max-width: 640px) 64px, (max-width: 768px) 80px, (max-width: 1024px) 96px, 128px"
+        onError={handleError}
+        onLoad={handleLoad}
+        loading="lazy"
+        quality={85}
+        style={{
+          opacity: isLoading ? 0.5 : 1,
+        }}
+      />
+    </ImageErrorFallback>
   );
 }
 
@@ -75,6 +159,18 @@ export function FilterModal({
   onAddToCart,
   onNext,
 }: FilterModalProps) {
+  // Extract image URLs for preloading
+  const imageUrls = useMemo(() => {
+    return filters
+      .filter((filter) => filter.imageUrl && isValidImageUrl(filter.imageUrl))
+      .map((filter) => filter.imageUrl!);
+  }, [filters]);
+
+  // Preload filter images when modal opens
+  const { totalImages, isPreloading } = useImagePreloader({
+    urls: imageUrls,
+    enabled: isOpen && imageUrls.length > 0,
+  });
   return (
     <Dialog
       open={isOpen}
@@ -86,6 +182,11 @@ export function FilterModal({
         <DialogHeader className="pb-4">
           <DialogTitle className="text-[clamp(1.125rem,3vw,1.25rem)] font-semibold">
             {selectedFilterBrand} - {selectedFilterType}
+            {isPreloading && totalImages > 0 && (
+              <span className="ml-2 text-sm text-muted-foreground">
+                (Loading {totalImages} images...)
+              </span>
+            )}
           </DialogTitle>
         </DialogHeader>
 
@@ -94,18 +195,19 @@ export function FilterModal({
           <div
             className="grid gap-4 w-full"
             style={{
-              gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))",
+              gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
             }}
           >
             {filters.map((filter) => (
               <button
                 key={filter.id}
-                className="flex flex-col items-center justify-center border-2 rounded-[33px] bg-background shadow-sm p-3 sm:p-4 h-[140px] sm:h-[160px] transition hover:bg-accent focus:outline-none focus:ring-2 focus:ring-primary/50 w-full"
+                className="flex flex-col items-center justify-center border-2 rounded-[33px] bg-background shadow-sm p-3 sm:p-4 h-[160px] sm:h-[180px] md:h-[200px] transition hover:bg-accent focus:outline-none focus:ring-2 focus:ring-primary/50 w-full"
                 onClick={() => onFilterClick(filter)}
                 type="button"
               >
-                <div className="relative w-16 h-16 sm:w-20 sm:h-20 mb-2 flex items-center justify-center">
+                <div className="relative w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 mb-2 flex items-center justify-center">
                   <FilterImage
+                    imageUrl={filter.imageUrl}
                     brand={selectedFilterBrand || ""}
                     type={selectedFilterType || ""}
                     filterName={filter.name}

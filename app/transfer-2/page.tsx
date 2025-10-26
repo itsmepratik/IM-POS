@@ -969,22 +969,7 @@ export default function Transfer2Page() {
               </div>
 
               {posCart.length > 0 && (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">Items in Cart</span>
-                    <Badge variant="secondary">{posCart.length}</Badge>
-                  </div>
-                  <div className="max-h-32 overflow-y-auto space-y-1">
-                    {posCart.map((item) => (
-                      <div
-                        key={item.uniqueId}
-                        className="flex items-center justify-between text-xs p-2 bg-muted/30 rounded"
-                      >
-                        <span className="truncate">{item.name}</span>
-                        <span>{item.quantity}x</span>
-                      </div>
-                    ))}
-                  </div>
+                <div className="pt-4">
                   <Button
                     onClick={handleConfirmCustomBill}
                     className="w-full"

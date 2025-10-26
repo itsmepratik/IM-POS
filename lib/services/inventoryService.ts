@@ -75,6 +75,7 @@ export type Category = {
 export type Brand = {
   id: string;
   name: string;
+  images?: any; // JSONB field for storing brand images (URLs, metadata, etc.)
 };
 
 export type Supplier = {
@@ -176,6 +177,12 @@ export const fetchItems = async (
       return [];
     }
 
+    console.log("📦 Raw inventory data from database:", inventoryData);
+    if (inventoryData && inventoryData.length > 0) {
+      console.log("📦 First inventory item:", inventoryData[0]);
+      console.log("📦 First product data:", inventoryData[0]?.products);
+    }
+
     // Transform the data to match the Item interface
     const items: Item[] = await Promise.all(
       (inventoryData || []).map(async (inv: any) => {
@@ -263,6 +270,12 @@ export const fetchItems = async (
             ? parseFloat(product.cost_price)
             : undefined,
           manufacturingDate: product.manufacturing_date,
+          // Debug logging for manufacturing date
+          ...(product.manufacturing_date && {
+            debug_manufacturingDate: product.manufacturing_date,
+            debug_manufacturingDate_type: typeof product.manufacturing_date,
+            debug_manufacturingDate_string: String(product.manufacturing_date),
+          }),
         };
       })
     );

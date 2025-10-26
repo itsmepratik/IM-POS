@@ -10,7 +10,9 @@
 import { useMemo } from "react";
 import { useBranch } from "../../contexts/DataProvider";
 import { useInventoryPOSSync } from "@/lib/services/inventory-pos-sync";
+import { fetchBrands, Brand } from "@/lib/services/inventoryService";
 import { POSProduct, POSLubricantProduct } from "@/lib/types/unified-product";
+import { useState, useEffect } from "react";
 
 // Keep the same interfaces for compatibility with existing POS components
 export interface LubricantProduct extends POSLubricantProduct {}
@@ -25,6 +27,7 @@ export interface IntegratedPOSData {
   partBrands: string[];
   partTypes: string[];
   lubricantBrands: string[];
+  brands: Brand[];
   isLoading: boolean;
   isBackgroundSyncing: boolean;
   error: string | null;
@@ -49,6 +52,32 @@ export interface IntegratedPOSData {
  */
 export function useIntegratedPOSData(): IntegratedPOSData {
   const { currentBranch, branchLoadError } = useBranch();
+
+  // Brands state
+  const [brands, setBrands] = useState<Brand[]>([]);
+  const [brandsLoading, setBrandsLoading] = useState(false);
+  const [brandsError, setBrandsError] = useState<string | null>(null);
+
+  // Fetch brands data
+  useEffect(() => {
+    const loadBrands = async () => {
+      setBrandsLoading(true);
+      setBrandsError(null);
+      try {
+        const brandsData = await fetchBrands();
+        setBrands(brandsData);
+      } catch (err) {
+        setBrandsError(
+          err instanceof Error ? err.message : "Failed to load brands"
+        );
+        console.error("Error loading brands:", err);
+      } finally {
+        setBrandsLoading(false);
+      }
+    };
+
+    loadBrands();
+  }, []);
 
   // Use the inventory-POS sync service
   const {
@@ -154,9 +183,10 @@ export function useIntegratedPOSData(): IntegratedPOSData {
     lubricantProducts,
     products,
     ...derivedData,
-    isLoading,
+    brands,
+    isLoading: isLoading || brandsLoading,
     isBackgroundSyncing,
-    error,
+    error: error || brandsError,
     lastSyncTime,
     syncProducts,
     processSale: processSaleByNumericId,

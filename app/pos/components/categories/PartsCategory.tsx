@@ -4,6 +4,8 @@ import React from "react";
 import { Button } from "@/components/ui/button";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { BrandCard } from "../shared/BrandCard";
+import { Brand } from "@/lib/services/inventoryService";
+import { useImagePreloader } from "@/lib/hooks/useImagePreloader";
 
 interface Part {
   id: number;
@@ -21,6 +23,7 @@ interface PartsCategoryProps {
   setIsPartBrandModalOpen: (open: boolean) => void;
   partTypes: string[];
   partBrands: string[];
+  brands?: Brand[];
   isLoading: boolean;
 }
 
@@ -33,8 +36,38 @@ export function PartsCategory({
   setIsPartBrandModalOpen,
   partTypes,
   partBrands,
+  brands,
   isLoading,
 }: PartsCategoryProps) {
+  // Extract brand image URLs for preloading
+  const brandImageUrls = React.useMemo(() => {
+    if (!brands) return [];
+
+    return partBrands
+      .map((brandName) => {
+        const brandData = brands.find(
+          (b) => b.name.toLowerCase() === brandName.toLowerCase()
+        );
+        if (brandData?.images) {
+          if (typeof brandData.images === "string") {
+            return brandData.images;
+          }
+          if (typeof brandData.images === "object") {
+            const images = brandData.images as any;
+            return images.primary || images.logo || images.url || null;
+          }
+        }
+        return null;
+      })
+      .filter((url): url is string => url !== null);
+  }, [brands, partBrands]);
+
+  // Preload brand images
+  const { totalImages, isPreloading } = useImagePreloader({
+    urls: brandImageUrls,
+    enabled: !isLoading && brandImageUrls.length > 0,
+  });
+
   // Show loading state
   if (isLoading) {
     return (
@@ -81,6 +114,7 @@ export function PartsCategory({
                   <BrandCard
                     key={brand}
                     brand={brand}
+                    brands={brands}
                     onClick={() => {
                       setSelectedPartBrand(brand);
                       setSelectedParts([]);

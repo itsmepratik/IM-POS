@@ -42,7 +42,12 @@ import {
   Trash2 as Trash2Icon,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
+import { DateInput } from "@/components/ui/date-input";
 import { format } from "date-fns";
+import {
+  formatDateForInput,
+  getDateValidationInfo,
+} from "@/lib/utils/dateUtils";
 import {
   Card,
   CardContent,
@@ -191,6 +196,15 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
 
       // Log the item data to help debug
       console.log("Raw item data from database:", item);
+      console.log(
+        "Manufacturing date from database:",
+        item.manufacturingDate,
+        typeof item.manufacturingDate
+      );
+      console.log(
+        "Manufacturing date validation:",
+        getDateValidationInfo(item.manufacturingDate)
+      );
 
       // Map backend field names to frontend field names
       const formDataObj = {
@@ -227,6 +241,11 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
         is_oil: formDataObj.is_oil,
         bottleStates: formDataObj.bottleStates,
         stock: formDataObj.stock,
+        manufacturingDate: formDataObj.manufacturingDate,
+        manufacturingDateType: typeof formDataObj.manufacturingDate,
+        formattedManufacturingDate: formatDateForInput(
+          formDataObj.manufacturingDate
+        ),
       });
 
       setFormData(formDataObj as ExtendedItem);
@@ -505,8 +524,8 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
           newBatchWithId,
         ].sort(
           (a, b) =>
-            new Date(a.purchase_date || '').getTime() -
-            new Date(b.purchase_date || '').getTime()
+            new Date(a.purchase_date || "").getTime() -
+            new Date(b.purchase_date || "").getTime()
         );
 
         setFormData((prev) => ({
@@ -904,20 +923,58 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
                                     </Select>
                                   </div>
                                 )}
-                              <div>
-                                <Label htmlFor="manufacturingDate">M.F.D</Label>
-                                <Input
-                                  id="manufacturingDate"
-                                  type="date"
-                                  value={formData.manufacturingDate || ""}
-                                  onChange={(e) =>
-                                    setFormData({
-                                      ...formData,
-                                      manufacturingDate: e.target.value,
-                                    })
-                                  }
-                                />
-                              </div>
+                              <DateInput
+                                id="manufacturingDate"
+                                label="M.F.D"
+                                value={
+                                  formData.manufacturingDate
+                                    ? (() => {
+                                        console.log(
+                                          "Form data manufacturing date:",
+                                          formData.manufacturingDate,
+                                          typeof formData.manufacturingDate
+                                        );
+                                        // Ensure it's in the correct format
+                                        if (
+                                          typeof formData.manufacturingDate ===
+                                            "string" &&
+                                          /^\d{4}-\d{2}-\d{2}$/.test(
+                                            formData.manufacturingDate
+                                          )
+                                        ) {
+                                          return formData.manufacturingDate;
+                                        } else if (formData.manufacturingDate) {
+                                          const date = new Date(
+                                            formData.manufacturingDate
+                                          );
+                                          if (!isNaN(date.getTime())) {
+                                            const formatted = date
+                                              .toISOString()
+                                              .split("T")[0];
+                                            console.log(
+                                              "Formatted date for input:",
+                                              formatted
+                                            );
+                                            return formatted;
+                                          }
+                                        }
+                                        return "";
+                                      })()
+                                    : ""
+                                }
+                                onChange={(value) => {
+                                  console.log(
+                                    "Manufacturing date changed:",
+                                    value
+                                  );
+                                  setFormData({
+                                    ...formData,
+                                    manufacturingDate: value,
+                                  });
+                                }}
+                                showValidation={true}
+                                placeholder="YYYY-MM-DD"
+                              />
                             </div>
                             <div className="space-y-4">
                               <div>
@@ -1516,7 +1573,8 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
                                       const newBatchWithId: Batch = {
                                         id: getClientOnlyId(), // Use stable ID generation function
                                         item_id: formData.id,
-                                        purchase_date: editingBatch.purchaseDate,
+                                        purchase_date:
+                                          editingBatch.purchaseDate,
                                         expiration_date: null,
                                         supplier_id: null,
                                         cost_price: editingBatch.costPrice,
@@ -1532,15 +1590,20 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
                                         newBatchWithId,
                                       ].sort(
                                         (a, b) =>
-                                          new Date(a.purchase_date || '').getTime() -
-                                          new Date(b.purchase_date || '').getTime()
+                                          new Date(
+                                            a.purchase_date || ""
+                                          ).getTime() -
+                                          new Date(
+                                            b.purchase_date || ""
+                                          ).getTime()
                                       );
 
                                       setFormData((prev) => ({
                                         ...prev,
                                         batches: updatedBatches,
                                         stock: updatedBatches.reduce(
-                                          (sum, batch) => sum + (batch.current_quantity || 0),
+                                          (sum, batch) =>
+                                            sum + (batch.current_quantity || 0),
                                           0
                                         ),
                                       }));

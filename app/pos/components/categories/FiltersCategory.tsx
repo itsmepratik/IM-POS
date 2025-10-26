@@ -4,6 +4,8 @@ import React, { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { BrandCard } from "../shared/BrandCard";
+import { Brand } from "@/lib/services/inventoryService";
+import { useImagePreloader } from "@/lib/hooks/useImagePreloader";
 
 interface FiltersCategoryProps {
   searchQuery?: string;
@@ -21,6 +23,7 @@ interface FiltersCategoryProps {
   setIsFilterBrandModalOpen: (open: boolean) => void;
   filterTypes: string[];
   filterBrands: string[];
+  brands?: Brand[];
   isLoading: boolean;
 }
 
@@ -33,8 +36,38 @@ export function FiltersCategory({
   setIsFilterBrandModalOpen,
   filterTypes,
   filterBrands,
+  brands,
   isLoading,
 }: FiltersCategoryProps) {
+  // Extract brand image URLs for preloading
+  const brandImageUrls = React.useMemo(() => {
+    if (!brands) return [];
+
+    return filterBrands
+      .map((brandName) => {
+        const brandData = brands.find(
+          (b) => b.name.toLowerCase() === brandName.toLowerCase()
+        );
+        if (brandData?.images) {
+          if (typeof brandData.images === "string") {
+            return brandData.images;
+          }
+          if (typeof brandData.images === "object") {
+            const images = brandData.images as any;
+            return images.primary || images.logo || images.url || null;
+          }
+        }
+        return null;
+      })
+      .filter((url): url is string => url !== null);
+  }, [brands, filterBrands]);
+
+  // Preload brand images
+  const { totalImages, isPreloading } = useImagePreloader({
+    urls: brandImageUrls,
+    enabled: !isLoading && brandImageUrls.length > 0,
+  });
+
   // Show loading state
   if (isLoading) {
     return (
@@ -81,6 +114,7 @@ export function FiltersCategory({
                   <BrandCard
                     key={brand}
                     brand={brand}
+                    brands={brands}
                     onClick={() => {
                       setSelectedFilterBrand(brand);
                       setSelectedFilters([]);
