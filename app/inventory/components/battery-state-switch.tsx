@@ -4,11 +4,11 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { Battery, RefreshCw, Trash2 } from "lucide-react";
+import { Battery, RefreshCw, Trash2, Shield } from "lucide-react";
 
 interface BatteryStateSwitchProps {
-  value: "new" | "scrap" | "resellable";
-  onChange: (value: "new" | "scrap" | "resellable") => void;
+  value: "new" | "scrap" | "resellable" | "warranty";
+  onChange: (value: "new" | "scrap" | "resellable" | "warranty") => void;
   className?: string;
 }
 
@@ -19,7 +19,9 @@ export function BatteryStateSwitch({
 }: BatteryStateSwitchProps) {
   const [isAnimating, setIsAnimating] = useState(false);
 
-  const handleStateChange = (newValue: "new" | "scrap" | "resellable") => {
+  const handleStateChange = (
+    newValue: "new" | "scrap" | "resellable" | "warranty"
+  ) => {
     if (newValue === value) return;
 
     setIsAnimating(true);
@@ -29,7 +31,9 @@ export function BatteryStateSwitch({
     }, 150);
   };
 
-  const getStateConfig = (state: "new" | "scrap" | "resellable") => {
+  const getStateConfig = (
+    state: "new" | "scrap" | "resellable" | "warranty"
+  ) => {
     switch (state) {
       case "new":
         return {
@@ -55,13 +59,22 @@ export function BatteryStateSwitch({
           hoverColor: "hover:bg-orange-200",
           iconColor: "text-orange-600",
         };
+      case "warranty":
+        return {
+          label: "Warranty",
+          icon: Shield,
+          color: "bg-blue-100 text-blue-800 border-blue-300",
+          hoverColor: "hover:bg-blue-200",
+          iconColor: "text-blue-600",
+        };
     }
   };
 
-  const states: ("new" | "scrap" | "resellable")[] = [
+  const states: ("new" | "scrap" | "resellable" | "warranty")[] = [
     "new",
     "scrap",
     "resellable",
+    "warranty",
   ];
 
   return (

@@ -63,7 +63,7 @@ export function CategoryModal({ open, onOpenChange }: CategoryModalProps) {
   const handleRemoveCategory = async (category: string) => {
     if (
       !window.confirm(
-        `Are you sure you want to delete "${category}"? This may affect items assigned to this category.`
+        `Are you sure you want to delete "${category}"? Products using this category will be updated to show "Uncategorized" instead.`
       )
     ) {
       return;
@@ -80,17 +80,39 @@ export function CategoryModal({ open, onOpenChange }: CategoryModalProps) {
       } else {
         toast({
           title: "Error removing category",
-          description:
-            "Could not remove category. It might be in use by items.",
+          description: "Could not remove category. Please try again.",
           variant: "destructive",
         });
       }
     } catch (error) {
       console.error("Error removing category:", error);
+
+      let errorMessage =
+        "An unexpected error occurred while removing the category.";
+
+      if (error instanceof Error) {
+        if (error.message.includes("being used by existing products")) {
+          errorMessage =
+            "The category was deleted successfully. Products that used this category will now show as 'Uncategorized'.";
+        } else if (error.message.includes("Permission denied")) {
+          errorMessage =
+            "Permission denied: You don't have permission to delete this category.";
+        } else if (error.message.includes("not found")) {
+          errorMessage = "Category not found or may have already been deleted.";
+        } else if (error.message.includes("Failed to update products")) {
+          errorMessage =
+            "The category was deleted, but there was an issue updating some product references. Please check your products.";
+        } else if (error.message) {
+          errorMessage = error.message;
+        }
+      }
+
       toast({
-        title: "Error",
-        description: "An unexpected error occurred.",
-        variant: "destructive",
+        title: "Category deletion result",
+        description: errorMessage,
+        variant: error.message.includes("successfully")
+          ? "default"
+          : "destructive",
       });
     } finally {
       setIsLoading(false);

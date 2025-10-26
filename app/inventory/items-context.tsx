@@ -62,7 +62,10 @@ interface ItemsContextType {
   updateBrand: (oldBrand: string, newBrand: string) => Promise<boolean>;
   deleteBrand: (brand: string) => Promise<boolean>;
   addSupplier: (supplier: Omit<Supplier, "id">) => Promise<string | null>;
-  updateSupplier: (id: string, supplier: Partial<Omit<Supplier, "id">>) => Promise<boolean>;
+  updateSupplier: (
+    id: string,
+    supplier: Partial<Omit<Supplier, "id">>
+  ) => Promise<boolean>;
   deleteSupplier: (id: string) => Promise<boolean>;
   addBatch: (
     itemId: string,
@@ -171,25 +174,29 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
 
       // Load categories
       const categoriesData = await fetchCategories();
-      const categoryNames = categoriesData.map(cat => cat.name);
+      const categoryNames = categoriesData.map((cat) => cat.name);
       setCategories(categoryNames);
       const categoryMapInstance = new Map<string, string>();
-      categoriesData.forEach(cat => categoryMapInstance.set(cat.id, cat.name));
+      categoriesData.forEach((cat) =>
+        categoryMapInstance.set(cat.id, cat.name)
+      );
       setCategoryMap(categoryMapInstance);
 
       // Load brands
       const brandsData = await fetchBrands();
-      const brandNames = brandsData.map(brand => brand.name);
+      const brandNames = brandsData.map((brand) => brand.name);
       setBrands(brandNames);
       const brandMapInstance = new Map<string, string>();
-      brandsData.forEach(brand => brandMapInstance.set(brand.id, brand.name));
+      brandsData.forEach((brand) => brandMapInstance.set(brand.id, brand.name));
       setBrandMap(brandMapInstance);
 
       // Load suppliers
       const suppliersData = await fetchSuppliers();
       setSuppliers(suppliersData);
 
-      console.log(`Loaded ${itemsData.length} items for branch ${currentBranch.name}`);
+      console.log(
+        `Loaded ${itemsData.length} items for branch ${currentBranch.name}`
+      );
     } catch (error) {
       console.error("Error loading data:", error);
       toast({
@@ -217,7 +224,10 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
         return null;
       }
 
-      const newItem = await createItem({ ...item, location_id: currentBranch.id });
+      const newItem = await createItem({
+        ...item,
+        location_id: currentBranch.id,
+      });
       if (newItem) {
         setItems((prev) => [...prev, newItem]);
         toast({
@@ -416,7 +426,9 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (!categoryId) return false;
 
-      const updated = await updateCategoryService(categoryId, { name: newCategory });
+      const updated = await updateCategoryService(categoryId, {
+        name: newCategory,
+      });
       if (updated) {
         setCategories((prev) =>
           prev.map((cat) => (cat === oldCategory ? newCategory : cat))
@@ -461,12 +473,30 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
 
       const success = await deleteCategoryService(categoryId);
       if (success) {
-        setCategories((prev) => prev.filter((cat) => cat !== category));
-        categoryMap.delete(categoryId);
-        setCategoryMap(new Map(categoryMap));
+        // Update categories state immediately
+        setCategoryMap((prevCategoryMap) => {
+          const updatedCategoryMap = new Map(prevCategoryMap);
+          updatedCategoryMap.delete(categoryId);
 
-        // Refresh items to get updated category references
-        await refetchItems();
+          // Rebuild categories array from the updated categoryMap to ensure consistency
+          const updatedCategories = Array.from(updatedCategoryMap.values());
+          console.log("📂 Categories after deletion:", updatedCategories);
+
+          // Update categories array in the same state update
+          setCategories(updatedCategories);
+
+          return updatedCategoryMap;
+        });
+
+        // Update items state immediately - set category to "Uncategorized" for items that used this category
+        // Since deleteCategoryService sets category_id to NULL, we need to update the local items too
+        setItems((prevItems) =>
+          prevItems.map((item) =>
+            item.category_id === categoryId
+              ? { ...item, category: "Uncategorized", category_id: null }
+              : item
+          )
+        );
 
         toast({
           title: "Category deleted",
@@ -478,9 +508,30 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
       return false;
     } catch (error) {
       console.error("Error deleting category:", error);
+
+      // Provide more specific error messages based on the error type
+      let errorMessage = "Failed to delete the category. Please try again.";
+
+      if (error instanceof Error) {
+        if (error.message.includes("being used by existing products")) {
+          errorMessage =
+            "The category has been deleted successfully. Products that used this category will now show as 'Uncategorized'.";
+        } else if (error.message.includes("Permission denied")) {
+          errorMessage =
+            "Permission denied: You don't have permission to delete this category.";
+        } else if (error.message.includes("not found")) {
+          errorMessage = "Category not found or may have already been deleted.";
+        } else if (error.message.includes("Failed to update products")) {
+          errorMessage =
+            "The category was deleted, but there was an issue updating some product references. Please check your products.";
+        } else if (error.message) {
+          errorMessage = error.message;
+        }
+      }
+
       toast({
         title: "Error deleting category",
-        description: "Failed to delete the category. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
       return false;
@@ -562,6 +613,12 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       // Find brand ID by name
       let brandId: string | undefined;
+      console.log("🔍 Looking for brand ID for:", brand);
+      console.log(
+        "📚 Available brand mappings:",
+        Array.from(brandMap.entries())
+      );
+
       for (const [id, name] of brandMap.entries()) {
         if (name === brand) {
           brandId = id;
@@ -569,16 +626,49 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
         }
       }
 
-      if (!brandId) return false;
+      if (!brandId) {
+        console.error("❌ Brand ID not found for:", brand);
+        return false;
+      }
+
+      console.log("✅ Found brand ID:", brandId, "for brand:", brand);
 
       const success = await deleteBrandService(brandId);
       if (success) {
-        setBrands((prev) => prev.filter((b) => b !== brand));
-        brandMap.delete(brandId);
-        setBrandMap(new Map(brandMap));
+        // Update brands state immediately
+        console.log("🗑️ Deleting brand:", brand, "with ID:", brandId);
+        console.log("📋 Current brands before deletion:", brands);
 
-        // Refresh items to get updated brand references
-        await refetchItems();
+        // Update both brandMap and brands array atomically
+        setBrandMap((prevBrandMap) => {
+          const updatedBrandMap = new Map(prevBrandMap);
+          updatedBrandMap.delete(brandId);
+
+          // Rebuild brands array from the updated brandMap to ensure consistency
+          const updatedBrands = Array.from(updatedBrandMap.values());
+          console.log("📋 Brands after deletion:", updatedBrands);
+
+          // Update brands array in the same state update
+          setBrands(updatedBrands);
+
+          return updatedBrandMap;
+        });
+
+        // Update items state immediately - remove items that used this brand
+        // Since deleteBrandService deletes products associated with the brand,
+        // we need to remove those items from the local state too
+        setItems((prevItems) => {
+          const updatedItems = prevItems.filter(
+            (item) => item.brand_id !== brandId
+          );
+          console.log(
+            "📦 Items filtered from",
+            prevItems.length,
+            "to",
+            updatedItems.length
+          );
+          return updatedItems;
+        });
 
         toast({
           title: "Brand deleted",
@@ -590,16 +680,36 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
       return false;
     } catch (error) {
       console.error("Error deleting brand:", error);
+
+      // Provide more specific error messages based on the error type
+      let errorMessage = "Failed to delete the brand. Please try again.";
+
+      if (error instanceof Error) {
+        if (error.message.includes("Permission denied")) {
+          errorMessage =
+            "Permission denied: You don't have permission to delete this brand.";
+        } else if (error.message.includes("not found")) {
+          errorMessage = "Brand not found or may have already been deleted.";
+        } else if (error.message.includes("Failed to delete products")) {
+          errorMessage =
+            "Error deleting products associated with this brand. Please try again.";
+        } else if (error.message) {
+          errorMessage = error.message;
+        }
+      }
+
       toast({
         title: "Error deleting brand",
-        description: "Failed to delete the brand. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
       return false;
     }
   };
 
-  const addSupplier = async (supplier: Omit<Supplier, "id">): Promise<string | null> => {
+  const addSupplier = async (
+    supplier: Omit<Supplier, "id">
+  ): Promise<string | null> => {
     try {
       const newSupplier = await addSupplierService(supplier);
       if (newSupplier) {
@@ -661,10 +771,12 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       const success = await deleteSupplierService(id);
       if (success) {
-        setSuppliers((prev) => prev.filter((supplier) => supplier.id !== id));
-
-        // Refresh items to get updated supplier references
-        await refetchItems();
+        // Update suppliers state immediately
+        setSuppliers((prev) => {
+          const updated = prev.filter((supplier) => supplier.id !== id);
+          console.log("🏪 Suppliers after deletion:", updated.length);
+          return updated;
+        });
 
         toast({
           title: "Supplier deleted",

@@ -3,6 +3,106 @@ import { createClient } from "@/supabase/client";
 // Create a singleton Supabase client to prevent dynamic import issues
 const supabase = createClient();
 
+// Mock data for fallback when Supabase is not available
+const MOCK_ITEMS: Item[] = [
+  {
+    id: "mock-1",
+    name: "Engine Oil 5W-30",
+    price: 25.99,
+    stock: 50,
+    category: "Lubricants",
+    brand: "Castrol",
+    brand_id: "mock-brand-1",
+    category_id: "mock-category-1",
+    type: "Synthetic",
+    description: "High performance synthetic engine oil",
+    isOil: true,
+    imageUrl: null,
+    image_url: null,
+    volumes: [
+      {
+        id: "mock-vol-1",
+        item_id: "mock-1",
+        size: "1L",
+        price: 12.99,
+        created_at: null,
+        updated_at: null,
+      },
+      {
+        id: "mock-vol-2",
+        item_id: "mock-1",
+        size: "4L",
+        price: 45.99,
+        created_at: null,
+        updated_at: null,
+      },
+    ],
+    batches: [
+      {
+        id: "mock-batch-1",
+        item_id: "mock-1",
+        purchase_date: "2024-01-15",
+        expiration_date: "2026-01-15",
+        supplier_id: "mock-supplier-1",
+        cost_price: 20.0,
+        initial_quantity: 100,
+        current_quantity: 50,
+        created_at: "2024-01-15T00:00:00Z",
+        updated_at: "2024-01-15T00:00:00Z",
+      },
+    ],
+    created_at: null,
+    updated_at: null,
+    lowStockAlert: 10,
+    isBattery: false,
+    batteryState: undefined,
+    costPrice: 20.0,
+    cost_price: 20.0,
+    manufacturingDate: "2024-01-01",
+    manufacturing_date: "2024-01-01",
+    is_battery: false,
+    battery_state: null,
+    is_oil: true,
+  },
+];
+
+// Check if Supabase is available and has required tables
+async function isSupabaseAvailable(): Promise<boolean> {
+  try {
+    // Test basic connection
+    const { error: connectionError } = await supabase
+      .from("locations")
+      .select("count")
+      .limit(1);
+
+    if (connectionError) {
+      console.warn("Supabase connection failed:", connectionError.message);
+      return false;
+    }
+
+    // Test if required tables exist by checking for specific columns
+    const { error: inventoryError } = await supabase
+      .from("inventory")
+      .select("id, product_id, standard_stock")
+      .limit(1);
+
+    if (
+      inventoryError &&
+      (inventoryError.code === "42703" || inventoryError.code === "42P01")
+    ) {
+      console.warn(
+        "Required database tables or columns not found, using mock data"
+      );
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.warn("Supabase not available, using mock data:", error);
+    return false;
+  }
+}
+
 // Type definitions
 // Type definition for Branch
 export type Branch = {
@@ -38,6 +138,10 @@ export type Item = {
   batteryState?: "new" | "scrap" | "resellable";
   costPrice?: number;
   manufacturingDate?: string | null;
+  cost_price?: number | null;
+  manufacturing_date?: string | null;
+  is_battery?: boolean;
+  battery_state?: string | null;
 };
 
 export type Volume = {
@@ -92,17 +196,35 @@ export const fetchItems = async (
   locationId: string = "sanaiya"
 ): Promise<Item[]> => {
   try {
+    // Check if Supabase is available first
+    const isAvailable = await isSupabaseAvailable();
+
+    if (!isAvailable) {
+      console.warn("Supabase not available, using mock data");
+      return MOCK_ITEMS;
+    }
+
     // Get location ID by name if string is passed
     let actualLocationId = locationId;
-    if (locationId === "sanaiya" || locationId === "main") {
+    if (
+      typeof locationId === "string" &&
+      (locationId === "sanaiya" || locationId === "main")
+    ) {
+      // Try to find location by name (handle variations)
+      const locationName = locationId === "sanaiya" ? "Sanaiya" : "Main Branch";
       const { data: location } = await supabase
         .from("locations")
         .select("id")
-        .eq("name", locationId === "sanaiya" ? "Sanaiya" : "Main Branch")
+        .ilike("name", `%${locationName}%`)
         .single();
 
       if (location) {
         actualLocationId = location.id;
+      } else {
+        console.warn(
+          `Location not found for name: ${locationName}, using mock data`
+        );
+        return MOCK_ITEMS; // Return mock data if location not found
       }
     }
 
@@ -133,7 +255,7 @@ export const fetchItems = async (
             id,
             name
           ),
-          brands!products_brand_id_fkey (
+          brands (
             id,
             name
           )
@@ -144,6 +266,14 @@ export const fetchItems = async (
 
     if (error) {
       console.error("Error fetching inventory:", error);
+      console.error("Error details:", {
+        message: error?.message || "No message",
+        details: error?.details || "No details",
+        hint: error?.hint || "No hint",
+        code: error?.code || "No code",
+        locationId: actualLocationId,
+        locationIdType: typeof actualLocationId,
+      });
       return [];
     }
 
@@ -197,7 +327,15 @@ export const fetchItems = async (
           updated_at: batch.updated_at,
         }));
 
-        const totalStock = inv.total_stock || inv.standard_stock || 0;
+        // Calculate total stock from available columns
+        const standardStock = inv.standard_stock || 0;
+        const openBottlesStock = inv.open_bottles_stock || 0;
+        const closedBottlesStock = inv.closed_bottles_stock || 0;
+        // Use total_stock if available, otherwise calculate it
+        const totalStock =
+          inv.total_stock !== undefined
+            ? inv.total_stock
+            : standardStock + openBottlesStock + closedBottlesStock;
 
         return {
           id: product.id,
@@ -225,12 +363,24 @@ export const fetchItems = async (
           created_at: null, // Not available in current schema
           updated_at: null, // Not available in current schema
           lowStockAlert: product.low_stock_threshold,
-          isBattery: false, // Not available in current schema
-          batteryState: undefined, // Not available in current schema
+          isBattery: (inv as any).is_battery || false,
+          batteryState: (inv as any).battery_state as
+            | "new"
+            | "scrap"
+            | "resellable"
+            | undefined,
           costPrice: product.cost_price
             ? parseFloat(product.cost_price)
             : undefined,
-          manufacturingDate: product.manufacturing_date,
+          cost_price: product.cost_price
+            ? parseFloat(product.cost_price)
+            : null,
+          manufacturingDate:
+            (inv as any).manufacturing_date || product.manufacturing_date,
+          manufacturing_date:
+            (inv as any).manufacturing_date || product.manufacturing_date,
+          is_battery: (inv as any).is_battery || false,
+          battery_state: (inv as any).battery_state,
         };
       })
     );
@@ -264,15 +414,23 @@ export const createItem = async (
   try {
     // Get location ID
     let actualLocationId = locationId;
-    if (locationId === "sanaiya" || locationId === "main") {
+    if (
+      typeof locationId === "string" &&
+      (locationId === "sanaiya" || locationId === "main")
+    ) {
+      // Try to find location by name (handle variations)
+      const locationName = locationId === "sanaiya" ? "Sanaiya" : "Main Branch";
       const { data: location } = await supabase
         .from("locations")
         .select("id")
-        .eq("name", locationId === "sanaiya" ? "Sanaiya" : "Main Branch")
+        .ilike("name", `%${locationName}%`)
         .single();
 
       if (location) {
         actualLocationId = location.id;
+      } else {
+        console.warn(`Location not found for name: ${locationName}`);
+        return null; // Return null if location not found
       }
     }
 
@@ -347,15 +505,23 @@ export const updateItem = async (
   try {
     // Get location ID
     let actualLocationId = locationId;
-    if (locationId === "sanaiya" || locationId === "main") {
+    if (
+      typeof locationId === "string" &&
+      (locationId === "sanaiya" || locationId === "main")
+    ) {
+      // Try to find location by name (handle variations)
+      const locationName = locationId === "sanaiya" ? "Sanaiya" : "Main Branch";
       const { data: location } = await supabase
         .from("locations")
         .select("id")
-        .eq("name", locationId === "sanaiya" ? "Sanaiya" : "Main Branch")
+        .ilike("name", `%${locationName}%`)
         .single();
 
       if (location) {
         actualLocationId = location.id;
+      } else {
+        console.warn(`Location not found for name: ${locationName}`);
+        return null; // Return null if location not found
       }
     }
 
@@ -502,15 +668,23 @@ export const deleteItem = async (
   try {
     // Get location ID
     let actualLocationId = locationId;
-    if (locationId === "sanaiya" || locationId === "main") {
+    if (
+      typeof locationId === "string" &&
+      (locationId === "sanaiya" || locationId === "main")
+    ) {
+      // Try to find location by name (handle variations)
+      const locationName = locationId === "sanaiya" ? "Sanaiya" : "Main Branch";
       const { data: location } = await supabase
         .from("locations")
         .select("id")
-        .eq("name", locationId === "sanaiya" ? "Sanaiya" : "Main Branch")
+        .ilike("name", `%${locationName}%`)
         .single();
 
       if (location) {
         actualLocationId = location.id;
+      } else {
+        console.warn(`Location not found for name: ${locationName}`);
+        return null; // Return null if location not found
       }
     }
 
@@ -552,9 +726,25 @@ export const deleteItem = async (
   }
 };
 
+// Mock data for categories
+const MOCK_CATEGORIES: Category[] = [
+  { id: "mock-category-1", name: "Lubricants" },
+  { id: "mock-category-2", name: "Filters" },
+  { id: "mock-category-3", name: "Brakes" },
+  { id: "mock-category-4", name: "Batteries" },
+  { id: "mock-category-5", name: "Additives" },
+];
+
 // Fetch categories
 export const fetchCategories = async (): Promise<Category[]> => {
   try {
+    const isAvailable = await isSupabaseAvailable();
+
+    if (!isAvailable) {
+      console.warn("Supabase not available, using mock categories");
+      return MOCK_CATEGORIES;
+    }
+
     const { data, error } = await supabase
       .from("categories")
       .select("*")
@@ -562,19 +752,42 @@ export const fetchCategories = async (): Promise<Category[]> => {
 
     if (error) {
       console.error("Error fetching categories:", error);
-      return [];
+      console.warn("Database error, using mock categories");
+      return MOCK_CATEGORIES; // Fallback to mock data
     }
 
-    return data || [];
+    // If no data returned, it might be because tables don't exist
+    if (!data || data.length === 0) {
+      console.warn("No categories found in database, using mock categories");
+      return MOCK_CATEGORIES;
+    }
+
+    return data || MOCK_CATEGORIES;
   } catch (error) {
     console.error("Error in fetchCategories:", error);
-    return [];
+    return MOCK_CATEGORIES;
   }
 };
+
+// Mock data for brands
+const MOCK_BRANDS: Brand[] = [
+  { id: "mock-brand-1", name: "Castrol" },
+  { id: "mock-brand-2", name: "Mobil" },
+  { id: "mock-brand-3", name: "Shell" },
+  { id: "mock-brand-4", name: "Bosch" },
+  { id: "mock-brand-5", name: "Mann" },
+];
 
 // Fetch brands
 export const fetchBrands = async (): Promise<Brand[]> => {
   try {
+    const isAvailable = await isSupabaseAvailable();
+
+    if (!isAvailable) {
+      console.warn("Supabase not available, using mock brands");
+      return MOCK_BRANDS;
+    }
+
     const { data, error } = await supabase
       .from("brands")
       .select("*")
@@ -582,19 +795,58 @@ export const fetchBrands = async (): Promise<Brand[]> => {
 
     if (error) {
       console.error("Error fetching brands:", error);
-      return [];
+      console.warn("Database error, using mock brands");
+      return MOCK_BRANDS; // Fallback to mock data
     }
 
-    return data || [];
+    // If no data returned, it might be because tables don't exist
+    if (!data || data.length === 0) {
+      console.warn("No brands found in database, using mock brands");
+      return MOCK_BRANDS;
+    }
+
+    return data || MOCK_BRANDS;
   } catch (error) {
     console.error("Error in fetchBrands:", error);
-    return [];
+    return MOCK_BRANDS;
   }
 };
+
+// Mock data for suppliers
+const MOCK_SUPPLIERS: Supplier[] = [
+  {
+    id: "mock-supplier-1",
+    name: "AutoSupply Co.",
+    contact: "John Doe",
+    email: "john@autosupply.com",
+    phone: "+971 50 123 4567",
+  },
+  {
+    id: "mock-supplier-2",
+    name: "Gulf Parts Ltd.",
+    contact: "Jane Smith",
+    email: "jane@gulfparts.com",
+    phone: "+971 50 765 4321",
+  },
+  {
+    id: "mock-supplier-3",
+    name: "OEM Direct",
+    contact: "Mohammed Ali",
+    email: "mali@oemdirect.com",
+    phone: "+971 50 987 6543",
+  },
+];
 
 // Fetch suppliers
 export const fetchSuppliers = async (): Promise<Supplier[]> => {
   try {
+    const isAvailable = await isSupabaseAvailable();
+
+    if (!isAvailable) {
+      console.warn("Supabase not available, using mock suppliers");
+      return MOCK_SUPPLIERS;
+    }
+
     const { data, error } = await supabase
       .from("suppliers")
       .select("*")
@@ -606,25 +858,11 @@ export const fetchSuppliers = async (): Promise<Supplier[]> => {
         console.warn(
           "Suppliers table not found. Please create the suppliers table in your Supabase dashboard."
         );
-        console.warn(
-          "SQL to create table:",
-          `
-CREATE TABLE IF NOT EXISTS public.suppliers (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  name TEXT NOT NULL,
-  contact TEXT,
-  email TEXT,
-  phone TEXT,
-  address TEXT,
-  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL,
-  updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL
-);`
-        );
-        return [];
+        return MOCK_SUPPLIERS; // Fallback to mock data
       }
 
       console.error("Error fetching suppliers:", error);
-      return [];
+      return MOCK_SUPPLIERS; // Fallback to mock data
     }
 
     return (data || []).map((supplier) => ({
@@ -636,13 +874,45 @@ CREATE TABLE IF NOT EXISTS public.suppliers (
     }));
   } catch (error) {
     console.error("Error in fetchSuppliers:", error);
-    return [];
+    return MOCK_SUPPLIERS;
   }
 };
+
+// Mock data for branches
+const MOCK_BRANCHES: Branch[] = [
+  {
+    id: "c4212c14-64f3-4c9e-aa0e-6317fa3e9c3c",
+    name: "Sanaiya",
+    address: "Sanaiya Industrial Area, Abu Dhabi",
+    created_at: "2024-01-01T00:00:00Z",
+    updated_at: "2024-01-01T00:00:00Z",
+  },
+  {
+    id: "93922a5e-5327-4561-8395-97a4653c720c",
+    name: "Abu Dhabi Branch",
+    address: "123 Main St, Abu Dhabi",
+    created_at: "2024-01-01T00:00:00Z",
+    updated_at: "2024-01-01T00:00:00Z",
+  },
+  {
+    id: "d2f3b51b-2e86-4c4b-831c-96b468bd48db",
+    name: "Hafeet Branch",
+    address: "456 Center Ave, Al Ain",
+    created_at: "2024-01-01T00:00:00Z",
+    updated_at: "2024-01-01T00:00:00Z",
+  },
+];
 
 // Fetch branches
 export const fetchBranches = async (): Promise<Branch[]> => {
   try {
+    const isAvailable = await isSupabaseAvailable();
+
+    if (!isAvailable) {
+      console.warn("Supabase not available, using mock branches");
+      return MOCK_BRANCHES;
+    }
+
     const { data, error } = await supabase
       .from("locations")
       .select("*")
@@ -650,7 +920,14 @@ export const fetchBranches = async (): Promise<Branch[]> => {
 
     if (error) {
       console.error("Error fetching branches:", error);
-      return [];
+      console.warn("Database error, using mock branches");
+      return MOCK_BRANCHES; // Fallback to mock data
+    }
+
+    // If no data returned, it might be because tables don't exist
+    if (!data || data.length === 0) {
+      console.warn("No branches found in database, using mock branches");
+      return MOCK_BRANCHES;
     }
 
     const branches = (data || []).map((location) => ({
@@ -679,7 +956,7 @@ export const fetchBranches = async (): Promise<Branch[]> => {
     return branches;
   } catch (error) {
     console.error("Error in fetchBranches:", error);
-    return [];
+    return MOCK_BRANCHES;
   }
 };
 
@@ -973,15 +1250,23 @@ export const addBatch = async (
   try {
     // Get location ID
     let actualLocationId = locationId;
-    if (locationId === "sanaiya" || locationId === "main") {
+    if (
+      typeof locationId === "string" &&
+      (locationId === "sanaiya" || locationId === "main")
+    ) {
+      // Try to find location by name (handle variations)
+      const locationName = locationId === "sanaiya" ? "Sanaiya" : "Main Branch";
       const { data: location } = await supabase
         .from("locations")
         .select("id")
-        .eq("name", locationId === "sanaiya" ? "Sanaiya" : "Main Branch")
+        .ilike("name", `%${locationName}%`)
         .single();
 
       if (location) {
         actualLocationId = location.id;
+      } else {
+        console.warn(`Location not found for name: ${locationName}`);
+        return null; // Return null if location not found
       }
     }
 

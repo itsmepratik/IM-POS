@@ -24,7 +24,7 @@ export const useInventoryData = () => {
   // Battery filter states
   const [showBatteries, setShowBatteries] = useState(false);
   const [batteryState, setBatteryState] = useState<
-    "new" | "scrap" | "resellable"
+    "new" | "scrap" | "resellable" | "warranty"
   >("new");
 
   // Advanced filter states
@@ -71,9 +71,13 @@ export const useInventoryData = () => {
         debouncedSearchQuery === "" ||
         item.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
         (item.brand &&
-          item.brand.toLowerCase().includes(debouncedSearchQuery.toLowerCase())) ||
+          item.brand
+            .toLowerCase()
+            .includes(debouncedSearchQuery.toLowerCase())) ||
         (item.category &&
-          item.category.toLowerCase().includes(debouncedSearchQuery.toLowerCase()));
+          item.category
+            .toLowerCase()
+            .includes(debouncedSearchQuery.toLowerCase()));
 
       // Category filter
       const matchesCategory =

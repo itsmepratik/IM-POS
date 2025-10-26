@@ -27,6 +27,14 @@ INSERT INTO public.suppliers (name, contact, email, phone, address) VALUES
     ('Premium Auto Parts', 'Ahmed Hassan', 'ahmed@premiumauto.com', '+971 50 555 1234', 'Musaffah, Abu Dhabi')
 ON CONFLICT DO NOTHING;
 
+-- Insert brands first (ensure they exist before products)
+INSERT INTO public.brands (name)
+SELECT unnest(ARRAY[
+    'Castrol', 'Mobil', 'Shell', 'Bosch', 'Mann', 'Toyota', 'Brembo',
+    'Yuasa', 'Prestone', 'STP', 'NGK', 'Gates', 'Mann-Filter'
+])
+ON CONFLICT (name) DO NOTHING;
+
 -- Insert products
 WITH category_ids AS (
     SELECT id, name FROM public.categories
@@ -35,7 +43,7 @@ brand_ids AS (
     SELECT id, name FROM public.brands
 )
 INSERT INTO public.products (name, category_id, brand_id, product_type, description, is_oil, low_stock_threshold)
-SELECT 
+SELECT
     p.name,
     c.id as category_id,
     b.id as brand_id,

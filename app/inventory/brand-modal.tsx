@@ -1,23 +1,34 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { useItems } from "./items-context"
-import { X, Loader2 } from "lucide-react"
-import { toast } from "@/components/ui/use-toast"
+import { useState, useEffect } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useItems } from "./items-context";
+import { X, Loader2 } from "lucide-react";
+import { toast } from "@/components/ui/use-toast";
 
 interface BrandModalProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }
 
 export default function BrandModal({ open, onOpenChange }: BrandModalProps) {
-  const { brands, addBrand, deleteBrand } = useItems()
-  const [newBrand, setNewBrand] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
+  const { brands, addBrand, deleteBrand } = useItems();
+  const [newBrand, setNewBrand] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Debug: Log when brands change
+  useEffect(() => {
+    console.log("🔄 Brand modal brands updated:", brands);
+  }, [brands]);
 
   const handleAddBrand = async () => {
     if (!newBrand.trim()) return;
@@ -51,7 +62,11 @@ export default function BrandModal({ open, onOpenChange }: BrandModalProps) {
   };
 
   const handleRemoveBrand = async (brand: string) => {
-    if (!window.confirm(`Are you sure you want to delete "${brand}"? This may affect items assigned to this brand.`)) {
+    if (
+      !window.confirm(
+        `Are you sure you want to delete "${brand}"? ⚠️ WARNING: All products using this brand will be permanently deleted from the inventory!`
+      )
+    ) {
       return;
     }
 
@@ -63,19 +78,42 @@ export default function BrandModal({ open, onOpenChange }: BrandModalProps) {
           title: "Brand removed",
           description: `${brand} has been removed from brands.`,
         });
+        // Close the modal after successful deletion
+        onOpenChange(false);
       } else {
         toast({
           title: "Error removing brand",
-          description: "Could not remove brand. It might be in use by items.",
+          description: "Could not remove brand. Please try again.",
           variant: "destructive",
         });
       }
     } catch (error) {
       console.error("Error removing brand:", error);
+
+      // The error should be handled in the context, but provide fallback
+      let errorMessage =
+        "An unexpected error occurred while removing the brand.";
+
+      if (error instanceof Error) {
+        if (error.message.includes("Permission denied")) {
+          errorMessage =
+            "Permission denied: You don't have permission to delete this brand.";
+        } else if (error.message.includes("not found")) {
+          errorMessage = "Brand not found or may have already been deleted.";
+        } else if (error.message.includes("Failed to delete products")) {
+          errorMessage =
+            "Error deleting products associated with this brand. Please try again.";
+        } else if (error.message) {
+          errorMessage = error.message;
+        }
+      }
+
       toast({
-        title: "Error",
-        description: "An unexpected error occurred.",
-        variant: "destructive",
+        title: "Brand deletion result",
+        description: errorMessage,
+        variant: error.message.includes("successfully")
+          ? "default"
+          : "destructive",
       });
     } finally {
       setIsLoading(false);
@@ -98,13 +136,17 @@ export default function BrandModal({ open, onOpenChange }: BrandModalProps) {
                 onChange={(e) => setNewBrand(e.target.value)}
                 placeholder="Enter new brand"
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
+                  if (e.key === "Enter") {
                     handleAddBrand();
                   }
                 }}
               />
             </div>
-            <Button onClick={handleAddBrand} className="mt-8" disabled={isLoading}>
+            <Button
+              onClick={handleAddBrand}
+              className="mt-8"
+              disabled={isLoading}
+            >
               {isLoading ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -119,16 +161,30 @@ export default function BrandModal({ open, onOpenChange }: BrandModalProps) {
             <Label>Existing Brands</Label>
             <div className="flex flex-col gap-2 max-h-[300px] overflow-y-auto">
               <div className="flex items-center justify-between bg-secondary p-2 rounded-md">
-                <span className="text-muted-foreground italic">None (No brand)</span>
-                <span className="text-xs italic text-muted-foreground">Default option</span>
+                <span className="text-muted-foreground italic">
+                  None (No brand)
+                </span>
+                <span className="text-xs italic text-muted-foreground">
+                  Default option
+                </span>
               </div>
               {brands.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No brands added yet.</p>
+                <p className="text-sm text-muted-foreground">
+                  No brands added yet.
+                </p>
               ) : (
                 brands.map((brand) => (
-                  <div key={brand} className="flex items-center justify-between bg-secondary p-2 rounded-md">
+                  <div
+                    key={brand}
+                    className="flex items-center justify-between bg-secondary p-2 rounded-md"
+                  >
                     <span>{brand}</span>
-                    <Button variant="ghost" size="sm" onClick={() => handleRemoveBrand(brand)} disabled={isLoading}>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleRemoveBrand(brand)}
+                      disabled={isLoading}
+                    >
                       {isLoading ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
                       ) : (
@@ -146,5 +202,5 @@ export default function BrandModal({ open, onOpenChange }: BrandModalProps) {
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

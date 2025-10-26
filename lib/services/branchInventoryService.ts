@@ -21,7 +21,7 @@ export type Item = {
   updated_at: string | null;
   lowStockAlert?: number;
   isBattery?: boolean;
-  batteryState?: "new" | "scrap" | "resellable";
+  batteryState?: "new" | "scrap" | "resellable" | "warranty";
 };
 
 export type Volume = {

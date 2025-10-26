@@ -54,15 +54,18 @@ export function BranchProvider({ children }: { children: ReactNode }) {
       setBranchLoadError(false);
 
       console.log("🏢 Loading real branches from Supabase...");
-      
+
       // Import fetchBranches function
       const { fetchBranches } = await import("@/lib/services/inventoryService");
-      
+
       // Fetch real branches from Supabase
       const realBranches = await fetchBranches();
-      
+
       if (realBranches && realBranches.length > 0) {
-        console.log("✅ Successfully loaded branches:", realBranches.map(b => ({id: b.id, name: b.name})));
+        console.log(
+          "✅ Successfully loaded branches:",
+          realBranches.map((b) => ({ id: b.id, name: b.name }))
+        );
         setBranches(realBranches as ExtendedBranch[]);
         setCurrentBranch(realBranches[0] as ExtendedBranch);
         setBranchLoadError(false);
@@ -71,35 +74,11 @@ export function BranchProvider({ children }: { children: ReactNode }) {
       }
     } catch (error) {
       console.error("❌ Error loading branches:", error);
-      
-      // Fallback to mock data with real-looking IDs for development
-      const fallbackBranches: ExtendedBranch[] = [
-        {
-          id: "8ae59a0c-1821-4ec0-b913-1900fdcaf7a1",
-          name: "Hafith",
-          address: "Hafith Area, Al Ain",
-          active: true,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-        {
-          id: "11fb9800-37ec-41af-b034-c8bbbd8c4b3c",
-          name: "Abu Dhurus",
-          address: "Abu Dhurus Area, Al Ain",
-          active: true,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-        {
-          id: "01be3937-6c8a-4460-880d-a5da6fe6895b",
-          name: "Sanaiya (HQ)",
-          address: "Sanaiya Industrial Area, Al Ain",
-          active: true,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-      ];
-      
+
+      // Import and use mock branches from inventory service
+      const { fetchBranches } = await import("@/lib/services/inventoryService");
+      const fallbackBranches = (await fetchBranches()) as ExtendedBranch[];
+
       console.warn("⚠️ Using fallback branch data with real IDs");
       setBranches(fallbackBranches);
       setCurrentBranch(fallbackBranches[0]);

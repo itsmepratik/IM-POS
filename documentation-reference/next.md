@@ -96,7 +96,7 @@ styles/
 - Use `` in RSC only if you need to unwrap promises in components. In client components, keep async in event handlers or effects.
 - Use `` for optimistic UI with server actions.
 - Prefer **Actions** for mutations (forms or imperative calls).
-- Use `` boundaries to stream slow children. Add `loading.tsx` at route level.
+- Use ``boundaries to stream slow children. Add`loading.tsx` at route level.
 
 **Do**
 
@@ -124,12 +124,12 @@ export const metadata = {
   title: "Dashboard",
 };
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <section className="grid gap-6 p-6">
-      {children}
-    </section>
-  );
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return <section className="grid gap-6 p-6">{children}</section>;
 }
 ```
 
@@ -206,7 +206,10 @@ import { createProduct } from "./actions";
 
 export function NewProductForm() {
   const [isPending, start] = useTransition();
-  const [optimistic, addOptimistic] = useOptimistic([], (state, item) => [item, ...state]);
+  const [optimistic, addOptimistic] = useOptimistic([], (state, item) => [
+    item,
+    ...state,
+  ]);
 
   return (
     <form action={(fd) => start(() => createProduct(undefined, fd))}>
@@ -258,7 +261,7 @@ import Image from "next/image";
   width={320}
   height={200}
   priority
-/>
+/>;
 ```
 
 ---
@@ -349,8 +352,8 @@ module.exports = {
     "@typescript-eslint/explicit-module-boundary-types": "error",
     "@typescript-eslint/no-explicit-any": "error",
     "react-hooks/rules-of-hooks": "error",
-    "react-hooks/exhaustive-deps": "warn"
-  }
+    "react-hooks/exhaustive-deps": "warn",
+  },
 };
 ```
 
@@ -366,7 +369,7 @@ module.exports = {
 
 ```ts
 // lib/config.ts
-import { z } from 'zod';
+import { z } from "zod";
 
 const envSchema = z.object({
   DATABASE_URL: z.string().url(),
@@ -392,22 +395,22 @@ export const env = envSchema.parse(process.env);
 **Example Drizzle schema:**
 
 ```ts
-import { pgTable, serial, text, integer, timestamp } from 'drizzle-orm/pg-core';
+import { pgTable, serial, text, integer, timestamp } from "drizzle-orm/pg-core";
 
-export const products = pgTable('products', {
-  id: serial('id').primaryKey(),
-  name: text('name').notNull(),
-  price: integer('price').notNull(),
-  stock: integer('stock').default(0).notNull(),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
+export const products = pgTable("products", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  price: integer("price").notNull(),
+  stock: integer("stock").default(0).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 ```
 
 **Example query:**
 
 ```ts
-import { db } from '@/lib/db';
-import { products } from '@/lib/db/schema';
+import { db } from "@/lib/db";
+import { products } from "@/lib/db/schema";
 
 export async function getProducts() {
   return db.select().from(products).orderBy(products.createdAt);
@@ -427,12 +430,12 @@ export async function getProducts() {
 **Middleware example:**
 
 ```ts
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
 export function middleware(req: NextRequest) {
-  const session = req.cookies.get('sb:token');
-  if (!session) return NextResponse.redirect(new URL('/login', req.url));
+  const session = req.cookies.get("sb:token");
+  if (!session) return NextResponse.redirect(new URL("/login", req.url));
   return NextResponse.next();
 }
 ```
@@ -453,10 +456,19 @@ export function middleware(req: NextRequest) {
 
 ```ts
 await db.transaction(async (tx) => {
-  const product = await tx.select().from(products).where(eq(products.id, id)).forUpdate();
-  if (product.stock < qty) throw new Error('Out of stock');
-  await tx.update(products).set({ stock: product.stock - qty }).where(eq(products.id, id));
-  await tx.insert(inventoryLogs).values({ productId: id, change: -qty, reason: 'order' });
+  const product = await tx
+    .select()
+    .from(products)
+    .where(eq(products.id, id))
+    .forUpdate();
+  if (product.stock < qty) throw new Error("Out of stock");
+  await tx
+    .update(products)
+    .set({ stock: product.stock - qty })
+    .where(eq(products.id, id));
+  await tx
+    .insert(inventoryLogs)
+    .values({ productId: id, change: -qty, reason: "order" });
 });
 ```
 
@@ -500,4 +512,3 @@ await db.transaction(async (tx) => {
 - Rely on client-side auth for security.
 
 ---
-

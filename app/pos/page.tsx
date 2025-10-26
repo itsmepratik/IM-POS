@@ -160,7 +160,7 @@ interface ImportedCustomer {
 interface TradeinBattery {
   id: string;
   size: string;
-  status: "scrap" | "resellable";
+  status: "scrap" | "resellable" | "warranty";
   amount: number;
 }
 
@@ -1187,7 +1187,7 @@ function POSPageContent() {
     const newBattery: TradeinBattery = {
       id: `battery-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       size: currentBatteryEntry.size,
-      status: currentBatteryEntry.status as "scrap" | "resellable",
+      status: currentBatteryEntry.status as "scrap" | "resellable" | "warranty",
       amount: currentBatteryEntry.amount,
     };
 
@@ -1217,7 +1217,10 @@ function POSPageContent() {
           ? {
               ...battery,
               size: currentBatteryEntry.size,
-              status: currentBatteryEntry.status as "scrap" | "resellable",
+              status: currentBatteryEntry.status as
+                | "scrap"
+                | "resellable"
+                | "warranty",
               amount: currentBatteryEntry.amount,
             }
           : battery
