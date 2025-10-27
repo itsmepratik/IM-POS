@@ -71,9 +71,13 @@ export const useInventoryData = () => {
         debouncedSearchQuery === "" ||
         item.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
         (item.brand &&
-          item.brand.toLowerCase().includes(debouncedSearchQuery.toLowerCase())) ||
+          item.brand
+            .toLowerCase()
+            .includes(debouncedSearchQuery.toLowerCase())) ||
         (item.category &&
-          item.category.toLowerCase().includes(debouncedSearchQuery.toLowerCase()));
+          item.category
+            .toLowerCase()
+            .includes(debouncedSearchQuery.toLowerCase()));
 
       // Category filter
       const matchesCategory =
@@ -118,13 +122,35 @@ export const useInventoryData = () => {
         ? item.isBattery === true && item.batteryState === batteryState
         : true;
 
+      // Price range filter
+      const matchesMinPrice =
+        minPrice === "" || item.price >= parseFloat(minPrice);
+      const matchesMaxPrice =
+        maxPrice === "" || item.price <= parseFloat(maxPrice);
+      const matchesPriceRange = matchesMinPrice && matchesMaxPrice;
+
+      // Stock status filter (from advanced filters)
+      let matchesStockStatus = true;
+      if (stockStatus === "in-stock") {
+        matchesStockStatus =
+          (item.stock ?? 0) > (item.lowStockAlert ?? LOW_STOCK_THRESHOLD);
+      } else if (stockStatus === "low-stock") {
+        matchesStockStatus =
+          (item.stock ?? 0) > 0 &&
+          (item.stock ?? 0) <= (item.lowStockAlert ?? LOW_STOCK_THRESHOLD);
+      } else if (stockStatus === "out-of-stock") {
+        matchesStockStatus = (item.stock ?? 0) === 0;
+      }
+
       return (
         matchesSearch &&
         matchesCategory &&
         matchesBrand &&
         matchesBottleState &&
         stockFilterToApply &&
-        matchesBattery
+        matchesBattery &&
+        matchesPriceRange &&
+        matchesStockStatus
       );
     });
   }, [
@@ -138,6 +164,9 @@ export const useInventoryData = () => {
     showOutOfStockOnly,
     showBatteries,
     batteryState,
+    minPrice,
+    maxPrice,
+    stockStatus,
   ]);
 
   // Reset all filters
@@ -151,6 +180,9 @@ export const useInventoryData = () => {
     setShowOutOfStockOnly(false);
     setShowBatteries(false);
     setBatteryState("new");
+    setMinPrice("");
+    setMaxPrice("");
+    setStockStatus("all");
   }, []);
 
   // Handle item selection

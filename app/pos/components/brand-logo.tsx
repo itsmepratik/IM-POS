@@ -4,10 +4,8 @@ import { ImageIcon } from "lucide-react";
 import { Brand } from "@/lib/services/inventoryService";
 import {
   isValidImageUrl,
-  isImageCached,
   cacheImageValid,
   cacheImageInvalid,
-  preloadImage,
 } from "@/lib/utils/imageCache";
 import { ImageErrorFallback } from "@/components/ui/image-error-boundary";
 
@@ -22,9 +20,7 @@ export function BrandLogo({
   brands,
   fallbackToLocal = true,
 }: BrandLogoProps) {
-  const [imgSrc, setImgSrc] = React.useState<string>("");
-  const [errorCount, setErrorCount] = React.useState(0);
-  const [isLoading, setIsLoading] = React.useState(true);
+  const [hasError, setHasError] = React.useState(false);
 
   // Find the brand data from the database
   const brandData = React.useMemo(() => {
@@ -56,95 +52,39 @@ export function BrandLogo({
     return null;
   }, [brandData]);
 
-  // Enhanced URL validation using the cache utility
-
-  // Set initial image source based on availability with caching
-  React.useEffect(() => {
-    const setImageSource = async () => {
-      // Priority 1: Database image (if valid and cached)
-      if (databaseImageUrl && isValidImageUrl(databaseImageUrl)) {
-        if (isImageCached(databaseImageUrl)) {
-          setImgSrc(databaseImageUrl);
-          setIsLoading(false);
-          return;
-        } else {
-          // Preload the image in the background
-          preloadImage(databaseImageUrl).then((success) => {
-            if (success) {
-              setImgSrc(databaseImageUrl);
-              setIsLoading(false);
-            } else {
-              // Database image failed, try fallback
-              if (fallbackToLocal) {
-                setImgSrc(`/images/${brand.toLowerCase()}.svg`);
-                setIsLoading(true);
-              } else {
-                setIsLoading(false);
-              }
-            }
-          });
-          return;
-        }
-      }
-
-      // Priority 2: Local fallback
-      if (fallbackToLocal) {
-        setImgSrc(`/images/${brand.toLowerCase()}.svg`);
-        setIsLoading(true);
-      } else {
-        setIsLoading(false);
-      }
-    };
-
-    setImageSource();
-  }, [databaseImageUrl, brand, fallbackToLocal]);
-
-  const handleError = React.useCallback(async () => {
-    if (!imgSrc) return;
-
-    setErrorCount((c) => c + 1);
-    setIsLoading(false);
-
-    // Mark the current image as invalid in cache
-    cacheImageInvalid(imgSrc);
-
-    if (errorCount === 0 && fallbackToLocal && !imgSrc.includes(".svg")) {
-      // First error - try PNG fallback
-      setImgSrc(`/images/${brand.toLowerCase()}.png`);
-      setIsLoading(true);
-    } else if (
-      errorCount === 1 &&
-      fallbackToLocal &&
-      !imgSrc.includes(".png")
-    ) {
-      // Second error - try JPG fallback
-      setImgSrc(`/images/${brand.toLowerCase()}.jpg`);
-      setIsLoading(true);
+  // Determine which image source to use
+  const imgSrc = React.useMemo(() => {
+    // Use database image if available and valid
+    if (databaseImageUrl && isValidImageUrl(databaseImageUrl)) {
+      return databaseImageUrl;
     }
-    // If all attempts fail, show icon
-  }, [imgSrc, errorCount, brand, fallbackToLocal]);
+    // Otherwise return null to show fallback icon
+    return null;
+  }, [databaseImageUrl]);
+
+  const handleError = React.useCallback(
+    (e?: React.SyntheticEvent<HTMLImageElement, Event>) => {
+      setHasError(true);
+      if (imgSrc) {
+        cacheImageInvalid(imgSrc);
+        console.warn(`Failed to load brand logo for ${brand}: ${imgSrc}`);
+      }
+      if (e) {
+        e.currentTarget.onerror = null;
+      }
+    },
+    [imgSrc, brand]
+  );
 
   const handleLoad = React.useCallback(() => {
+    setHasError(false);
     if (imgSrc) {
       cacheImageValid(imgSrc);
     }
-    setIsLoading(false);
-    setErrorCount(0); // Reset error count on successful load
   }, [imgSrc]);
 
-  // Show loading state
-  if (isLoading) {
-    return (
-      <div className="w-full h-full flex items-center justify-center bg-muted rounded-md">
-        <div className="animate-pulse">
-          <ImageIcon className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground opacity-50" />
-        </div>
-      </div>
-    );
-  }
-
-  // Show error state after all attempts
-  if (!imgSrc || errorCount >= (fallbackToLocal ? 3 : 1)) {
+  // Show fallback icon if no image source or error occurred
+  if (!imgSrc || hasError) {
     return (
       <div className="w-full h-full flex items-center justify-center bg-muted rounded-md">
         <ImageIcon className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground" />
@@ -163,17 +103,13 @@ export function BrandLogo({
       <Image
         src={imgSrc}
         alt={`${brand} logo`}
-        className="object-contain rounded-md bg-white transition-opacity duration-200"
+        className="object-contain rounded-md transition-opacity duration-200"
         fill
         sizes="(max-width: 768px) 48px, (max-width: 1024px) 64px, 80px"
         onError={handleError}
         onLoad={handleLoad}
         loading="lazy"
         quality={85}
-        style={{
-          // Ensure smooth loading transition
-          opacity: isLoading ? 0 : 1,
-        }}
       />
     </ImageErrorFallback>
   );

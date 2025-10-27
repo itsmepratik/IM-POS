@@ -7,8 +7,14 @@ import {
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ArrowRight, Minus, Plus, ImageIcon } from "lucide-react";
-import { useState } from "react";
+import React, { useState } from "react";
 import Image from "next/image";
+import {
+  isValidImageUrl,
+  cacheImageValid,
+  cacheImageInvalid,
+} from "@/lib/utils/imageCache";
+import { ImageErrorFallback } from "@/components/ui/image-error-boundary";
 
 interface Part {
   id: number;
@@ -22,9 +28,21 @@ interface PartsModalProps {
   onOpenChange: (open: boolean) => void;
   selectedPartBrand: string | null;
   selectedPartType: string | null;
-  parts: Array<{ id: number; name: string; price: number }>;
+  parts: Array<{
+    id: number;
+    name: string;
+    price: number;
+    imageUrl?: string;
+    originalId?: string;
+  }>;
   selectedParts: Part[];
-  onPartClick: (part: { id: number; name: string; price: number }) => void;
+  onPartClick: (part: {
+    id: number;
+    name: string;
+    price: number;
+    imageUrl?: string;
+    originalId?: string;
+  }) => void;
   onQuantityChange: (partId: number, change: number) => void;
   onAddToCart: () => void;
   onNext: () => void;
@@ -32,24 +50,52 @@ interface PartsModalProps {
 
 // Helper for part image
 function PartImage({
+  imageUrl,
   brand,
   type,
   partName,
 }: {
+  imageUrl?: string;
   brand: string;
   type: string;
   partName: string;
 }) {
-  // Create a safe version of the path that handles undefined values
-  const safeLowercase = (str: string | undefined) =>
-    str ? str.toLowerCase().replace(/ /g, "-") : "";
+  const [hasError, setHasError] = React.useState(false);
 
-  const imgSrc = `/parts/${safeLowercase(brand)}-${safeLowercase(
-    type
-  )}-${safeLowercase(partName)}.jpg`;
-  const [error, setError] = useState(false);
+  // Debug logging
+  React.useEffect(() => {
+    console.log(`[PartImage] ${partName}:`, {
+      imageUrl,
+      isValid: imageUrl ? isValidImageUrl(imageUrl) : false,
+      brand,
+      type,
+    });
+  }, [imageUrl, partName, brand, type]);
 
-  if (error) {
+  const handleError = React.useCallback(
+    (e?: React.SyntheticEvent<HTMLImageElement, Event>) => {
+      setHasError(true);
+      if (imageUrl) {
+        cacheImageInvalid(imageUrl);
+        console.warn(`[PartImage] Failed to load: ${partName}`, imageUrl);
+      }
+      if (e) {
+        e.currentTarget.onerror = null;
+      }
+    },
+    [imageUrl, partName]
+  );
+
+  const handleLoad = React.useCallback(() => {
+    setHasError(false);
+    if (imageUrl) {
+      cacheImageValid(imageUrl);
+      console.log(`[PartImage] Loaded successfully: ${partName}`, imageUrl);
+    }
+  }, [imageUrl, partName]);
+
+  // Show fallback icon if no valid image URL or error occurred
+  if (!imageUrl || !isValidImageUrl(imageUrl) || hasError) {
     return (
       <div className="w-full h-full flex items-center justify-center bg-muted rounded-md">
         <ImageIcon className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground" />
@@ -58,14 +104,25 @@ function PartImage({
   }
 
   return (
-    <Image
-      src={imgSrc}
-      alt={`${brand || ""} ${type || ""} ${partName || ""}`}
-      className="object-contain w-full h-full p-2"
-      fill
-      sizes="(max-width: 768px) 64px, 96px"
-      onError={() => setError(true)}
-    />
+    <ImageErrorFallback
+      onError={(error) => {
+        console.error(`[PartImage] Error boundary: ${partName}`, error);
+        handleError();
+      }}
+      className="w-full h-full"
+    >
+      <Image
+        src={imageUrl}
+        alt={`${brand} ${type} ${partName}`}
+        className="object-contain rounded-md transition-opacity duration-200"
+        fill
+        sizes="(max-width: 640px) 64px, (max-width: 768px) 80px, (max-width: 1024px) 96px, 128px"
+        onError={handleError}
+        onLoad={handleLoad}
+        loading="lazy"
+        quality={85}
+      />
+    </ImageErrorFallback>
   );
 }
 
@@ -106,12 +163,13 @@ export function PartsModal({
             {parts.map((part) => (
               <button
                 key={part.id}
-                className="flex flex-col items-center justify-center rounded-lg border bg-background shadow-sm p-3 sm:p-4 h-[140px] sm:h-[160px] transition hover:bg-accent focus:outline-none focus:ring-2 focus:ring-primary/50 w-full"
+                className="flex flex-col items-center justify-center border-2 rounded-[33px] bg-background shadow-sm p-3 sm:p-4 h-[160px] sm:h-[180px] md:h-[200px] transition hover:bg-accent focus:outline-none focus:ring-2 focus:ring-primary/50 w-full"
                 onClick={() => onPartClick(part)}
                 type="button"
               >
-                <div className="relative w-16 h-16 sm:w-20 sm:h-20 mb-2 flex items-center justify-center">
+                <div className="relative w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 mb-2 flex items-center justify-center">
                   <PartImage
+                    imageUrl={part.imageUrl}
                     brand={selectedPartBrand || ""}
                     type={selectedPartType || ""}
                     partName={part.name}

@@ -63,54 +63,42 @@ function FilterImage({
   type: string;
   filterName: string;
 }) {
-  const [imgSrc, setImgSrc] = useState<string>("");
-  const [error, setError] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [errorCount, setErrorCount] = useState(0);
+  const [hasError, setHasError] = React.useState(false);
 
-  // Use database image URL if available, fallback to category-specific placeholder
+  // Debug logging
   React.useEffect(() => {
-    let selectedSrc = "";
+    console.log(`[FilterImage] ${filterName}:`, {
+      imageUrl,
+      isValid: imageUrl ? isValidImageUrl(imageUrl) : false,
+      brand,
+      type,
+    });
+  }, [imageUrl, filterName, brand, type]);
 
-    if (imageUrl && isValidImageUrl(imageUrl)) {
-      selectedSrc = imageUrl;
-    } else {
-      // Fallback to category-specific placeholder image
-      selectedSrc = `/images/products/filters.svg`;
+  const handleError = React.useCallback(
+    (e?: React.SyntheticEvent<HTMLImageElement, Event>) => {
+      setHasError(true);
+      if (imageUrl) {
+        cacheImageInvalid(imageUrl);
+        console.warn(`[FilterImage] Failed to load: ${filterName}`, imageUrl);
+      }
+      if (e) {
+        e.currentTarget.onerror = null;
+      }
+    },
+    [imageUrl, filterName]
+  );
+
+  const handleLoad = React.useCallback(() => {
+    setHasError(false);
+    if (imageUrl) {
+      cacheImageValid(imageUrl);
+      console.log(`[FilterImage] Loaded successfully: ${filterName}`, imageUrl);
     }
+  }, [imageUrl, filterName]);
 
-    setImgSrc(selectedSrc);
-    setIsLoading(true);
-    setError(false);
-    setErrorCount(0);
-  }, [imageUrl]);
-
-  const handleError = () => {
-    console.log(
-      `Filter image error for ${brand} ${type} ${filterName}:`,
-      imgSrc
-    );
-    if (imgSrc) {
-      cacheImageInvalid(imgSrc);
-    }
-    setError(true);
-    setIsLoading(false);
-    setErrorCount((prev) => prev + 1);
-  };
-
-  const handleLoad = () => {
-    console.log(
-      `Filter image loaded successfully: ${brand} ${type} ${filterName}`
-    );
-    if (imgSrc) {
-      cacheImageValid(imgSrc);
-    }
-    setIsLoading(false);
-    setError(false);
-    setErrorCount(0);
-  };
-
-  if (error) {
+  // Show fallback icon if no valid image URL or error occurred
+  if (!imageUrl || !isValidImageUrl(imageUrl) || hasError) {
     return (
       <div className="w-full h-full flex items-center justify-center bg-muted rounded-md">
         <ImageIcon className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground" />
@@ -121,27 +109,21 @@ function FilterImage({
   return (
     <ImageErrorFallback
       onError={(error) => {
-        console.error(
-          `Filter image boundary error for ${brand} ${type} ${filterName}:`,
-          error
-        );
+        console.error(`[FilterImage] Error boundary: ${filterName}`, error);
         handleError();
       }}
       className="w-full h-full"
     >
       <Image
-        src={imgSrc}
+        src={imageUrl}
         alt={`${brand} ${type} ${filterName}`}
-        className="object-contain w-full h-full p-2 transition-opacity duration-200"
+        className="object-contain rounded-md transition-opacity duration-200"
         fill
         sizes="(max-width: 640px) 64px, (max-width: 768px) 80px, (max-width: 1024px) 96px, 128px"
         onError={handleError}
         onLoad={handleLoad}
         loading="lazy"
         quality={85}
-        style={{
-          opacity: isLoading ? 0.5 : 1,
-        }}
       />
     </ImageErrorFallback>
   );

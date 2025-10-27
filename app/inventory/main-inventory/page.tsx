@@ -1058,6 +1058,9 @@ function DesktopView() {
     handleDelete,
     handleDuplicate,
 
+    // Reset filters function
+    resetFilters,
+
     // Counts
     outOfStockCount,
     lowStockCount,
@@ -1146,20 +1149,10 @@ function DesktopView() {
     setTradeInsModalOpen(false);
   }, []);
 
-  // Handle clear all filters
+  // Handle clear all filters - uses resetFilters from useInventoryData
   const handleClearAllFilters = useCallback(() => {
-    setMinPrice("");
-    setMaxPrice("");
-    setStockStatus("all");
-    setShowLowStockOnly(false);
-    setShowOutOfStockOnly(false);
-  }, [
-    setMinPrice,
-    setMaxPrice,
-    setStockStatus,
-    setShowLowStockOnly,
-    setShowOutOfStockOnly,
-  ]);
+    resetFilters();
+  }, [resetFilters]);
 
   // Handle low stock filter toggle
   const handleLowStockFilterToggle = useCallback(() => {

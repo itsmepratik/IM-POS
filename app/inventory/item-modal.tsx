@@ -300,8 +300,65 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
 
   useEffect(() => {
     if (!open) {
+      // Reset all form state when modal closes
       setImageError(false);
       setImageUrl(null);
+      setActiveTab("general");
+      setIsEditingBatch(false);
+      setEditingBatchId(null);
+
+      // Reset form data to clean state
+      setFormData({
+        id: "",
+        name: "",
+        category: "",
+        stock: 0,
+        price: 0,
+        cost: 0,
+        brand: "",
+        type: "",
+        imageUrl: "",
+        imageBlob: "",
+        notes: "",
+        lowStockAlert: 5,
+        isOil: false,
+        bottleStates: { open: 0, closed: 0 },
+        volumes: [],
+        batches: [],
+        category_id: null,
+        brand_id: null,
+        created_at: null,
+        updated_at: null,
+        description: null,
+        image_url: null,
+        is_oil: false,
+      } as ExtendedItem);
+
+      // Reset batch editing state
+      setNewBatch({
+        item_id: "",
+        purchase_date: "",
+        expiration_date: null,
+        supplier_id: null,
+        cost_price: 0,
+        initial_quantity: 0,
+        current_quantity: 0,
+        created_at: null,
+        updated_at: null,
+      });
+
+      setEditingBatch({
+        id: "",
+        item_id: "",
+        purchase_date: "",
+        expiration_date: null,
+        supplier_id: null,
+        cost_price: 0,
+        initial_quantity: 0,
+        current_quantity: 0,
+        created_at: null,
+        updated_at: null,
+      });
     }
   }, [open]);
 
