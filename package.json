@@ -11,6 +11,7 @@
     "test:run": "vitest run",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
+    "test:settlement": "bun run scripts/test-settlement.ts",
     "db:generate": "drizzle-kit generate:pg",
     "db:migrate": "bun run lib/db/migrate.ts",
     "db:studio": "drizzle-kit studio"

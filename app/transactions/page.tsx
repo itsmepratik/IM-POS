@@ -58,7 +58,14 @@ import { useToast } from "@/components/ui/use-toast";
 import { useStaffIDs } from "@/lib/hooks/useStaffIDs";
 
 interface TransactionDisplay extends Omit<Transaction, "items"> {
-  type: "sale" | "refund" | "credit" | "on-hold" | "stock-transfer";
+  type:
+    | "sale"
+    | "refund"
+    | "credit"
+    | "on-hold"
+    | "stock-transfer"
+    | "on-hold-paid"
+    | "credit-paid";
   items: string[];
   customerName?: string;
   reference: string;
@@ -69,6 +76,7 @@ interface TransactionDisplay extends Omit<Transaction, "items"> {
   receiptHtml?: string | null;
   batteryBillHtml?: string | null;
   carPlateNumber?: string | null;
+  originalReference?: string | null;
 }
 
 type DayTime = "morning" | "evening" | "full";
@@ -157,6 +165,9 @@ const TransactionCard = memo(
                       ? "text-yellow-600"
                       : transaction.type === "stock-transfer"
                       ? "text-blue-600"
+                      : transaction.type === "on-hold-paid" ||
+                        transaction.type === "credit-paid"
+                      ? "text-green-600"
                       : "text-green-500"
                   }`}
                 >
@@ -170,6 +181,10 @@ const TransactionCard = memo(
                     ? "On Hold"
                     : transaction.type === "stock-transfer"
                     ? "Stock Transfer"
+                    : transaction.type === "on-hold-paid"
+                    ? "On-Hold Paid"
+                    : transaction.type === "credit-paid"
+                    ? "Credit Paid"
                     : "Sale"}
                 </span>
                 <span className="text-sm sm:text-base text-muted-foreground">
@@ -196,6 +211,9 @@ const TransactionCard = memo(
                     ? "text-yellow-600"
                     : transaction.type === "stock-transfer"
                     ? "text-blue-600"
+                    : transaction.type === "on-hold-paid" ||
+                      transaction.type === "credit-paid"
+                    ? "text-green-600"
                     : "text-green-500"
                 }`}
               >
@@ -300,6 +318,9 @@ function FixedSalesCard({
           ? "bg-yellow-600"
           : transaction.type === "stock-transfer"
           ? "bg-blue-600"
+          : transaction.type === "on-hold-paid" ||
+            transaction.type === "credit-paid"
+          ? "bg-green-600"
           : "bg-green-600"
       }`}
     >
@@ -317,6 +338,10 @@ function FixedSalesCard({
             ? "On Hold"
             : transaction.type === "stock-transfer"
             ? "Stock Transfer"
+            : transaction.type === "on-hold-paid"
+            ? "On-Hold Paid"
+            : transaction.type === "credit-paid"
+            ? "Credit Paid"
             : "Sale"}
         </div>
         {transaction && (
@@ -856,6 +881,10 @@ export default function TransactionsPage() {
             ? "expensed"
             : t.type === "ON_HOLD"
             ? "on-hold"
+            : t.type === "ON_HOLD_PAID"
+            ? "completed"
+            : t.type === "CREDIT_PAID"
+            ? "completed"
             : t.type === "STOCK_TRANSFER"
             ? "transferred"
             : "completed",
@@ -868,6 +897,10 @@ export default function TransactionsPage() {
             ? "credit"
             : t.type === "ON_HOLD"
             ? "on-hold"
+            : t.type === "ON_HOLD_PAID"
+            ? "on-hold-paid"
+            : t.type === "CREDIT_PAID"
+            ? "credit-paid"
             : t.type === "STOCK_TRANSFER"
             ? "stock-transfer"
             : "sale",
@@ -883,6 +916,10 @@ export default function TransactionsPage() {
             ? "Miscellaneous expense"
             : t.type === "ON_HOLD"
             ? `Car Plate: ${t.car_plate_number || "N/A"}`
+            : t.type === "ON_HOLD_PAID"
+            ? `Settled from: ${t.original_reference_number || "N/A"}`
+            : t.type === "CREDIT_PAID"
+            ? `Settled from: ${t.original_reference_number || "N/A"}`
             : t.type === "STOCK_TRANSFER"
             ? "Stock transfer between locations"
             : undefined,
@@ -890,6 +927,7 @@ export default function TransactionsPage() {
         receiptHtml: t.receipt_html,
         batteryBillHtml: t.battery_bill_html,
         carPlateNumber: t.car_plate_number,
+        originalReference: t.original_reference_number,
       };
     });
   }, [apiTransactions, staffMembers]);

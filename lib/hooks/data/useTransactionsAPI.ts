@@ -15,6 +15,7 @@ export interface TransactionAPI {
   receipt_html: string | null;
   battery_bill_html: string | null;
   original_reference_number: string | null;
+  car_plate_number: string | null;
   created_at: string;
   customer_id: string | null;
   customers?: {

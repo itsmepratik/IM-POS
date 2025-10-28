@@ -27,29 +27,10 @@ export function BrandLogo({
     return brands?.find((b) => b.name.toLowerCase() === brand.toLowerCase());
   }, [brands, brand]);
 
-  // Get the primary image URL from brand data
+  // Get the image URL from brand data
   const databaseImageUrl = React.useMemo(() => {
-    if (!brandData?.images) return null;
-
-    // Handle different image data structures
-    if (typeof brandData.images === "string") {
-      return brandData.images;
-    }
-
-    if (typeof brandData.images === "object" && brandData.images !== null) {
-      // If it's an object, try to get the first available image URL
-      const images = brandData.images as any;
-      if (images.primary) return images.primary;
-      if (images.logo) return images.logo;
-      if (images.url) return images.url;
-
-      // If it's an array, get the first item
-      if (Array.isArray(images) && images.length > 0) {
-        return images[0].url || images[0];
-      }
-    }
-
-    return null;
+    if (!brandData?.image_url) return null;
+    return brandData.image_url;
   }, [brandData]);
 
   // Determine which image source to use

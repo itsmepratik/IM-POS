@@ -75,8 +75,7 @@ export type Category = {
 export type Brand = {
   id: string;
   name: string;
-  images?: any; // JSONB field for storing brand images (URLs, metadata, etc.)
-  image_url?: string; // Computed from images.url for convenience
+  image_url?: string | null; // Direct image URL column in database
 };
 
 export type Supplier = {
@@ -763,22 +762,17 @@ export const fetchBrands = async (): Promise<Brand[]> => {
       JSON.stringify(data, null, 2)
     );
 
-    // Map the data to extract image_url from images JSONB field
+    // Map the data (image_url is now a direct column)
     const brands = (data || []).map((brand: any) => {
       console.log(`🔍 Processing brand "${brand.name}":`, {
-        hasImages: !!brand.images,
-        images: brand.images,
-        imageType: typeof brand.images,
+        hasImageUrl: !!brand.image_url,
+        image_url: brand.image_url,
       });
 
       return {
-        ...brand,
-        // Extract URL from images JSONB field if it exists
-        image_url:
-          brand.images?.url ||
-          brand.images?.image_url ||
-          brand.image_url ||
-          null,
+        id: brand.id,
+        name: brand.name,
+        image_url: brand.image_url || null,
       };
     });
 

@@ -261,10 +261,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Validate productId format - must be valid UUIDs
+    // Validate productId format - must be valid UUIDs (except for labor charges)
     const uuidRegex =
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     for (const item of cart) {
+      // Skip validation for labor charges (productId: "9999")
+      if (item.productId === "9999" || item.productId === 9999) {
+        console.log(`[${requestId}] Skipping UUID validation for labor charge`);
+        continue;
+      }
+
       if (!uuidRegex.test(item.productId)) {
         return NextResponse.json(
           {
@@ -307,12 +313,32 @@ export async function POST(req: NextRequest) {
     const result = await db.transaction(async (tx) => {
       try {
         // 1. Fetch product names and categories for receipt generation
+        // Filter out labor charges (productId: "9999") from product lookups
         const productIds = [
-          ...cart.map((item) => item.productId),
+          ...cart
+            .filter(
+              (item) => item.productId !== "9999" && item.productId !== 9999
+            )
+            .map((item) => item.productId),
           ...(tradeIns?.map((ti) => ti.productId) || []),
         ];
         const productMap = new Map();
         let isBatterySale = false;
+
+        // Add labor charges to productMap with predefined data
+        cart.forEach((item) => {
+          if (item.productId === "9999" || item.productId === 9999) {
+            console.log(
+              `[${requestId}] Processing labor charge: ${item.volumeDescription} - OMR ${item.sellingPrice} x${item.quantity}`
+            );
+            productMap.set(item.productId, {
+              id: item.productId,
+              name: item.volumeDescription || "Labor - Custom Service",
+              categoryName: "Services",
+              productType: "Labor",
+            });
+          }
+        });
 
         if (productIds.length > 0) {
           const productsData = await tx

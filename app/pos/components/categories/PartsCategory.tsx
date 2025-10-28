@@ -48,16 +48,7 @@ export function PartsCategory({
         const brandData = brands.find(
           (b) => b.name.toLowerCase() === brandName.toLowerCase()
         );
-        if (brandData?.images) {
-          if (typeof brandData.images === "string") {
-            return brandData.images;
-          }
-          if (typeof brandData.images === "object") {
-            const images = brandData.images as any;
-            return images.primary || images.logo || images.url || null;
-          }
-        }
-        return null;
+        return brandData?.image_url || null;
       })
       .filter((url): url is string => url !== null);
   }, [brands, partBrands]);

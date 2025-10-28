@@ -4736,23 +4736,55 @@ function POSPageContent() {
                     onClick={async () => {
                       setIsProcessingSettlement(true);
 
-                      // Simulate processing delay
-                      await new Promise((resolve) => setTimeout(resolve, 1500));
+                      try {
+                        // Call the settlement API
+                        const response = await fetch(
+                          "/api/settle-transaction",
+                          {
+                            method: "POST",
+                            headers: {
+                              "Content-Type": "application/json",
+                            },
+                            body: JSON.stringify({
+                              referenceNumber: settlementReference.trim(),
+                              cashierId: fetchedSettlementCashier.id,
+                              paymentMethod: "CASH",
+                            }),
+                          }
+                        );
 
-                      // Show success toast
-                      toast({
-                        title: "Settlement Processed",
-                        description: `Reference ${settlementReference} has been converted to a regular sale by ${fetchedSettlementCashier.name}.`,
-                      });
+                        const result = await response.json();
 
-                      // Reset and close
-                      setSettlementStep("reference");
-                      setSettlementReference("");
-                      setSettlementCashierId("");
-                      setSettlementCashierError(null);
-                      setFetchedSettlementCashier(null);
-                      setIsProcessingSettlement(false);
-                      setIsSettlementModalOpen(false);
+                        if (!response.ok || !result.success) {
+                          throw new Error(result.error || "Settlement failed");
+                        }
+
+                        // Show success toast
+                        toast({
+                          title: "Settlement Processed",
+                          description: `Reference ${settlementReference} has been converted to a regular sale by ${fetchedSettlementCashier.name}.`,
+                        });
+
+                        // Reset and close
+                        setSettlementStep("reference");
+                        setSettlementReference("");
+                        setSettlementCashierId("");
+                        setSettlementCashierError(null);
+                        setFetchedSettlementCashier(null);
+                        setIsProcessingSettlement(false);
+                        setIsSettlementModalOpen(false);
+                      } catch (error) {
+                        console.error("Settlement error:", error);
+                        toast({
+                          title: "Settlement Failed",
+                          description:
+                            error instanceof Error
+                              ? error.message
+                              : "Failed to process settlement. Please try again.",
+                          variant: "destructive",
+                        });
+                        setIsProcessingSettlement(false);
+                      }
                     }}
                     disabled={isProcessingSettlement}
                   >
