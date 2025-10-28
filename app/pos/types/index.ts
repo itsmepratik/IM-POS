@@ -21,6 +21,9 @@ export interface Product {
   category: "Filters" | "Parts" | "Additives & Fluids";
   brand?: string;
   type?: string;
+  imageUrl?: string;
+  availableQuantity?: number;
+  isAvailable?: boolean;
 }
 
 export interface LubricantProduct {

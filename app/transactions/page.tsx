@@ -58,7 +58,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { useStaffIDs } from "@/lib/hooks/useStaffIDs";
 
 interface TransactionDisplay extends Omit<Transaction, "items"> {
-  type: "sale" | "refund" | "credit" | "on-hold";
+  type: "sale" | "refund" | "credit" | "on-hold" | "stock-transfer";
   items: string[];
   customerName?: string;
   reference: string;
@@ -155,6 +155,8 @@ const TransactionCard = memo(
                       ? "text-orange-600"
                       : transaction.type === "on-hold"
                       ? "text-yellow-600"
+                      : transaction.type === "stock-transfer"
+                      ? "text-blue-600"
                       : "text-green-500"
                   }`}
                 >
@@ -166,6 +168,8 @@ const TransactionCard = memo(
                     ? "Credit"
                     : transaction.type === "on-hold"
                     ? "On Hold"
+                    : transaction.type === "stock-transfer"
+                    ? "Stock Transfer"
                     : "Sale"}
                 </span>
                 <span className="text-sm sm:text-base text-muted-foreground">
@@ -190,6 +194,8 @@ const TransactionCard = memo(
                     ? "text-blue-600"
                     : transaction.type === "on-hold"
                     ? "text-yellow-600"
+                    : transaction.type === "stock-transfer"
+                    ? "text-blue-600"
                     : "text-green-500"
                 }`}
               >
@@ -292,6 +298,8 @@ function FixedSalesCard({
           ? "bg-orange-600"
           : transaction.type === "on-hold"
           ? "bg-yellow-600"
+          : transaction.type === "stock-transfer"
+          ? "bg-blue-600"
           : "bg-green-600"
       }`}
     >
@@ -307,6 +315,8 @@ function FixedSalesCard({
             ? "Credit"
             : transaction.type === "on-hold"
             ? "On Hold"
+            : transaction.type === "stock-transfer"
+            ? "Stock Transfer"
             : "Sale"}
         </div>
         {transaction && (
@@ -846,6 +856,8 @@ export default function TransactionsPage() {
             ? "expensed"
             : t.type === "ON_HOLD"
             ? "on-hold"
+            : t.type === "STOCK_TRANSFER"
+            ? "transferred"
             : "completed",
         type:
           t.type === "REFUND"
@@ -856,6 +868,8 @@ export default function TransactionsPage() {
             ? "credit"
             : t.type === "ON_HOLD"
             ? "on-hold"
+            : t.type === "STOCK_TRANSFER"
+            ? "stock-transfer"
             : "sale",
         items: [`${t.items_sold?.length || 0} items`],
         customerName: customerName, // Use customer name from joined data
@@ -869,6 +883,8 @@ export default function TransactionsPage() {
             ? "Miscellaneous expense"
             : t.type === "ON_HOLD"
             ? `Car Plate: ${t.car_plate_number || "N/A"}`
+            : t.type === "STOCK_TRANSFER"
+            ? "Stock transfer between locations"
             : undefined,
         cashier: cashierName,
         receiptHtml: t.receipt_html,

@@ -2,7 +2,14 @@
 
 import React, { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, ChevronUp, Droplet } from "lucide-react";
+import { ChevronDown, ChevronUp, Droplet, ImageIcon } from "lucide-react";
+import Image from "next/image";
+import {
+  isValidImageUrl,
+  cacheImageValid,
+  cacheImageInvalid,
+} from "@/lib/utils/imageCache";
+import { ImageErrorFallback } from "@/components/ui/image-error-boundary";
 
 interface Product {
   id: number;
@@ -29,6 +36,89 @@ interface AdditivesFluidsCategoryProps {
   addToCart: (item: CartItem) => void;
   products: Product[];
   isLoading: boolean;
+}
+
+// Helper component for additive/fluid product images
+function AdditiveFluidImage({
+  imageUrl,
+  productName,
+}: {
+  imageUrl?: string;
+  productName: string;
+}) {
+  const [hasError, setHasError] = React.useState(false);
+
+  // Debug logging
+  React.useEffect(() => {
+    console.log(`[AdditiveFluidImage] ${productName}:`, {
+      imageUrl,
+      isValid: imageUrl ? isValidImageUrl(imageUrl) : false,
+    });
+  }, [imageUrl, productName]);
+
+  const handleError = React.useCallback(
+    (e?: React.SyntheticEvent<HTMLImageElement, Event>) => {
+      setHasError(true);
+      if (imageUrl) {
+        cacheImageInvalid(imageUrl);
+        console.warn(
+          `[AdditiveFluidImage] Failed to load: ${productName}`,
+          imageUrl
+        );
+      }
+      if (e) {
+        e.currentTarget.onerror = null;
+      }
+    },
+    [imageUrl, productName]
+  );
+
+  const handleLoad = React.useCallback(() => {
+    setHasError(false);
+    if (imageUrl) {
+      cacheImageValid(imageUrl);
+      console.log(
+        `[AdditiveFluidImage] Loaded successfully: ${productName}`,
+        imageUrl
+      );
+    }
+  }, [imageUrl, productName]);
+
+  // Show fallback icon if no valid image URL or error occurred
+  if (!imageUrl || !isValidImageUrl(imageUrl) || hasError) {
+    return (
+      <div className="w-12 h-12 flex-shrink-0 flex items-center justify-center rounded-md bg-muted/80">
+        <Droplet className="h-6 w-6 text-primary/70" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-12 h-12 flex-shrink-0 relative rounded-md overflow-hidden bg-muted/80">
+      <ImageErrorFallback
+        onError={(error) => {
+          console.error(
+            `[AdditiveFluidImage] Error boundary: ${productName}`,
+            error
+          );
+          handleError();
+        }}
+        className="w-full h-full"
+      >
+        <Image
+          src={imageUrl}
+          alt={productName}
+          className="object-contain p-1 transition-opacity duration-200"
+          fill
+          sizes="48px"
+          onError={handleError}
+          onLoad={handleLoad}
+          loading="lazy"
+          quality={85}
+        />
+      </ImageErrorFallback>
+    </div>
+  );
 }
 
 export function AdditivesFluidsCategory({
@@ -104,9 +194,12 @@ export function AdditivesFluidsCategory({
                       });
                     }}
                   >
-                    {/* Product icon with fixed dimensions */}
-                    <div className="w-12 h-12 mb-3 flex-shrink-0 flex items-center justify-center rounded-md bg-muted/80">
-                      <Droplet className="h-6 w-6 text-primary/70" />
+                    {/* Product image with fallback to icon */}
+                    <div className="mb-3">
+                      <AdditiveFluidImage
+                        imageUrl={product.imageUrl}
+                        productName={product.name}
+                      />
                     </div>
 
                     {/* Product information with proper text handling */}

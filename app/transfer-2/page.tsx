@@ -287,7 +287,7 @@ export default function Transfer2Page() {
   };
 
   // Handle submit transfer order
-  const handleSubmitTransfer = () => {
+  const handleSubmitTransfer = async () => {
     // Convert POS cart items to SaleItems
     const transferItems: SaleItem[] = posCart.map((item) => ({
       id: item.uniqueId,
@@ -299,36 +299,77 @@ export default function Transfer2Page() {
       brand: item.details || "Unknown",
     }));
 
-    const newOrder: SubmittedTransferOrder = {
-      id: `transfer2-${Date.now()}`,
-      transferId,
-      sourceLocation,
-      destinationLocation,
-      items: transferItems,
-      orderDate: new Date().toISOString(),
-      status: "pending",
-      submittedBy: "Current User", // TODO: Get from user context
-      targetDate,
-      receivedItems: [],
-      pendingItems: transferItems, // All items start as pending
-    };
-
-    setSubmittedOrders((prev) => [newOrder, ...prev]);
-    setPosCart([]);
-    setShowPOSInterface(false);
-    setConfirmSubmitDialogOpen(false);
-
-    // Generate new transfer ID for next order
-    setTransferId(
-      `T2-${Math.floor(Math.random() * 10000)
-        .toString()
-        .padStart(4, "0")}`
+    // Calculate total amount
+    const totalAmount = posCart.reduce(
+      (sum, item) => sum + item.price * item.quantity,
+      0
     );
 
-    toast({
-      title: "Transfer Order Submitted",
-      description: `Transfer ${transferId} has been submitted successfully`,
-    });
+    try {
+      // Create stock transfer transaction in the database
+      const response = await fetch("/api/stock-transfer", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          transferId,
+          sourceLocationId: sourceLocation,
+          destinationLocationId: destinationLocation,
+          cashierId: "SYSTEM", // TODO: Get from user context
+          items: posCart,
+          totalAmount,
+          targetDate,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!result.ok) {
+        throw new Error(
+          result.error || "Failed to create transfer transaction"
+        );
+      }
+
+      const newOrder: SubmittedTransferOrder = {
+        id: `transfer2-${Date.now()}`,
+        transferId,
+        sourceLocation,
+        destinationLocation,
+        items: transferItems,
+        orderDate: new Date().toISOString(),
+        status: "pending",
+        submittedBy: "Current User", // TODO: Get from user context
+        targetDate,
+        receivedItems: [],
+        pendingItems: transferItems, // All items start as pending
+      };
+
+      setSubmittedOrders((prev) => [newOrder, ...prev]);
+      setPosCart([]);
+      setShowPOSInterface(false);
+      setConfirmSubmitDialogOpen(false);
+
+      // Generate new transfer ID for next order
+      setTransferId(
+        `T2-${Math.floor(Math.random() * 10000)
+          .toString()
+          .padStart(4, "0")}`
+      );
+
+      toast({
+        title: "Transfer Order Submitted",
+        description: `Transfer ${transferId} has been submitted successfully and recorded in transactions`,
+      });
+    } catch (error: any) {
+      console.error("Error submitting transfer:", error);
+      toast({
+        title: "Error",
+        description:
+          error.message || "Failed to submit transfer order. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   // Handle order review

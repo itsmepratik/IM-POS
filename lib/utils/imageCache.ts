@@ -21,14 +21,47 @@ const MAX_ERROR_COUNT = 3; // Maximum errors before marking as invalid
 
 /**
  * Validates if a URL is a valid image URL
+ * Supports both static image URLs (with file extensions) and dynamic image URLs
  */
 export function isValidImageUrl(url: string): boolean {
   try {
     const parsedUrl = new URL(url);
-    return (
-      (parsedUrl.protocol === "http:" || parsedUrl.protocol === "https:") &&
-      /\.(jpg|jpeg|png|gif|webp|svg)(\?.*)?$/i.test(parsedUrl.pathname)
-    );
+
+    // Must be HTTP or HTTPS
+    if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
+      return false;
+    }
+
+    // Check if URL has a standard image file extension
+    const hasImageExtension =
+      /\.(jpg|jpeg|png|gif|webp|svg|bmp|ico)(\?.*)?$/i.test(parsedUrl.pathname);
+
+    // Check if URL is a dynamic image URL (common patterns)
+    const isDynamicImageUrl =
+      /\/image[s]?[/_]/i.test(parsedUrl.pathname) || // /image/, /images/, /image_
+      /\/media[/_]/i.test(parsedUrl.pathname) || // /media/, /media_
+      /\/assets[/_]/i.test(parsedUrl.pathname) || // /assets/, /assets_
+      /\/upload[s]?[/_]/i.test(parsedUrl.pathname) || // /upload/, /uploads/
+      /\/photo[s]?[/_]/i.test(parsedUrl.pathname) || // /photo/, /photos/
+      /\/picture[s]?[/_]/i.test(parsedUrl.pathname) || // /picture/, /pictures/
+      /product\.template/i.test(parsedUrl.pathname) || // Odoo-style: product.template
+      /image_\d+/i.test(parsedUrl.pathname); // image_1024, image_512, etc.
+
+    // Check if URL is from known image hosting services
+    const isKnownImageHost =
+      parsedUrl.hostname.includes("gstatic.com") || // Google images (encrypted-tbn0.gstatic.com)
+      parsedUrl.hostname.includes("googleusercontent.com") || // Google user content
+      parsedUrl.hostname.includes("imgur.com") || // Imgur
+      parsedUrl.hostname.includes("cloudinary.com") || // Cloudinary CDN
+      parsedUrl.hostname.includes("imagekit.io") || // ImageKit CDN
+      parsedUrl.hostname.includes("cloudflare.com") || // Cloudflare CDN
+      parsedUrl.hostname.includes("amazonaws.com") || // AWS S3
+      parsedUrl.hostname.includes("wp.com") || // WordPress.com
+      parsedUrl.hostname.includes("shopify.com") || // Shopify CDN
+      parsedUrl.hostname.includes("cdn") || // Generic CDN pattern
+      parsedUrl.hostname.includes("supabase.co"); // Supabase storage
+
+    return hasImageExtension || isDynamicImageUrl || isKnownImageHost;
   } catch {
     return false;
   }
