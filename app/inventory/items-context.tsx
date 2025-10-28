@@ -40,6 +40,7 @@ interface ItemsContextType {
   items: Item[];
   categories: string[];
   brands: string[];
+  brandObjects: Brand[];
   suppliers: Supplier[];
   categoryMap: Record<string, string>;
   brandMap: Record<string, string>;
@@ -58,9 +59,12 @@ interface ItemsContextType {
     newCategory: string
   ) => Promise<boolean>;
   deleteCategory: (category: string) => Promise<boolean>;
-  addBrand: (brand: string) => Promise<string | null>;
-  updateBrand: (oldBrand: string, newBrand: string) => Promise<boolean>;
-  deleteBrand: (brand: string) => Promise<boolean>;
+  addBrand: (brand: Omit<Brand, "id">) => Promise<string | null>;
+  updateBrand: (
+    id: string,
+    updates: Partial<Omit<Brand, "id">>
+  ) => Promise<boolean>;
+  deleteBrand: (id: string) => Promise<boolean>;
   addSupplier: (supplier: Omit<Supplier, "id">) => Promise<string | null>;
   updateSupplier: (
     id: string,
@@ -94,9 +98,12 @@ const ItemsContext = createContext<ItemsContextType>({
   items: [],
   categories: [],
   brands: [],
+  brandObjects: [],
   suppliers: [],
   categoryMap: {},
   brandMap: {},
+  showTradeIns: false,
+  setShowTradeIns: () => {},
   addItem: async () => null,
   updateItem: async () => null,
   deleteItem: async () => false,
@@ -133,6 +140,7 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
   const [items, setItems] = useState<Item[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [brands, setBrands] = useState<string[]>([]);
+  const [brandObjects, setBrandObjects] = useState<Brand[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [showTradeIns, setShowTradeIns] = useState(false);
@@ -184,8 +192,11 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
 
       // Load brands
       const brandsData = await fetchBrands();
+      console.log("📦 ItemsContext - Loaded brands from DB:", brandsData);
       const brandNames = brandsData.map((brand) => brand.name);
       setBrands(brandNames);
+      setBrandObjects(brandsData);
+      console.log("✅ ItemsContext - Set brandObjects:", brandsData);
       const brandMapInstance = new Map<string, string>();
       brandsData.forEach((brand) => brandMapInstance.set(brand.id, brand.name));
       setBrandMap(brandMapInstance);
@@ -499,16 +510,17 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  const addBrand = async (brand: string): Promise<string | null> => {
+  const addBrand = async (brand: Omit<Brand, "id">): Promise<string | null> => {
     try {
-      const newBrand = await addBrandService({ name: brand });
+      const newBrand = await addBrandService(brand);
       if (newBrand) {
-        setBrands((prev) => [...prev, brand]);
-        brandMap.set(newBrand.id, brand);
+        setBrands((prev) => [...prev, brand.name]);
+        setBrandObjects((prev) => [...prev, newBrand]);
+        brandMap.set(newBrand.id, brand.name);
         setBrandMap(new Map(brandMap));
         toast({
           title: "Brand added",
-          description: `${brand} has been added successfully.`,
+          description: `${brand.name} has been added successfully.`,
         });
         return newBrand.id;
       }
@@ -525,35 +537,35 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const updateBrand = async (
-    oldBrand: string,
-    newBrand: string
+    id: string,
+    updates: Partial<Omit<Brand, "id">>
   ): Promise<boolean> => {
     try {
-      // Find brand ID by name
-      let brandId: string | undefined;
-      for (const [id, name] of brandMap.entries()) {
-        if (name === oldBrand) {
-          brandId = id;
-          break;
-        }
-      }
-
-      if (!brandId) return false;
-
-      const updated = await updateBrandService(brandId, { name: newBrand });
+      const updated = await updateBrandService(id, updates);
       if (updated) {
-        setBrands((prev) =>
-          prev.map((brand) => (brand === oldBrand ? newBrand : brand))
+        // Update brand name in the brands array if name was changed
+        if (updates.name) {
+          const oldName = brandMap.get(id);
+          setBrands((prev) =>
+            prev.map((brand) => (brand === oldName ? updates.name! : brand))
+          );
+          brandMap.set(id, updates.name);
+          setBrandMap(new Map(brandMap));
+        }
+
+        // Update brandObjects array
+        setBrandObjects((prev) =>
+          prev.map((brand) =>
+            brand.id === id ? { ...brand, ...updates } : brand
+          )
         );
-        brandMap.set(brandId, newBrand);
-        setBrandMap(new Map(brandMap));
 
         // Refresh items to get updated brand names
         await refetchItems();
 
         toast({
           title: "Brand updated",
-          description: `Brand has been updated to ${newBrand}.`,
+          description: `Brand has been updated successfully.`,
         });
 
         return true;
@@ -570,36 +582,28 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  const deleteBrand = async (brand: string): Promise<boolean> => {
+  const deleteBrand = async (id: string): Promise<boolean> => {
     try {
-      // Find brand ID by name
-      let brandId: string | undefined;
-      for (const [id, name] of brandMap.entries()) {
-        if (name === brand) {
-          brandId = id;
-          break;
-        }
+      const brandName = brandMap.get(id);
+
+      await deleteBrandService(id);
+
+      if (brandName) {
+        setBrands((prev) => prev.filter((b) => b !== brandName));
       }
+      setBrandObjects((prev) => prev.filter((b) => b.id !== id));
+      brandMap.delete(id);
+      setBrandMap(new Map(brandMap));
 
-      if (!brandId) return false;
+      // Refresh items to get updated brand references
+      await refetchItems();
 
-      const success = await deleteBrandService(brandId);
-      if (success) {
-        setBrands((prev) => prev.filter((b) => b !== brand));
-        brandMap.delete(brandId);
-        setBrandMap(new Map(brandMap));
+      toast({
+        title: "Brand deleted",
+        description: "The brand has been removed.",
+      });
 
-        // Refresh items to get updated brand references
-        await refetchItems();
-
-        toast({
-          title: "Brand deleted",
-          description: "The brand has been removed.",
-        });
-
-        return true;
-      }
-      return false;
+      return true;
     } catch (error) {
       console.error("Error deleting brand:", error);
       toast({
@@ -822,6 +826,7 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
       items,
       categories,
       brands,
+      brandObjects,
       suppliers,
       categoryMap: mapToRecord(categoryMap),
       brandMap: mapToRecord(brandMap),
@@ -851,6 +856,7 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
       items,
       categories,
       brands,
+      brandObjects,
       suppliers,
       categoryMap,
       brandMap,

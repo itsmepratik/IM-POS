@@ -76,6 +76,7 @@ export type Brand = {
   id: string;
   name: string;
   images?: any; // JSONB field for storing brand images (URLs, metadata, etc.)
+  image_url?: string; // Computed from images.url for convenience
 };
 
 export type Supplier = {
@@ -757,7 +758,40 @@ export const fetchBrands = async (): Promise<Brand[]> => {
       return [];
     }
 
-    return data || [];
+    console.log(
+      "🔍 fetchBrands - Raw data from DB:",
+      JSON.stringify(data, null, 2)
+    );
+
+    // Map the data to extract image_url from images JSONB field
+    const brands = (data || []).map((brand: any) => {
+      console.log(`🔍 Processing brand "${brand.name}":`, {
+        hasImages: !!brand.images,
+        images: brand.images,
+        imageType: typeof brand.images,
+      });
+
+      return {
+        ...brand,
+        // Extract URL from images JSONB field if it exists
+        image_url:
+          brand.images?.url ||
+          brand.images?.image_url ||
+          brand.image_url ||
+          null,
+      };
+    });
+
+    console.log(
+      "✅ fetchBrands - Processed brands:",
+      JSON.stringify(
+        brands.map((b) => ({ name: b.name, image_url: b.image_url })),
+        null,
+        2
+      )
+    );
+
+    return brands;
   } catch (error) {
     console.error("Error in fetchBrands:", error);
     return [];
@@ -921,9 +955,15 @@ export const addBrandService = async (
   brand: Omit<Brand, "id">
 ): Promise<Brand> => {
   try {
+    // Prepare the images JSONB object from image_url
+    const images = brand.image_url ? { url: brand.image_url } : null;
+
     const { data, error } = await supabase
       .from("brands")
-      .insert({ name: brand.name })
+      .insert({
+        name: brand.name,
+        images: images,
+      })
       .select()
       .single();
 
@@ -932,7 +972,11 @@ export const addBrandService = async (
       throw new Error("Failed to add brand");
     }
 
-    return data;
+    // Return with image_url extracted from images
+    return {
+      ...data,
+      image_url: data.images?.url || data.images?.image_url || null,
+    };
   } catch (error) {
     console.error("Error in addBrandService:", error);
     throw error;
@@ -944,9 +988,21 @@ export const updateBrandService = async (
   updates: Partial<Brand>
 ): Promise<Brand> => {
   try {
+    // Prepare updates with images JSONB field
+    const dbUpdates: any = {};
+
+    if (updates.name !== undefined) {
+      dbUpdates.name = updates.name;
+    }
+
+    if (updates.image_url !== undefined) {
+      // Update the images JSONB field
+      dbUpdates.images = updates.image_url ? { url: updates.image_url } : null;
+    }
+
     const { data, error } = await supabase
       .from("brands")
-      .update(updates)
+      .update(dbUpdates)
       .eq("id", id)
       .select()
       .single();
@@ -956,7 +1012,11 @@ export const updateBrandService = async (
       throw new Error("Failed to update brand");
     }
 
-    return data;
+    // Return with image_url extracted from images
+    return {
+      ...data,
+      image_url: data.images?.url || data.images?.image_url || null,
+    };
   } catch (error) {
     console.error("Error in updateBrandService:", error);
     throw error;
