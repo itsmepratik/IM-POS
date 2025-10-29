@@ -949,14 +949,11 @@ export const addBrandService = async (
   brand: Omit<Brand, "id">
 ): Promise<Brand> => {
   try {
-    // Prepare the images JSONB object from image_url
-    const images = brand.image_url ? { url: brand.image_url } : null;
-
     const { data, error } = await supabase
       .from("brands")
       .insert({
         name: brand.name,
-        images: images,
+        image_url: brand.image_url || null,
       })
       .select()
       .single();
@@ -966,11 +963,7 @@ export const addBrandService = async (
       throw new Error("Failed to add brand");
     }
 
-    // Return with image_url extracted from images
-    return {
-      ...data,
-      image_url: data.images?.url || data.images?.image_url || null,
-    };
+    return data;
   } catch (error) {
     console.error("Error in addBrandService:", error);
     throw error;
@@ -982,7 +975,7 @@ export const updateBrandService = async (
   updates: Partial<Brand>
 ): Promise<Brand> => {
   try {
-    // Prepare updates with images JSONB field
+    // Prepare updates for direct image_url column
     const dbUpdates: any = {};
 
     if (updates.name !== undefined) {
@@ -990,9 +983,11 @@ export const updateBrandService = async (
     }
 
     if (updates.image_url !== undefined) {
-      // Update the images JSONB field
-      dbUpdates.images = updates.image_url ? { url: updates.image_url } : null;
+      // Update the image_url column directly
+      dbUpdates.image_url = updates.image_url || null;
     }
+
+    console.log("🔍 updateBrandService - Updating brand:", { id, dbUpdates });
 
     const { data, error } = await supabase
       .from("brands")
@@ -1003,14 +998,11 @@ export const updateBrandService = async (
 
     if (error) {
       console.error("Error updating brand:", error);
+      console.error("Error details:", JSON.stringify(error, null, 2));
       throw new Error("Failed to update brand");
     }
 
-    // Return with image_url extracted from images
-    return {
-      ...data,
-      image_url: data.images?.url || data.images?.image_url || null,
-    };
+    return data;
   } catch (error) {
     console.error("Error in updateBrandService:", error);
     throw error;

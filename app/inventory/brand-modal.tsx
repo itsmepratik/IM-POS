@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -10,8 +10,15 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useItems } from "./items-context";
-import { X, Loader2, Edit2, Plus, ImageIcon, Trash2 } from "lucide-react";
+import { X, Loader2, Edit2, Plus, ImageIcon, Trash2, ArrowUpDown } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
 import Image from "next/image";
@@ -23,7 +30,7 @@ interface BrandModalProps {
 }
 
 export default function BrandModal({ open, onOpenChange }: BrandModalProps) {
-  const { brandObjects, addBrand, updateBrand, deleteBrand } = useItems();
+  const { brandObjects, addBrand, updateBrand, deleteBrand, refetchItems } = useItems();
   const [newBrandName, setNewBrandName] = useState("");
   const [newBrandImage, setNewBrandImage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -31,6 +38,39 @@ export default function BrandModal({ open, onOpenChange }: BrandModalProps) {
   const [editName, setEditName] = useState("");
   const [editImage, setEditImage] = useState("");
   const [imageErrors, setImageErrors] = useState<Set<string>>(new Set());
+  const [sortBy, setSortBy] = useState<"name-asc" | "name-desc" | "image-first" | "image-last">("name-asc");
+
+  // Sort brands based on selected sort option
+  const sortedBrands = useMemo(() => {
+    const brands = [...brandObjects];
+    
+    switch (sortBy) {
+      case "name-asc":
+        return brands.sort((a, b) => a.name.localeCompare(b.name));
+      case "name-desc":
+        return brands.sort((a, b) => b.name.localeCompare(a.name));
+      case "image-first":
+        return brands.sort((a, b) => {
+          const aHasImage = !!a.image_url;
+          const bHasImage = !!b.image_url;
+          if (aHasImage === bHasImage) {
+            return a.name.localeCompare(b.name);
+          }
+          return bHasImage ? 1 : -1;
+        });
+      case "image-last":
+        return brands.sort((a, b) => {
+          const aHasImage = !!a.image_url;
+          const bHasImage = !!b.image_url;
+          if (aHasImage === bHasImage) {
+            return a.name.localeCompare(b.name);
+          }
+          return aHasImage ? 1 : -1;
+        });
+      default:
+        return brands;
+    }
+  }, [brandObjects, sortBy]);
 
   // Debug: Log brandObjects when modal opens or brandObjects change
   console.log("🔍 BrandModal - brandObjects:", brandObjects);
@@ -39,7 +79,6 @@ export default function BrandModal({ open, onOpenChange }: BrandModalProps) {
     brandObjects.map((b) => ({
       name: b.name,
       image_url: b.image_url,
-      images: b.images,
     }))
   );
 
@@ -63,6 +102,8 @@ export default function BrandModal({ open, onOpenChange }: BrandModalProps) {
       if (result) {
         setNewBrandName("");
         setNewBrandImage("");
+        // Refetch brands to get updated list immediately
+        await refetchItems();
       }
     } catch (error) {
       console.error("Error adding brand:", error);
@@ -92,6 +133,8 @@ export default function BrandModal({ open, onOpenChange }: BrandModalProps) {
         setEditingBrand(null);
         setEditName("");
         setEditImage("");
+        // Refetch brands to get updated list immediately
+        await refetchItems();
       }
     } catch (error) {
       console.error("Error updating brand:", error);
@@ -112,6 +155,8 @@ export default function BrandModal({ open, onOpenChange }: BrandModalProps) {
     setIsLoading(true);
     try {
       await deleteBrand(brand.id);
+      // Refetch brands to get updated list immediately
+      await refetchItems();
     } catch (error) {
       console.error("Error removing brand:", error);
     } finally {
@@ -205,14 +250,33 @@ export default function BrandModal({ open, onOpenChange }: BrandModalProps) {
 
           {/* Existing Brands Section */}
           <div className="space-y-3">
-            <h3 className="text-lg font-semibold flex items-center gap-2">
-              <span>Existing Brands</span>
-              <span className="text-sm font-normal text-muted-foreground">
-                ({brandObjects.length})
-              </span>
-            </h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold flex items-center gap-2">
+                <span>Existing Brands</span>
+                <span className="text-sm font-normal text-muted-foreground">
+                  ({sortedBrands.length})
+                </span>
+              </h3>
+              <div className="flex items-center gap-2">
+                <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
+                <Select 
+                  value={sortBy} 
+                  onValueChange={(value: "name-asc" | "name-desc" | "image-first" | "image-last") => setSortBy(value)}
+                >
+                  <SelectTrigger className="w-[200px]">
+                    <SelectValue placeholder="Sort by" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="name-asc">Name (A-Z)</SelectItem>
+                    <SelectItem value="name-desc">Name (Z-A)</SelectItem>
+                    <SelectItem value="image-first">With Images First</SelectItem>
+                    <SelectItem value="image-last">Without Images First</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
 
-            {brandObjects.length === 0 ? (
+            {sortedBrands.length === 0 ? (
               <Card>
                 <CardContent className="p-8 text-center">
                   <div className="flex flex-col items-center gap-3 text-muted-foreground">
@@ -223,7 +287,7 @@ export default function BrandModal({ open, onOpenChange }: BrandModalProps) {
               </Card>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {brandObjects.map((brand) => (
+                {sortedBrands.map((brand) => (
                   <Card
                     key={brand.id}
                     className={`hover:shadow-md transition-all ${
