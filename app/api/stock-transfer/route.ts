@@ -109,6 +109,15 @@ export async function POST(req: NextRequest) {
     }));
 
     // Create the stock transfer transaction
+    console.log("🔄 Creating stock transfer transaction:", {
+      referenceNumber,
+      sourceLocationId: actualSourceLocationId,
+      destinationLocationId: actualDestinationLocationId,
+      cashierId,
+      itemsCount: formattedItems.length,
+      totalAmount,
+    });
+
     const [transaction] = await db
       .insert(transactions)
       .values({
@@ -125,6 +134,12 @@ export async function POST(req: NextRequest) {
         originalReferenceNumber: null,
       })
       .returning();
+
+    console.log("✅ Stock transfer transaction created successfully:", {
+      id: transaction.id,
+      referenceNumber: transaction.referenceNumber,
+      type: transaction.type,
+    });
 
     return NextResponse.json(
       {

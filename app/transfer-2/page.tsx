@@ -202,6 +202,7 @@ export default function Transfer2Page() {
   const [showPOSInterface, setShowPOSInterface] = useState(false);
   const [posCart, setPosCart] = useState<POSCartItem[]>([]);
   const [isCustomBillLoading, setIsCustomBillLoading] = useState(false);
+  const [isSubmittingTransfer, setIsSubmittingTransfer] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [targetDate, setTargetDate] = useState<string>(
     new Date().toISOString().split("T")[0]
@@ -288,6 +289,32 @@ export default function Transfer2Page() {
 
   // Handle submit transfer order
   const handleSubmitTransfer = async () => {
+    // Prevent double submission
+    if (isSubmittingTransfer) {
+      return;
+    }
+
+    // Validate required fields
+    if (!sourceLocation || !destinationLocation) {
+      toast({
+        title: "Error",
+        description: "Please select both source and destination locations",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (posCart.length === 0) {
+      toast({
+        title: "Error",
+        description: "Please add items to transfer",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSubmittingTransfer(true);
+
     // Convert POS cart items to SaleItems
     const transferItems: SaleItem[] = posCart.map((item) => ({
       id: item.uniqueId,
@@ -306,6 +333,14 @@ export default function Transfer2Page() {
     );
 
     try {
+      console.log("🔄 Submitting transfer order:", {
+        transferId,
+        sourceLocation,
+        destinationLocation,
+        itemsCount: posCart.length,
+        totalAmount,
+      });
+
       // Create stock transfer transaction in the database
       const response = await fetch("/api/stock-transfer", {
         method: "POST",
@@ -323,11 +358,21 @@ export default function Transfer2Page() {
         }),
       });
 
+      // Check if response is ok
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.message || errorData.error || `HTTP ${response.status}: Failed to create transfer transaction`
+        );
+      }
+
       const result = await response.json();
+
+      console.log("✅ Transfer transaction created:", result);
 
       if (!result.ok) {
         throw new Error(
-          result.error || "Failed to create transfer transaction"
+          result.error || result.message || "Failed to create transfer transaction"
         );
       }
 
@@ -359,16 +404,18 @@ export default function Transfer2Page() {
 
       toast({
         title: "Transfer Order Submitted",
-        description: `Transfer ${transferId} has been submitted successfully and recorded in transactions`,
+        description: `Transfer ${transferId} has been submitted successfully. Transaction ${result.transaction?.referenceNumber || 'created'} has been recorded.`,
       });
     } catch (error: any) {
-      console.error("Error submitting transfer:", error);
+      console.error("❌ Error submitting transfer:", error);
       toast({
         title: "Error",
         description:
           error.message || "Failed to submit transfer order. Please try again.",
         variant: "destructive",
       });
+    } finally {
+      setIsSubmittingTransfer(false);
     }
   };
 
@@ -1192,12 +1239,20 @@ export default function Transfer2Page() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={isSubmittingTransfer}>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleSubmitTransfer}
-              className="bg-primary hover:bg-primary/90"
+              disabled={isSubmittingTransfer}
+              className="bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Submit Transfer Order
+              {isSubmittingTransfer ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Submitting...
+                </>
+              ) : (
+                "Submit Transfer Order"
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

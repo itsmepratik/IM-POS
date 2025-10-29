@@ -232,6 +232,13 @@ export function unifiedProductToPOSProduct(
     ? categoryMapping[product.categoryName] || "Parts"
     : "Parts";
 
+  // Debug: Log imageUrl transformation
+  if (product.imageUrl) {
+    console.log(`[unifiedProductToPOSProduct] Product ${product.name} has imageUrl:`, product.imageUrl);
+  } else {
+    console.log(`[unifiedProductToPOSProduct] Product ${product.name} has NO imageUrl`);
+  }
+
   return {
     id: generateNumericId(product.id),
     originalId: product.id,
@@ -263,6 +270,11 @@ export function unifiedProductToPOSLubricantProduct(
       availableQuantity: calculateVolumeStock(product, vol.size),
       bottleStates: product.bottleStates,
     })) || [];
+
+  // Debug: Log imageUrl transformation for lubricants
+  if (product.imageUrl) {
+    console.log(`[unifiedProductToPOSLubricantProduct] Product ${product.name} has imageUrl:`, product.imageUrl);
+  }
 
   return {
     id: generateNumericId(product.id),

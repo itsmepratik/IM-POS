@@ -26,18 +26,42 @@ export function ProductImage({
   size = "md",
   className = "",
 }: ProductImageProps) {
-  const [imgSrc, setImgSrc] = React.useState<string>("");
-  const [isLoading, setIsLoading] = React.useState(true);
-  const [errorCount, setErrorCount] = React.useState(0);
+  const [hasError, setHasError] = React.useState(false);
 
   // Size configurations
   const sizeConfig = {
     sm: { container: "w-8 h-8", icon: "h-4 w-4" },
     md: { container: "w-12 h-12", icon: "h-6 w-6" },
-    lg: { container: "w-16 h-16", icon: "h-8 w-8" },
+    lg: { container: "w-24 h-24", icon: "h-12 w-12" }, // Larger size for product cards
   };
 
   const currentSize = sizeConfig[size];
+
+  // Find the image URL from product data - prioritize database images
+  const productImageUrl = React.useMemo(() => {
+    return (
+      (product as any).imageUrl ||
+      (product as any).image ||
+      (product as any).image_url ||
+      null
+    );
+  }, [product]);
+
+  // Determine which image source to use
+  const imgSrc = React.useMemo(() => {
+    // Use database image if available and valid
+    if (productImageUrl && isValidImageUrl(productImageUrl)) {
+      console.log(`[ProductImage] Using image URL for ${product.name}:`, productImageUrl);
+      return productImageUrl;
+    }
+    // Otherwise return null to show fallback icon
+    if (productImageUrl) {
+      console.log(`[ProductImage] Invalid image URL for ${product.name}:`, productImageUrl);
+    } else {
+      console.log(`[ProductImage] No image URL for ${product.name}`);
+    }
+    return null;
+  }, [productImageUrl, product.name]);
 
   // If no image or all image attempts failed, show category-based icon
   const getCategoryIcon = () => {
@@ -70,140 +94,30 @@ export function ProductImage({
     }
   };
 
-  // Generate fallback paths
-  const generateFallbackPaths = () => {
-    const brandName = (product.brand || "generic")
-      .toLowerCase()
-      .replace(/[^a-z0-9]/g, "");
-    const categoryName = (product.category || "generic")
-      .toLowerCase()
-      .replace(/[^a-z0-9]/g, "");
-
-    const fallbackPaths: string[] = [];
-
-    // Try different image field names from product data first
-    const productImageUrls = [
-      (product as any).imageUrl,
-      (product as any).image,
-      (product as any).image_url,
-    ].filter(Boolean);
-
-    fallbackPaths.push(...productImageUrls);
-
-    // Brand-based images
-    fallbackPaths.push(
-      `/images/brands/${brandName}.png`,
-      `/images/brands/${brandName}.svg`,
-      `/images/brands/${brandName}.jpg`
-    );
-
-    // Category-based images
-    fallbackPaths.push(
-      `/images/products/${categoryName}.png`,
-      `/images/products/${categoryName}.svg`,
-      `/images/products/${categoryName}.jpg`
-    );
-
-    // Generic fallbacks
-    fallbackPaths.push(
-      `/images/products/generic.png`,
-      `/images/products/generic.svg`,
-      `/images/oil.png` // Ultimate fallback
-    );
-
-    return fallbackPaths;
-  };
-
-  // Set initial image source
-  React.useEffect(() => {
-    const setImageSource = async () => {
-      const fallbackPaths = generateFallbackPaths();
-
-      // Try each fallback path
-      for (const path of fallbackPaths) {
-        if (isValidImageUrl(path)) {
-          console.log(`[ProductImage] Trying: ${path}`);
-          try {
-            const response = await fetch(path, { method: "HEAD" });
-            if (response.ok) {
-              console.log(`[ProductImage] Found image: ${path}`);
-              setImgSrc(path);
-              setIsLoading(true);
-              return;
-            }
-          } catch (error) {
-            console.log(`[ProductImage] Fallback ${path} not available`);
-          }
-        }
+  const handleError = React.useCallback(
+    (e?: React.SyntheticEvent<HTMLImageElement, Event>) => {
+      setHasError(true);
+      if (imgSrc) {
+        cacheImageInvalid(imgSrc);
+        console.warn(`[ProductImage] Failed to load image for ${product.name}:`, imgSrc);
       }
-
-      // If no fallback found, show icon
-      console.log(
-        `[ProductImage] No images available for ${product.brand} ${product.name}`
-      );
-      setIsLoading(false);
-    };
-
-    setImageSource();
-  }, [product.brand, product.name, product.category]);
-
-  const handleError = React.useCallback(async () => {
-    console.warn(
-      `[ProductImage] Image error for ${product.brand} ${product.name}, current src: ${imgSrc}, error count: ${errorCount}`
-    );
-
-    setErrorCount((c) => c + 1);
-    setIsLoading(false);
-
-    // Mark current image as invalid
-    if (imgSrc) {
-      cacheImageInvalid(imgSrc);
-    }
-
-    const fallbackPaths = generateFallbackPaths();
-    const currentIndex = fallbackPaths.findIndex(
-      (path) =>
-        imgSrc.includes(path) || imgSrc.endsWith(path.split("/").pop() || "")
-    );
-    const nextIndex = currentIndex + 1;
-
-    if (nextIndex < fallbackPaths.length) {
-      const nextPath = fallbackPaths[nextIndex];
-      console.log(`[ProductImage] Trying next fallback: ${nextPath}`);
-      setImgSrc(nextPath);
-      setIsLoading(true);
-      return;
-    }
-
-    // If all attempts fail, show icon
-    console.log(
-      `[ProductImage] All fallback attempts failed for ${product.brand} ${product.name}`
-    );
-  }, [imgSrc, errorCount, product.brand, product.name]);
+      if (e) {
+        e.currentTarget.onerror = null;
+      }
+    },
+    [imgSrc, product.name]
+  );
 
   const handleLoad = React.useCallback(() => {
+    setHasError(false);
     if (imgSrc) {
       cacheImageValid(imgSrc);
+      console.log(`[ProductImage] Successfully loaded image for ${product.name}`);
     }
-    setIsLoading(false);
-    setErrorCount(0); // Reset error count on successful load
-  }, [imgSrc]);
+  }, [imgSrc, product.name]);
 
-  // Show loading state
-  if (isLoading) {
-    return (
-      <div
-        className={`flex items-center justify-center rounded-lg border-2 bg-muted ${currentSize.container} ${className}`}
-      >
-        <div className="opacity-50">
-          <Package className={currentSize.icon} />
-        </div>
-      </div>
-    );
-  }
-
-  // Show error state after all attempts
-  if (!imgSrc || errorCount >= generateFallbackPaths().length) {
+  // Show fallback icon if no image source or error occurred
+  if (!imgSrc || hasError) {
     return (
       <div
         className={`flex items-center justify-center rounded-lg border-2 ${getCategoryColor()} ${
@@ -215,15 +129,11 @@ export function ProductImage({
     );
   }
 
-  // If we have an image URL and haven't failed too many times, show the image
   return (
     <div className={`relative ${currentSize.container} ${className}`}>
       <ImageErrorFallback
         onError={(error) => {
-          console.error(
-            `Product image error for ${product.brand} ${product.name}:`,
-            error
-          );
+          console.error(`Product image error for ${product.brand} ${product.name}:`, error);
           handleError();
         }}
         className="w-full h-full"
@@ -231,14 +141,13 @@ export function ProductImage({
         <Image
           src={imgSrc}
           alt={`${product.brand || ""} ${product.name}`}
-          className="object-contain rounded-md bg-white shadow-sm"
+          className="object-contain rounded-md transition-opacity duration-200"
           fill
-          sizes={`${currentSize.container.replace("w-", "").replace("h-", "")}`}
+          sizes="(max-width: 768px) 96px, (max-width: 1024px) 128px, 192px"
           onError={handleError}
           onLoad={handleLoad}
           loading="lazy"
           quality={85}
-          crossOrigin="anonymous"
         />
       </ImageErrorFallback>
     </div>

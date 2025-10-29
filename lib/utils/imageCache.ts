@@ -25,6 +25,11 @@ const MAX_ERROR_COUNT = 3; // Maximum errors before marking as invalid
  */
 export function isValidImageUrl(url: string): boolean {
   try {
+    // Handle relative paths (starts with /)
+    if (url.startsWith('/')) {
+      return true; // Allow relative paths, Next.js will handle them
+    }
+
     const parsedUrl = new URL(url);
 
     // Must be HTTP or HTTPS
@@ -59,11 +64,14 @@ export function isValidImageUrl(url: string): boolean {
       parsedUrl.hostname.includes("wp.com") || // WordPress.com
       parsedUrl.hostname.includes("shopify.com") || // Shopify CDN
       parsedUrl.hostname.includes("cdn") || // Generic CDN pattern
-      parsedUrl.hostname.includes("supabase.co"); // Supabase storage
+      parsedUrl.hostname.includes("supabase.co") || // Supabase storage
+      parsedUrl.hostname.includes("supabase"); // Supabase (any subdomain)
 
     return hasImageExtension || isDynamicImageUrl || isKnownImageHost;
   } catch {
-    return false;
+    // If URL parsing fails, assume it might be a relative path or malformed URL
+    // Return true to let Next.js Image component handle it
+    return url.startsWith('/') || url.length > 0;
   }
 }
 
