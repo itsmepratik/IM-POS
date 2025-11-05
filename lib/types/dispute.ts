@@ -66,16 +66,8 @@ export type DisputeInput = z.infer<typeof DisputeInputSchema>;
 export type DisputeResponse = z.infer<typeof DisputeResponseSchema>;
 
 // Utility functions
-export function generateDisputeReferenceNumber(
-  disputeType: "REFUND" | "WARRANTY_CLAIM"
-): string {
-  const timestamp = Date.now().toString().slice(-8);
-  const random = Math.floor(Math.random() * 1000)
-    .toString()
-    .padStart(3, "0");
-  const prefix = disputeType === "REFUND" ? "REF" : "WAR";
-  return `${prefix}${timestamp}${random}`;
-}
+// Note: generateDisputeReferenceNumber() has been moved to lib/utils/reference-numbers.ts
+// to support sequential numbering with type-specific prefixes (WBX for warranty claims)
 
 export function calculateDisputeTotal(
   disputedItems: DisputedItem[],

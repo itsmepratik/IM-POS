@@ -406,7 +406,7 @@ export const RefundReceipt: React.FC<RefundReceiptProps> = ({
           <p>Thank you for shopping with us.</p>
           <p className="text-xs text-right text-gray-600">شكراً للتسوق معنا</p>
           <p className="font-medium mt-2">
-            WhatsApp 72702537 for latest offers
+            WhatsApp 93396309 for latest offers
           </p>
         </div>
       </div>

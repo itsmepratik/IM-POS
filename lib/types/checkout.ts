@@ -70,13 +70,8 @@ export type CheckoutInput = z.infer<typeof CheckoutInputSchema>;
 export type CheckoutResponse = z.infer<typeof CheckoutResponseSchema>;
 
 // Utility functions
-export function generateReferenceNumber(): string {
-  const timestamp = Date.now().toString().slice(-8);
-  const random = Math.floor(Math.random() * 1000)
-    .toString()
-    .padStart(3, "0");
-  return `TXN${timestamp}${random}`;
-}
+// Note: generateReferenceNumber() has been moved to lib/utils/reference-numbers.ts
+// to support sequential numbering with type-specific prefixes
 
 export function calculateCartTotal(cart: CartItem[]): number {
   return cart.reduce((sum, item) => sum + item.sellingPrice * item.quantity, 0);

@@ -5,10 +5,10 @@ import { transactions, inventory, products } from "@/lib/db/schema";
 import { eq, and, inArray } from "drizzle-orm";
 import {
   DisputeInputSchema,
-  generateDisputeReferenceNumber,
   calculateDisputeTotal,
   isBatteryDispute,
 } from "@/lib/types/dispute";
+import { generateReferenceNumber } from "@/lib/utils/reference-numbers";
 import {
   generateThermalReceipt,
   generateBatteryBill,
@@ -77,12 +77,19 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // 3. Generate dispute reference number and calculate total
-      const disputeReferenceNumber =
-        generateDisputeReferenceNumber(disputeType);
+      // 3. Check if dispute is for battery items
+      const isBattery = isBatteryDispute(disputedItems);
+
+      // 4. Generate sequential dispute reference number
+      // WARRANTY_CLAIM uses WBX prefix, REFUND uses A prefix (regular transaction)
+      const disputeReferenceNumber = await generateReferenceNumber(
+        disputeType,
+        isBattery,
+        disputeType === "REFUND" ? "CASH" : "WARRANTY_CLAIM"
+      );
       const totalAmount = calculateDisputeTotal(disputedItems, disputeType);
 
-      // 4. Create dispute transaction record
+      // 5. Create dispute transaction record
       const [disputeTransaction] = await tx
         .insert(transactions)
         .values({
@@ -164,8 +171,6 @@ export async function POST(req: NextRequest) {
         date: formatDate(now),
         time: formatTime(now),
       };
-
-      const isBattery = isBatteryDispute(disputedItems);
 
       let receiptHtml = "";
       let batteryBillHtml = "";

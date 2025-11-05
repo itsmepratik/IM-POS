@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/supabase/server";
+import { generateReferenceNumber } from "@/lib/utils/reference-numbers";
 
 // Settlement request schema
 const SettlementRequestSchema = z.object({
@@ -147,11 +148,23 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Step 5: Generate new reference number for settlement transaction
+    // Step 5: Generate new reference number for settlement transaction using sequential system
     const settlementType =
       originalTransaction.type === "ON_HOLD" ? "ON_HOLD_PAID" : "CREDIT_PAID";
-    const timestamp = Date.now();
-    const newReferenceNumber = `${settlementType}-${timestamp}`;
+    
+    // Check if original transaction was a battery sale by inspecting items
+    const itemsSold = originalTransaction.items_sold || [];
+    const isBatterySale = Array.isArray(itemsSold) && itemsSold.some((item: any) => {
+      const description = item.volumeDescription || item.name || "";
+      return description.toLowerCase().includes("battery");
+    });
+
+    // Generate sequential reference number (settlements use A prefix per plan)
+    const newReferenceNumber = await generateReferenceNumber(
+      settlementType,
+      isBatterySale,
+      paymentMethod
+    );
 
     console.log(
       `[${requestId}] Creating settlement transaction: ${newReferenceNumber}`

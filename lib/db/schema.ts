@@ -182,3 +182,11 @@ export const openBottleDetails = pgTable("open_bottle_details", {
   openedAt: timestamp("opened_at", { withTimezone: true }).defaultNow(),
   isEmpty: boolean("is_empty").default(false),
 });
+
+export const referenceNumberCounters = pgTable("reference_number_counters", {
+  prefix: text("prefix").primaryKey(),
+  counter: integer("counter").notNull().default(0),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});

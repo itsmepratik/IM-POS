@@ -20,9 +20,9 @@ import {
 import { eq, asc, and, inArray, gt } from "drizzle-orm";
 import {
   CheckoutInputSchema,
-  generateReferenceNumber,
   calculateFinalTotal,
 } from "@/lib/types/checkout";
+import { generateReferenceNumber } from "@/lib/utils/reference-numbers";
 import {
   generateThermalReceipt,
   generateBatteryBill,
@@ -301,9 +301,6 @@ export async function POST(req: NextRequest) {
       return item;
     });
 
-    // Generate reference number
-    const referenceNumber = generateReferenceNumber();
-
     // Calculate total amount
     const totalAmount = calculateFinalTotal(cart, tradeIns);
 
@@ -383,7 +380,7 @@ export async function POST(req: NextRequest) {
 
         console.log(`[${requestId}] Location verified: ${locationExists.id}`);
 
-        // 2. Create transaction record
+        // 2. Determine transaction type and generate reference number
         let transactionType = "SALE";
         if (paymentMethod.toLowerCase() === "credit") {
           transactionType = "CREDIT";
@@ -393,6 +390,13 @@ export async function POST(req: NextRequest) {
         ) {
           transactionType = "ON_HOLD";
         }
+
+        // Generate sequential reference number based on transaction type and battery sale
+        const referenceNumber = await generateReferenceNumber(
+          transactionType,
+          isBatterySale,
+          paymentMethod
+        );
 
         const transactionData = {
           referenceNumber,

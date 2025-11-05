@@ -612,7 +612,7 @@ function Receipt({ transaction }: { transaction: TransactionDisplay | null }) {
               </div>
               
               <div class="whatsapp">
-                WhatsApp 72702537 for latest offers
+                WhatsApp 93396309 for latest offers
               </div>
               
               <div class="barcode">

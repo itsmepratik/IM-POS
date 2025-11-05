@@ -2448,6 +2448,7 @@ function POSPageContent() {
     id: string;
     name: string;
   } | null>(null);
+  const [settlementError, setSettlementError] = useState<string | null>(null);
 
   // Miscellaneous deduction modal state
   const [isMiscellaneousDialogOpen, setIsMiscellaneousDialogOpen] =
@@ -3313,6 +3314,7 @@ function POSPageContent() {
                       setShowOtherOptions(false);
                       setIsOnHoldMode(false);
                       setCarPlateNumber("");
+                      setPaymentRecipient(null);
                     }}
                   >
                     <Banknote className="w-6 h-6" />
@@ -3359,6 +3361,7 @@ function POSPageContent() {
                         setSelectedPaymentMethod("card");
                         setIsOnHoldMode(false);
                         setCarPlateNumber("");
+                        setPaymentRecipient(null);
                       }}
                     >
                       <CreditCard className="w-6 h-6" />
@@ -3379,6 +3382,7 @@ function POSPageContent() {
                         setSelectedPaymentMethod("on-hold");
                         setIsOnHoldMode(true);
                         setCarPlateNumber("");
+                        setPaymentRecipient(null);
                       }}
                     >
                       <Ticket className="w-6 h-6" />
@@ -3399,6 +3403,7 @@ function POSPageContent() {
                         setSelectedPaymentMethod("credit");
                         setIsOnHoldMode(false);
                         setCarPlateNumber("");
+                        setPaymentRecipient(null);
                       }}
                     >
                       <Receipt className="w-6 h-6" />
@@ -3424,6 +3429,39 @@ function POSPageContent() {
                         className="w-full h-10 px-3 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                         maxLength={10}
                       />
+                    </div>
+                  )}
+
+                  {/* Payment recipient selection - only show for mobile payments */}
+                  {selectedPaymentMethod === "mobile" && (
+                    <div className="w-full mb-4">
+                      <div className="text-sm font-medium text-gray-600 mb-2">
+                        Select payment recipient:
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        {staffMembers
+                          .filter(
+                            (staff) => staff.id === "0020" || staff.id === "0010"
+                          )
+                          .map((staff) => (
+                            <Button
+                              key={staff.id}
+                              variant={
+                                paymentRecipient === staff.name
+                                  ? "default"
+                                  : "outline"
+                              }
+                              className={cn(
+                                "h-10 text-center",
+                                paymentRecipient === staff.name &&
+                                  "ring-2 ring-primary"
+                              )}
+                              onClick={() => setPaymentRecipient(staff.name)}
+                            >
+                              {staff.id === "0010" ? "Foreman" : staff.name}
+                            </Button>
+                          ))}
+                      </div>
                     </div>
                   )}
 
@@ -3953,39 +3991,6 @@ function POSPageContent() {
                 <div className="text-muted-foreground mb-4">
                   ID: {fetchedCashier.id}
                 </div>
-
-                {/* Payment recipient selection - only show for mobile payments */}
-                {selectedPaymentMethod === "mobile" && (
-                  <div className="w-full mb-4">
-                    <div className="text-sm font-medium text-center mb-2">
-                      Select payment recipient:
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      {staffMembers
-                        .filter(
-                          (staff) => staff.id === "0020" || staff.id === "0010"
-                        )
-                        .map((staff) => (
-                          <Button
-                            key={staff.id}
-                            variant={
-                              paymentRecipient === staff.name
-                                ? "default"
-                                : "outline"
-                            }
-                            className={cn(
-                              "h-10 text-center",
-                              paymentRecipient === staff.name &&
-                                "ring-2 ring-primary"
-                            )}
-                            onClick={() => setPaymentRecipient(staff.name)}
-                          >
-                            {staff.id === "0010" ? "Foreman" : staff.name}
-                          </Button>
-                        ))}
-                    </div>
-                  </div>
-                )}
 
                 <Button
                   className="w-full h-12 text-base"
@@ -4532,6 +4537,7 @@ function POSPageContent() {
             setSettlementReference("");
             setSettlementCashierId("");
             setSettlementCashierError(null);
+            setSettlementError(null);
             setFetchedSettlementCashier(null);
             setIsProcessingSettlement(false);
           }
@@ -4646,9 +4652,9 @@ function POSPageContent() {
                     Verify ID
                   </Button>
                 </form>
-                {settlementCashierError && (
+                {(settlementCashierError || settlementError) && (
                   <div className="text-destructive text-sm mt-2">
-                    {settlementCashierError}
+                    {settlementCashierError || settlementError}
                   </div>
                 )}
                 <Button
@@ -4759,31 +4765,41 @@ function POSPageContent() {
                           throw new Error(result.error || "Settlement failed");
                         }
 
-                        // Show success toast
-                        toast({
-                          title: "Settlement Processed",
-                          description: `Reference ${settlementReference} has been converted to a regular sale by ${fetchedSettlementCashier.name}.`,
-                        });
+                      // Show success toast
+                      toast({
+                        title: "Settlement Processed",
+                        description: `Reference ${settlementReference} has been converted to a regular sale by ${fetchedSettlementCashier.name}.`,
+                      });
 
-                        // Reset and close
-                        setSettlementStep("reference");
-                        setSettlementReference("");
-                        setSettlementCashierId("");
-                        setSettlementCashierError(null);
-                        setFetchedSettlementCashier(null);
-                        setIsProcessingSettlement(false);
-                        setIsSettlementModalOpen(false);
+                      // Reset and close
+                      setSettlementStep("reference");
+                      setSettlementReference("");
+                      setSettlementCashierId("");
+                      setSettlementCashierError(null);
+                        setSettlementError(null);
+                      setFetchedSettlementCashier(null);
+                      setIsProcessingSettlement(false);
+                      setIsSettlementModalOpen(false);
                       } catch (error) {
                         console.error("Settlement error:", error);
+                        const errorMessage = error instanceof Error
+                          ? error.message
+                          : "Failed to process settlement. Please try again.";
+
                         toast({
                           title: "Settlement Failed",
-                          description:
-                            error instanceof Error
-                              ? error.message
-                              : "Failed to process settlement. Please try again.",
+                          description: errorMessage,
                           variant: "destructive",
                         });
+
+                        // Set error state to show in modal
+                        setSettlementError(errorMessage);
                         setIsProcessingSettlement(false);
+
+                        // Go back to cashier ID step for retry
+                        setSettlementStep("id");
+                        setFetchedSettlementCashier(null);
+                        setSettlementCashierId("");
                       }
                     }}
                     disabled={isProcessingSettlement}
