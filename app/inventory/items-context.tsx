@@ -149,7 +149,7 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
   ); // id -> name
   const [brandMap, setBrandMap] = useState<Map<string, string>>(new Map()); // id -> name
 
-  const { currentBranch } = useBranch();
+  const { currentBranch, inventoryLocationId } = useBranch();
 
   // Helper function to convert Map to Record
   const mapToRecord = (map: Map<string, string>): Record<string, string> => {
@@ -162,22 +162,47 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
 
   // Load data from Supabase on mount and when branch changes
   useEffect(() => {
-    if (currentBranch?.id) {
+    // Use inventoryLocationId if available (for shops sharing inventory), otherwise use currentBranch.id
+    // But since currentBranch.id is now a shop_id, we need to use inventoryLocationId
+    const locationIdForInventory = inventoryLocationId || currentBranch?.id;
+    if (locationIdForInventory) {
       loadData();
     }
-  }, [currentBranch?.id]);
+  }, [currentBranch?.id, inventoryLocationId]);
 
   const loadData = async () => {
     try {
       setIsLoading(true);
 
-      if (!currentBranch?.id) {
-        console.warn("No current branch selected");
+      // Use inventoryLocationId if available (for shops sharing inventory)
+      // Otherwise, derive location from shop if currentBranch is a shop
+      let locationIdForInventory = inventoryLocationId;
+
+      if (!locationIdForInventory && currentBranch?.id) {
+        // Try to derive location from shop
+        try {
+          const { fetchShops } = await import("@/lib/services/inventoryService");
+          const shops = await fetchShops();
+          const shop = shops.find((s) => s.id === currentBranch.id);
+          if (shop) {
+            locationIdForInventory = shop.locationId;
+            console.log(
+              `📦 Derived location ${locationIdForInventory} from shop ${currentBranch.name}`
+            );
+          }
+        } catch (error) {
+          console.error("Error deriving location from shop:", error);
+        }
+      }
+
+      if (!locationIdForInventory) {
+        console.warn("No location ID available for inventory query");
+        setItems([]);
         return;
       }
 
-      // Load items for current branch
-      const itemsData = await fetchItems(currentBranch.id);
+      // Load items for the location
+      const itemsData = await fetchItems(locationIdForInventory);
       setItems(itemsData);
 
       // Load categories
@@ -226,10 +251,26 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
 
   const addItem = async (item: Omit<Item, "id">): Promise<Item | null> => {
     try {
-      if (!currentBranch?.id) {
+      // Use inventoryLocationId if available, otherwise derive from shop
+      let locationIdForInventory = inventoryLocationId;
+
+      if (!locationIdForInventory && currentBranch?.id) {
+        try {
+          const { fetchShops } = await import("@/lib/services/inventoryService");
+          const shops = await fetchShops();
+          const shop = shops.find((s) => s.id === currentBranch.id);
+          if (shop) {
+            locationIdForInventory = shop.locationId;
+          }
+        } catch (error) {
+          console.error("Error deriving location from shop:", error);
+        }
+      }
+
+      if (!locationIdForInventory) {
         toast({
           title: "Error",
-          description: "No branch selected.",
+          description: "No location available for inventory.",
           variant: "destructive",
         });
         return null;
@@ -237,7 +278,7 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
 
       const newItem = await createItem({
         ...item,
-        location_id: currentBranch.id,
+        location_id: locationIdForInventory,
       });
       if (newItem) {
         setItems((prev) => [...prev, newItem]);
@@ -340,10 +381,26 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
 
   const duplicateItem = async (id: string): Promise<Item | null> => {
     try {
-      if (!currentBranch?.id) {
+      // Use inventoryLocationId if available, otherwise derive from shop
+      let locationIdForInventory = inventoryLocationId;
+
+      if (!locationIdForInventory && currentBranch?.id) {
+        try {
+          const { fetchShops } = await import("@/lib/services/inventoryService");
+          const shops = await fetchShops();
+          const shop = shops.find((s) => s.id === currentBranch.id);
+          if (shop) {
+            locationIdForInventory = shop.locationId;
+          }
+        } catch (error) {
+          console.error("Error deriving location from shop:", error);
+        }
+      }
+
+      if (!locationIdForInventory) {
         toast({
           title: "Error",
-          description: "No branch selected.",
+          description: "No location available for inventory.",
           variant: "destructive",
         });
         return null;
@@ -363,7 +420,7 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
       const duplicateData = {
         ...originalItem,
         name: `${originalItem.name} (Copy)`,
-        location_id: currentBranch.id,
+        location_id: locationIdForInventory,
       };
       delete (duplicateData as any).id; // Remove id to create new item
 

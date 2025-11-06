@@ -840,39 +840,78 @@ CREATE TABLE IF NOT EXISTS public.suppliers (
   }
 };
 
-// Fetch branches
-export const fetchBranches = async (): Promise<Branch[]> => {
+// Fetch shops (logical business units within locations)
+export const fetchShops = async (): Promise<Array<{
+  id: string;
+  name: string;
+  displayName: string | null;
+  locationId: string;
+  locationName: string;
+  isActive: boolean;
+}>> => {
   try {
     const { data, error } = await supabase
-      .from("locations")
-      .select("*")
+      .from("shops")
+      .select(`
+        id,
+        name,
+        display_name,
+        location_id,
+        is_active,
+        locations!inner (
+          id,
+          name
+        )
+      `)
+      .eq("is_active", true)
       .order("name");
 
     if (error) {
-      console.error("Error fetching branches:", error);
+      console.error("Error fetching shops:", error);
       return [];
     }
 
-    const branches = (data || []).map((location) => ({
-      id: location.id,
-      name: location.name,
-      address: location.address || "",
-      created_at: location.created_at,
-      updated_at: location.updated_at,
+    const shops = (data || []).map((shop: any) => ({
+      id: shop.id,
+      name: shop.name,
+      displayName: shop.display_name || shop.name,
+      locationId: shop.location_id,
+      locationName: shop.locations?.name || "",
+      isActive: shop.is_active,
     }));
 
-    // Prioritize Sanaiya as the main branch (first in the list)
-    // This ensures main inventory displays Sanaiya items by default
-    const sanaiyaIndex = branches.findIndex((branch) =>
-      branch.name.toLowerCase().includes("sanaiya")
+    return shops;
+  } catch (error) {
+    console.error("Error in fetchShops:", error);
+    return [];
+  }
+};
+
+// Fetch branches (kept for backward compatibility, but now uses shops)
+export const fetchBranches = async (): Promise<Branch[]> => {
+  try {
+    // Use shops instead of locations for better semantics
+    const shops = await fetchShops();
+    
+    // Transform shops to Branch format for backward compatibility
+    const branches: Branch[] = shops.map((shop) => ({
+      id: shop.id,
+      name: shop.displayName || shop.name,
+      address: shop.locationName || "",
+      created_at: "", // Not available in shops table
+      updated_at: "", // Not available in shops table
+    }));
+
+    // Prioritize Saniya1 as the main branch (first in the list)
+    const saniya1Index = branches.findIndex((branch) =>
+      branch.name.toLowerCase().includes("saniya1")
     );
 
-    if (sanaiyaIndex > 0) {
-      // Move Sanaiya to the front
-      const sanaiyaBranch = branches.splice(sanaiyaIndex, 1)[0];
-      branches.unshift(sanaiyaBranch);
+    if (saniya1Index > 0) {
+      const saniya1Branch = branches.splice(saniya1Index, 1)[0];
+      branches.unshift(saniya1Branch);
       console.log(
-        "✅ Prioritized Sanaiya as main branch for inventory display"
+        "✅ Prioritized Saniya1 as main branch for inventory display"
       );
     }
 

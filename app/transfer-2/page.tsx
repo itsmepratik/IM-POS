@@ -313,6 +313,17 @@ export default function Transfer2Page() {
       return;
     }
 
+    // Validate that all items have originalId (UUID)
+    const itemsWithoutOriginalId = posCart.filter(item => !item.originalId);
+    if (itemsWithoutOriginalId.length > 0) {
+      toast({
+        title: "Error",
+        description: `Some items are missing product information. Please remove and re-add: ${itemsWithoutOriginalId.map(i => i.name).join(", ")}`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsSubmittingTransfer(true);
 
     // Convert POS cart items to SaleItems
@@ -339,6 +350,11 @@ export default function Transfer2Page() {
         destinationLocation,
         itemsCount: posCart.length,
         totalAmount,
+        items: posCart.map(item => ({
+          id: item.id,
+          originalId: item.originalId,
+          name: item.name,
+        })),
       });
 
       // Create stock transfer transaction in the database
@@ -352,7 +368,19 @@ export default function Transfer2Page() {
           sourceLocationId: sourceLocation,
           destinationLocationId: destinationLocation,
           cashierId: "SYSTEM", // TODO: Get from user context
-          items: posCart,
+          items: posCart.map(item => {
+            if (!item.originalId) {
+              throw new Error(`Item ${item.name} is missing originalId (UUID)`);
+            }
+            return {
+              id: item.id,
+              originalId: item.originalId, // Include UUID for database operations
+              name: item.name,
+              price: item.price,
+              quantity: item.quantity,
+              details: item.details,
+            };
+          }),
           totalAmount,
           targetDate,
         }),
@@ -414,6 +442,7 @@ export default function Transfer2Page() {
           error.message || "Failed to submit transfer order. Please try again.",
         variant: "destructive",
       });
+      // Don't close the dialog on error - let user see the error and retry
     } finally {
       setIsSubmittingTransfer(false);
     }
@@ -1223,38 +1252,52 @@ export default function Transfer2Page() {
       {/* Submit Transfer Confirmation Dialog */}
       <AlertDialog
         open={confirmSubmitDialogOpen}
-        onOpenChange={setConfirmSubmitDialogOpen}
+        onOpenChange={(open) => {
+          // Prevent closing dialog while submitting
+          if (!open && isSubmittingTransfer) {
+            return;
+          }
+          setConfirmSubmitDialogOpen(open);
+        }}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Submit Transfer Order</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will submit a transfer order for {posCart.length} items from{" "}
-              {locations.find((l) => l.id === sourceLocation)?.name ||
-                "Unknown"}{" "}
-              to{" "}
-              {locations.find((l) => l.id === destinationLocation)?.name ||
-                "Unknown"}
-              . Continue?
-            </AlertDialogDescription>
+            <AlertDialogTitle>
+              {isSubmittingTransfer ? "Submitting Transfer Order..." : "Submit Transfer Order"}
+            </AlertDialogTitle>
+            {isSubmittingTransfer ? (
+              <div className="flex flex-col items-center justify-center py-4 space-y-4">
+                <div className="relative">
+                  <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                </div>
+                <p className="text-sm text-muted-foreground text-center">
+                  Processing transfer order and updating inventory...
+                </p>
+              </div>
+            ) : (
+              <AlertDialogDescription>
+                This will submit a transfer order for {posCart.length} items from{" "}
+                {locations.find((l) => l.id === sourceLocation)?.name ||
+                  "Unknown"}{" "}
+                to{" "}
+                {locations.find((l) => l.id === destinationLocation)?.name ||
+                  "Unknown"}
+                . Continue?
+              </AlertDialogDescription>
+            )}
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isSubmittingTransfer}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleSubmitTransfer}
-              disabled={isSubmittingTransfer}
-              className="bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isSubmittingTransfer ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Submitting...
-                </>
-              ) : (
-                "Submit Transfer Order"
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
+          {!isSubmittingTransfer && (
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isSubmittingTransfer}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleSubmitTransfer}
+                disabled={isSubmittingTransfer}
+                className="bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Submit Transfer Order
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          )}
         </AlertDialogContent>
       </AlertDialog>
 

@@ -161,11 +161,13 @@ function ProfileMenu() {
   const handleLogout = async () => {
     try {
       await signOut();
-      router.push("/login");
+      // Small delay to ensure state is fully cleared before navigation
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      router.replace("/login");
     } catch (error) {
       console.error("Logout error:", error);
       // Fallback: still redirect even if logout fails
-      router.push("/login");
+      router.replace("/login");
     }
   };
 

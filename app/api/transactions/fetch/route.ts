@@ -49,6 +49,8 @@ export async function GET(req: Request) {
         items_sold,
         payment_method,
         car_plate_number,
+        mobile_payment_account,
+        mobile_number,
         receipt_html,
         battery_bill_html,
         original_reference_number,
@@ -59,6 +61,11 @@ export async function GET(req: Request) {
           name,
           email,
           phone
+        ),
+        shops (
+          id,
+          name,
+          display_name
         )
       `
       )

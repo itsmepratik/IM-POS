@@ -16,6 +16,22 @@ export const locations = pgTable("locations", {
   name: text("name").notNull(),
 });
 
+export const shops = pgTable("shops", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  locationId: uuid("location_id")
+    .notNull()
+    .references(() => locations.id, { onDelete: "restrict" }),
+  displayName: text("display_name"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+// Type inference for shops table
+export type Shop = typeof shops.$inferSelect;
+export type NewShop = typeof shops.$inferInsert;
+
 export const categories = pgTable("categories", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull().unique(),
@@ -100,7 +116,7 @@ export const transactions = pgTable("transactions", {
   locationId: uuid("location_id")
     .notNull()
     .references(() => locations.id, { onDelete: "restrict" }),
-  shopId: uuid("shop_id").references(() => locations.id, {
+  shopId: uuid("shop_id").references(() => shops.id, {
     onDelete: "restrict",
   }),
   cashierId: text("cashier_id"), // Changed back to text to support staff IDs like "0010"
@@ -109,6 +125,8 @@ export const transactions = pgTable("transactions", {
   itemsSold: jsonb("items_sold").$type<unknown[]>(),
   paymentMethod: text("payment_method"),
   carPlateNumber: text("car_plate_number"), // For 'on hold' transactions
+  mobilePaymentAccount: text("mobile_payment_account"), // Account used for mobile payment (Adanan or Forman)
+  mobileNumber: text("mobile_number"), // Mobile number used for the transaction
   receiptHtml: text("receipt_html"),
   batteryBillHtml: text("battery_bill_html"),
   originalReferenceNumber: text("original_reference_number"),

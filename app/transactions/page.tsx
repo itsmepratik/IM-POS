@@ -56,6 +56,8 @@ import {
 import { useSettingsUsers } from "@/lib/hooks/data/useSettingsUsers";
 import { useToast } from "@/components/ui/use-toast";
 import { useStaffIDs } from "@/lib/hooks/useStaffIDs";
+import { useBranch } from "@/lib/contexts/DataProvider";
+import { fetchShops } from "@/lib/services/inventoryService";
 
 interface TransactionDisplay extends Omit<Transaction, "items"> {
   type:
@@ -77,6 +79,9 @@ interface TransactionDisplay extends Omit<Transaction, "items"> {
   batteryBillHtml?: string | null;
   carPlateNumber?: string | null;
   originalReference?: string | null;
+  shopName?: string | null;
+  mobilePaymentAccount?: string | null;
+  mobileNumber?: string | null;
 }
 
 type DayTime = "morning" | "evening" | "full";
@@ -112,11 +117,7 @@ const yearlyOptions = [
   { value: "2021", label: "2021" },
 ] as const;
 
-const stores = [
-  { id: "all-stores", name: "All Stores" },
-  { id: "sanaiya-1", name: "Sanaiya 1" },
-  { id: "sanaiya-2", name: "Sanaiya 2" },
-] as const;
+// Stores will be dynamically loaded from database
 
 // Create a function to generate the cashiers array from staffMembers
 const useCashiersSelect = () => {
@@ -267,6 +268,38 @@ const TransactionCard = memo(
                     {transaction.cashier}
                   </span>
                 </div>
+                {transaction.shopName && (
+                  <div>
+                    <span className="text-muted-foreground">Shop:</span>
+                    <span className="ml-1.5 sm:ml-2.5 font-medium">
+                      {transaction.shopName}
+                    </span>
+                  </div>
+                )}
+                {transaction.mobilePaymentAccount && (
+                  <div>
+                    <span className="text-muted-foreground">Account:</span>
+                    <span className="ml-1.5 sm:ml-2.5 font-medium">
+                      {transaction.mobilePaymentAccount}
+                    </span>
+                  </div>
+                )}
+                {transaction.mobileNumber && (
+                  <div>
+                    <span className="text-muted-foreground">Mobile:</span>
+                    <span className="ml-1.5 sm:ml-2.5 font-medium">
+                      {transaction.mobileNumber}
+                    </span>
+                  </div>
+                )}
+                {(transaction.type === "on-hold" || transaction.carPlateNumber) && transaction.carPlateNumber && (
+                  <div>
+                    <span className="text-muted-foreground">Car Plate:</span>
+                    <span className="ml-1.5 sm:ml-2.5 font-medium">
+                      {transaction.carPlateNumber}
+                    </span>
+                  </div>
+                )}
                 {transaction.notes && (
                   <div>
                     <span className="text-muted-foreground">Notes:</span>
@@ -744,6 +777,47 @@ export default function TransactionsPage() {
   const [timeOfDay, setTimeOfDay] = useState<DayTime>("full");
   const [selectedStore, setSelectedStore] = useState("all-stores");
   const [selectedCashier, setSelectedCashier] = useState("all-cashiers");
+  const [stores, setStores] = useState<Array<{ id: string; name: string }>>([
+    { id: "all-stores", name: "All Stores" },
+  ]);
+  const [isLoadingStores, setIsLoadingStores] = useState(true);
+
+  const { branches } = useBranch();
+
+  // Fetch stores from database
+  useEffect(() => {
+    const loadStores = async () => {
+      try {
+        setIsLoadingStores(true);
+        // Use fetchShops instead of fetchBranches to get shops
+        const { fetchShops } = await import("@/lib/services/inventoryService");
+        const allShops = await fetchShops();
+        
+        // Transform shops to store format
+        const shopStores = allShops.map((shop) => ({
+          id: shop.id,
+          name: shop.displayName || shop.name,
+        }));
+
+        setStores([
+          { id: "all-stores", name: "All Stores" },
+          ...shopStores,
+        ]);
+      } catch (error) {
+        console.error("Error loading stores:", error);
+        // Fallback to default stores with actual shop UUIDs
+        setStores([
+          { id: "all-stores", name: "All Stores" },
+          { id: "9d188fe2-201f-434a-bac3-8ee86240202e", name: "Saniya1" },
+          { id: "937689e9-6bb7-4942-a007-d744624f1a4f", name: "Saniya2" },
+        ]);
+      } finally {
+        setIsLoadingStores(false);
+      }
+    };
+
+    loadStores();
+  }, []);
 
   // Use the new API hook
   const {
@@ -857,6 +931,9 @@ export default function TransactionsPage() {
       // Extract customer name from joined data
       const customerName = t.customers?.name || "Anonymous";
 
+      // Extract shop name from joined data
+      const shopName = t.shops?.display_name || t.shops?.name || null;
+
       // Debug: Log if we have a customer_id but no customer name
       if (t.customer_id && !t.customers?.name) {
         console.warn("⚠️ Transaction has customer_id but no customer data:", {
@@ -928,6 +1005,9 @@ export default function TransactionsPage() {
         batteryBillHtml: t.battery_bill_html,
         carPlateNumber: t.car_plate_number,
         originalReference: t.original_reference_number,
+        shopName: shopName,
+        mobilePaymentAccount: t.mobile_payment_account,
+        mobileNumber: t.mobile_number || t.customers?.phone || null,
       };
     });
   }, [apiTransactions, staffMembers]);
@@ -1070,7 +1150,7 @@ export default function TransactionsPage() {
             <span className="hidden sm:inline">Transactions</span>
           </h1>
           <div className="flex gap-2">
-            {hasMounted ? (
+            {hasMounted && !isLoadingStores ? (
               <Select value={selectedStore} onValueChange={setSelectedStore}>
                 <SelectTrigger className="w-[180px]">
                   <SelectValue placeholder="Select store" />

@@ -16,6 +16,8 @@ export interface TransactionAPI {
   battery_bill_html: string | null;
   original_reference_number: string | null;
   car_plate_number: string | null;
+  mobile_payment_account: string | null;
+  mobile_number: string | null;
   created_at: string;
   customer_id: string | null;
   customers?: {
@@ -23,6 +25,11 @@ export interface TransactionAPI {
     name: string;
     email: string | null;
     phone: string | null;
+  } | null;
+  shops?: {
+    id: string;
+    name: string;
+    display_name: string | null;
   } | null;
 }
 

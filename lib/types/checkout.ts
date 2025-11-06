@@ -32,6 +32,8 @@ export const CheckoutInputSchema = z.object({
   tradeIns: z.array(TradeInItemSchema).optional(),
   carPlateNumber: z.string().min(1).optional(), // For 'on hold' payments
   customerId: z.string().uuid().optional(), // Optional customer ID for linking transactions to customers
+  mobilePaymentAccount: z.string().optional(), // Account used for mobile payment (Adanan or Forman)
+  mobileNumber: z.string().optional(), // Mobile number used for the transaction
 });
 
 // Response schemas

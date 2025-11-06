@@ -8,7 +8,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Building2, AlertCircle } from "lucide-react";
+import { Building2, AlertCircle, Lock } from "lucide-react";
 import { useBranch } from "@/lib/contexts/DataProvider";
 
 interface BranchSelectorProps {
@@ -28,6 +28,7 @@ export function BranchSelector({
     isLoadingBranches,
     selectBranch,
     branchLoadError,
+    isBranchLocked,
   } = useBranch();
 
   if (isLoadingBranches) {
@@ -64,13 +65,17 @@ export function BranchSelector({
       <Select
         value={currentBranch?.id || ""}
         onValueChange={selectBranch}
-        disabled={branches.length === 0}
+        disabled={branches.length === 0 || isBranchLocked}
       >
         <SelectTrigger
           className={compact ? "w-auto min-w-[120px]" : "w-[200px]"}
         >
           <div className="flex items-center gap-2">
-            <Building2 className="w-4 h-4 text-gray-500" />
+            {isBranchLocked ? (
+              <Lock className="w-4 h-4 text-gray-400" />
+            ) : (
+              <Building2 className="w-4 h-4 text-gray-500" />
+            )}
             <SelectValue placeholder="Select branch..." />
           </div>
         </SelectTrigger>
@@ -93,7 +98,7 @@ export function BranchSelector({
 
       {currentBranch && (
         <Badge variant="secondary" className="ml-1 hidden lg:inline-flex">
-          Active
+          {isBranchLocked ? "Locked" : "Active"}
         </Badge>
       )}
     </div>

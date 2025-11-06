@@ -51,7 +51,10 @@ export interface IntegratedPOSData {
  * Hook for integrated POS data with real-time inventory synchronization
  */
 export function useIntegratedPOSData(): IntegratedPOSData {
-  const { currentBranch, branchLoadError } = useBranch();
+  const { currentBranch, branchLoadError, inventoryLocationId } = useBranch();
+
+  // Use inventoryLocationId if available (for shop users with shared inventory), otherwise use currentBranch.id
+  const locationIdForInventory = inventoryLocationId || currentBranch?.id || null;
 
   // Brands state
   const [brands, setBrands] = useState<Brand[]>([]);
@@ -90,7 +93,7 @@ export function useIntegratedPOSData(): IntegratedPOSData {
     syncProducts,
     processSale,
     getProductAvailability,
-  } = useInventoryPOSSync(currentBranch?.id || null);
+  } = useInventoryPOSSync(locationIdForInventory);
 
   // Transform the POS data to match the expected interface
   const lubricantProducts = posData.lubricantProducts;

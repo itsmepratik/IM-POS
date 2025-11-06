@@ -1025,7 +1025,7 @@ function POSPageContent() {
   } = useIntegratedPOSData();
 
   const { toast } = useToast();
-  const { currentBranch } = useBranch();
+  const { currentBranch, inventoryLocationId } = useBranch();
   const companyInfo = useCompanyInfo();
 
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -1871,7 +1871,7 @@ function POSPageContent() {
         });
 
         const result = await checkoutService.processCheckout({
-          locationId: currentBranch?.id || "default-location",
+          locationId: inventoryLocationId || currentBranch?.id || "default-location",
           shopId: currentBranch?.id || "default-shop",
           paymentMethod: "ON_HOLD", // Use ON_HOLD as the payment method
           cashierId: selectedCashier?.id || "on-hold-system", // Use the selected cashier ID
@@ -2035,13 +2035,19 @@ function POSPageContent() {
       });
 
       const result = await checkoutService.processCheckout({
-        locationId: currentBranch?.id || "default-location",
-        shopId: currentBranch?.id || "default-shop",
+        locationId: inventoryLocationId || currentBranch?.id || "default-location", // Will be derived from shopId if shopId is provided
+        shopId: currentBranch?.id || "default-shop", // currentBranch.id is now a shop ID
         paymentMethod: selectedPaymentMethod.toUpperCase(),
         cashierId: selectedCashier?.id || "default-cashier",
         cart: cartForAPI,
         customerId: currentCustomer?.id, // Include customer ID if available
         ...(tradeInsForAPI ? { tradeIns: tradeInsForAPI } : {}),
+        ...(selectedPaymentMethod === "mobile" && paymentRecipient
+          ? { mobilePaymentAccount: paymentRecipient }
+          : {}),
+        ...(selectedPaymentMethod === "mobile" && currentCustomer?.phone
+          ? { mobileNumber: currentCustomer.phone }
+          : {}),
       });
 
       if (!result.success) {
@@ -5119,7 +5125,7 @@ function POSPageContent() {
                               amount: miscellaneousAmount,
                               cashierId: fetchedMiscellaneousCashier.id,
                               locationId:
-                                currentBranch?.id || "default-location",
+                                inventoryLocationId || currentBranch?.id || "default-location",
                               shopId: currentBranch?.id || "default-shop",
                             }),
                           }

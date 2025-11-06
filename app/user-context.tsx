@@ -393,18 +393,48 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
   const signOut = async () => {
     try {
       setIsLoading(true);
-      // Clear local state immediately
-      setCurrentUser(null);
-      setSupabaseUser(null);
-
-      // Sign out from Supabase
+      console.log("Signing out from Supabase...");
+      
+      // Sign out from Supabase FIRST - this clears cookies and session
       const { error } = await supabase.auth.signOut();
+      
       if (error) {
         console.error("Supabase signout error:", error);
-        // Don't throw - we still want to clear local state
+        throw error; // Throw so caller knows it failed
       }
+
+      console.log("Supabase signout successful, clearing local state...");
+
+      // Clear local state after successful sign out
+      setCurrentUser(null);
+      setSupabaseUser(null);
+      
+      // Clear local storage
+      localStorage.removeItem("selectedBranchId");
+      
+      // Clear all localStorage items that might be related to auth
+      try {
+        const keys = Object.keys(localStorage);
+        keys.forEach(key => {
+          if (key.includes('supabase') || key.includes('auth') || key.includes('session')) {
+            localStorage.removeItem(key);
+          }
+        });
+      } catch (e) {
+        console.warn("Error clearing localStorage:", e);
+      }
+      
+      // Small delay to ensure auth state change propagates
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      
+      console.log("Sign out completed successfully");
     } catch (error) {
       console.error("Error signing out:", error);
+      // Even if signout fails, clear local state to prevent stuck UI
+      setCurrentUser(null);
+      setSupabaseUser(null);
+      localStorage.removeItem("selectedBranchId");
+      throw error; // Re-throw so caller can handle it
     } finally {
       setIsLoading(false);
     }

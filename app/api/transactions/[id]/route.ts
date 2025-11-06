@@ -40,7 +40,15 @@ export async function GET(
         receipt_html,
         battery_bill_html,
         original_reference_number,
-        created_at
+        car_plate_number,
+        mobile_payment_account,
+        mobile_number,
+        created_at,
+        shops (
+          id,
+          name,
+          display_name
+        )
       `
       )
       .eq("id", id)

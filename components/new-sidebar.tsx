@@ -437,20 +437,47 @@ function ProfileMenu({ isCollapsed }: { isCollapsed: boolean }) {
   };
 
   const handleLogout = async () => {
-    if (isLoggingOut) return; // Prevent double clicks
+    console.log("🚀 LOGOUT BUTTON CLICKED - handleLogout called");
+    if (isLoggingOut) {
+      console.log("⏸️ Already logging out, ignoring...");
+      return; // Prevent double clicks
+    }
 
+    console.log("🔄 Setting isLoggingOut to true");
     setIsLoggingOut(true);
     try {
+      console.log("📤 Starting logout process - calling signOut()...");
       await signOut();
+      console.log("✅ Sign out completed, navigating to login...");
+      
+      // Small delay to ensure state is fully cleared before navigation
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      
       // Use replace instead of push to avoid back navigation issues
+      console.log("🔄 Calling router.replace('/login')");
       router.replace("/login");
+      
+      // Force navigation if router.replace doesn't work immediately
+      setTimeout(() => {
+        if (window.location.pathname !== "/login") {
+          console.log("⚠️ Router didn't navigate, forcing window.location.href...");
+          window.location.href = "/login";
+        } else {
+          console.log("✅ Successfully navigated to /login");
+        }
+      }, 500);
     } catch (error) {
-      console.error("Logout error:", error);
-      // Still redirect even if logout fails
+      console.error("❌ Logout error:", error);
+      // Still redirect even if logout fails to prevent stuck state
       router.replace("/login");
+      setTimeout(() => {
+        if (window.location.pathname !== "/login") {
+          window.location.href = "/login";
+        }
+      }, 500);
     } finally {
       // Reset after a delay to prevent immediate re-clicks
-      setTimeout(() => setIsLoggingOut(false), 2000);
+      setTimeout(() => setIsLoggingOut(false), 1000);
     }
   };
 
@@ -511,7 +538,10 @@ function ProfileMenu({ isCollapsed }: { isCollapsed: boolean }) {
           <DropdownMenuSeparator className="my-2" />
           <DropdownMenuItem
             className="rounded-lg py-2"
-            onSelect={handleLogout}
+            onAction={() => {
+              console.log("🔵 onAction triggered!");
+              handleLogout();
+            }}
             disabled={isLoggingOut || isLoading}
           >
             <LogOut className="mr-2 h-5 w-5 stroke-[1.5]" />
@@ -584,7 +614,7 @@ function ProfileMenu({ isCollapsed }: { isCollapsed: boolean }) {
         <DropdownMenuSeparator className="my-2" />
         <DropdownMenuItem
           className="rounded-lg py-2"
-          onSelect={handleLogout}
+          onAction={handleLogout}
           disabled={isLoggingOut || isLoading}
         >
           <LogOut className="mr-2 h-5 w-5 stroke-[1.5]" />

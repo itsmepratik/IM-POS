@@ -41,6 +41,7 @@ import { cn } from "@/lib/utils";
 // Interface for POS items that will be selected
 interface POSCartItem {
   id: number;
+  originalId: string; // UUID for database operations
   name: string;
   price: number;
   quantity: number;
@@ -193,6 +194,25 @@ export function Transfer2POSInterface({
   // Add to cart function
   const addToCart = useCallback(
     (product: any, details?: string, quantity: number = 1) => {
+      // Debug: Log product structure
+      console.log("🛒 Adding to cart:", {
+        productName: product.name,
+        productId: product.id,
+        originalId: product.originalId,
+        hasOriginalId: !!product.originalId,
+      });
+
+      // Ensure originalId exists (required for database operations)
+      if (!product.originalId) {
+        console.error("❌ Product missing originalId:", product);
+        toast({
+          title: "Error",
+          description: `Product ${product.name} is missing required ID information. Please refresh and try again.`,
+          variant: "destructive",
+        });
+        return;
+      }
+
       const uniqueId = `${product.id}-${details || "default"}`;
       setCart((prevCart) => {
         const existingItem = prevCart.find(
@@ -210,18 +230,19 @@ export function Transfer2POSInterface({
           ? `${product.brand} ${product.name}`
           : product.name;
 
-        return [
-          ...prevCart,
-          {
-            id: product.id,
-            name: fullName,
-            price: product.price || product.basePrice,
-            quantity,
-            details,
-            uniqueId,
-            bottleType: product.bottleType,
-          },
-        ];
+        const cartItem = {
+          id: product.id,
+          originalId: product.originalId, // Store the UUID
+          name: fullName,
+          price: product.price || product.basePrice,
+          quantity,
+          details,
+          uniqueId,
+          bottleType: product.bottleType,
+        };
+
+        console.log("✅ Cart item created:", cartItem);
+        return [...prevCart, cartItem];
       });
 
       toast({

@@ -39,6 +39,8 @@ export interface CheckoutRequest {
   tradeIns?: CheckoutTradeIn[];
   carPlateNumber?: string; // For 'on hold' payments
   customerId?: string; // Optional customer ID for linking transactions to customers
+  mobilePaymentAccount?: string; // Account used for mobile payment (Adanan or Forman)
+  mobileNumber?: string; // Mobile number used for the transaction
 }
 
 export interface CheckoutResponse {

@@ -23,6 +23,8 @@ function getPrefixForTransaction(
       return "CR";
     case "WARRANTY_CLAIM":
       return "WBX";
+    case "STOCK_TRANSFER":
+      return "ST";
     case "SALE":
     case "ON_HOLD_PAID":
     case "CREDIT_PAID":

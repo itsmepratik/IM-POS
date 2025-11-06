@@ -16,6 +16,7 @@ import {
   locations,
   categories,
   openBottleDetails,
+  shops,
 } from "@/lib/db/schema";
 import { eq, asc, and, inArray, gt } from "drizzle-orm";
 import {
@@ -238,6 +239,8 @@ export async function POST(req: NextRequest) {
       tradeIns,
       carPlateNumber,
       customerId,
+      mobilePaymentAccount,
+      mobileNumber,
     } = validatedInput;
 
     console.log(
@@ -365,16 +368,36 @@ export async function POST(req: NextRequest) {
           });
         }
 
-        // 1.5. Verify location exists before creating transaction
+        // 1.5. Derive locationId from shopId if shopId is provided
+        let actualLocationId = locationId;
+        if (shopId && shopId !== locationId) {
+          // Fetch shop to get its location_id
+          const [shopData] = await tx
+            .select({ locationId: shops.locationId })
+            .from(shops)
+            .where(eq(shops.id, shopId))
+            .limit(1);
+
+          if (shopData) {
+            actualLocationId = shopData.locationId;
+            console.log(
+              `[${requestId}] Derived locationId ${actualLocationId} from shopId ${shopId}`
+            );
+          } else {
+            throw new Error(`Shop ${shopId} does not exist in the database`);
+          }
+        }
+
+        // Verify location exists before creating transaction
         const [locationExists] = await tx
           .select({ id: locations.id })
           .from(locations)
-          .where(eq(locations.id, locationId))
+          .where(eq(locations.id, actualLocationId))
           .limit(1);
 
         if (!locationExists) {
           throw new Error(
-            `Location ${locationId} does not exist in the database`
+            `Location ${actualLocationId} does not exist in the database`
           );
         }
 
@@ -400,14 +423,16 @@ export async function POST(req: NextRequest) {
 
         const transactionData = {
           referenceNumber,
-          locationId,
-          shopId: shopId || locationId, // Use locationId as shopId if not provided
+          locationId: actualLocationId, // Use derived locationId
+          shopId: shopId || null, // shopId is required, should be provided from frontend
           cashierId,
           type: transactionType,
           totalAmount: totalAmount.toString(),
           itemsSold: cart,
           paymentMethod,
           carPlateNumber: transactionType === "ON_HOLD" ? carPlateNumber : null,
+          mobilePaymentAccount: paymentMethod?.toUpperCase() === "MOBILE" ? mobilePaymentAccount || null : null,
+          mobileNumber: paymentMethod?.toUpperCase() === "MOBILE" ? mobileNumber || null : null,
           customerId: customerId || null, // Add customer_id to transaction
         };
 
@@ -431,24 +456,24 @@ export async function POST(req: NextRequest) {
             continue;
           }
 
-          // Find inventory record
+          // Find inventory record using derived locationId
           const [inventoryRecord] = await tx
             .select()
             .from(inventory)
             .where(
               and(
                 eq(inventory.productId, cartItem.productId),
-                eq(inventory.locationId, locationId)
+                eq(inventory.locationId, actualLocationId)
               )
             )
             .limit(1);
 
           if (!inventoryRecord) {
             console.error(
-              `[${requestId}] Inventory not found for product ${cartItem.productId} at location ${locationId}`
+              `[${requestId}] Inventory not found for product ${cartItem.productId} at location ${actualLocationId}`
             );
             throw new Error(
-              `Inventory not found for product ${cartItem.productId} at location ${locationId}`
+              `Inventory not found for product ${cartItem.productId} at location ${actualLocationId}`
             );
           }
 

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db/client";
-import { transactions } from "@/lib/db/schema";
+import { transactions, shops } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
 
 // Input validation schema
 const MiscellaneousDeductionSchema = z.object({
@@ -23,6 +24,31 @@ export async function POST(req: NextRequest) {
     const validatedInput = MiscellaneousDeductionSchema.parse(body);
     const { amount, cashierId, locationId, shopId } = validatedInput;
 
+    // Derive locationId from shopId if shopId is provided
+    let actualLocationId = locationId;
+    if (shopId) {
+      const [shopData] = await db
+        .select({ locationId: shops.locationId })
+        .from(shops)
+        .where(eq(shops.id, shopId))
+        .limit(1);
+
+      if (shopData) {
+        actualLocationId = shopData.locationId;
+        console.log(
+          `Derived locationId ${actualLocationId} from shopId ${shopId}`
+        );
+      } else {
+        return NextResponse.json(
+          {
+            success: false,
+            message: `Shop ${shopId} does not exist`,
+          },
+          { status: 400 }
+        );
+      }
+    }
+
     // Generate reference number with MISC prefix
     const timestamp = Date.now().toString().slice(-8);
     const referenceNumber = `MISC-${timestamp}`;
@@ -32,7 +58,7 @@ export async function POST(req: NextRequest) {
       .insert(transactions)
       .values({
         referenceNumber,
-        locationId,
+        locationId: actualLocationId,
         shopId: shopId || null,
         cashierId,
         type: "EXPENSE",

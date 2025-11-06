@@ -1,8 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db/client";
-import { transactions, locations } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import {
+  transactions,
+  locations,
+  inventory,
+  batches,
+  products,
+  categories,
+} from "@/lib/db/schema";
+import { eq, and, asc, gt, inArray } from "drizzle-orm";
+import { generateReferenceNumber } from "@/lib/utils/reference-numbers";
 
 // Input validation schema
 const StockTransferSchema = z.object({
@@ -14,7 +22,8 @@ const StockTransferSchema = z.object({
   cashierId: z.string().min(1, "Cashier ID is required"),
   items: z.array(
     z.object({
-      id: z.number(),
+      id: z.union([z.number(), z.string()]), // Accept both numeric and UUID string
+      originalId: z.string().optional(), // UUID for database operations
       name: z.string(),
       price: z.number(),
       quantity: z.number(),
@@ -95,50 +104,282 @@ export async function POST(req: NextRequest) {
         : "Unknown"
     );
 
-    // Generate reference number with TRANSFER prefix if not provided
-    const referenceNumber =
-      transferId || `TRANSFER-${Date.now().toString().slice(-8)}`;
+    // Generate sequential reference number using ST prefix
+    const referenceNumber = await generateReferenceNumber(
+      "STOCK_TRANSFER",
+      false, // Not a battery sale
+      "TRANSFER"
+    );
 
-    // Format items for storage
-    const formattedItems = items.map((item) => ({
-      productId: item.id.toString(),
-      productName: item.name,
-      quantity: item.quantity,
-      price: item.price,
-      details: item.details,
-    }));
-
-    // Create the stock transfer transaction
-    console.log("🔄 Creating stock transfer transaction:", {
-      referenceNumber,
-      sourceLocationId: actualSourceLocationId,
-      destinationLocationId: actualDestinationLocationId,
-      cashierId,
-      itemsCount: formattedItems.length,
-      totalAmount,
+    // Format items for storage (use UUID for productId)
+    const formattedItems = items.map((item) => {
+      const productId = item.originalId || (typeof item.id === 'string' ? item.id : item.id.toString());
+      return {
+        productId, // Use UUID
+        productName: item.name,
+        quantity: item.quantity,
+        price: item.price,
+        details: item.details,
+      };
     });
 
-    const [transaction] = await db
-      .insert(transactions)
-      .values({
+    // Perform all operations in a database transaction
+    const result = await db.transaction(async (tx) => {
+      // 1. Create the stock transfer transaction
+      console.log("🔄 Creating stock transfer transaction:", {
         referenceNumber,
-        locationId: actualSourceLocationId, // Source location
-        shopId: actualDestinationLocationId, // Destination location (using shopId field)
+        sourceLocationId: actualSourceLocationId,
+        destinationLocationId: actualDestinationLocationId,
         cashierId,
-        type: "STOCK_TRANSFER",
-        totalAmount: totalAmount.toString(),
-        itemsSold: formattedItems,
-        paymentMethod: "TRANSFER", // Special payment method for transfers
-        receiptHtml: null,
-        batteryBillHtml: null,
-        originalReferenceNumber: null,
-      })
-      .returning();
+        itemsCount: formattedItems.length,
+        totalAmount,
+      });
+
+      const [transaction] = await tx
+        .insert(transactions)
+        .values({
+          referenceNumber,
+          locationId: actualSourceLocationId, // Source location
+          shopId: actualDestinationLocationId, // Destination location (using shopId field)
+          cashierId,
+          type: "STOCK_TRANSFER",
+          totalAmount: totalAmount.toString(),
+          itemsSold: formattedItems,
+          paymentMethod: "TRANSFER", // Special payment method for transfers
+          receiptHtml: null,
+          batteryBillHtml: null,
+          originalReferenceNumber: null,
+        })
+        .returning();
+
+      // 2. Fetch product information to determine product types
+      // Use originalId (UUID) if available, otherwise try to use id as UUID
+      const productIds = items.map((item) => {
+        // Prefer originalId if provided (UUID from frontend)
+        if (item.originalId) {
+          return item.originalId;
+        }
+        // Otherwise, try id as UUID string
+        const id = typeof item.id === 'string' ? item.id : item.id.toString();
+        // Check if it looks like a UUID
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        if (uuidRegex.test(id)) {
+          return id;
+        }
+        // If not a UUID, we can't proceed - this shouldn't happen if originalId is provided
+        throw new Error(`Invalid product ID format for item ${item.name}. Expected UUID but got: ${id}`);
+      });
+      
+      const productsData = await tx
+        .select()
+        .from(products)
+        .where(inArray(products.id, productIds));
+
+      const productMap = new Map();
+      productsData.forEach((product) => {
+        productMap.set(product.id, product); // Use UUID directly
+      });
+
+      // Fetch categories for lubricant detection
+      const categoryIds = [...new Set(productsData.map((p) => p.categoryId))];
+      const categoriesData = await tx
+        .select()
+        .from(categories)
+        .where(inArray(categories.id, categoryIds));
+
+      const categoryMap = new Map();
+      categoriesData.forEach((category) => {
+        categoryMap.set(category.id, category.name);
+      });
+
+      // 3. Process each item and deduct stock from source location
+      for (const item of items) {
+        // Use originalId (UUID) if available, otherwise use id as UUID
+        const productId = item.originalId || (typeof item.id === 'string' ? item.id : item.id.toString());
+
+        // Find inventory record at source location
+        const [inventoryRecord] = await tx
+          .select()
+          .from(inventory)
+          .where(
+            and(
+              eq(inventory.productId, productId),
+              eq(inventory.locationId, actualSourceLocationId)
+            )
+          )
+          .limit(1);
+
+        if (!inventoryRecord) {
+          throw new Error(
+            `Inventory not found for product ${item.name} (ID: ${productId}) at source location`
+          );
+        }
+
+        const product = productMap.get(productId);
+        const categoryName = product
+          ? categoryMap.get(product.categoryId)
+          : null;
+        const isLubricant = categoryName === "Lubricants";
+
+        console.log(
+          `🔄 Processing transfer item: ${item.name} (${item.quantity} units)`,
+          {
+            productId,
+            isLubricant,
+            categoryName,
+            currentStock: inventoryRecord.standardStock,
+            closedBottles: inventoryRecord.closedBottlesStock,
+            openBottles: inventoryRecord.openBottlesStock,
+          }
+        );
+
+        // Handle lubricants differently
+        if (isLubricant) {
+          // For lubricants, deduct from closed bottles stock
+          if (
+            (inventoryRecord.closedBottlesStock ?? 0) < item.quantity
+          ) {
+            throw new Error(
+              `Insufficient closed bottles stock for product ${item.name}. Available: ${inventoryRecord.closedBottlesStock ?? 0}, Required: ${item.quantity}`
+            );
+          }
+
+          await tx
+            .update(inventory)
+            .set({
+              closedBottlesStock:
+                (inventoryRecord.closedBottlesStock ?? 0) - item.quantity,
+            })
+            .where(eq(inventory.id, inventoryRecord.id));
+        } else {
+          // For regular products, use FIFO batch logic
+          // Find the active batch (FIFO - oldest first)
+          let activeBatch = await tx
+            .select()
+            .from(batches)
+            .where(
+              and(
+                eq(batches.inventoryId, inventoryRecord.id),
+                eq(batches.isActiveBatch, true)
+              )
+            )
+            .orderBy(asc(batches.purchaseDate))
+            .limit(1)
+            .then((result) => result[0]);
+
+          if (!activeBatch) {
+            // Try to find any batch with remaining stock
+            const anyBatch = await tx
+              .select()
+              .from(batches)
+              .where(
+                and(
+                  eq(batches.inventoryId, inventoryRecord.id),
+                  gt(batches.stockRemaining, 0)
+                )
+              )
+              .orderBy(asc(batches.purchaseDate))
+              .limit(1)
+              .then((result) => result[0]);
+
+            if (anyBatch) {
+              // Activate this batch
+              await tx
+                .update(batches)
+                .set({ isActiveBatch: true })
+                .where(eq(batches.id, anyBatch.id));
+              activeBatch = { ...anyBatch, isActiveBatch: true };
+            } else {
+              // No batches exist - check if we have standard stock
+              const currentStock = inventoryRecord.standardStock ?? 0;
+              if (currentStock < item.quantity) {
+                throw new Error(
+                  `Insufficient stock for product ${item.name}. Available: ${currentStock}, Required: ${item.quantity}`
+                );
+              }
+              // Update standard stock directly
+              await tx
+                .update(inventory)
+                .set({
+                  standardStock: currentStock - item.quantity,
+                })
+                .where(eq(inventory.id, inventoryRecord.id));
+              continue; // Skip batch processing
+            }
+          }
+
+          // Check if we have enough stock in the active batch
+          if (activeBatch.stockRemaining < item.quantity) {
+            throw new Error(
+              `Insufficient stock in active batch for product ${item.name}. Available: ${activeBatch.stockRemaining}, Required: ${item.quantity}`
+            );
+          }
+
+          // Decrement stock from active batch
+          await tx
+            .update(batches)
+            .set({
+              stockRemaining: activeBatch.stockRemaining - item.quantity,
+            })
+            .where(eq(batches.id, activeBatch.id));
+
+          // FIFO Rule: If depleting the active batch, deactivate it and activate next oldest
+          if (activeBatch.stockRemaining - item.quantity === 0) {
+            await tx
+              .update(batches)
+              .set({ isActiveBatch: false })
+              .where(eq(batches.id, activeBatch.id));
+
+            // Find and activate the next oldest batch with stock
+            const [nextBatch] = await tx
+              .select()
+              .from(batches)
+              .where(
+                and(
+                  eq(batches.inventoryId, inventoryRecord.id),
+                  eq(batches.isActiveBatch, false),
+                  gt(batches.stockRemaining, 0)
+                )
+              )
+              .orderBy(asc(batches.purchaseDate))
+              .limit(1);
+
+            if (nextBatch) {
+              await tx
+                .update(batches)
+                .set({ isActiveBatch: true })
+                .where(eq(batches.id, nextBatch.id));
+            }
+          }
+
+          // Update inventory standard stock
+          const currentStock = inventoryRecord.standardStock ?? 0;
+          if (currentStock < item.quantity) {
+            throw new Error(
+              `Insufficient standard stock for product ${item.name}. Available: ${currentStock}, Required: ${item.quantity}`
+            );
+          }
+
+          await tx
+            .update(inventory)
+            .set({
+              standardStock: currentStock - item.quantity,
+            })
+            .where(eq(inventory.id, inventoryRecord.id));
+        }
+
+        console.log(
+          `✅ Stock deducted for ${item.name}: ${item.quantity} units`
+        );
+      }
+
+      return transaction;
+    });
 
     console.log("✅ Stock transfer transaction created successfully:", {
-      id: transaction.id,
-      referenceNumber: transaction.referenceNumber,
-      type: transaction.type,
+      id: result.id,
+      referenceNumber: result.referenceNumber,
+      type: result.type,
     });
 
     return NextResponse.json(
@@ -146,11 +387,11 @@ export async function POST(req: NextRequest) {
         ok: true,
         message: "Stock transfer transaction created successfully",
         transaction: {
-          id: transaction.id,
-          referenceNumber: transaction.referenceNumber,
-          type: transaction.type,
-          totalAmount: transaction.totalAmount,
-          createdAt: transaction.createdAt,
+          id: result.id,
+          referenceNumber: result.referenceNumber,
+          type: result.type,
+          totalAmount: result.totalAmount,
+          createdAt: result.createdAt,
         },
       },
       { status: 201 }
