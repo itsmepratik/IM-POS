@@ -119,7 +119,9 @@ export const transactions = pgTable("transactions", {
   shopId: uuid("shop_id").references(() => shops.id, {
     onDelete: "restrict",
   }),
-  cashierId: text("cashier_id"), // Changed back to text to support staff IDs like "0010"
+  cashierId: uuid("cashier_id").references(() => staff.id, {
+    onDelete: "set null",
+  }), // Foreign key to staff.id (UUID)
   type: text("type").notNull(), // 'SALE' | 'REFUND' | 'WARRANTY_CLAIM' | 'CREDIT' | 'ON_HOLD'
   totalAmount: numeric("total_amount").notNull(),
   itemsSold: jsonb("items_sold").$type<unknown[]>(),
@@ -208,3 +210,16 @@ export const referenceNumberCounters = pgTable("reference_number_counters", {
     .defaultNow()
     .notNull(),
 });
+
+export const staff = pgTable("staff", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  staffId: text("staff_id").notNull().unique(),
+  name: text("name").notNull(),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+// Type inference for staff table
+export type Staff = typeof staff.$inferSelect;
+export type NewStaff = typeof staff.$inferInsert;

@@ -66,6 +66,11 @@ export async function GET(req: Request) {
           id,
           name,
           display_name
+        ),
+        staff (
+          id,
+          staff_id,
+          name
         )
       `
       )

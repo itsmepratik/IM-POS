@@ -24,6 +24,23 @@ export async function POST(req: NextRequest) {
     const validatedInput = MiscellaneousDeductionSchema.parse(body);
     const { amount, cashierId, locationId, shopId } = validatedInput;
 
+    // Validate cashier/staff ID and convert to UUID
+    const { getStaffUuidById } = await import("@/lib/utils/staff-validation");
+    const staffUuid = await getStaffUuidById(cashierId);
+    
+    if (!staffUuid) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Invalid cashier ID",
+          error: `No active staff member found with ID: ${cashierId}`,
+        },
+        { status: 400 }
+      );
+    }
+
+    console.log(`✅ Cashier validated and converted to UUID: ${staffUuid}`);
+
     // Derive locationId from shopId if shopId is provided
     let actualLocationId = locationId;
     if (shopId) {
@@ -60,7 +77,7 @@ export async function POST(req: NextRequest) {
         referenceNumber,
         locationId: actualLocationId,
         shopId: shopId || null,
-        cashierId,
+        cashierId: staffUuid, // Use UUID instead of staff_id text
         type: "EXPENSE",
         totalAmount: (-amount).toString(), // Negative amount for expense
         itemsSold: [

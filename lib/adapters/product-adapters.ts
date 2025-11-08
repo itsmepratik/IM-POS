@@ -286,6 +286,8 @@ export function unifiedProductToPOSLubricantProduct(
     image: product.imageUrl || undefined,
     volumes,
     isAvailable: product.inventory?.isAvailable || false,
+    hasOpenBottles: (product.inventory?.openBottlesStock || 0) > 0,
+    totalOpenVolume: product.inventory?.openBottlesStock || 0, // This is a count, not volume - will be enhanced later
   };
 }
 

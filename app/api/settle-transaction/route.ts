@@ -128,25 +128,30 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Step 4: Verify cashier exists
-    const { data: cashier, error: cashierError } = await supabase
-      .from("staff")
-      .select("staff_id, name")
-      .eq("staff_id", cashierId)
-      .eq("is_active", true)
-      .single();
-
-    if (cashierError || !cashier) {
-      console.error(`[${requestId}] Cashier not found:`, cashierError);
+    // Step 4: Verify cashier exists and convert to UUID
+    const { getStaffUuidById } = await import("@/lib/utils/staff-validation");
+    const staffUuid = await getStaffUuidById(cashierId);
+    
+    if (!staffUuid) {
+      console.error(`[${requestId}] Cashier not found: ${cashierId}`);
       return NextResponse.json(
         {
           success: false,
           error: "Invalid cashier ID",
-          details: cashierError?.message,
+          details: `No active staff member found with ID: ${cashierId}`,
         },
         { status: 400 }
       );
     }
+
+    console.log(`[${requestId}] Cashier validated and converted to UUID: ${staffUuid}`);
+
+    // Fetch staff details for response
+    const { data: staffData } = await supabase
+      .from("staff")
+      .select("id, staff_id, name")
+      .eq("id", staffUuid)
+      .single();
 
     // Step 5: Generate new reference number for settlement transaction using sequential system
     const settlementType =
@@ -175,7 +180,7 @@ export async function POST(req: NextRequest) {
       reference_number: newReferenceNumber,
       location_id: originalTransaction.location_id,
       shop_id: originalTransaction.shop_id,
-      cashier_id: cashierId,
+      cashier_id: staffUuid, // Use UUID instead of staff_id text
       type: settlementType,
       total_amount: originalTransaction.total_amount,
       items_sold: originalTransaction.items_sold,
@@ -229,8 +234,9 @@ export async function POST(req: NextRequest) {
             totalAmount: originalTransaction.total_amount,
           },
           cashier: {
-            id: cashier.staff_id,
-            name: cashier.name,
+            id: staffUuid,
+            staff_id: staffData?.staff_id || cashierId,
+            name: staffData?.name || "Unknown",
           },
         },
         message: `${

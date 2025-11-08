@@ -33,6 +33,23 @@ export async function POST(req: NextRequest) {
       disputedItems,
     } = validatedInput;
 
+    // Validate cashier/staff ID and convert to UUID
+    const { getStaffUuidById } = await import("@/lib/utils/staff-validation");
+    const staffUuid = await getStaffUuidById(cashierId);
+    
+    if (!staffUuid) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Invalid cashier ID",
+          details: `No active staff member found with ID: ${cashierId}`,
+        },
+        { status: 400 }
+      );
+    }
+
+    console.log(`✅ Cashier validated and converted to UUID: ${staffUuid}`);
+
     // Perform all operations in a single database transaction
     const result = await db.transaction(async (tx) => {
       // 1. Fetch & Validate original transaction
@@ -96,7 +113,7 @@ export async function POST(req: NextRequest) {
           referenceNumber: disputeReferenceNumber,
           locationId,
           shopId,
-          cashierId,
+          cashierId: staffUuid, // Use UUID instead of staff_id text
           type: disputeType,
           totalAmount: totalAmount.toString(),
           itemsSold: disputedItems,

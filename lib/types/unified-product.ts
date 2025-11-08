@@ -110,6 +110,8 @@ export interface POSLubricantProduct {
   image?: string;
   volumes: POSLubricantVolume[];
   isAvailable: boolean;
+  hasOpenBottles?: boolean; // Whether any non-empty open bottles exist
+  totalOpenVolume?: number; // Total volume available in open bottles
 }
 
 // POS lubricant volume with stock information

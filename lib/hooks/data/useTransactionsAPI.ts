@@ -31,6 +31,11 @@ export interface TransactionAPI {
     name: string;
     display_name: string | null;
   } | null;
+  staff?: {
+    id: string;
+    staff_id: string;
+    name: string;
+  } | null;
 }
 
 export interface TransactionsAPIResponse {

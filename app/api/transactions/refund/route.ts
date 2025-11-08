@@ -56,6 +56,22 @@ export async function POST(req: Request) {
 
     const refundData: RefundRequest = parsed.data;
 
+    // Validate cashier/staff ID and convert to UUID
+    const { getStaffUuidById } = await import("@/lib/utils/staff-validation");
+    const staffUuid = await getStaffUuidById(refundData.cashierId);
+    
+    if (!staffUuid) {
+      return NextResponse.json(
+        {
+          error: "Invalid cashier ID",
+          details: `No active staff member found with ID: ${refundData.cashierId}`,
+        },
+        { status: 400 }
+      );
+    }
+
+    console.log(`✅ Cashier validated and converted to UUID: ${staffUuid}`);
+
     // First, find the original transaction by reference number
     const { data: originalTransaction, error: originalError } = await supabase
       .from("transactions")
@@ -101,7 +117,7 @@ export async function POST(req: Request) {
       reference_number: refundReferenceNumber,
       location_id: refundData.locationId,
       shop_id: refundData.shopId,
-      cashier_id: refundData.cashierId,
+      cashier_id: staffUuid, // Use UUID instead of staff_id text
       type: "REFUND",
       total_amount: -refundData.refundAmount, // Negative amount for refunds
       items_sold: refundData.refundItems,

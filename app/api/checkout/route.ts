@@ -17,6 +17,7 @@ import {
   categories,
   openBottleDetails,
   shops,
+  productVolumes,
 } from "@/lib/db/schema";
 import { eq, asc, and, inArray, gt } from "drizzle-orm";
 import {
@@ -31,7 +32,36 @@ import {
   formatTime,
   ReceiptData,
 } from "@/lib/utils/receipts";
+import { parseVolumeString } from "@/lib/utils/volume-parser";
 import type { CheckoutInput } from "@/lib/types/checkout";
+
+/**
+ * Gets the highest volume for a product from product_volumes table
+ * @param productId - UUID of the product
+ * @param tx - Database transaction
+ * @returns Highest volume as a number (e.g., 4.0 or 5.0)
+ */
+async function getHighestVolume(productId: string, tx: any): Promise<number> {
+  const volumes = await tx
+    .select()
+    .from(productVolumes)
+    .where(eq(productVolumes.productId, productId));
+
+  if (!volumes || volumes.length === 0) {
+    // Default to 4.0 if no volumes found (common lubricant bottle size)
+    return 4.0;
+  }
+
+  let highestValue = 0;
+  for (const volume of volumes) {
+    const numericValue = parseVolumeString(volume.volumeDescription);
+    if (numericValue > highestValue) {
+      highestValue = numericValue;
+    }
+  }
+
+  return highestValue > 0 ? highestValue : 4.0; // Fallback to 4.0
+}
 
 // Helper function to handle lubricant sales with precise bottle tracking
 async function handleLubricantSale(
@@ -39,17 +69,38 @@ async function handleLubricantSale(
   cartItem: any,
   inventoryRecord: any
 ) {
-  // Debug logging to confirm function execution
-  console.log("Executing handleLubricantSale for product:", cartItem.productId);
-
   // Add a default value here as a safeguard - fixes the main issue from checkoutroutefix.md
   const { source = "CLOSED", quantity } = cartItem; // Default to 'CLOSED' if source is missing
+
+  // Debug logging to confirm function execution
+  console.log("Executing handleLubricantSale for product:", cartItem.productId);
+  console.log("Cart item data:", {
+    productId: cartItem.productId,
+    source,
+    quantity,
+    volumeDescription: cartItem.volumeDescription,
+  });
+
+  // Parse quantity as numeric volume (should be the volume amount, not item count)
+  const requestedVolume = typeof quantity === "number" ? quantity : parseFloat(String(quantity)) || 0;
+  
+  console.log(`[${cartItem.productId}] Parsed requestedVolume: ${requestedVolume} from quantity: ${quantity}`);
+  
+  if (requestedVolume <= 0) {
+    throw new Error(`Invalid quantity for lubricant sale: ${quantity}`);
+  }
 
   if (source === "CLOSED") {
     // Selling from a new closed bottle
     if (inventoryRecord.closedBottlesStock < 1) {
       throw new Error("No closed bottles available for this lubricant");
     }
+
+    // Get the highest volume (bottle size) from product_volumes table
+    const bottleSize = await getHighestVolume(cartItem.productId, tx);
+    const initialVolume = bottleSize;
+    const currentVolume = initialVolume - requestedVolume;
+    const isEmpty = currentVolume <= 0;
 
     // Decrement closed bottles stock
     await tx
@@ -58,15 +109,6 @@ async function handleLubricantSale(
         closedBottlesStock: inventoryRecord.closedBottlesStock - 1,
       })
       .where(eq(inventory.id, inventoryRecord.id));
-
-    // Get the standard bottle size from volume description
-    // Default to 4.0 if not specified (common lubricant bottle size)
-    const bottleSize = parseFloat(
-      cartItem.volumeDescription?.replace(/[^\d.]/g, "") || "4.0"
-    );
-    const initialVolume = bottleSize;
-    const currentVolume = initialVolume - quantity;
-    const isEmpty = currentVolume <= 0;
 
     // Create new open bottle record
     await tx.insert(openBottleDetails).values({
@@ -86,9 +128,9 @@ async function handleLubricantSale(
         .where(eq(inventory.id, inventoryRecord.id));
     }
   } else if (source === "OPEN") {
-    // Selling from an existing open bottle
-    // Find the oldest, non-empty bottle
-    const [openBottle] = await tx
+    // Selling from existing open bottle(s)
+    // Find all non-empty open bottles ordered by opened_at (FIFO)
+    const openBottles = await tx
       .select()
       .from(openBottleDetails)
       .where(
@@ -97,39 +139,154 @@ async function handleLubricantSale(
           eq(openBottleDetails.isEmpty, false)
         )
       )
-      .orderBy(asc(openBottleDetails.openedAt))
-      .limit(1);
+      .orderBy(asc(openBottleDetails.openedAt));
 
-    if (!openBottle) {
+    console.log(`[${cartItem.productId}] OPEN source - Found ${openBottles.length} open bottles`);
+    console.log(`[${cartItem.productId}] OPEN source - Requested volume: ${requestedVolume}`);
+
+    if (!openBottles || openBottles.length === 0) {
       throw new Error("No open bottles available for this lubricant");
     }
 
-    // Check if there's enough volume in the open bottle
-    const currentVolume = parseFloat(openBottle.currentVolume);
-    if (currentVolume < quantity) {
+    // Calculate total available volume from all open bottles
+    const totalAvailableVolume = openBottles.reduce((sum, bottle) => {
+      const vol = parseFloat(bottle.currentVolume);
+      console.log(`[${cartItem.productId}] OPEN source - Bottle ${bottle.id}: current_volume=${bottle.currentVolume} (parsed=${vol})`);
+      return sum + vol;
+    }, 0);
+
+    console.log(`[${cartItem.productId}] OPEN source - Total available volume: ${totalAvailableVolume}`);
+
+    if (totalAvailableVolume < requestedVolume) {
       throw new Error(
-        `Insufficient volume in open bottle. Available: ${currentVolume}, Required: ${quantity}`
+        `Insufficient volume in open bottles. Available: ${totalAvailableVolume}, Required: ${requestedVolume}`
       );
     }
 
-    // Decrement the current volume
-    const newVolume = currentVolume - quantity;
-    const isEmpty = newVolume <= 0;
+    // Process bottles FIFO until we've satisfied the requested volume
+    let remainingVolume = requestedVolume;
+    let bottlesToUpdate: Array<{ id: string; newVolume: number; isEmpty: boolean }> = [];
+    let bottlesToMarkEmpty: string[] = [];
+    let newBottlesToCreate: Array<{ initialVolume: number; currentVolume: number }> = [];
 
-    await tx
-      .update(openBottleDetails)
-      .set({
-        currentVolume: newVolume.toString(),
-        isEmpty: isEmpty,
-      })
-      .where(eq(openBottleDetails.id, openBottle.id));
+    // Get bottle size for potential new bottles
+    const bottleSize = await getHighestVolume(cartItem.productId, tx);
 
-    // If bottle is now empty, decrement open bottles stock
-    if (isEmpty) {
+    console.log(`[${cartItem.productId}] OPEN source - Processing bottles, remainingVolume=${remainingVolume}, bottleSize=${bottleSize}`);
+
+    for (const bottle of openBottles) {
+      if (remainingVolume <= 0) {
+        console.log(`[${cartItem.productId}] OPEN source - Remaining volume satisfied, breaking loop`);
+        break;
+      }
+
+      const currentVolume = parseFloat(bottle.currentVolume);
+      console.log(`[${cartItem.productId}] OPEN source - Processing bottle ${bottle.id}: currentVolume=${currentVolume}, remainingVolume=${remainingVolume}`);
+      
+      if (currentVolume >= remainingVolume) {
+        // This bottle has enough volume
+        const newVolume = currentVolume - remainingVolume;
+        const isEmpty = newVolume <= 0;
+        
+        console.log(`[${cartItem.productId}] OPEN source - Bottle ${bottle.id} has enough: newVolume=${newVolume}, isEmpty=${isEmpty}`);
+        
+        // Only add to bottlesToUpdate if it's not empty, otherwise add to bottlesToMarkEmpty
+        if (isEmpty) {
+          bottlesToMarkEmpty.push(bottle.id);
+        } else {
+          bottlesToUpdate.push({
+            id: bottle.id,
+            newVolume: newVolume,
+            isEmpty: false,
+          });
+        }
+        
+        remainingVolume = 0;
+      } else {
+        // This bottle doesn't have enough, use all of it and move to next
+        console.log(`[${cartItem.productId}] OPEN source - Bottle ${bottle.id} doesn't have enough, using all ${currentVolume}L`);
+        bottlesToMarkEmpty.push(bottle.id);
+        remainingVolume -= currentVolume;
+        console.log(`[${cartItem.productId}] OPEN source - Remaining volume after using bottle: ${remainingVolume}`);
+      }
+    }
+
+    console.log(`[${cartItem.productId}] OPEN source - After processing all bottles: remainingVolume=${remainingVolume}`);
+    console.log(`[${cartItem.productId}] OPEN source - Bottles to update: ${bottlesToUpdate.length}, Bottles to mark empty: ${bottlesToMarkEmpty.length}`);
+
+    // If we still need more volume after using all open bottles, open a new closed bottle
+    if (remainingVolume > 0) {
+      console.log(`[${cartItem.productId}] OPEN source - Still need ${remainingVolume}L more, opening new closed bottle`);
+      if (inventoryRecord.closedBottlesStock < 1) {
+        throw new Error(
+          `Insufficient stock. Need ${remainingVolume}L more but no closed bottles available.`
+        );
+      }
+
+      // Decrement closed bottles stock
       await tx
         .update(inventory)
         .set({
-          openBottlesStock: inventoryRecord.openBottlesStock - 1,
+          closedBottlesStock: inventoryRecord.closedBottlesStock - 1,
+        })
+        .where(eq(inventory.id, inventoryRecord.id));
+
+      // Create new open bottle with remaining volume
+      const newBottleCurrentVolume = bottleSize - remainingVolume;
+      const newBottleIsEmpty = newBottleCurrentVolume <= 0;
+
+      await tx.insert(openBottleDetails).values({
+        inventoryId: inventoryRecord.id,
+        initialVolume: bottleSize.toString(),
+        currentVolume: newBottleCurrentVolume.toString(),
+        isEmpty: newBottleIsEmpty,
+      });
+
+      // Increment open bottles stock if not empty
+      if (!newBottleIsEmpty) {
+        await tx
+          .update(inventory)
+          .set({
+            openBottlesStock: inventoryRecord.openBottlesStock + 1,
+          })
+          .where(eq(inventory.id, inventoryRecord.id));
+      }
+    } else {
+      console.log(`[${cartItem.productId}] OPEN source - All volume satisfied from existing open bottles, no new bottle needed`);
+    }
+
+    // Update all bottles that were used
+    for (const update of bottlesToUpdate) {
+      await tx
+        .update(openBottleDetails)
+        .set({
+          currentVolume: update.newVolume.toString(),
+          isEmpty: update.isEmpty,
+        })
+        .where(eq(openBottleDetails.id, update.id));
+    }
+
+    // Mark bottles as empty and decrement open bottles stock
+    if (bottlesToMarkEmpty.length > 0) {
+      await tx
+        .update(openBottleDetails)
+        .set({
+          isEmpty: true,
+          currentVolume: "0",
+        })
+        .where(inArray(openBottleDetails.id, bottlesToMarkEmpty));
+
+      // Decrement open bottles stock count
+      const currentOpenBottlesStock = inventoryRecord.openBottlesStock;
+      const newOpenBottlesStock = Math.max(
+        0,
+        currentOpenBottlesStock - bottlesToMarkEmpty.length
+      );
+
+      await tx
+        .update(inventory)
+        .set({
+          openBottlesStock: newOpenBottlesStock,
         })
         .where(eq(inventory.id, inventoryRecord.id));
     }
@@ -234,7 +391,7 @@ export async function POST(req: NextRequest) {
       locationId,
       shopId,
       paymentMethod,
-      cashierId,
+      cashierId: cashierIdInput,
       cart,
       tradeIns,
       carPlateNumber,
@@ -247,6 +404,34 @@ export async function POST(req: NextRequest) {
       `[${requestId}] Customer ID received:`,
       customerId || "None (Anonymous)"
     );
+
+    // Validate cashier/staff ID and convert to UUID
+    let cashierId: string | undefined = cashierIdInput;
+    if (cashierId && cashierId !== "default-cashier" && cashierId !== "on-hold-system") {
+      const { getStaffUuidById } = await import("@/lib/utils/staff-validation");
+      const staffUuid = await getStaffUuidById(cashierId);
+      
+      if (!staffUuid) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Invalid cashier ID",
+            details: {
+              requestId,
+              errorType: "VALIDATION_ERROR",
+              cashierId,
+              message: `No active staff member found with ID: ${cashierId}`,
+              timestamp: new Date().toISOString(),
+            },
+          },
+          { status: 400 }
+        );
+      }
+      
+      // Replace cashierId with UUID for database storage
+      cashierId = staffUuid;
+      console.log(`[${requestId}] Cashier validated and converted to UUID: ${cashierId}`);
+    }
 
     // Additional business logic validation
     if (!cart || cart.length === 0) {

@@ -256,7 +256,7 @@ export async function GET(req: Request) {
         if (openBottleError) {
           console.error("Error fetching open bottle details:", openBottleError);
         } else {
-          // Group open bottle details by product ID
+          // Group open bottle details by product ID and calculate totals
           for (const bottle of openBottleRows || []) {
             // Find the product ID for this inventory ID
             const product = baseItems.find(
@@ -278,10 +278,19 @@ export async function GET(req: Request) {
 
     const items = baseItems.map((it) => {
       if ((it.category || "").toLowerCase() === "lubricants") {
+        const openBottles = openBottleDetailsByProduct[it.id] || [];
+        const hasOpenBottles = openBottles.length > 0;
+        const totalOpenVolume = openBottles.reduce(
+          (sum, bottle) => sum + (bottle.current_volume || 0),
+          0
+        );
+
         return {
           ...it,
           volumes: volumesByProduct[it.id] || [],
-          openBottleDetails: openBottleDetailsByProduct[it.id] || [],
+          openBottleDetails: openBottles,
+          hasOpenBottles: hasOpenBottles,
+          totalOpenVolume: totalOpenVolume,
         };
       }
       return it;

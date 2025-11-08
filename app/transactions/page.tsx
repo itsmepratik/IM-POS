@@ -917,15 +917,10 @@ export default function TransactionsPage() {
       });
     }
 
-    // Create a lookup function for staff members
-    const findStaffMemberById = (id: string) => {
-      return staffMembers.find((staff) => staff.id === id);
-    };
-
     return apiTransactions.map((t) => {
-      // Convert cashier_id to staff name
+      // Convert cashier_id (UUID) to staff name using joined staff data
       const cashierName = t.cashier_id
-        ? findStaffMemberById(t.cashier_id)?.name || `Staff ${t.cashier_id}`
+        ? t.staff?.name || `Staff ${t.cashier_id.substring(0, 8)}...`
         : "Unknown";
 
       // Extract customer name from joined data
@@ -1010,11 +1005,19 @@ export default function TransactionsPage() {
         mobileNumber: t.mobile_number || t.customers?.phone || null,
       };
     });
-  }, [apiTransactions, staffMembers]);
+  }, [apiTransactions]);
 
   const displayTransactions = useMemo(() => {
-    const transactions = getTransactions();
+    let transactions = getTransactions();
 
+    // Apply cashier filter
+    if (selectedCashier && selectedCashier !== "all-cashiers") {
+      transactions = transactions.filter(
+        (transaction) => transaction.cashier === selectedCashier
+      );
+    }
+
+    // Apply search filter
     if (!searchQuery.trim()) {
       return transactions;
     }
@@ -1031,7 +1034,7 @@ export default function TransactionsPage() {
         transaction.amount.toString().includes(query)
       );
     });
-  }, [getTransactions, searchQuery]);
+  }, [getTransactions, searchQuery, selectedCashier]);
 
   // Calculate total credit (total amount considering sale as positive and refund as negative)
   const totalCredit = useMemo(() => {

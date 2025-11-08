@@ -131,6 +131,11 @@ import { PartsCategory } from "./components/categories/PartsCategory";
 import { AdditivesFluidsCategory } from "./components/categories/AdditivesFluidsCategory";
 import { DataProvider, useBranch } from "@/lib/contexts/DataProvider";
 import { BranchSelector } from "@/components/BranchSelector";
+import {
+  findHighestVolumeFromVolumes,
+  parseVolumeString,
+  isHighestVolume,
+} from "@/lib/utils/volume-parser";
 
 // Types are now imported from usePOSMockData hook
 
@@ -139,6 +144,10 @@ interface CartItem extends Product {
   details?: string;
   uniqueId: string;
   bottleType?: "open" | "closed";
+  source?: string; // Required for lubricant checkout API ("OPEN" or "CLOSED")
+  category?: string;
+  brand?: string;
+  type?: string;
 }
 
 interface SelectedVolume {
@@ -1291,7 +1300,8 @@ function POSPageContent() {
       product: { id: number; name: string; price: number },
       details?: string,
       quantity: number = 1,
-      source?: string
+      source?: string,
+      bottleType?: "open" | "closed"
     ) => {
       const uniqueId = `${product.id}-${details || ""}`;
       setCart((prevCart) => {
@@ -1301,7 +1311,12 @@ function POSPageContent() {
         if (existingItem) {
           return prevCart.map((item) =>
             item.uniqueId === uniqueId
-              ? { ...item, quantity: item.quantity + quantity }
+              ? { 
+                  ...item, 
+                  quantity: item.quantity + quantity,
+                  // Preserve bottleType if it exists, or use the new one
+                  bottleType: bottleType || item.bottleType
+                }
               : item
           );
         }
@@ -1335,6 +1350,8 @@ function POSPageContent() {
             ...(brand && { brand }),
             // Include source for lubricants (required by checkout API)
             ...(source && { source }),
+            // Include bottleType for lubricants (used to determine source in API preparation)
+            ...(bottleType && { bottleType }),
           },
         ];
       });
@@ -1350,8 +1367,15 @@ function POSPageContent() {
 
   // Function to handle volume selection with bottle type prompt for smaller volumes
   const handleVolumeClick = (volume: { size: string; price: number }) => {
-    // For 4L and 5L, add directly without bottle type
-    if (volume.size === "4L" || volume.size === "5L") {
+    if (!selectedOil || !selectedOil.volumes) {
+      return;
+    }
+
+    // Dynamically determine the highest volume
+    const highestVolume = findHighestVolumeFromVolumes(selectedOil.volumes);
+    
+    // For highest volume, add directly without bottle type (always closed bottle)
+    if (highestVolume && volume.size === highestVolume) {
       setSelectedVolumes((prev) => {
         const existing = prev.find((v) => v.size === volume.size);
         if (existing) {
@@ -1374,6 +1398,16 @@ function POSPageContent() {
     size: string,
     bottleType: "open" | "closed"
   ) => {
+    // Validate open bottle availability
+    if (bottleType === "open" && (!selectedOil?.hasOpenBottles)) {
+      toast({
+        title: "No Open Bottles Available",
+        description: "There are no open bottles available for this product. Please select a closed bottle.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const volumeDetails = selectedOil?.volumes.find((v) => v.size === size);
     if (volumeDetails) {
       setSelectedVolumes((prev) => {
@@ -1408,6 +1442,7 @@ function POSPageContent() {
   };
 
   const handleAddSelectedToCart = () => {
+    console.log("🔍 handleAddSelectedToCart - selectedVolumes:", selectedVolumes);
     selectedVolumes.forEach((volume) => {
       if (selectedOil) {
         const details =
@@ -1415,7 +1450,25 @@ function POSPageContent() {
           (volume.bottleType ? ` (${volume.bottleType} bottle)` : "");
 
         // Determine source based on bottle type for checkout API
+        // Highest volumes don't have bottleType (they're always closed)
         const source = volume.bottleType === "open" ? "OPEN" : "CLOSED";
+
+        // Parse the volume size to get the numeric volume amount
+        // quantity should represent the volume amount (e.g., 1 for 1L, 3 for 3L)
+        const volumeAmount = parseVolumeString(volume.size);
+        const totalVolume = volumeAmount * volume.quantity;
+
+        console.log("🔍 Adding to cart:", {
+          productId: selectedOil.id,
+          productName: selectedOil.name,
+          volumeSize: volume.size,
+          volumeAmount,
+          quantity: volume.quantity,
+          totalVolume,
+          source,
+          bottleType: volume.bottleType || "closed (highest volume)",
+          details,
+        });
 
         addToCart(
           {
@@ -1424,8 +1477,9 @@ function POSPageContent() {
             price: volume.price,
           },
           details,
-          volume.quantity,
-          source
+          totalVolume, // Pass the total volume amount, not item count
+          source,
+          volume.bottleType || "closed" // Pass bottleType (or "closed" for highest volumes)
         );
       }
     });
@@ -1988,7 +2042,7 @@ function POSPageContent() {
           throw new Error(`Original ID not found for product ${item.id}`);
         }
 
-        return {
+        const cartItemForAPI = {
           productId: originalId, // Use the original UUID as expected by API
           quantity: item.quantity,
           sellingPrice: item.price,
@@ -2000,6 +2054,18 @@ function POSPageContent() {
               : "CLOSED"
             : undefined,
         };
+
+        if (isLubricant) {
+          console.log("🔍 Preparing lubricant cart item for API:", {
+            productId: originalId,
+            quantity: item.quantity,
+            source: cartItemForAPI.source,
+            bottleType: item.bottleType,
+            volumeDescription: cartItemForAPI.volumeDescription,
+          });
+        }
+
+        return cartItemForAPI;
       });
 
       // Prepare trade-ins if any - Enable for battery checkouts
@@ -3446,9 +3512,12 @@ function POSPageContent() {
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         {staffMembers
-                          .filter(
-                            (staff) => staff.id === "0020" || staff.id === "0010"
-                          )
+                          .filter((staff) => {
+                            // Filter for mobile payment recipients - check by staff_id if available
+                            // This should be configurable in the future
+                            const staffId = staff.id;
+                            return staffId === "0020" || staffId === "0010";
+                          })
                           .map((staff) => (
                             <Button
                               key={staff.id}
@@ -3877,9 +3946,19 @@ function POSPageContent() {
 
               <Button
                 variant="outline"
-                className="h-40 flex flex-col items-center justify-center gap-2 px-2 hover:bg-accent rounded-xl border-2 hover:border-primary min-w-[120px] max-w-[180px]"
+                disabled={!selectedOil?.hasOpenBottles}
+                className={`h-40 flex flex-col items-center justify-center gap-2 px-2 rounded-xl border-2 min-w-[120px] max-w-[180px] ${
+                  selectedOil?.hasOpenBottles
+                    ? "hover:bg-accent hover:border-primary"
+                    : "opacity-50 cursor-not-allowed"
+                }`}
                 onClick={() =>
                   addVolumeWithBottleType(currentBottleVolumeSize!, "open")
+                }
+                title={
+                  !selectedOil?.hasOpenBottles
+                    ? "No open bottles available"
+                    : undefined
                 }
               >
                 <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
@@ -3895,7 +3974,9 @@ function POSPageContent() {
                   className="text-xs text-muted-foreground text-center whitespace-normal break-words w-full"
                   style={{ lineHeight: 1 }}
                 >
-                  For immediate use
+                  {selectedOil?.hasOpenBottles
+                    ? "For immediate use"
+                    : "Not available"}
                 </span>
               </Button>
             </div>

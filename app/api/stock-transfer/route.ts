@@ -54,6 +54,23 @@ export async function POST(req: NextRequest) {
       targetDate,
     } = validatedInput;
 
+    // Validate cashier/staff ID and convert to UUID
+    const { getStaffUuidById } = await import("@/lib/utils/staff-validation");
+    const staffUuid = await getStaffUuidById(cashierId);
+    
+    if (!staffUuid) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "Invalid cashier ID",
+          message: `No active staff member found with ID: ${cashierId}`,
+        },
+        { status: 400 }
+      );
+    }
+
+    console.log(`✅ Cashier validated and converted to UUID: ${staffUuid}`);
+
     // Helper function to get or map location ID
     const getValidLocationId = async (
       locationId: string,
@@ -141,7 +158,7 @@ export async function POST(req: NextRequest) {
           referenceNumber,
           locationId: actualSourceLocationId, // Source location
           shopId: actualDestinationLocationId, // Destination location (using shopId field)
-          cashierId,
+          cashierId: staffUuid, // Use UUID instead of staff_id text
           type: "STOCK_TRANSFER",
           totalAmount: totalAmount.toString(),
           itemsSold: formattedItems,
