@@ -82,31 +82,7 @@ interface ItemModalProps {
 // Define a type for the tab values
 type TabType = "general" | "volumes" | "batches";
 
-// Function to get types based on category
-const getTypesForCategory = (category: string): string[] => {
-  const categoryLower = category.toLowerCase();
-
-  if (categoryLower.includes("lubricant")) {
-    return ["Synthetic", "Non-synthetic"];
-  } else if (categoryLower.includes("filter")) {
-    return ["Oil filters", "Air filters", "Cabin filters"];
-  } else if (categoryLower.includes("part")) {
-    return ["Miscellaneous", "Battery", "Spare parts"];
-  } else if (
-    categoryLower.includes("additive") ||
-    categoryLower.includes("fluid")
-  ) {
-    return [
-      "Engine additives",
-      "Transmission fluid",
-      "Brake fluid",
-      "Coolant",
-      "Power steering fluid",
-    ];
-  }
-
-  return []; // Default empty array for unknown categories
-};
+// Types are now fetched from database via context
 
 export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
   const {
@@ -120,6 +96,7 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
     brands,
     categoryMap,
     brandMap,
+    getTypesForCategory,
   } = useItems();
   const [imageError, setImageError] = useState(false);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
@@ -135,6 +112,7 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
     manufacturingDate: item?.manufacturingDate || "",
     brand: item?.brand || "",
     type: item?.type || "",
+    type_id: item?.type_id || null,
     imageUrl: "",
     imageBlob: "",
     notes: "",
@@ -228,6 +206,7 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
         batches: sortedBatches || [],
         category_id: item.category_id || null,
         brand_id: item.brand_id || null,
+        type_id: item.type_id || null,
         created_at: item.created_at || null,
         updated_at: item.updated_at || null,
         description: item.description || item.notes || null,
@@ -275,6 +254,7 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
         batches: [],
         category_id: null,
         brand_id: null,
+        type_id: null,
         created_at: null,
         updated_at: null,
         description: null,
@@ -468,6 +448,7 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
       price: updatedFormData.price,
       brand: updatedFormData.brand,
       type: updatedFormData.type || null,
+      type_id: updatedFormData.type_id || null,
       image_url: updatedFormData.imageUrl || null, // Map to backend field name
       description: updatedFormData.notes || null, // Use notes for description
       is_oil: updatedFormData.isOil, // Map to backend field name
@@ -949,19 +930,30 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
                                 </Select>
                               </div>
                               {/* Type field - moved to left column to fill empty space */}
-                              {formData.category &&
-                                getTypesForCategory(formData.category).length >
-                                  0 && (
+                              {formData.category && (() => {
+                                // Get category ID from category name
+                                const categoryId = Object.keys(categoryMap).find(
+                                  (id) => categoryMap[id] === formData.category
+                                );
+                                const categoryTypes = categoryId
+                                  ? getTypesForCategory(categoryId)
+                                  : [];
+                                
+                                return categoryTypes.length > 0 ? (
                                   <div>
                                     <Label htmlFor="type">Type</Label>
                                     <Select
-                                      value={formData.type || ""}
-                                      onValueChange={(value) =>
+                                      value={formData.type_id || ""}
+                                      onValueChange={(value) => {
+                                        const selectedType = categoryTypes.find(
+                                          (t) => t.id === value
+                                        );
                                         setFormData({
                                           ...formData,
-                                          type: value,
-                                        })
-                                      }
+                                          type_id: value || null,
+                                          type: selectedType?.name || "",
+                                        });
+                                      }}
                                     >
                                       <SelectTrigger>
                                         <SelectValue
@@ -969,17 +961,16 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
                                         />
                                       </SelectTrigger>
                                       <SelectContent>
-                                        {getTypesForCategory(
-                                          formData.category
-                                        ).map((type) => (
-                                          <SelectItem key={type} value={type}>
-                                            {type}
+                                        {categoryTypes.map((type) => (
+                                          <SelectItem key={type.id} value={type.id}>
+                                            {type.name}
                                           </SelectItem>
                                         ))}
                                       </SelectContent>
                                     </Select>
                                   </div>
-                                )}
+                                ) : null;
+                              })()}
                               <DateInput
                                 id="manufacturingDate"
                                 label="M.F.D"

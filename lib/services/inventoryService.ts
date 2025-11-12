@@ -23,7 +23,9 @@ export type Item = {
   brand?: string;
   brand_id: string | null;
   category_id: string | null;
-  type: string | null;
+  type: string | null; // Legacy: type name (text), kept for backward compatibility
+  type_id: string | null; // New: type ID (UUID)
+  type_name: string | null; // New: type name from types table
   description: string | null;
 
   isOil?: boolean;
@@ -152,6 +154,7 @@ export const fetchItems = async (
           id,
           name,
           product_type,
+          type_id,
           description,
           image_url,
           low_stock_threshold,
@@ -164,6 +167,10 @@ export const fetchItems = async (
             name
           ),
           brands (
+            id,
+            name
+          ),
+          types (
             id,
             name
           )
@@ -304,7 +311,9 @@ export const fetchItems = async (
           brand: product.brands?.name || "N/A", // Use brands table via brand_id foreign key
           brand_id: product.brand_id,
           category_id: product.category_id,
-          type: product.product_type,
+          type: product.types?.name || product.product_type || null, // Prefer type from types table, fallback to product_type
+          type_id: product.type_id || null,
+          type_name: product.types?.name || null,
           description: product.description,
           isOil: isOilProduct,
           imageUrl: product.image_url,
@@ -419,20 +428,30 @@ export const createItem = async (
     }
 
     // Create product first
+    const productInsert: any = {
+      name: item.name,
+      category_id: item.category_id,
+      brand_id: item.brand_id,
+      description: item.description,
+      image_url: item.image_url,
+      low_stock_threshold: item.lowStockAlert || 0,
+      cost_price:
+        item.costPrice && item.costPrice > 0 ? item.costPrice : null,
+      manufacturing_date: item.manufacturingDate,
+    };
+
+    // Prefer type_id over type (text) for new products
+    if (item.type_id) {
+      productInsert.type_id = item.type_id;
+    } else if (item.type) {
+      // Legacy support: if type_id not provided but type text is, try to find matching type
+      // This is for backward compatibility during migration
+      productInsert.product_type = item.type;
+    }
+
     const { data: productData, error: productError } = await supabase
       .from("products")
-      .insert({
-        name: item.name,
-        category_id: item.category_id,
-        brand_id: item.brand_id,
-        product_type: item.type,
-        description: item.description,
-        image_url: item.image_url,
-        low_stock_threshold: item.lowStockAlert || 0,
-        cost_price:
-          item.costPrice && item.costPrice > 0 ? item.costPrice : null,
-        manufacturing_date: item.manufacturingDate,
-      })
+      .insert(productInsert)
       .select()
       .single();
 
@@ -557,7 +576,17 @@ export const updateItem = async (
       productUpdates.category_id = updates.category_id;
     if (updates.brand_id !== undefined)
       productUpdates.brand_id = updates.brand_id;
-    if (updates.type !== undefined) productUpdates.product_type = updates.type;
+    // Prefer type_id over type (text)
+    if (updates.type_id !== undefined) {
+      productUpdates.type_id = updates.type_id;
+      // Clear product_type when type_id is set
+      if (updates.type_id) {
+        productUpdates.product_type = null;
+      }
+    } else if (updates.type !== undefined) {
+      // Legacy support: if type_id not provided but type text is
+      productUpdates.product_type = updates.type;
+    }
     if (updates.description !== undefined)
       productUpdates.description = updates.description;
     if (updates.image_url !== undefined)

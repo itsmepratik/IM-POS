@@ -37,6 +37,26 @@ export const categories = pgTable("categories", {
   name: text("name").notNull().unique(),
 });
 
+export const types = pgTable(
+  "types",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    categoryId: uuid("category_id")
+      .notNull()
+      .references(() => categories.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  },
+  (table) => ({
+    uniqueCategoryType: unique().on(table.categoryId, table.name),
+  })
+);
+
+// Type inference for types table
+export type Type = typeof types.$inferSelect;
+export type NewType = typeof types.$inferInsert;
+
 export const brands = pgTable("brands", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull().unique(),
@@ -56,7 +76,8 @@ export const products = pgTable("products", {
   brandId: uuid("brand_id").references(() => brands.id, {
     onDelete: "set null",
   }),
-  productType: text("product_type"),
+  typeId: uuid("type_id").references(() => types.id, { onDelete: "set null" }),
+  productType: text("product_type"), // Legacy field, kept for backward compatibility
   description: text("description"),
   imageUrl: text("image_url"),
   lowStockThreshold: integer("low_stock_threshold").default(0),

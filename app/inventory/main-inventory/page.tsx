@@ -71,6 +71,7 @@ import ExportButton from "../export-button";
 import { StockIndicator } from "../components/stock-indicator";
 import { BatteryStateSwitch } from "../components/battery-state-switch";
 import { TradeInsModal } from "../components/trade-ins-modal";
+import { TypesModal } from "../types-modal";
 import Image from "next/image";
 import { Pagination } from "@/components/ui/pagination";
 
@@ -599,6 +600,7 @@ function MobileView() {
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
   const [brandModalOpen, setBrandModalOpen] = useState(false);
   const [tradeInsModalOpen, setTradeInsModalOpen] = useState(false);
+  const [typesModalOpen, setTypesModalOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   // Open item modal for adding new item
@@ -680,6 +682,12 @@ function MobileView() {
   // Handle trade-ins modal close
   const handleTradeInsModalClose = useCallback(() => {
     setTradeInsModalOpen(false);
+  }, []);
+
+  // Handle types modal open
+  const handleTypesModalOpen = useCallback(() => {
+    setTypesModalOpen(true);
+    setFiltersOpen(false);
   }, []);
 
   // Handle search input change
@@ -765,6 +773,9 @@ function MobileView() {
                 </DropdownMenuItem>
                 <DropdownMenuItem onAction={handleBrandModalOpen}>
                   Brands
+                </DropdownMenuItem>
+                <DropdownMenuItem onAction={handleTypesModalOpen}>
+                  Types
                 </DropdownMenuItem>
                 <DropdownMenuItem onAction={handleTradeInsModalOpen}>
                   Trade-ins
@@ -996,6 +1007,7 @@ function MobileView() {
         onOpenChange={setCategoryModalOpen}
       />
       <BrandModal open={brandModalOpen} onOpenChange={setBrandModalOpen} />
+      <TypesModal open={typesModalOpen} onOpenChange={setTypesModalOpen} />
       <TradeInsModal
         isOpen={tradeInsModalOpen}
         onClose={handleTradeInsModalClose}
@@ -1070,6 +1082,7 @@ function DesktopView() {
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
   const [brandModalOpen, setBrandModalOpen] = useState(false);
   const [tradeInsModalOpen, setTradeInsModalOpen] = useState(false);
+  const [typesModalOpen, setTypesModalOpen] = useState(false);
 
   // Open item modal for adding new item
   const openAddItemModal = useCallback(() => {
@@ -1147,6 +1160,11 @@ function DesktopView() {
   // Handle trade-ins modal close
   const handleTradeInsModalClose = useCallback(() => {
     setTradeInsModalOpen(false);
+  }, []);
+
+  // Handle types modal open
+  const handleTypesModalOpen = useCallback(() => {
+    setTypesModalOpen(true);
   }, []);
 
   // Handle clear all filters - uses resetFilters from useInventoryData
@@ -1269,6 +1287,9 @@ function DesktopView() {
               </DropdownMenuItem>
               <DropdownMenuItem onAction={handleBrandModalOpen}>
                 Brands
+              </DropdownMenuItem>
+              <DropdownMenuItem onAction={handleTypesModalOpen}>
+                Types
               </DropdownMenuItem>
               <DropdownMenuItem onAction={handleTradeInsModalOpen}>
                 Trade-ins
@@ -1627,6 +1648,7 @@ function DesktopView() {
         onOpenChange={setCategoryModalOpen}
       />
       <BrandModal open={brandModalOpen} onOpenChange={setBrandModalOpen} />
+      <TypesModal open={typesModalOpen} onOpenChange={setTypesModalOpen} />
       <TradeInsModal
         isOpen={tradeInsModalOpen}
         onClose={handleTradeInsModalClose}

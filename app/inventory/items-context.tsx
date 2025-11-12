@@ -33,6 +33,10 @@ import {
   updateBatch as updateBatchService,
   deleteBatch as deleteBatchService,
 } from "../../lib/services/inventoryService";
+import {
+  fetchTypes,
+  type Type,
+} from "../../lib/services/typesService";
 import { useBranch } from "../branch-context";
 import { toast } from "@/components/ui/use-toast";
 
@@ -42,10 +46,13 @@ interface ItemsContextType {
   brands: string[];
   brandObjects: Brand[];
   suppliers: Supplier[];
+  types: Type[];
   categoryMap: Record<string, string>;
   brandMap: Record<string, string>;
   showTradeIns: boolean;
   setShowTradeIns: (show: boolean) => void;
+  getTypesForCategory: (categoryId: string) => Type[];
+  refetchTypes: () => Promise<void>;
   addItem: (item: Omit<Item, "id">) => Promise<Item | null>;
   updateItem: (
     id: string,
@@ -100,10 +107,13 @@ const ItemsContext = createContext<ItemsContextType>({
   brands: [],
   brandObjects: [],
   suppliers: [],
+  types: [],
   categoryMap: {},
   brandMap: {},
   showTradeIns: false,
   setShowTradeIns: () => {},
+  getTypesForCategory: () => [],
+  refetchTypes: async () => {},
   addItem: async () => null,
   updateItem: async () => null,
   deleteItem: async () => false,
@@ -142,6 +152,7 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
   const [brands, setBrands] = useState<string[]>([]);
   const [brandObjects, setBrandObjects] = useState<Brand[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [types, setTypes] = useState<Type[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [showTradeIns, setShowTradeIns] = useState(false);
   const [categoryMap, setCategoryMap] = useState<Map<string, string>>(
@@ -225,6 +236,11 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
       const brandMapInstance = new Map<string, string>();
       brandsData.forEach((brand) => brandMapInstance.set(brand.id, brand.name));
       setBrandMap(brandMapInstance);
+
+      // Load types
+      const typesData = await fetchTypes();
+      setTypes(typesData);
+      console.log("✅ ItemsContext - Loaded types from DB:", typesData);
 
       // Load suppliers
       const suppliersData = await fetchSuppliers();
@@ -877,6 +893,21 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
     return totalQuantity > 0 ? totalCost / totalQuantity : 0;
   };
 
+  // Get types for a specific category
+  const getTypesForCategory = (categoryId: string): Type[] => {
+    return types.filter((type) => type.category_id === categoryId);
+  };
+
+  // Refetch types from database
+  const refetchTypes = async () => {
+    try {
+      const typesData = await fetchTypes();
+      setTypes(typesData);
+    } catch (error) {
+      console.error("Error refetching types:", error);
+    }
+  };
+
   // Memoize context value to prevent unnecessary re-renders
   const contextValue = useMemo(
     () => ({
@@ -885,8 +916,11 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
       brands,
       brandObjects,
       suppliers,
+      types,
       categoryMap: mapToRecord(categoryMap),
       brandMap: mapToRecord(brandMap),
+      getTypesForCategory,
+      refetchTypes,
       addItem,
       updateItem,
       deleteItem,
@@ -915,8 +949,11 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
       brands,
       brandObjects,
       suppliers,
+      types,
       categoryMap,
       brandMap,
+      getTypesForCategory,
+      refetchTypes,
       addItem,
       updateItem,
       deleteItem,

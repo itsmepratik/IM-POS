@@ -24,11 +24,6 @@ export function BrandLogo({
   const [hasError, setHasError] = React.useState(false);
   const hasLoadedRef = React.useRef(false);
 
-  // Reset loaded ref when imgSrc changes
-  React.useEffect(() => {
-    hasLoadedRef.current = false;
-  }, [imgSrc]);
-
   // Find the brand data from the database
   const brandData = React.useMemo(() => {
     return brands?.find((b) => b.name.toLowerCase() === brand.toLowerCase());
@@ -49,6 +44,11 @@ export function BrandLogo({
     // Otherwise return null to show fallback icon
     return null;
   }, [databaseImageUrl]);
+
+  // Reset loaded ref when imgSrc changes
+  React.useEffect(() => {
+    hasLoadedRef.current = false;
+  }, [imgSrc]);
 
   const handleError = React.useCallback(
     (e?: React.SyntheticEvent<HTMLImageElement, Event>) => {

@@ -69,7 +69,7 @@ export async function GET(req: Request) {
     // Get product IDs from inventory
     const productIds = inventoryData.map((inv) => inv.product_id);
 
-    // Query products with categories
+    // Query products with categories and types
     let query = supabase
       .from("products")
       .select(
@@ -78,11 +78,16 @@ export async function GET(req: Request) {
         name,
         brand_id,
         product_type,
+        type_id,
         image_url,
         low_stock_threshold,
         category_id,
         cost_price,
-        manufacturing_date
+        manufacturing_date,
+        types (
+          id,
+          name
+        )
       `
       )
       .in("id", productIds);

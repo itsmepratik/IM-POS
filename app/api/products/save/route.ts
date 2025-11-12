@@ -20,7 +20,8 @@ const PayloadSchema = z.object({
   category_id: z.string().uuid().optional(),
   brand: z.string().optional(),
   brand_id: z.string().uuid().optional(),
-  type: z.string().optional(),
+  type: z.string().optional(), // Legacy: type name (text)
+  type_id: z.string().uuid().optional(), // New: type ID (UUID)
   description: z.string().optional(),
   image_url: z.string().url().optional(),
   low_stock_threshold: z.number().int().min(0).optional(),
@@ -99,11 +100,36 @@ export async function POST(req: Request) {
       // Update existing product
       const updateData: any = {
         name: body.name,
-        product_type: body.type || null,
         description: body.description || null,
         image_url: body.image_url || null,
         low_stock_threshold: body.low_stock_threshold ?? 0,
       };
+
+      // Handle type_id (preferred) or type (legacy)
+      if (body.type_id) {
+        // Validate that type_id belongs to the product's category
+        const finalCategoryId = body.category_id || category?.id;
+        if (finalCategoryId) {
+          const { data: typeData } = await supabase
+            .from("types")
+            .select("category_id")
+            .eq("id", body.type_id)
+            .single();
+
+          if (typeData && typeData.category_id === finalCategoryId) {
+            updateData.type_id = body.type_id;
+            updateData.product_type = null; // Clear legacy field when type_id is set
+          } else {
+            return NextResponse.json(
+              { error: "type_id does not belong to the product's category" },
+              { status: 400 }
+            );
+          }
+        }
+      } else if (body.type) {
+        // Legacy support: use product_type text field
+        updateData.product_type = body.type;
+      }
 
       // Handle brand_id - use brand_id (UUID) to reference brands table
       if (body.brand_id) {
@@ -146,11 +172,32 @@ export async function POST(req: Request) {
       const insertData: any = {
         name: body.name,
         category_id: body.category_id,
-        product_type: body.type || null,
         description: body.description || null,
         image_url: body.image_url || null,
         low_stock_threshold: body.low_stock_threshold ?? 0,
       };
+
+      // Handle type_id (preferred) or type (legacy)
+      if (body.type_id) {
+        // Validate that type_id belongs to the product's category
+        const { data: typeData } = await supabase
+          .from("types")
+          .select("category_id")
+          .eq("id", body.type_id)
+          .single();
+
+        if (typeData && typeData.category_id === body.category_id) {
+          insertData.type_id = body.type_id;
+        } else {
+          return NextResponse.json(
+            { error: "type_id does not belong to the product's category" },
+            { status: 400 }
+          );
+        }
+      } else if (body.type) {
+        // Legacy support: use product_type text field
+        insertData.product_type = body.type;
+      }
 
       // Handle brand_id - use brand_id (UUID) to reference brands table
       if (body.brand_id) {
