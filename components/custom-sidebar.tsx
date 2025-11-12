@@ -59,7 +59,7 @@ type NavItem = {
 
 export function CustomSidebar({ className }: { className?: string }) {
   const { currentUser } = useUser();
-  const { notifications } = useNotification();
+  const { notifications, unreadCount } = useNotification();
   const router = useRouter();
   const pathname = usePathname();
   const { open, setOpen } = useSidebar();
@@ -196,9 +196,9 @@ export function CustomSidebar({ className }: { className?: string }) {
                     <Link href={item.href} className="relative">
                       <span className="mr-2 inline-flex">{item.icon}</span>
                       <span>{item.title}</span>
-                      {notifications.length > 0 && (
+                      {unreadCount > 0 && (
                         <Badge className="absolute top-0 -right-1 h-4 min-w-4 px-1 flex items-center justify-center bg-orange-500 text-[10px]">
-                          {notifications.length}
+                          {unreadCount}
                         </Badge>
                       )}
                     </Link>

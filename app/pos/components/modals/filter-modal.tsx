@@ -13,6 +13,7 @@ import {
   isValidImageUrl,
   cacheImageValid,
   cacheImageInvalid,
+  isImageCached,
 } from "@/lib/utils/imageCache";
 import { ImageErrorFallback } from "@/components/ui/image-error-boundary";
 import { useImagePreloader } from "@/lib/hooks/useImagePreloader";
@@ -64,38 +65,34 @@ function FilterImage({
   filterName: string;
 }) {
   const [hasError, setHasError] = React.useState(false);
+  const hasLoadedRef = React.useRef(false);
 
-  // Debug logging
+  // Reset loaded ref when imageUrl changes
   React.useEffect(() => {
-    console.log(`[FilterImage] ${filterName}:`, {
-      imageUrl,
-      isValid: imageUrl ? isValidImageUrl(imageUrl) : false,
-      brand,
-      type,
-    });
-  }, [imageUrl, filterName, brand, type]);
+    hasLoadedRef.current = false;
+  }, [imageUrl]);
 
   const handleError = React.useCallback(
     (e?: React.SyntheticEvent<HTMLImageElement, Event>) => {
       setHasError(true);
       if (imageUrl) {
         cacheImageInvalid(imageUrl);
-        console.warn(`[FilterImage] Failed to load: ${filterName}`, imageUrl);
       }
       if (e) {
         e.currentTarget.onerror = null;
       }
     },
-    [imageUrl, filterName]
+    [imageUrl]
   );
 
   const handleLoad = React.useCallback(() => {
-    setHasError(false);
-    if (imageUrl) {
+    // Only cache if not already cached and not already loaded
+    if (imageUrl && !hasLoadedRef.current && !isImageCached(imageUrl)) {
+      setHasError(false);
       cacheImageValid(imageUrl);
-      console.log(`[FilterImage] Loaded successfully: ${filterName}`, imageUrl);
+      hasLoadedRef.current = true;
     }
-  }, [imageUrl, filterName]);
+  }, [imageUrl]);
 
   // Show fallback icon if no valid image URL or error occurred
   if (!imageUrl || !isValidImageUrl(imageUrl) || hasError) {
@@ -108,10 +105,7 @@ function FilterImage({
 
   return (
     <ImageErrorFallback
-      onError={(error) => {
-        console.error(`[FilterImage] Error boundary: ${filterName}`, error);
-        handleError();
-      }}
+      onError={handleError}
       className="w-full h-full"
     >
       <Image

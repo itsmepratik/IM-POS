@@ -105,11 +105,9 @@ export async function POST(req: Request) {
         low_stock_threshold: body.low_stock_threshold ?? 0,
       };
 
-      // Handle brand_id vs brand - prefer brand_id (UUID) over brand (text)
+      // Handle brand_id - use brand_id (UUID) to reference brands table
       if (body.brand_id) {
         updateData.brand_id = body.brand_id;
-      } else if (body.brand) {
-        updateData.brand = body.brand;
       }
 
       // Only include new fields if they exist in the request
@@ -154,11 +152,9 @@ export async function POST(req: Request) {
         low_stock_threshold: body.low_stock_threshold ?? 0,
       };
 
-      // Handle brand_id vs brand - prefer brand_id (UUID) over brand (text)
+      // Handle brand_id - use brand_id (UUID) to reference brands table
       if (body.brand_id) {
         insertData.brand_id = body.brand_id;
-      } else if (body.brand) {
-        insertData.brand = body.brand;
       }
 
       // Only include new fields if they exist in the request

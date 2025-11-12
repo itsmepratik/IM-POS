@@ -10,6 +10,7 @@ import {
   isValidImageUrl,
   cacheImageValid,
   cacheImageInvalid,
+  isImageCached,
 } from "@/lib/utils/imageCache";
 import { useImagePreloader } from "@/lib/hooks/useImagePreloader";
 import { ImageErrorFallback } from "@/components/ui/image-error-boundary";
@@ -36,6 +37,74 @@ interface LubricantCategoryProps {
   lubricantProducts: LubricantProduct[];
   lubricantBrands: string[];
   isLoading: boolean;
+}
+
+// Helper component for lubricant product images
+function LubricantImage({
+  imageUrl,
+  brand,
+  type,
+}: {
+  imageUrl: string;
+  brand: string;
+  type: string;
+}) {
+  const [hasError, setHasError] = React.useState(false);
+  const hasLoadedRef = React.useRef(false);
+
+  // Reset loaded ref when imageUrl changes
+  React.useEffect(() => {
+    hasLoadedRef.current = false;
+  }, [imageUrl]);
+
+  const handleError = React.useCallback(
+    (e?: React.SyntheticEvent<HTMLImageElement, Event>) => {
+      setHasError(true);
+      if (imageUrl) {
+        cacheImageInvalid(imageUrl);
+      }
+      if (e) {
+        e.currentTarget.onerror = null;
+      }
+    },
+    [imageUrl]
+  );
+
+  const handleLoad = React.useCallback(() => {
+    // Only cache if not already cached and not already loaded
+    if (imageUrl && !hasLoadedRef.current && !isImageCached(imageUrl)) {
+      setHasError(false);
+      cacheImageValid(imageUrl);
+      hasLoadedRef.current = true;
+    }
+  }, [imageUrl]);
+
+  if (hasError || !isValidImageUrl(imageUrl)) {
+    return (
+      <div className="w-full h-full flex items-center justify-center bg-muted rounded-md">
+        <ImageIcon className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 text-muted-foreground" />
+      </div>
+    );
+  }
+
+  return (
+    <ImageErrorFallback
+      onError={handleError}
+      className="w-full h-full rounded-md"
+    >
+      <Image
+        src={imageUrl}
+        alt={`${brand} ${type}`}
+        className="object-contain rounded-md transition-opacity duration-200"
+        fill
+        sizes="(max-width: 640px) 64px, (max-width: 768px) 80px, (max-width: 1024px) 96px, 128px"
+        onError={handleError}
+        onLoad={handleLoad}
+        loading="lazy"
+        quality={85}
+      />
+    </ImageErrorFallback>
+  );
 }
 
 export function LubricantCategory({
@@ -114,35 +183,11 @@ export function LubricantCategory({
                   >
                     <div className="relative w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 mt-1 mb-1">
                       {lubricant.image ? (
-                        <ImageErrorFallback
-                          onError={(error) => {
-                            cacheImageInvalid(lubricant.image!);
-                            console.error(
-                              `Error loading lubricant image for ${lubricant.brand} ${lubricant.type}:`,
-                              error
-                            );
-                          }}
-                          className="w-full h-full rounded-md"
-                        >
-                          <Image
-                            src={lubricant.image}
-                            alt={`${lubricant.brand} ${lubricant.type}`}
-                            className="object-contain rounded-md transition-opacity duration-200"
-                            fill
-                            sizes="(max-width: 640px) 64px, (max-width: 768px) 80px, (max-width: 1024px) 96px, 128px"
-                            onError={(e) => {
-                              cacheImageInvalid(lubricant.image!);
-                              e.currentTarget.onerror = null;
-                            }}
-                            onLoad={() => {
-                              if (lubricant.image) {
-                                cacheImageValid(lubricant.image);
-                              }
-                            }}
-                            loading="lazy"
-                            quality={85}
-                          />
-                        </ImageErrorFallback>
+                        <LubricantImage
+                          imageUrl={lubricant.image}
+                          brand={lubricant.brand}
+                          type={lubricant.type}
+                        />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center bg-muted rounded-md">
                           <ImageIcon className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 text-muted-foreground" />

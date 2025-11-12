@@ -187,7 +187,7 @@ export async function GET(req: Request) {
       return {
         id: product.id,
         name: product.name,
-        brand: brand?.name ?? product.brand ?? null,
+        brand: brand?.name ?? null,
         brand_id: product.brand_id ?? null,
         product_type: product.product_type ?? null,
         category: category?.name ?? null,
@@ -284,6 +284,20 @@ export async function GET(req: Request) {
           (sum, bottle) => sum + (bottle.current_volume || 0),
           0
         );
+
+        // Debug logging to verify calculation
+        if (openBottles.length > 0) {
+          console.log(`[Products API] Product ${it.id} (${it.name}):`, {
+            openBottlesCount: openBottles.length,
+            openBottlesDetails: openBottles.map(b => ({
+              id: b.id,
+              current_volume: b.current_volume,
+              type: typeof b.current_volume,
+            })),
+            totalOpenVolume,
+            calculation: openBottles.map(b => b.current_volume).join(' + ') + ` = ${totalOpenVolume}`,
+          });
+        }
 
         return {
           ...it,

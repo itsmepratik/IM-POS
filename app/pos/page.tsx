@@ -85,6 +85,8 @@ import { useToast } from "@/components/ui/use-toast";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { useCompanyInfo } from "@/lib/hooks/useCompanyInfo";
+import { useNotification } from "@/app/notification-context";
+import { createLubricantVolumeAlert } from "@/lib/utils/alert-helpers";
 // Removed unused hooks
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -1034,8 +1036,12 @@ function POSPageContent() {
   } = useIntegratedPOSData();
 
   const { toast } = useToast();
+  const { addPersistentNotification } = useNotification();
   const { currentBranch, inventoryLocationId } = useBranch();
   const companyInfo = useCompanyInfo();
+  
+  // Ref to track last notification creation to prevent duplicates
+  const lastNotificationRef = useRef<{ key: string; timestamp: number } | null>(null);
 
   const [cart, setCart] = useState<CartItem[]>([]);
   const [activeCategory, setActiveCategory] = useState<string>("Lubricants");
@@ -1359,6 +1365,39 @@ function POSPageContent() {
     [products, lubricantProducts]
   );
 
+  // Update selectedOil when lubricantProducts refresh (e.g., after checkout)
+  useEffect(() => {
+    if (!selectedOil || lubricantProducts.length === 0) {
+      return;
+    }
+    
+    // Find the updated product with fresh inventory data
+    const updatedProduct = lubricantProducts.find(
+      (p) => p.id === selectedOil.id || p.originalId === selectedOil.originalId
+    );
+    
+    if (!updatedProduct) {
+      return;
+    }
+    
+    // Only update if totalOpenVolume or hasOpenBottles actually changed
+    // This prevents infinite loops
+    const hasChanged = 
+      updatedProduct.totalOpenVolume !== selectedOil.totalOpenVolume ||
+      updatedProduct.hasOpenBottles !== selectedOil.hasOpenBottles;
+    
+    if (hasChanged) {
+      console.log("🔄 Updating selectedOil with fresh data:", {
+        oldTotalOpenVolume: selectedOil.totalOpenVolume,
+        newTotalOpenVolume: updatedProduct.totalOpenVolume,
+        oldHasOpenBottles: selectedOil.hasOpenBottles,
+        newHasOpenBottles: updatedProduct.hasOpenBottles,
+      });
+      setSelectedOil(updatedProduct);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lubricantProducts]);
+
   const handleLubricantSelect = useCallback((lubricant: LubricantProduct) => {
     setSelectedOil(lubricant);
     setSelectedVolumes([]);
@@ -1393,46 +1432,303 @@ function POSPageContent() {
     setShowBottleTypeDialog(true);
   };
 
+  // Helper function to calculate total open volume selected
+  const calculateTotalOpenVolumeSelected = (
+    volumes: SelectedVolume[]
+  ): number => {
+    return volumes
+      .filter((v) => v.bottleType === "open")
+      .reduce((total, v) => {
+        const volumeAmount = parseVolumeString(v.size);
+        return total + volumeAmount * v.quantity;
+      }, 0);
+  };
+
+  // Helper function to calculate total open bottle volume already in cart for a product
+  const calculateCartOpenVolume = (productId: number): number => {
+    return cart
+      .filter((item) => item.id === productId && item.bottleType === "open")
+      .reduce((total, item) => {
+        // item.quantity already represents total volume in liters (see handleAddSelectedToCart)
+        return total + item.quantity;
+      }, 0);
+  };
+
   // Function to add volume with selected bottle type
   const addVolumeWithBottleType = (
     size: string,
     bottleType: "open" | "closed"
   ) => {
     // Validate open bottle availability
-    if (bottleType === "open" && (!selectedOil?.hasOpenBottles)) {
+    if (bottleType === "open" && !selectedOil?.hasOpenBottles) {
       toast({
         title: "No Open Bottles Available",
-        description: "There are no open bottles available for this product. Please select a closed bottle.",
+        description:
+          "There are no open bottles available for this product. Please select a closed bottle.",
         variant: "destructive",
       });
       return;
     }
 
+    // Check if cart already has maximum open bottle volume
+    if (bottleType === "open" && selectedOil?.totalOpenVolume !== undefined) {
+      const cartOpenVolume = calculateCartOpenVolume(selectedOil.id);
+      
+      // If cart already has max or more than available, show error
+      if (cartOpenVolume >= selectedOil.totalOpenVolume) {
+        const availableVolume = selectedOil.totalOpenVolume;
+        const formattedAvailable = availableVolume.toFixed(1).replace(/\.0$/, "");
+        
+        // Show toast for immediate feedback
+        toast({
+          title: "Maximum Open Bottle Volume Reached",
+          description: `You have already added the maximum available open bottle volume (${formattedAvailable}L) to your cart. Cannot add more open bottle volume.`,
+          variant: "destructive",
+        });
+        
+        // Create persistent notification
+        if (selectedOil?.id && selectedOil?.name) {
+          const notificationKey = `${selectedOil.id}-max-volume-reached-${Date.now()}`;
+          const now = Date.now();
+          const lastNotification = lastNotificationRef.current;
+          
+          // Prevent duplicate notifications within 2 seconds
+          if (lastNotification && lastNotification.key.startsWith(`${selectedOil.id}-max-volume-reached`) && (now - lastNotification.timestamp) < 2000) {
+            console.log("[POS] Duplicate notification prevented:", notificationKey);
+            return;
+          }
+          
+          lastNotificationRef.current = { key: notificationKey, timestamp: now };
+          
+          const alertParams = createLubricantVolumeAlert({
+            productId: selectedOil.id,
+            productName: selectedOil.name,
+            availableVolume: availableVolume,
+            attemptedVolume: cartOpenVolume,
+            size: size,
+            bottleType: "open",
+          });
+          addPersistentNotification(alertParams).catch((error) => {
+            console.error("Error creating persistent notification:", error);
+          });
+        }
+        
+        return;
+      }
+    }
+
     const volumeDetails = selectedOil?.volumes.find((v) => v.size === size);
-    if (volumeDetails) {
+    if (!volumeDetails) {
+      return;
+    }
+
       setSelectedVolumes((prev) => {
+      console.log("🔍 addVolumeWithBottleType - prev state:", JSON.stringify(prev, null, 2));
+      console.log("🔍 Looking for:", { size, bottleType });
+      
         const existing = prev.find(
           (v) => v.size === size && v.bottleType === bottleType
         );
+      
+      console.log("🔍 Found existing:", existing);
+      
+      // Validate open bottle volume limits - do this inside setState to use fresh state
+      console.log("🔍 selectedOil?.totalOpenVolume:", selectedOil?.totalOpenVolume);
+      console.log("🔍 selectedOil?.hasOpenBottles:", selectedOil?.hasOpenBottles);
+      
+      if (bottleType === "open" && selectedOil?.totalOpenVolume !== undefined) {
+        // Calculate current total excluding this specific volume (if it exists)
+        const currentTotalOpenVolume = prev
+          .filter((v) => !(v.size === size && v.bottleType === bottleType))
+          .filter((v) => v.bottleType === "open")
+          .reduce((total, v) => {
+            const volumeAmount = parseVolumeString(v.size);
+            return total + volumeAmount * v.quantity;
+          }, 0);
+        
+        // Calculate volume already in cart for this product
+        const cartOpenVolume = calculateCartOpenVolume(selectedOil.id);
+        
+        // Calculate what the new total would be (modal volumes + cart volumes)
+        const volumeAmount = parseVolumeString(size);
+        const newQuantity = existing ? existing.quantity + 1 : 1;
+        const newModalTotal = currentTotalOpenVolume + (volumeAmount * newQuantity);
+        const newTotal = newModalTotal + cartOpenVolume;
+        
+        console.log("🔍 Volume calculation breakdown:", {
+          "prev volumes (open only)": prev.filter(v => v.bottleType === "open"),
+          "excluded volume": prev.find(v => v.size === size && v.bottleType === bottleType),
+          "currentTotalOpenVolume (excluding this)": currentTotalOpenVolume,
+          "cartOpenVolume": cartOpenVolume,
+          "volumeAmount": volumeAmount,
+          "newQuantity": newQuantity,
+          "newModalTotal": newModalTotal,
+          "newTotal (modal + cart)": newTotal,
+        });
+
+        // Debug logging - log each value separately to avoid truncation
+        console.log("🔍 VALIDATION DETAILS:");
+        console.log("  - size:", size);
+        console.log("  - bottleType:", bottleType);
+        console.log("  - existingQuantity:", existing?.quantity || 0);
+        console.log("  - newQuantity:", newQuantity);
+        console.log("  - currentTotalOpenVolume (modal):", currentTotalOpenVolume);
+        console.log("  - cartOpenVolume:", cartOpenVolume);
+        console.log("  - volumeAmount:", volumeAmount);
+        console.log("  - newModalTotal:", newModalTotal);
+        console.log("  - newTotal (modal + cart):", newTotal);
+        console.log("  - totalOpenVolume (available):", selectedOil.totalOpenVolume);
+        console.log("  - comparison:", `${newTotal} > ${selectedOil.totalOpenVolume} = ${newTotal > selectedOil.totalOpenVolume}`);
+        console.log("  - willExceed:", newTotal > selectedOil.totalOpenVolume);
+
+        // Check if adding this volume would exceed available open bottle volume
+        // Use > (not >=) to allow exactly the available volume (e.g., 3L when 3L available)
+        // Include both modal volumes and cart volumes in the check
+        if (newTotal > selectedOil.totalOpenVolume) {
+          console.log("❌ BLOCKED: Would exceed available volume");
+          const availableVolume = selectedOil.totalOpenVolume;
+          const formattedAvailable = availableVolume.toFixed(1).replace(/\.0$/, "");
+          const formattedAttempted = newTotal.toFixed(1).replace(/\.0$/, "");
+          
+          // Show toast for immediate feedback
+          toast({
+            title: "Insufficient Open Bottle Volume",
+            description: `Only ${formattedAvailable}L available in open bottles. Cannot select ${formattedAttempted}L.`,
+            variant: "destructive",
+          });
+          
+          // Create persistent notification (with duplicate prevention)
+          if (selectedOil?.id && selectedOil?.name) {
+            const notificationKey = `${selectedOil.id}-${size}-${bottleType}-${formattedAttempted}`;
+            const now = Date.now();
+            const lastNotification = lastNotificationRef.current;
+            
+            // Prevent duplicate notifications within 2 seconds
+            if (lastNotification && lastNotification.key === notificationKey && (now - lastNotification.timestamp) < 2000) {
+              console.log("[POS] Duplicate notification prevented:", notificationKey);
+              return prev;
+            }
+            
+            lastNotificationRef.current = { key: notificationKey, timestamp: now };
+            
+            const alertParams = createLubricantVolumeAlert({
+              productId: selectedOil.id,
+              productName: selectedOil.name,
+              availableVolume: availableVolume,
+              attemptedVolume: newTotal,
+              size: size,
+              bottleType: bottleType,
+            });
+            addPersistentNotification(alertParams).catch((error) => {
+              console.error("Error creating persistent notification:", error);
+            });
+          }
+          
+          return prev; // Don't update if validation fails
+        }
+        console.log("✅ ALLOWED: Within available volume limit");
+      }
+      
         if (existing) {
+        console.log("🔍 Incrementing existing volume from", existing.quantity, "to", existing.quantity + 1);
+        // Increment existing volume quantity
           return prev.map((v) =>
             v.size === size && v.bottleType === bottleType
               ? { ...v, quantity: v.quantity + 1 }
               : v
           );
         }
+      console.log("🔍 Adding new volume");
+      // Add new volume
         return [...prev, { ...volumeDetails, quantity: 1, bottleType }];
       });
-    }
     setShowBottleTypeDialog(false);
     setCurrentBottleVolumeSize(null);
   };
 
-  const handleQuantityChange = (size: string, change: number) => {
+  const handleQuantityChange = (
+    size: string,
+    change: number,
+    bottleType?: "open" | "closed"
+  ) => {
     setSelectedVolumes((prev) => {
+      // Find the volume being changed - match by both size and bottleType if provided
+      const volumeToChange = prev.find(
+        (v) => v.size === size && (!bottleType || v.bottleType === bottleType)
+      );
+      
+      // If incrementing an open bottle volume, validate against available volume
+      if (
+        change > 0 &&
+        volumeToChange?.bottleType === "open" &&
+        selectedOil?.totalOpenVolume !== undefined
+      ) {
+        // Calculate current total excluding the volume we're about to change
+        const currentTotalOpenVolume = prev
+          .filter((v) => !(v.size === size && (!bottleType || v.bottleType === bottleType)))
+          .filter((v) => v.bottleType === "open")
+          .reduce((total, v) => {
+            const volumeAmount = parseVolumeString(v.size);
+            return total + volumeAmount * v.quantity;
+          }, 0);
+        
+        // Calculate volume already in cart for this product
+        const cartOpenVolume = calculateCartOpenVolume(selectedOil.id);
+        
+        // Add the volume that will exist after increment
+        const volumeAmount = parseVolumeString(size);
+        const newQuantity = volumeToChange.quantity + change;
+        const newModalTotal = currentTotalOpenVolume + (volumeAmount * newQuantity);
+        const newTotal = newModalTotal + cartOpenVolume;
+
+        if (newTotal > selectedOil.totalOpenVolume) {
+          const availableVolume = selectedOil.totalOpenVolume;
+          const formattedAvailable = availableVolume.toFixed(1).replace(/\.0$/, "");
+          const formattedAttempted = newTotal.toFixed(1).replace(/\.0$/, "");
+          
+          // Show toast for immediate feedback
+          toast({
+            title: "Insufficient Open Bottle Volume",
+            description: `Only ${formattedAvailable}L available in open bottles. Cannot select ${formattedAttempted}L.`,
+            variant: "destructive",
+          });
+          
+          // Create persistent notification (with duplicate prevention)
+          if (selectedOil?.id && selectedOil?.name) {
+            const notificationKey = `${selectedOil.id}-${size}-${volumeToChange?.bottleType || "open"}-${formattedAttempted}`;
+            const now = Date.now();
+            const lastNotification = lastNotificationRef.current;
+            
+            // Prevent duplicate notifications within 2 seconds
+            if (lastNotification && lastNotification.key === notificationKey && (now - lastNotification.timestamp) < 2000) {
+              console.log("[POS] Duplicate notification prevented:", notificationKey);
+              return prev;
+            }
+            
+            lastNotificationRef.current = { key: notificationKey, timestamp: now };
+            
+            const alertParams = createLubricantVolumeAlert({
+              productId: selectedOil.id,
+              productName: selectedOil.name,
+              availableVolume: availableVolume,
+              attemptedVolume: newTotal,
+              size: size,
+              bottleType: volumeToChange?.bottleType || "open",
+            });
+            addPersistentNotification(alertParams).catch((error) => {
+              console.error("Error creating persistent notification:", error);
+            });
+          }
+          
+          return prev; // Don't update if validation fails
+        }
+      }
+
+      // Proceed with quantity change - match by both size and bottleType if provided
       const updated = prev
         .map((v) =>
-          v.size === size
+          v.size === size &&
+          (!bottleType || v.bottleType === bottleType)
             ? { ...v, quantity: Math.max(0, v.quantity + change) }
             : v
         )
@@ -2145,6 +2441,14 @@ function POSPageContent() {
       setShowSuccess(true);
       setIsProcessingCheckout(false);
 
+      // Refresh products to update inventory counts (especially open bottle volumes)
+      try {
+        await syncProducts();
+        console.log("✅ Products refreshed after checkout");
+      } catch (error) {
+        console.error("Failed to refresh products after checkout:", error);
+      }
+
       // Auto-sync offline transactions periodically
       if (typeof window !== "undefined") {
         setTimeout(async () => {
@@ -2700,7 +3004,7 @@ function POSPageContent() {
                   {/* Status Indicator */}
                   <div className="flex items-center gap-2">
                     <div className="h-2 w-2 bg-green-500 rounded-full" />
-                    <span className="font-mono text-sm text-gray-600">
+                    <span className="font-mono text-sm text-gray-600" suppressHydrationWarning>
                       {new Date().toLocaleTimeString([], {
                         hour: "2-digit",
                         minute: "2-digit",
@@ -3123,9 +3427,6 @@ function POSPageContent() {
                       onError={(e) => {
                         // Prevent the default error behavior
                         e.currentTarget.onerror = null;
-                        console.log(
-                          `Error loading image for ${selectedOil.brand} ${selectedOil.type} in modal`
-                        );
                       }}
                     />
                   ) : (
@@ -3179,7 +3480,11 @@ function POSPageContent() {
                                   size="icon"
                                   className="h-7 w-7 shrink-0"
                                   onClick={() =>
-                                    handleQuantityChange(volume.size, -1)
+                                    handleQuantityChange(
+                                      volume.size,
+                                      -1,
+                                      volume.bottleType
+                                    )
                                   }
                                 >
                                   <Minus className="h-3 w-3" />
@@ -3191,8 +3496,59 @@ function POSPageContent() {
                                   variant="outline"
                                   size="icon"
                                   className="h-7 w-7 shrink-0"
+                                  disabled={
+                                    volume.bottleType === "open" &&
+                                    selectedOil?.totalOpenVolume !== undefined &&
+                                    (() => {
+                                      // Calculate current total excluding this specific volume
+                                      const currentTotalOpenVolume = selectedVolumes
+                                        .filter((v) => !(v.size === volume.size && v.bottleType === volume.bottleType))
+                                        .filter((v) => v.bottleType === "open")
+                                        .reduce((total, v) => {
+                                          const volumeAmount = parseVolumeString(v.size);
+                                          return total + volumeAmount * v.quantity;
+                                        }, 0);
+                                      
+                                      // Calculate volume already in cart for this product
+                                      const cartOpenVolume = calculateCartOpenVolume(selectedOil.id);
+                                      
+                                      // Add this volume with incremented quantity
+                                      const volumeAmount = parseVolumeString(volume.size);
+                                      const newQuantity = volume.quantity + 1;
+                                      const newModalTotal = currentTotalOpenVolume + (volumeAmount * newQuantity);
+                                      const newTotal = newModalTotal + cartOpenVolume;
+                                      
+                                      return newTotal > selectedOil.totalOpenVolume;
+                                    })()
+                                  }
                                   onClick={() =>
-                                    handleQuantityChange(volume.size, 1)
+                                    handleQuantityChange(
+                                      volume.size,
+                                      1,
+                                      volume.bottleType
+                                    )
+                                  }
+                                  title={
+                                    volume.bottleType === "open" &&
+                                    selectedOil?.totalOpenVolume !== undefined
+                                      ? (() => {
+                                          const currentTotalOpenVolume =
+                                            calculateTotalOpenVolumeSelected(
+                                              selectedVolumes
+                                            );
+                                          // Calculate volume already in cart for this product
+                                          const cartOpenVolume = calculateCartOpenVolume(selectedOil.id);
+                                          const volumeAmount = parseVolumeString(
+                                            volume.size
+                                          );
+                                          const newTotal =
+                                            currentTotalOpenVolume + volumeAmount + cartOpenVolume;
+                                          if (newTotal > selectedOil.totalOpenVolume) {
+                                            return `Only ${selectedOil.totalOpenVolume.toFixed(1).replace(/\.0$/, "")}L available in open bottles`;
+                                          }
+                                          return undefined;
+                                        })()
+                                      : undefined
                                   }
                                 >
                                   <Plus className="h-3 w-3" />
@@ -3946,9 +4302,15 @@ function POSPageContent() {
 
               <Button
                 variant="outline"
-                disabled={!selectedOil?.hasOpenBottles}
+                disabled={
+                  !selectedOil?.hasOpenBottles ||
+                  (selectedOil?.totalOpenVolume !== undefined &&
+                    calculateCartOpenVolume(selectedOil.id) >= selectedOil.totalOpenVolume)
+                }
                 className={`h-40 flex flex-col items-center justify-center gap-2 px-2 rounded-xl border-2 min-w-[120px] max-w-[180px] ${
-                  selectedOil?.hasOpenBottles
+                  selectedOil?.hasOpenBottles &&
+                  !(selectedOil?.totalOpenVolume !== undefined &&
+                    calculateCartOpenVolume(selectedOil.id) >= selectedOil.totalOpenVolume)
                     ? "hover:bg-accent hover:border-primary"
                     : "opacity-50 cursor-not-allowed"
                 }`}
@@ -3958,6 +4320,9 @@ function POSPageContent() {
                 title={
                   !selectedOil?.hasOpenBottles
                     ? "No open bottles available"
+                    : selectedOil?.totalOpenVolume !== undefined &&
+                      calculateCartOpenVolume(selectedOil.id) >= selectedOil.totalOpenVolume
+                    ? `Maximum open bottle volume (${selectedOil.totalOpenVolume.toFixed(1).replace(/\.0$/, "")}L) already in cart`
                     : undefined
                 }
               >

@@ -56,7 +56,6 @@ export const products = pgTable("products", {
   brandId: uuid("brand_id").references(() => brands.id, {
     onDelete: "set null",
   }),
-  brand: text("brand"), // Keep for backward compatibility
   productType: text("product_type"),
   description: text("description"),
   imageUrl: text("image_url"),

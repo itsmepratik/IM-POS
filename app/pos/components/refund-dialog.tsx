@@ -79,7 +79,7 @@ const fetchProductNames = async (
     // Query products table directly for these specific IDs (UUIDs)
     const { data: productsData, error } = await supabase
       .from("products")
-      .select("id, name, brand")
+      .select("id, name, brand_id, brands(id, name)")
       .in("id", productIds);
 
     if (error) {
@@ -92,8 +92,9 @@ const fetchProductNames = async (
     // Create a map of product ID (UUID string) to product name
     const productNameMap = new Map<string, string>();
     productsData?.forEach((product: any) => {
-      const fullName = product.brand
-        ? `${product.brand} ${product.name}`
+      const brandName = product.brands?.name;
+      const fullName = brandName
+        ? `${brandName} ${product.name}`
         : product.name;
       productNameMap.set(product.id, fullName);
     });

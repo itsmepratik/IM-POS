@@ -31,9 +31,10 @@ async function debugCategories() {
       .select(`
         id,
         name,
-        brand,
+        brand_id,
         category_id,
-        categories!inner(id, name)
+        categories!inner(id, name),
+        brands(id, name)
       `)
       .limit(10);
 
@@ -45,7 +46,7 @@ async function debugCategories() {
     console.log('🛍️ Sample products with categories:');
     products?.forEach(product => {
       console.log(`  - ${product.name}`);
-      console.log(`    Brand: ${product.brand || 'N/A'}`);
+      console.log(`    Brand: ${product.brands?.name || 'N/A'}`);
       console.log(`    Category ID: ${product.category_id}`);
       console.log(`    Category Name: ${product.categories?.name || 'N/A'}`);
       console.log('');
@@ -62,9 +63,10 @@ async function debugCategories() {
         products!inner(
           id,
           name,
-          brand,
+          brand_id,
           category_id,
-          categories!inner(id, name)
+          categories!inner(id, name),
+          brands(id, name)
         )
       `)
       .eq('location_id', 'c8b5f1e4-8a2d-4f3e-9b1c-2d3e4f5a6b7c')
@@ -78,7 +80,7 @@ async function debugCategories() {
     console.log('📦 Sample Sanaiya inventory with categories:');
     inventory?.forEach(item => {
       console.log(`  - ${item.products.name}`);
-      console.log(`    Brand: ${item.products.brand || 'N/A'}`);
+      console.log(`    Brand: ${item.products.brands?.name || 'N/A'}`);
       console.log(`    Category: ${item.products.categories?.name || 'N/A'}`);
       console.log(`    Stock: ${item.total_stock}`);
       console.log('');

@@ -51,6 +51,7 @@ export interface ProductInventory {
   totalStock: number;
   sellingPrice: number;
   isAvailable: boolean;
+  totalOpenVolume?: number; // Total volume in liters from open_bottle_details (sum of current_volume)
 }
 
 // Product volumes (for lubricants)

@@ -13,6 +13,7 @@ import {
   isValidImageUrl,
   cacheImageValid,
   cacheImageInvalid,
+  isImageCached,
 } from "@/lib/utils/imageCache";
 import { ImageErrorFallback } from "@/components/ui/image-error-boundary";
 
@@ -61,38 +62,34 @@ function PartImage({
   partName: string;
 }) {
   const [hasError, setHasError] = React.useState(false);
+  const hasLoadedRef = React.useRef(false);
 
-  // Debug logging
+  // Reset loaded ref when imageUrl changes
   React.useEffect(() => {
-    console.log(`[PartImage] ${partName}:`, {
-      imageUrl,
-      isValid: imageUrl ? isValidImageUrl(imageUrl) : false,
-      brand,
-      type,
-    });
-  }, [imageUrl, partName, brand, type]);
+    hasLoadedRef.current = false;
+  }, [imageUrl]);
 
   const handleError = React.useCallback(
     (e?: React.SyntheticEvent<HTMLImageElement, Event>) => {
       setHasError(true);
       if (imageUrl) {
         cacheImageInvalid(imageUrl);
-        console.warn(`[PartImage] Failed to load: ${partName}`, imageUrl);
       }
       if (e) {
         e.currentTarget.onerror = null;
       }
     },
-    [imageUrl, partName]
+    [imageUrl]
   );
 
   const handleLoad = React.useCallback(() => {
-    setHasError(false);
-    if (imageUrl) {
+    // Only cache if not already cached and not already loaded
+    if (imageUrl && !hasLoadedRef.current && !isImageCached(imageUrl)) {
+      setHasError(false);
       cacheImageValid(imageUrl);
-      console.log(`[PartImage] Loaded successfully: ${partName}`, imageUrl);
+      hasLoadedRef.current = true;
     }
-  }, [imageUrl, partName]);
+  }, [imageUrl]);
 
   // Show fallback icon if no valid image URL or error occurred
   if (!imageUrl || !isValidImageUrl(imageUrl) || hasError) {
@@ -105,10 +102,7 @@ function PartImage({
 
   return (
     <ImageErrorFallback
-      onError={(error) => {
-        console.error(`[PartImage] Error boundary: ${partName}`, error);
-        handleError();
-      }}
+      onError={handleError}
       className="w-full h-full"
     >
       <Image

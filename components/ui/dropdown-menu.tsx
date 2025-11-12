@@ -17,7 +17,6 @@ import {
   type MenuProps,
   type MenuItemProps,
   type MenuSectionProps,
-  type HeaderProps,
   type SeparatorProps,
 } from "react-aria-components";
 import { ChevronRight, Check, Circle, Loader2 } from "lucide-react";
@@ -140,47 +139,63 @@ const DropdownMenuContent = React.forwardRef<
     className?: string;
     sideOffset?: number;
     align?: "start" | "center" | "end";
-    placement?: string; // Accept but ignore placement prop for compatibility
+    placement?: string;
+    side?: "top" | "bottom" | "left" | "right";
   }
->(({ className, sideOffset = 4, children, placement, ...props }, ref) => {
-  const { error, onClearError } = useDropdownMenu();
+>(
+  (
+    { className, sideOffset = 4, children, placement, side, align, ...props },
+    ref
+  ) => {
+    const { error, onClearError } = useDropdownMenu();
 
-  React.useEffect(() => {
-    // Clear error when menu opens
-    if (onClearError) {
-      onClearError();
+    React.useEffect(() => {
+      // Clear error when menu opens
+      if (onClearError) {
+        onClearError();
+      }
+    }, [onClearError]);
+
+    // Convert side + align to placement format for React Aria Components
+    let finalPlacement = placement;
+    if (!finalPlacement && side) {
+      const alignStr =
+        align === "start" ? " start" : align === "end" ? " end" : "";
+      finalPlacement = `${side}${alignStr}`;
     }
-  }, [onClearError]);
 
-  return (
-    <Popover
-      ref={ref}
-      offset={sideOffset}
-      className={cn(
-        "z-50 min-w-[8rem] overflow-hidden rounded-xl border-2 bg-popover p-1.5 text-popover-foreground shadow-md",
-        "data-[entering]:animate-in data-[exiting]:animate-out data-[exiting]:fade-out-0 data-[entering]:fade-in-0 data-[exiting]:zoom-out-95 data-[entering]:zoom-in-95",
-        "data-[placement=bottom]:slide-in-from-top-2 data-[placement=left]:slide-in-from-right-2 data-[placement=right]:slide-in-from-left-2 data-[placement=top]:slide-in-from-bottom-2",
-        "max-sm:w-[15.5rem]",
-        className
-      )}
-      {...props}
-    >
-      <Menu className="outline-none">
-        {error && (
-          <div
-            id="dropdown-error"
-            className="px-2 py-1.5 text-sm text-destructive bg-destructive/10 rounded-sm mb-1"
-            role="alert"
-            aria-live="polite"
-          >
-            {error}
-          </div>
+    return (
+      <Popover
+        ref={ref}
+        offset={sideOffset}
+        placement={finalPlacement}
+        className={cn(
+          "min-w-[8rem] overflow-hidden rounded-xl border-2 bg-popover p-1.5 text-popover-foreground shadow-md",
+          "data-[entering]:animate-in data-[exiting]:animate-out data-[exiting]:fade-out-0 data-[entering]:fade-in-0 data-[exiting]:zoom-out-95 data-[entering]:zoom-in-95",
+          "data-[placement=bottom]:slide-in-from-top-2 data-[placement=left]:slide-in-from-right-2 data-[placement=right]:slide-in-from-left-2 data-[placement=top]:slide-in-from-bottom-2",
+          "max-sm:w-[15.5rem]",
+          className
         )}
-        {children}
-      </Menu>
-    </Popover>
-  );
-});
+        style={{ zIndex: 99999 }}
+        {...props}
+      >
+        <Menu className="outline-none">
+          {error && (
+            <div
+              id="dropdown-error"
+              className="px-2 py-1.5 text-sm text-destructive bg-destructive/10 rounded-sm mb-1"
+              role="alert"
+              aria-live="polite"
+            >
+              {error}
+            </div>
+          )}
+          {children}
+        </Menu>
+      </Popover>
+    );
+  }
+);
 DropdownMenuContent.displayName = "DropdownMenuContent";
 
 // Menu item component

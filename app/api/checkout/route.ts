@@ -186,8 +186,8 @@ async function handleLubricantSale(
       if (currentVolume >= remainingVolume) {
         // This bottle has enough volume
         const newVolume = currentVolume - remainingVolume;
-        const isEmpty = newVolume <= 0;
-        
+    const isEmpty = newVolume <= 0;
+
         console.log(`[${cartItem.productId}] OPEN source - Bottle ${bottle.id} has enough: newVolume=${newVolume}, isEmpty=${isEmpty}`);
         
         // Only add to bottlesToUpdate if it's not empty, otherwise add to bottlesToMarkEmpty
@@ -257,12 +257,12 @@ async function handleLubricantSale(
 
     // Update all bottles that were used
     for (const update of bottlesToUpdate) {
-      await tx
-        .update(openBottleDetails)
-        .set({
+    await tx
+      .update(openBottleDetails)
+      .set({
           currentVolume: update.newVolume.toString(),
           isEmpty: update.isEmpty,
-        })
+      })
         .where(eq(openBottleDetails.id, update.id));
     }
 

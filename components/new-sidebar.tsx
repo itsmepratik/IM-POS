@@ -57,35 +57,27 @@ export function Sidebar({
 }) {
   const pathname = usePathname();
   const { currentUser, hasPermission, isAdmin, isLoading } = useUser();
-  const { notifications } = useNotification();
+  const { notifications, unreadCount } = useNotification();
   const router = useRouter();
   const [isCollapsed, setIsCollapsed] = React.useState(false);
 
-  // When isCollapsed changes, notify parent component if callback is provided
   React.useEffect(() => {
     if (onCollapsedChange) {
       onCollapsedChange(isCollapsed);
     }
   }, [isCollapsed, onCollapsedChange]);
 
-  // Check if we're on mobile
   const [isMobile, setIsMobile] = React.useState(false);
   React.useEffect(() => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 1024);
     };
 
-    // Initial check
     checkMobile();
-
-    // Add event listener for window resize
     window.addEventListener("resize", checkMobile);
-
-    // Cleanup
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  // Define the nav items with permissions
   const navItems = [
     {
       title: "Dashboard",
@@ -124,7 +116,6 @@ export function Sidebar({
     },
   ];
 
-  // Define the dropdown items with permissions
   const inventoryItems = [
     {
       title: "Main",
@@ -182,7 +173,6 @@ export function Sidebar({
       )}
     >
       <div className="flex flex-col h-full">
-        {/* Header with logo and toggle */}
         <div
           className={cn(
             "flex h-14 items-center px-3",
@@ -224,11 +214,9 @@ export function Sidebar({
           )}
         </div>
 
-        {/* Nav items */}
         <div className="flex-1 overflow-y-auto py-2 no-scrollbar">
           <div className="space-y-1 px-2">
             {isLoading ? (
-              // Show loading skeleton while permissions are being loaded
               <div className="space-y-2">
                 <div className="h-8 bg-gray-200 animate-pulse rounded"></div>
                 <div className="h-8 bg-gray-200 animate-pulse rounded"></div>
@@ -236,12 +224,10 @@ export function Sidebar({
               </div>
             ) : (
               navItems.map((item) => {
-                // Skip admin items for non-admin users
                 if (item.adminOnly && !isAdmin()) {
                   return null;
                 }
 
-                // Skip items user doesn't have permission for
                 if (!hasPermission(item.permission)) {
                   return null;
                 }
@@ -267,7 +253,6 @@ export function Sidebar({
               })
             )}
 
-            {/* Inventory Accordion - Only show if user has inventory access */}
             {!isLoading && hasPermission("inventory.access") && (
               <Accordion
                 type="single"
@@ -286,7 +271,6 @@ export function Sidebar({
                   <AccordionContent className="pb-1 pt-0 px-0">
                     <div className="ml-2 space-y-1">
                       {inventoryItems.map((item) => {
-                        // Check permissions for each inventory item
                         if (item.adminOnly && !isAdmin()) return null;
                         if (!hasPermission(item.permission)) return null;
 
@@ -311,7 +295,6 @@ export function Sidebar({
               </Accordion>
             )}
 
-            {/* Inventory Icon Only (when collapsed) */}
             {!isLoading && isCollapsed && hasPermission("inventory.access") && (
               <div className="flex justify-center py-1">
                 <Link
@@ -328,7 +311,6 @@ export function Sidebar({
               </div>
             )}
 
-            {/* Orders Accordion - Only show for admin users */}
             {!isLoading && isAdmin() && (
               <Accordion
                 type="single"
@@ -347,7 +329,6 @@ export function Sidebar({
                   <AccordionContent className="pb-1 pt-0 px-0">
                     <div className="ml-2 space-y-1">
                       {orderItems.map((item) => {
-                        // Check permissions for each order item
                         if (item.adminOnly && !isAdmin()) return null;
                         if (!hasPermission(item.permission)) return null;
 
@@ -372,7 +353,6 @@ export function Sidebar({
               </Accordion>
             )}
 
-            {/* Orders Icon Only (when collapsed) - Only show for admin users */}
             {!isLoading && isCollapsed && isAdmin() && (
               <div className="flex justify-center py-1">
                 <Link
@@ -394,9 +374,7 @@ export function Sidebar({
           </div>
         </div>
 
-        {/* Bottom actions section */}
         <div className="mt-auto p-2">
-          {/* Notifications Inbox Link */}
           <Link
             href="/notifications"
             className={cn(
@@ -409,16 +387,15 @@ export function Sidebar({
           >
             <span className="flex-shrink-0 relative">
               <Inbox className="h-4 w-4" />
-              {notifications.length > 0 && (
+              {unreadCount > 0 && (
                 <Badge className="absolute -top-2 -right-2 h-4 min-w-4 px-1 flex items-center justify-center bg-orange-500 text-[10px]">
-                  {notifications.length}
+                  {unreadCount}
                 </Badge>
               )}
             </span>
             {!isCollapsed && <span className="truncate">Notifications</span>}
           </Link>
 
-          {/* Profile Menu */}
           <ProfileMenu isCollapsed={isCollapsed} />
         </div>
       </div>
@@ -440,7 +417,7 @@ function ProfileMenu({ isCollapsed }: { isCollapsed: boolean }) {
     console.log("🚀 LOGOUT BUTTON CLICKED - handleLogout called");
     if (isLoggingOut) {
       console.log("⏸️ Already logging out, ignoring...");
-      return; // Prevent double clicks
+      return;
     }
 
     console.log("🔄 Setting isLoggingOut to true");
@@ -449,18 +426,17 @@ function ProfileMenu({ isCollapsed }: { isCollapsed: boolean }) {
       console.log("📤 Starting logout process - calling signOut()...");
       await signOut();
       console.log("✅ Sign out completed, navigating to login...");
-      
-      // Small delay to ensure state is fully cleared before navigation
+
       await new Promise((resolve) => setTimeout(resolve, 100));
-      
-      // Use replace instead of push to avoid back navigation issues
+
       console.log("🔄 Calling router.replace('/login')");
       router.replace("/login");
-      
-      // Force navigation if router.replace doesn't work immediately
+
       setTimeout(() => {
         if (window.location.pathname !== "/login") {
-          console.log("⚠️ Router didn't navigate, forcing window.location.href...");
+          console.log(
+            "⚠️ Router didn't navigate, forcing window.location.href..."
+          );
           window.location.href = "/login";
         } else {
           console.log("✅ Successfully navigated to /login");
@@ -468,7 +444,6 @@ function ProfileMenu({ isCollapsed }: { isCollapsed: boolean }) {
       }, 500);
     } catch (error) {
       console.error("❌ Logout error:", error);
-      // Still redirect even if logout fails to prevent stuck state
       router.replace("/login");
       setTimeout(() => {
         if (window.location.pathname !== "/login") {
@@ -476,14 +451,12 @@ function ProfileMenu({ isCollapsed }: { isCollapsed: boolean }) {
         }
       }, 500);
     } finally {
-      // Reset after a delay to prevent immediate re-clicks
       setTimeout(() => setIsLoggingOut(false), 1000);
     }
   };
 
   const toggleDarkMode = () => {
     setDarkMode(!darkMode);
-    // No actual functionality as per requirements
   };
 
   if (isCollapsed) {
@@ -503,9 +476,8 @@ function ProfileMenu({ isCollapsed }: { isCollapsed: boolean }) {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent
-          className="w-[15.5rem] max-w-full sm:w-[13.3rem] sm:ml-[2px] rounded-xl border-2 p-2"
+          className="w-[15.5rem] max-w-full sm:w-[13.3rem] sm:ml-[2px] rounded-xl border-2 p-2 !z-[99999]"
           align="end"
-          forceMount
         >
           <DropdownMenuItem className="rounded-lg py-2">
             <User className="mr-2 h-5 w-5 stroke-[1.5]" />
@@ -513,15 +485,14 @@ function ProfileMenu({ isCollapsed }: { isCollapsed: boolean }) {
           </DropdownMenuItem>
           <DropdownMenuItem
             className="rounded-lg py-2"
-            onSelect={handleSettingsClick}
+            onAction={handleSettingsClick}
           >
             <Settings className="mr-2 h-5 w-5 stroke-[1.5]" />
             <span>Settings</span>
           </DropdownMenuItem>
           <DropdownMenuItem
             className="rounded-lg py-2 flex items-center justify-between"
-            onSelect={(e) => {
-              e.preventDefault();
+            onAction={() => {
               toggleDarkMode();
             }}
           >
@@ -542,7 +513,7 @@ function ProfileMenu({ isCollapsed }: { isCollapsed: boolean }) {
               console.log("🔵 onAction triggered!");
               handleLogout();
             }}
-            disabled={isLoggingOut || isLoading}
+            isDisabled={isLoggingOut || isLoading}
           >
             <LogOut className="mr-2 h-5 w-5 stroke-[1.5]" />
             <span>{isLoggingOut ? "Logging out..." : "Log out"}</span>
@@ -579,7 +550,7 @@ function ProfileMenu({ isCollapsed }: { isCollapsed: boolean }) {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
-        className="w-[15.5rem] max-w-full sm:w-[13.3rem] sm:ml-[2px] rounded-xl border-2 p-2"
+        className="w-[15.5rem] max-w-full sm:w-[13.3rem] sm:ml-[2px] rounded-xl border-2 p-2 z-[999]"
         align="end"
         forceMount
       >
@@ -589,15 +560,14 @@ function ProfileMenu({ isCollapsed }: { isCollapsed: boolean }) {
         </DropdownMenuItem>
         <DropdownMenuItem
           className="rounded-lg py-2"
-          onSelect={handleSettingsClick}
+          onAction={handleSettingsClick}
         >
           <Settings className="mr-2 h-5 w-5 stroke-[1.5]" />
           <span>Settings</span>
         </DropdownMenuItem>
         <DropdownMenuItem
           className="rounded-lg py-2 flex items-center justify-between"
-          onSelect={(e) => {
-            e.preventDefault();
+          onAction={() => {
             toggleDarkMode();
           }}
         >
@@ -615,7 +585,7 @@ function ProfileMenu({ isCollapsed }: { isCollapsed: boolean }) {
         <DropdownMenuItem
           className="rounded-lg py-2"
           onAction={handleLogout}
-          disabled={isLoggingOut || isLoading}
+          isDisabled={isLoggingOut || isLoading}
         >
           <LogOut className="mr-2 h-5 w-5 stroke-[1.5]" />
           <span>{isLoggingOut ? "Logging out..." : "Log out"}</span>

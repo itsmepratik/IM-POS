@@ -45,6 +45,7 @@ export function itemToUnifiedProduct(
       (item.stock || 0) > 0 ||
       (item.bottleStates?.open || 0) > 0 ||
       (item.bottleStates?.closed || 0) > 0,
+    totalOpenVolume: item.totalOpenVolume, // Include totalOpenVolume from Item
   };
 
   const volumes: ProductVolume[] =
@@ -71,30 +72,16 @@ export function itemToUnifiedProduct(
   let formattedManufacturingDate: string | null = null;
   if (item.manufacturingDate) {
     try {
-      console.log(
-        "Raw manufacturing date from item:",
-        item.manufacturingDate,
-        typeof item.manufacturingDate
-      );
-
       // Handle different date formats from database
       if (typeof item.manufacturingDate === "string") {
         // If it's already in YYYY-MM-DD format, use it directly
         if (/^\d{4}-\d{2}-\d{2}$/.test(item.manufacturingDate)) {
           formattedManufacturingDate = item.manufacturingDate;
-          console.log(
-            "Date already in YYYY-MM-DD format:",
-            formattedManufacturingDate
-          );
         } else {
           // Try to parse the string as a date
           const date = new Date(item.manufacturingDate);
           if (!isNaN(date.getTime())) {
             formattedManufacturingDate = date.toISOString().split("T")[0];
-            console.log(
-              "Parsed string date to YYYY-MM-DD:",
-              formattedManufacturingDate
-            );
           }
         }
       } else if (item.manufacturingDate instanceof Date) {
@@ -102,19 +89,11 @@ export function itemToUnifiedProduct(
         formattedManufacturingDate = item.manufacturingDate
           .toISOString()
           .split("T")[0];
-        console.log(
-          "Converted Date object to YYYY-MM-DD:",
-          formattedManufacturingDate
-        );
       } else {
         // Try to convert to Date and format
         const date = new Date(item.manufacturingDate as any);
         if (!isNaN(date.getTime())) {
           formattedManufacturingDate = date.toISOString().split("T")[0];
-          console.log(
-            "Converted unknown type to YYYY-MM-DD:",
-            formattedManufacturingDate
-          );
         }
       }
     } catch (error) {
@@ -126,8 +105,6 @@ export function itemToUnifiedProduct(
       );
       formattedManufacturingDate = null;
     }
-  } else {
-    console.log("No manufacturing date provided in item");
   }
 
   return {
@@ -232,13 +209,6 @@ export function unifiedProductToPOSProduct(
     ? categoryMapping[product.categoryName] || "Parts"
     : "Parts";
 
-  // Debug: Log imageUrl transformation
-  if (product.imageUrl) {
-    console.log(`[unifiedProductToPOSProduct] Product ${product.name} has imageUrl:`, product.imageUrl);
-  } else {
-    console.log(`[unifiedProductToPOSProduct] Product ${product.name} has NO imageUrl`);
-  }
-
   return {
     id: generateNumericId(product.id),
     originalId: product.id,
@@ -271,11 +241,6 @@ export function unifiedProductToPOSLubricantProduct(
       bottleStates: product.bottleStates,
     })) || [];
 
-  // Debug: Log imageUrl transformation for lubricants
-  if (product.imageUrl) {
-    console.log(`[unifiedProductToPOSLubricantProduct] Product ${product.name} has imageUrl:`, product.imageUrl);
-  }
-
   return {
     id: generateNumericId(product.id),
     originalId: product.id,
@@ -287,7 +252,7 @@ export function unifiedProductToPOSLubricantProduct(
     volumes,
     isAvailable: product.inventory?.isAvailable || false,
     hasOpenBottles: (product.inventory?.openBottlesStock || 0) > 0,
-    totalOpenVolume: product.inventory?.openBottlesStock || 0, // This is a count, not volume - will be enhanced later
+    totalOpenVolume: product.inventory?.totalOpenVolume ?? 0, // Use actual volume from open_bottle_details, not bottle count
   };
 }
 
@@ -334,9 +299,125 @@ export function itemsToUnifiedProducts(
   locationId: string,
   locationName?: string
 ): UnifiedProduct[] {
-  return items.map((item) =>
-    itemToUnifiedProduct(item, locationId, locationName)
-  );
+  // Group items by product ID to handle multiple inventory records
+  const itemsByProduct = new Map<string, Item[]>();
+  
+  items.forEach((item) => {
+    const existing = itemsByProduct.get(item.id) || [];
+    existing.push(item);
+    itemsByProduct.set(item.id, existing);
+  });
+
+  // Convert grouped items to unified products, merging inventory when needed
+  return Array.from(itemsByProduct.entries()).map(([productId, productItems]) => {
+    if (productItems.length === 1) {
+      // Single inventory record - convert normally
+      return itemToUnifiedProduct(productItems[0], locationId, locationName);
+    }
+
+    // Multiple inventory records - merge them
+    const baseItem = productItems[0];
+    
+    // Debug logging for merged inventory
+    console.log(`[itemsToUnifiedProducts] Merging ${productItems.length} inventory records for product: ${baseItem.name} (${productId})`, {
+      inventoryRecords: productItems.map(item => ({
+        totalOpenVolume: item.totalOpenVolume,
+        openBottlesStock: item.bottleStates?.open,
+        closedBottlesStock: item.bottleStates?.closed,
+      })),
+    });
+    
+    const mergedInventory: ProductInventory = {
+      locationId,
+      locationName,
+      standardStock: productItems.reduce((sum, item) => sum + (item.stock || 0), 0),
+      openBottlesStock: productItems.reduce(
+        (sum, item) => sum + (item.bottleStates?.open || 0),
+        0
+      ),
+      closedBottlesStock: productItems.reduce(
+        (sum, item) => sum + (item.bottleStates?.closed || 0),
+        0
+      ),
+      totalStock: productItems.reduce((sum, item) => {
+        const stock = item.stock || 0;
+        const open = item.bottleStates?.open || 0;
+        const closed = item.bottleStates?.closed || 0;
+        return sum + stock + open + closed;
+      }, 0),
+      sellingPrice: baseItem.price || 0, // Use first item's price
+      isAvailable: productItems.some(
+        (item) =>
+          (item.stock || 0) > 0 ||
+          (item.bottleStates?.open || 0) > 0 ||
+          (item.bottleStates?.closed || 0) > 0
+      ),
+      // Sum totalOpenVolume from all inventory records
+      totalOpenVolume: productItems.reduce(
+        (sum, item) => sum + (item.totalOpenVolume || 0),
+        0
+      ),
+    };
+
+    // Merge volumes (take unique volumes from all items)
+    const volumeMap = new Map<string, ProductVolume>();
+    productItems.forEach((item) => {
+      item.volumes?.forEach((vol) => {
+        if (!volumeMap.has(vol.size)) {
+          volumeMap.set(vol.size, {
+            id: vol.id,
+            size: vol.size,
+            price: vol.price,
+            isActive: true,
+          });
+        }
+      });
+    });
+
+    // Merge batches
+    const batchMap = new Map<string, ProductBatch>();
+    productItems.forEach((item) => {
+      item.batches?.forEach((batch) => {
+        if (!batchMap.has(batch.id)) {
+          batchMap.set(batch.id, {
+            id: batch.id,
+            purchaseDate: batch.purchase_date,
+            expirationDate: batch.expiration_date,
+            supplierId: batch.supplier_id,
+            costPrice: batch.cost_price,
+            initialQuantity: batch.initial_quantity,
+            currentQuantity: batch.current_quantity,
+            isActiveBatch: true,
+          });
+        }
+      });
+    });
+
+    return {
+      id: baseItem.id,
+      name: baseItem.name,
+      description: baseItem.description,
+      imageUrl: baseItem.imageUrl || baseItem.image_url || null,
+      basePrice: baseItem.price || 0,
+      categoryId: baseItem.category_id,
+      categoryName: baseItem.category || null,
+      brandId: baseItem.brand_id,
+      brandName: baseItem.brand || null,
+      productType: baseItem.type || null,
+      inventory: mergedInventory,
+      isLubricant: baseItem.isOil || false,
+      volumes: Array.from(volumeMap.values()),
+      bottleStates: mergedInventory.openBottlesStock > 0 || mergedInventory.closedBottlesStock > 0
+        ? {
+            open: mergedInventory.openBottlesStock,
+            closed: mergedInventory.closedBottlesStock,
+          }
+        : undefined,
+      batches: Array.from(batchMap.values()),
+      createdAt: baseItem.created_at,
+      updatedAt: baseItem.updated_at,
+    };
+  });
 }
 
 /**

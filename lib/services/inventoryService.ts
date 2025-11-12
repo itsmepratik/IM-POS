@@ -38,6 +38,7 @@ export type Item = {
   batteryState?: "new" | "scrap" | "resellable";
   costPrice?: number;
   manufacturingDate?: string | null;
+  totalOpenVolume?: number; // Total volume in liters from open_bottle_details (for lubricants)
 };
 
 export type Volume = {
@@ -156,7 +157,6 @@ export const fetchItems = async (
           low_stock_threshold,
           cost_price,
           manufacturing_date,
-          brand,
           category_id,
           brand_id,
           categories (
@@ -239,6 +239,56 @@ export const fetchItems = async (
           ? (inv.open_bottles_stock || 0) + (inv.closed_bottles_stock || 0)
           : inv.standard_stock || 0;
 
+        // For lubricants, fetch open_bottle_details to calculate totalOpenVolume
+        // Only count the most recent bottles up to open_bottles_stock count
+        // This handles cases where open_bottles_stock is out of sync with actual bottle count
+        let totalOpenVolume: number | undefined = undefined;
+        if (isOilProduct && inv.id) {
+          const openBottlesStockCount = inv.open_bottles_stock || 0;
+          
+          // Fetch all non-empty bottles, ordered by most recently opened
+          const { data: openBottleRows, error: openBottleError } = await supabase
+            .from("open_bottle_details")
+            .select("id, inventory_id, current_volume, opened_at")
+            .eq("inventory_id", inv.id)
+            .eq("is_empty", false)
+            .order("opened_at", { ascending: false });
+
+          if (openBottleError) {
+            console.error(`Error fetching open bottles for inventory ${inv.id}:`, openBottleError);
+          }
+
+          if (openBottleRows && openBottleRows.length > 0) {
+            // If open_bottles_stock is set and is less than actual count, use only the most recent N bottles
+            // This handles data inconsistency where count is out of sync
+            const bottlesToCount = openBottlesStockCount > 0 && openBottlesStockCount < openBottleRows.length
+              ? openBottleRows.slice(0, openBottlesStockCount)
+              : openBottleRows;
+            
+            totalOpenVolume = bottlesToCount.reduce(
+              (sum, bottle) => {
+                const volume = parseFloat(bottle.current_volume) || 0;
+                return sum + volume;
+              },
+              0
+            );
+            
+            // Debug logging
+            console.log(`[fetchItems] Product: ${product.name} (${product.id})`, {
+              inventoryId: inv.id,
+              openBottlesStock: openBottlesStockCount,
+              actualOpenBottlesCount: openBottleRows.length,
+              bottlesUsedForCalculation: bottlesToCount.length,
+              totalOpenVolume,
+              note: openBottlesStockCount < openBottleRows.length 
+                ? `Using only ${openBottlesStockCount} most recent bottles (data sync issue)` 
+                : 'Using all bottles',
+            });
+          } else {
+            totalOpenVolume = 0;
+          }
+        }
+
         return {
           id: product.id,
           name: product.name,
@@ -251,7 +301,7 @@ export const fetchItems = async (
               }
             : undefined,
           category: product.categories?.name || "Uncategorized", // Using the actual category name
-          brand: product.brands?.name || product.brand || "N/A", // Use brands table first, fallback to deprecated brand column
+          brand: product.brands?.name || "N/A", // Use brands table via brand_id foreign key
           brand_id: product.brand_id,
           category_id: product.category_id,
           type: product.product_type,
@@ -276,6 +326,7 @@ export const fetchItems = async (
             debug_manufacturingDate_type: typeof product.manufacturing_date,
             debug_manufacturingDate_string: String(product.manufacturing_date),
           }),
+          ...(isOilProduct && totalOpenVolume !== undefined && { totalOpenVolume }),
         };
       })
     );

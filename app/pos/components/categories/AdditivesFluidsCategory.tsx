@@ -8,6 +8,7 @@ import {
   isValidImageUrl,
   cacheImageValid,
   cacheImageInvalid,
+  isImageCached,
 } from "@/lib/utils/imageCache";
 import { ImageErrorFallback } from "@/components/ui/image-error-boundary";
 
@@ -47,42 +48,34 @@ function AdditiveFluidImage({
   productName: string;
 }) {
   const [hasError, setHasError] = React.useState(false);
+  const hasLoadedRef = React.useRef(false);
 
-  // Debug logging
+  // Reset loaded ref when imageUrl changes
   React.useEffect(() => {
-    console.log(`[AdditiveFluidImage] ${productName}:`, {
-      imageUrl,
-      isValid: imageUrl ? isValidImageUrl(imageUrl) : false,
-    });
-  }, [imageUrl, productName]);
+    hasLoadedRef.current = false;
+  }, [imageUrl]);
 
   const handleError = React.useCallback(
     (e?: React.SyntheticEvent<HTMLImageElement, Event>) => {
       setHasError(true);
       if (imageUrl) {
         cacheImageInvalid(imageUrl);
-        console.warn(
-          `[AdditiveFluidImage] Failed to load: ${productName}`,
-          imageUrl
-        );
       }
       if (e) {
         e.currentTarget.onerror = null;
       }
     },
-    [imageUrl, productName]
+    [imageUrl]
   );
 
   const handleLoad = React.useCallback(() => {
-    setHasError(false);
-    if (imageUrl) {
+    // Only cache if not already cached and not already loaded
+    if (imageUrl && !hasLoadedRef.current && !isImageCached(imageUrl)) {
+      setHasError(false);
       cacheImageValid(imageUrl);
-      console.log(
-        `[AdditiveFluidImage] Loaded successfully: ${productName}`,
-        imageUrl
-      );
+      hasLoadedRef.current = true;
     }
-  }, [imageUrl, productName]);
+  }, [imageUrl]);
 
   // Show fallback icon if no valid image URL or error occurred
   if (!imageUrl || !isValidImageUrl(imageUrl) || hasError) {
@@ -96,13 +89,7 @@ function AdditiveFluidImage({
   return (
     <div className="w-12 h-12 flex-shrink-0 relative rounded-md overflow-hidden bg-muted/80">
       <ImageErrorFallback
-        onError={(error) => {
-          console.error(
-            `[AdditiveFluidImage] Error boundary: ${productName}`,
-            error
-          );
-          handleError();
-        }}
+        onError={handleError}
         className="w-full h-full"
       >
         <Image

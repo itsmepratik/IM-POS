@@ -6,7 +6,21 @@ This document outlines the comprehensive product requirements for a Point of Sal
 
 ## 2. Product Overview
 
-The POS system is a comprehensive solution that combines point-of-sale functionality with real-time inventory management. It is specifically tailored for automotive service shops that need to track oil products (which can be sold in partial volumes from larger containers), parts, filters, and other automotive-related items. The application provides an intuitive interface for sales transactions, inventory tracking across multiple branches, batch management, and financial reporting. The system emphasizes ease of use, performance, and real-time data synchronization across multiple locations.
+The POS system is a comprehensive solution that combines point-of-sale functionality with real-time inventory management. It is specifically tailored for automotive service shops that need to track oil products (which can be sold in partial volumes from larger containers), parts, filters, batteries, and other automotive-related items. The application provides an intuitive interface for sales transactions, inventory tracking across multiple locations and shops, batch management, and financial reporting.
+
+Key features include:
+
+- Multiple transaction types: sales, refunds, warranty claims, credit transactions, on-hold transactions, and stock transfers
+- Battery trade-in management with scrap/resellable status tracking
+- Customer and vehicle management
+- Staff management with transaction tracking
+- Sequential reference number generation for all transactions
+- Digital receipt generation with HTML storage
+- Mobile payment integration (Adanan/Forman)
+- Role-based access control with granular permissions
+- Multi-location and multi-shop support
+
+The system emphasizes ease of use, performance, and real-time data synchronization across multiple locations.
 
 ## 3. Goals and Objectives
 
@@ -47,14 +61,21 @@ The POS system is a comprehensive solution that combines point-of-sale functiona
 
 ### 5.1 Core POS Functionality
 
-| Requirement ID | Requirement          | Description                                                                                     | Priority |
-| -------------- | -------------------- | ----------------------------------------------------------------------------------------------- | -------- |
-| POS-101        | Sales Processing     | Process sales transactions with multiple items, including discounts and various payment methods | High     |
-| POS-102        | Receipt Generation   | Generate digital and printable receipts for completed transactions                              | High     |
-| POS-103        | Refund Processing    | Process returns and refunds with appropriate inventory adjustments                              | Medium   |
-| POS-104        | Customer Management  | Track customer information and purchase history                                                 | Medium   |
-| POS-105        | Payment Methods      | Support various payment methods (cash, card, mobile payment)                                    | High     |
-| POS-106        | Discount Application | Apply percentage or fixed amount discounts to transactions                                      | Medium   |
+| Requirement ID | Requirement                 | Description                                                                                     | Priority |
+| -------------- | --------------------------- | ----------------------------------------------------------------------------------------------- | -------- |
+| POS-101        | Sales Processing            | Process sales transactions with multiple items, including discounts and various payment methods | High     |
+| POS-102        | Receipt Generation          | Generate digital and printable receipts for completed transactions                              | High     |
+| POS-103        | Refund Processing           | Process returns and refunds with appropriate inventory adjustments                              | Medium   |
+| POS-104        | Customer Management         | Track customer information and purchase history                                                 | Medium   |
+| POS-105        | Payment Methods             | Support various payment methods (cash, card, mobile payment via Adanan/Forman)                  | High     |
+| POS-106        | Discount Application        | Apply percentage or fixed amount discounts to transactions                                      | Medium   |
+| POS-107        | On-Hold Transactions        | Place transactions on hold with car plate number for later payment                              | Medium   |
+| POS-108        | Credit Transactions         | Process credit transactions for customers to pay later                                          | Medium   |
+| POS-109        | Transaction Settlement      | Settle on-hold and credit transactions with payment                                             | Medium   |
+| POS-110        | Trade-In Processing         | Process battery trade-ins with scrap/resellable status tracking                                 | Medium   |
+| POS-111        | Warranty Claims             | Process warranty claims with certificate generation                                             | Medium   |
+| POS-112        | Dispute Handling            | Handle transaction disputes and create dispute records                                          | Low      |
+| POS-113        | Reference Number Generation | Generate unique sequential reference numbers for transactions                                   | High     |
 
 ### 5.2 Oil Inventory Management
 
@@ -68,22 +89,26 @@ The POS system is a comprehensive solution that combines point-of-sale functiona
 
 ### 5.3 General Inventory Management
 
-| Requirement ID | Requirement        | Description                                                    | Priority |
-| -------------- | ------------------ | -------------------------------------------------------------- | -------- |
-| INV-101        | Product Categories | Organize products into categories (Oils, Filters, Parts, etc.) | High     |
-| INV-102        | Brand Management   | Organize products by brand for easy filtering                  | Medium   |
-| INV-103        | Batch Tracking     | Track cost price, quantity, and expiration dates by batch      | High     |
-| INV-104        | Stock Alerts       | Alert users when stock levels fall below defined thresholds    | Medium   |
-| INV-105        | Inventory Search   | Search functionality for quickly finding inventory items       | High     |
+| Requirement ID | Requirement               | Description                                                    | Priority |
+| -------------- | ------------------------- | -------------------------------------------------------------- | -------- |
+| INV-101        | Product Categories        | Organize products into categories (Oils, Filters, Parts, etc.) | High     |
+| INV-102        | Brand Management          | Organize products by brand for easy filtering                  | Medium   |
+| INV-103        | Batch Tracking            | Track cost price, quantity, and expiration dates by batch      | High     |
+| INV-104        | Stock Alerts              | Alert users when stock levels fall below defined thresholds    | Medium   |
+| INV-105        | Inventory Search          | Search functionality for quickly finding inventory items       | High     |
+| INV-106        | Battery State Management  | Track battery states (new, scrap, resellable) for inventory    | Medium   |
+| INV-107        | Trade-In Price Management | Configure trade-in prices by battery size and condition        | Medium   |
 
 ### 5.4 Branch Management
 
-| Requirement ID | Requirement          | Description                                                   | Priority |
-| -------------- | -------------------- | ------------------------------------------------------------- | -------- |
-| BRN-101        | Multiple Branches    | Support for multiple store locations/branches                 | High     |
-| BRN-102        | Per-Branch Inventory | Track inventory levels independently for each branch          | High     |
-| BRN-103        | Inventory Transfers  | Transfer inventory between branches with appropriate tracking | High     |
-| BRN-104        | Branch Performance   | Compare sales and inventory metrics across branches           | Medium   |
+| Requirement ID | Requirement              | Description                                                          | Priority |
+| -------------- | ------------------------ | -------------------------------------------------------------------- | -------- |
+| BRN-101        | Multiple Locations       | Support for multiple physical store locations                        | High     |
+| BRN-102        | Shop Management          | Support for multiple shops (logical business units) within locations | High     |
+| BRN-103        | Per-Location Inventory   | Track inventory levels independently for each location               | High     |
+| BRN-104        | Inventory Transfers      | Transfer inventory between locations with appropriate tracking       | High     |
+| BRN-105        | Branch Performance       | Compare sales and inventory metrics across locations                 | Medium   |
+| BRN-106        | User Location Assignment | Assign users to specific locations and shops                         | Medium   |
 
 ### 5.5 Reporting and Analytics
 
@@ -96,11 +121,13 @@ The POS system is a comprehensive solution that combines point-of-sale functiona
 
 ### 5.6 User Management
 
-| Requirement ID | Requirement       | Description                                                                        | Priority |
-| -------------- | ----------------- | ---------------------------------------------------------------------------------- | -------- |
-| USR-101        | User Roles        | Define different user roles (cashier, manager, admin) with appropriate permissions | Medium   |
-| USR-102        | Authentication    | Secure login system with role-based access                                         | High     |
-| USR-103        | Activity Tracking | Track user actions for accountability                                              | Low      |
+| Requirement ID | Requirement       | Description                                                                       | Priority |
+| -------------- | ----------------- | --------------------------------------------------------------------------------- | -------- |
+| USR-101        | User Roles        | Define different user roles (admin, shop) with appropriate permissions            | Medium   |
+| USR-102        | Authentication    | Secure login system with role-based access via Supabase Auth                      | High     |
+| USR-103        | Permission System | Granular permission system (pos.access, inventory.access, customers.access, etc.) | Medium   |
+| USR-104        | Staff Management  | Manage staff members with staff IDs for transaction tracking                      | Medium   |
+| USR-105        | Activity Tracking | Track user actions for accountability                                             | Low      |
 
 ## 6. User Stories and Acceptance Criteria
 
@@ -125,9 +152,38 @@ The POS system is a comprehensive solution that combines point-of-sale functiona
   - User can look up previous sales by reference number or customer
   - User can select items from the sale to refund
   - System calculates refund amount
-  - Refund transaction is recorded
+  - Refund transaction is recorded with type 'REFUND'
   - Inventory is automatically updated to reflect returned items
   - Refund receipt is generated
+
+**POS-107: Place Transaction On Hold**
+
+- As a cashier, I want to place a transaction on hold so that customers can pay later
+- **Acceptance Criteria:**
+  - User can place a transaction on hold with car plate number
+  - Transaction is recorded with type 'ON_HOLD'
+  - User can later settle the transaction with payment
+  - System generates on-hold ticket/receipt
+  - On-hold transactions are tracked separately
+
+**POS-108: Process Credit Transaction**
+
+- As a cashier, I want to process credit transactions so that customers can pay later
+- **Acceptance Criteria:**
+  - User can create a credit transaction
+  - Transaction is recorded with type 'CREDIT'
+  - User can later settle the credit transaction with payment
+  - Credit transactions are tracked separately
+
+**POS-110: Process Battery Trade-In**
+
+- As a cashier, I want to process battery trade-ins so that customers can receive credit for old batteries
+- **Acceptance Criteria:**
+  - User can add multiple batteries with size and condition (scrap/resellable)
+  - System calculates trade-in value based on configured prices
+  - Trade-in amount is deducted from total sale amount
+  - Trade-in batteries are added to inventory with appropriate state
+  - Trade-in transaction is recorded
 
 ### 6.2 Oil Inventory Management
 
@@ -174,15 +230,15 @@ The POS system is a comprehensive solution that combines point-of-sale functiona
 
 ### 6.4 Branch Management
 
-**BRN-103: Transfer Inventory**
+**BRN-104: Transfer Inventory**
 
-- As a branch manager, I want to transfer inventory items to another branch so that I can optimize stock levels
+- As a branch manager, I want to transfer inventory items to another location so that I can optimize stock levels
 - **Acceptance Criteria:**
-  - User can select source and destination branches
+  - User can select source and destination locations
   - User can select items and quantities to transfer
-  - System validates that source branch has sufficient inventory
-  - Transfer is recorded as a transaction
-  - Inventory is deducted from source branch and added to destination branch
+  - System validates that source location has sufficient inventory
+  - Transfer is recorded as a transaction with type 'STOCK_TRANSFER'
+  - Inventory is deducted from source location and added to destination location
   - Transfer history is tracked and viewable
 
 ### 6.5 Reporting
@@ -215,120 +271,202 @@ The POS system is a comprehensive solution that combines point-of-sale functiona
 
 **Core Tables:**
 
-1. **branches**
+1. **locations** (Physical store locations)
 
    - `id`: UUID (Primary Key)
-   - `name`: Text (Not Null)
+   - `name`: Text (Not Null, Unique)
    - `address`: Text (Optional)
    - `created_at`, `updated_at`: Timestamps
 
-2. **categories**
-
-   - `id`: UUID (Primary Key)
-   - `name`: Text (Unique, Not Null)
-   - `created_at`, `updated_at`: Timestamps
-
-3. **brands**
-
-   - `id`: UUID (Primary Key)
-   - `name`: Text (Unique, Not Null)
-   - `created_at`, `updated_at`: Timestamps
-
-4. **suppliers**
+2. **shops** (Logical business units within locations)
 
    - `id`: UUID (Primary Key)
    - `name`: Text (Not Null)
-   - `contact_info`: Text (Optional)
+   - `location_id`: UUID (Foreign Key -> locations.id)
+   - `display_name`: Text (Optional)
+   - `is_active`: Boolean (default true)
    - `created_at`, `updated_at`: Timestamps
 
-5. **items**
+3. **categories**
+
+   - `id`: UUID (Primary Key)
+   - `name`: Text (Unique, Not Null)
+   - `description`: Text (Optional)
+   - `created_at`, `updated_at`: Timestamps
+
+4. **brands**
+
+   - `id`: UUID (Primary Key)
+   - `name`: Text (Unique, Not Null)
+   - `images`: JSONB (Optional, for brand images and metadata)
+   - `created_at`, `updated_at`: Timestamps
+
+5. **suppliers**
+
+   - `id`: UUID (Primary Key)
+   - `name`: Text (Not Null)
+   - `contact`: Text (Optional)
+   - `email`: Text (Optional)
+   - `phone`: Text (Optional)
+   - `address`: Text (Optional)
+   - `created_at`, `updated_at`: Timestamps
+
+6. **products**
 
    - `id`: UUID (Primary Key)
    - `name`: Text (Not Null)
    - `category_id`: UUID (Foreign Key -> categories.id)
-   - `brand_id`: UUID (Foreign Key -> brands.id)
-   - `price`: Numeric (Not Null, default 0)
-   - `type`: Text (Optional, e.g., "0W-20")
-   - `image_url`: Text (Optional)
-   - `sku`: Text (Optional)
+   - `brand_id`: UUID (Foreign Key -> brands.id, Optional)
+   - `brand`: Text (Optional, for backward compatibility)
+   - `product_type`: Text (Optional, e.g., "0W-20")
    - `description`: Text (Optional)
-   - `is_oil`: Boolean (default false)
+   - `image_url`: Text (Optional)
+   - `low_stock_threshold`: Integer (default 0)
+   - `cost_price`: Numeric (Optional)
+   - `manufacturing_date`: Timestamp (Optional)
    - `created_at`, `updated_at`: Timestamps
 
-6. **item_volumes**
+7. **product_volumes** (For oil products with different sizes)
 
    - `id`: UUID (Primary Key)
-   - `item_id`: UUID (Foreign Key -> items.id)
-   - `size`: Text (Not Null, e.g., "5L")
-   - `price`: Numeric (Not Null, default 0)
+   - `product_id`: UUID (Foreign Key -> products.id)
+   - `volume_description`: Text (Not Null, e.g., "5L", "4L", "1L")
+   - `selling_price`: Numeric (Not Null)
+   - `cost_price`: Numeric (Optional)
+   - `created_at`, `updated_at`: Timestamps
+   - Unique constraint on (product_id, volume_description)
+
+8. **inventory** (Stock levels per product per location)
+
+   - `id`: UUID (Primary Key)
+   - `product_id`: UUID (Foreign Key -> products.id)
+   - `location_id`: UUID (Foreign Key -> locations.id)
+   - `standard_stock`: Integer (default 0, for non-oil products)
+   - `selling_price`: Numeric (Optional, for non-oil products)
+   - `open_bottles_stock`: Integer (default 0, for oils)
+   - `closed_bottles_stock`: Integer (default 0, for oils)
+   - `total_stock`: Integer (Generated column: standard_stock + open_bottles_stock + closed_bottles_stock)
+   - `is_battery`: Boolean (default false)
+   - `battery_state`: Text (Optional, CHECK: 'new', 'scrap', 'resellable')
+   - `cost_price`: Numeric (Optional)
+   - `manufacturing_date`: Date (Optional)
+   - `created_at`, `updated_at`: Timestamps
+   - Unique constraint on (product_id, location_id)
+
+9. **batches** (For tracking product batches)
+
+   - `id`: UUID (Primary Key)
+   - `inventory_id`: UUID (Foreign Key -> inventory.id)
+   - `cost_price`: Numeric (Not Null)
+   - `quantity_received`: Integer (Not Null)
+   - `stock_remaining`: Integer (Not Null)
+   - `supplier`: Text (Optional)
+   - `purchase_date`: Timestamp (default now)
+   - `is_active_batch`: Boolean (default false)
    - `created_at`, `updated_at`: Timestamps
 
-7. **batches**
-
-   - `id`: UUID (Primary Key)
-   - `item_id`: UUID (Foreign Key -> items.id)
-   - `purchase_date`: Date (Not Null)
-   - `cost_price`: Numeric (Not Null, default 0)
-   - `initial_quantity`: Integer (Not Null, default 0)
-   - `current_quantity`: Integer (Not Null, default 0)
-   - `supplier_id`: UUID (Foreign Key -> suppliers.id)
-   - `expiration_date`: Date (Optional)
-   - `created_at`, `updated_at`: Timestamps
-
-8. **location_stock**
-
-   - `id`: UUID (Primary Key)
-   - `branch_id`: UUID (Foreign Key -> branches.id)
-   - `item_id`: UUID (Foreign Key -> items.id)
-   - `batch_id`: UUID (Foreign Key -> batches.id, Nullable)
-   - `quantity`: Integer (Not Null, default 0)
-   - `open_bottles`: Integer (default 0, for oils)
-   - `closed_bottles`: Integer (default 0, for oils)
-   - `created_at`, `updated_at`: Timestamps
-
-9. **sales**
-
-   - `id`: UUID (Primary Key)
-   - `branch_id`: UUID (Foreign Key -> branches.id)
-   - `cashier_id`: UUID (Foreign Key -> users.id)
-   - `customer_id`: UUID (Foreign Key -> customers.id, Optional)
-   - `total_amount`: Numeric (Not Null, default 0)
-   - `discount_amount`: Numeric (default 0)
-   - `payment_method`: Text (Not Null)
-   - `payment_reference`: Text (Optional)
-   - `created_at`: Timestamp
-
-10. **sale_items**
+10. **open_bottle_details** (Track individual open bottles)
 
     - `id`: UUID (Primary Key)
-    - `sale_id`: UUID (Foreign Key -> sales.id)
-    - `item_id`: UUID (Foreign Key -> items.id)
-    - `batch_id`: UUID (Foreign Key -> batches.id, Optional)
-    - `quantity`: Numeric (Not Null, default 0)
-    - `price`: Numeric (Not Null, default 0)
-    - `is_open_bottle`: Boolean (default false, for oils)
-    - `volume`: Text (Optional, for oils)
+    - `inventory_id`: UUID (Foreign Key -> inventory.id)
+    - `initial_volume`: Numeric (Not Null)
+    - `current_volume`: Numeric (Not Null)
+    - `opened_at`: Timestamp (default now)
+    - `is_empty`: Boolean (default false)
 
-11. **inventory_transactions**
+11. **transactions** (Unified transaction table)
 
     - `id`: UUID (Primary Key)
-    - `branch_id`: UUID (Foreign Key -> branches.id)
-    - `item_id`: UUID (Foreign Key -> items.id)
-    - `batch_id`: UUID (Foreign Key -> batches.id, Optional)
-    - `quantity_change`: Integer (Not Null)
-    - `transaction_type`: Text (e.g., "sale", "refund", "adjustment", "transfer")
-    - `reference_id`: UUID (Optional, reference to sales or transfers)
-    - `notes`: Text (Optional)
-    - `created_by`: UUID (Foreign Key -> users.id)
-    - `created_at`: Timestamp
+    - `reference_number`: Text (Unique, Not Null)
+    - `location_id`: UUID (Foreign Key -> locations.id)
+    - `shop_id`: UUID (Foreign Key -> shops.id, Optional)
+    - `cashier_id`: UUID (Foreign Key -> staff.id, Optional)
+    - `type`: Text (Not Null: 'SALE', 'REFUND', 'WARRANTY_CLAIM', 'CREDIT', 'ON_HOLD', 'ON_HOLD_PAID', 'CREDIT_PAID', 'STOCK_TRANSFER', 'EXPENSE')
+    - `total_amount`: Numeric (Not Null)
+    - `items_sold`: JSONB (Array of product details)
+    - `payment_method`: Text (Optional: 'CASH', 'CARD', 'MOBILE', 'ON_HOLD', etc.)
+    - `mobile_payment_account`: Text (Optional: 'Adanan' or 'Forman')
+    - `mobile_number`: Text (Optional)
+    - `car_plate_number`: Text (Optional, for on-hold transactions)
+    - `receipt_html`: Text (Optional)
+    - `battery_bill_html`: Text (Optional, for battery sales)
+    - `original_reference_number`: Text (Optional, for linking disputes)
+    - `customer_id`: UUID (Foreign Key -> customers.id, Optional)
+    - `created_at`: Timestamp (default now)
 
-12. **inventory_transfers**
+12. **trade_in_prices** (Battery trade-in pricing)
+
     - `id`: UUID (Primary Key)
-    - `source_branch_id`: UUID (Foreign Key -> branches.id)
-    - `destination_branch_id`: UUID (Foreign Key -> branches.id)
-    - `status`: Text (e.g., "pending", "completed", "cancelled")
-    - `created_by`: UUID (Foreign Key -> users.id)
+    - `size`: Text (Not Null)
+    - `condition`: Text (Not Null: 'Scrap' or 'Resalable')
+    - `trade_in_value`: Numeric (Not Null)
     - `created_at`, `updated_at`: Timestamps
+    - Unique constraint on (size, condition)
+
+13. **trade_in_transactions** (Trade-in records)
+
+    - `id`: UUID (Primary Key)
+    - `transaction_id`: UUID (Foreign Key -> transactions.id)
+    - `product_id`: UUID (Foreign Key -> products.id)
+    - `quantity`: Integer (Not Null)
+    - `trade_in_value`: Numeric (Not Null)
+    - `created_at`: Timestamp (default now)
+
+14. **customers**
+
+    - `id`: UUID (Primary Key)
+    - `name`: Text (Not Null)
+    - `email`: Text (Optional)
+    - `phone`: Text (Optional)
+    - `address`: Text (Optional)
+    - `notes`: Text (Optional)
+    - `created_at`, `updated_at`: Timestamps
+
+15. **customer_vehicles**
+
+    - `id`: UUID (Primary Key)
+    - `customer_id`: UUID (Foreign Key -> customers.id)
+    - `make`: Text (Not Null)
+    - `model`: Text (Not Null)
+    - `year`: Text (Not Null)
+    - `license_plate`: Text (Not Null)
+    - `vin`: Text (Optional)
+    - `notes`: Text (Optional)
+    - `created_at`, `updated_at`: Timestamps
+
+16. **staff**
+
+    - `id`: UUID (Primary Key)
+    - `staff_id`: Text (Unique, Not Null)
+    - `name`: Text (Not Null)
+    - `is_active`: Boolean (default true)
+    - `created_at`, `updated_at`: Timestamps
+
+17. **reference_number_counters** (Sequential reference number generation)
+
+    - `prefix`: Text (Primary Key)
+    - `counter`: Integer (Not Null, default 0)
+    - `updated_at`: Timestamp (Not Null, default now)
+
+18. **user_profiles** (User authentication and roles)
+
+    - `id`: UUID (Primary Key, Foreign Key -> auth.users.id)
+    - `email`: Text (Unique, Not Null)
+    - `full_name`: Text (Optional)
+    - `role`: user_role enum ('admin', 'shop')
+    - `is_admin`: Boolean (default false)
+    - `shop_location_id`: UUID (Foreign Key -> locations.id, Optional)
+    - `inventory_location_id`: UUID (Foreign Key -> locations.id, Optional)
+    - `shop_display_name`: Text (Optional)
+    - `created_at`, `updated_at`: Timestamps
+
+19. **role_permissions** (Permission management)
+
+    - `id`: UUID (Primary Key)
+    - `role`: user_role enum (Not Null)
+    - `permission`: permission enum (Not Null: 'pos.access', 'inventory.access', 'customers.access', 'transactions.access', 'notifications.access', 'reports.access', 'settings.access', 'users.access', 'admin.access')
+    - `created_at`: Timestamp (default now)
+    - Unique constraint on (role, permission)
 
 ### 7.3 Performance Requirements
 
@@ -422,16 +560,59 @@ The POS system is a comprehensive solution that combines point-of-sale functiona
 - Performance optimization
 - Bug fixes and refinements
 
-## 10. Success Criteria and Future Enhancements
+## 10. Additional Features
 
-### 10.1 Success Criteria
+### 10.1 Transaction Types
+
+The system supports the following transaction types:
+
+- **SALE**: Regular sales transactions
+- **REFUND**: Return/refund transactions
+- **WARRANTY_CLAIM**: Warranty claim transactions with certificate generation
+- **CREDIT**: Credit transactions for customers to pay later
+- **ON_HOLD**: Transactions placed on hold with car plate number
+- **ON_HOLD_PAID**: Settled on-hold transactions
+- **CREDIT_PAID**: Settled credit transactions
+- **STOCK_TRANSFER**: Inventory transfers between locations
+- **EXPENSE**: Miscellaneous expense transactions
+
+### 10.2 Payment Methods
+
+- Cash
+- Card
+- Mobile Payment (Adanan or Forman)
+- On-Hold (for deferred payment)
+- Credit (for credit transactions)
+
+### 10.3 Reference Number System
+
+The system uses a sequential reference number generation system with prefixes:
+
+- Regular sales: Prefix-based sequential numbers
+- Battery sales: Special prefix for battery transactions
+- Warranty claims: WBX prefix
+- Refunds: A prefix (regular transaction)
+
+### 10.4 Receipt Generation
+
+- Digital receipts stored as HTML in database
+- Printable receipt format
+- Battery bill HTML for battery sales
+- Warranty claim certificates
+- On-hold tickets
+
+## 11. Success Criteria and Future Enhancements
+
+### 11.1 Success Criteria
 
 - Full implementation of all high-priority requirements
 - System successfully deployed to production environment
 - Training completed for all user roles
 - Successful migration of existing inventory data
+- Support for multiple locations and shops
+- Complete transaction type coverage
 
-### 10.2 Future Enhancements
+### 11.2 Future Enhancements
 
 - Mobile app for inventory counting
 - Customer loyalty program
@@ -439,3 +620,4 @@ The POS system is a comprehensive solution that combines point-of-sale functiona
 - Enhanced analytics with predictive inventory suggestions
 - Online ordering system
 - Integration with vehicle service history
+- Advanced reporting with AI-generated insights

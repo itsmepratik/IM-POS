@@ -31,13 +31,6 @@ import { useUser, type Permission } from "@/app/user-context";
 import { useNotification } from "@/app/notification-context";
 import { useRouter } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 
@@ -45,9 +38,10 @@ export function MobileNav({ className }: { className?: string }) {
   const [open, setOpen] = React.useState(false);
   const [inventoryOpen, setInventoryOpen] = React.useState(false);
   const [ordersOpen, setOrdersOpen] = React.useState(false);
+  const [profileMenuOpen, setProfileMenuOpen] = React.useState(false);
   const [isLoggingOut, setIsLoggingOut] = React.useState(false);
   const { currentUser, signOut, hasPermission } = useUser();
-  const { notifications } = useNotification();
+  const { notifications, unreadCount } = useNotification();
   const router = useRouter();
   const pathname = usePathname();
   const [darkMode, setDarkMode] = React.useState(false);
@@ -61,9 +55,9 @@ export function MobileNav({ className }: { className?: string }) {
   const navItems = [
     {
       title: "Dashboard",
-      href: "/home", // Changed from "/" to "/home" for admin dashboard
+      href: "/home",
       icon: <Home className="h-4 w-4" />,
-      isAdmin: true, // Dashboard is admin-only
+      isAdmin: true,
       permission: "admin.access" as const,
     },
     {
@@ -84,7 +78,7 @@ export function MobileNav({ className }: { className?: string }) {
       title: "Reports",
       href: "/reports",
       icon: <BarChart2 className="h-4 w-4" />,
-      isAdmin: true, // Reports are admin-only
+      isAdmin: true,
       permission: "reports.access" as const,
     },
     {
@@ -98,16 +92,13 @@ export function MobileNav({ className }: { className?: string }) {
 
   const showAdminItems = mounted && currentUser && currentUser.role === "admin";
 
-  // Filter navigation items based on permissions
   const visibleNavItems = navItems.filter((item) => {
     if (!mounted || !currentUser) return false;
 
-    // Check if user has the required permission
     if (item.permission && !hasPermission(item.permission)) {
       return false;
     }
 
-    // Additional admin check for explicitly admin items
     if (item.isAdmin && currentUser.role !== "admin") {
       return false;
     }
@@ -117,36 +108,34 @@ export function MobileNav({ className }: { className?: string }) {
 
   const toggleDarkMode = () => {
     setDarkMode(!darkMode);
-    // No actual functionality as per requirements
   };
 
   const handleLogout = async () => {
     console.log("🚀 MOBILE LOGOUT BUTTON CLICKED - handleLogout called");
     if (isLoggingOut) {
       console.log("⏸️ Already logging out, ignoring...");
-      return; // Prevent double clicks
+      return;
     }
 
     console.log("🔄 Setting isLoggingOut to true");
     setIsLoggingOut(true);
-    setOpen(false); // Close the mobile nav sheet
+    setOpen(false);
 
     try {
       console.log("📤 Starting logout process - calling signOut()...");
       await signOut();
       console.log("✅ Sign out completed, navigating to login...");
-      
-      // Small delay to ensure state is fully cleared before navigation
+
       await new Promise((resolve) => setTimeout(resolve, 100));
-      
-      // Use replace instead of push to avoid back navigation issues
+
       console.log("🔄 Calling router.replace('/login')");
       router.replace("/login");
-      
-      // Force navigation if router.replace doesn't work immediately
+
       setTimeout(() => {
         if (window.location.pathname !== "/login") {
-          console.log("⚠️ Router didn't navigate, forcing window.location.href...");
+          console.log(
+            "⚠️ Router didn't navigate, forcing window.location.href..."
+          );
           window.location.href = "/login";
         } else {
           console.log("✅ Successfully navigated to /login");
@@ -154,7 +143,6 @@ export function MobileNav({ className }: { className?: string }) {
       }, 500);
     } catch (error) {
       console.error("❌ Mobile logout error:", error);
-      // Still redirect even if logout fails to prevent stuck state
       router.replace("/login");
       setTimeout(() => {
         if (window.location.pathname !== "/login") {
@@ -162,7 +150,6 @@ export function MobileNav({ className }: { className?: string }) {
         }
       }, 500);
     } finally {
-      // Reset after a delay to prevent immediate re-clicks
       setTimeout(() => setIsLoggingOut(false), 1000);
     }
   };
@@ -222,7 +209,6 @@ export function MobileNav({ className }: { className?: string }) {
                 </Link>
               ))}
 
-              {/* Orders Dropdown - Only show for admin users */}
               {showAdminItems && (
                 <div className="space-y-1">
                   <button
@@ -308,7 +294,6 @@ export function MobileNav({ className }: { className?: string }) {
                 </div>
               )}
 
-              {/* Inventory Dropdown - Show if user has inventory access */}
               {mounted && currentUser && hasPermission("inventory.access") && (
                 <div className="space-y-1">
                   <button
@@ -367,7 +352,6 @@ export function MobileNav({ className }: { className?: string }) {
             </nav>
           </div>
           <div className="border-t p-4">
-            {/* Notifications Inbox - Show if user has notifications access */}
             {mounted &&
               currentUser &&
               hasPermission("notifications.access") && (
@@ -383,9 +367,9 @@ export function MobileNav({ className }: { className?: string }) {
                 >
                   <span className="relative">
                     <Inbox className="h-4 w-4" />
-                    {notifications.length > 0 && (
+                    {unreadCount > 0 && (
                       <Badge className="absolute -top-2 -right-2 h-4 min-w-4 px-1 flex items-center justify-center bg-orange-500 text-[10px]">
-                        {notifications.length}
+                        {unreadCount}
                       </Badge>
                     )}
                   </span>
@@ -393,79 +377,108 @@ export function MobileNav({ className }: { className?: string }) {
                 </Link>
               )}
 
-            {/* Profile Menu */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className="w-full justify-start px-3 py-2 rounded-md hover:bg-accent transition-colors duration-200"
-                >
-                  <Avatar className="h-8 w-8 mr-2">
-                    <AvatarImage src="/avatars/01.svg" alt="@username" />
-                    <AvatarFallback>SC</AvatarFallback>
-                  </Avatar>
-                  <div className="flex flex-col items-start text-sm">
-                    <span>
-                      {mounted && currentUser
-                        ? currentUser.name || "User"
-                        : "User"}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      {mounted && currentUser
-                        ? currentUser.email || "user@example.com"
-                        : "user@example.com"}
-                    </span>
-                  </div>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                className="w-[15.5rem] max-w-full sm:w-[280px] rounded-xl border-2 p-2"
-                align="end"
-                side="top"
-                forceMount
+            <div className="relative">
+              {profileMenuOpen && (
+                <div className="absolute bottom-full left-0 right-0 mb-2 space-y-1 rounded-xl border-2 bg-background p-2 shadow-lg z-50">
+                  <button
+                    onClick={() => {
+                      console.log("🔵 Profile clicked!");
+                      setProfileMenuOpen(false);
+                    }}
+                    className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground"
+                  >
+                    <User className="h-5 w-5 stroke-[2]" />
+                    <span>Profile</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      console.log("🔵 Settings clicked!");
+                      setProfileMenuOpen(false);
+                      setOpen(false);
+                      router.push("/settings");
+                    }}
+                    className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground"
+                  >
+                    <Settings className="h-5 w-5 stroke-[2]" />
+                    <span>Settings</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      console.log("🔵 Dark Mode clicked!");
+                      toggleDarkMode();
+                    }}
+                    className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground"
+                  >
+                    <div className="flex items-center gap-3">
+                      {darkMode ? (
+                        <Moon className="h-5 w-5 stroke-[2]" />
+                      ) : (
+                        <Sun className="h-5 w-5 stroke-[2]" />
+                      )}
+                      <span>Dark Mode</span>
+                    </div>
+                    <Switch
+                      checked={darkMode}
+                      onCheckedChange={(checked) => {
+                        console.log("🔵 Switch toggled:", checked);
+                        setDarkMode(checked);
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                      }}
+                    />
+                  </button>
+
+                  <div className="h-[2px] bg-muted my-2" />
+
+                  <button
+                    onClick={() => {
+                      console.log("🔵 Logout clicked!");
+                      setProfileMenuOpen(false);
+                      handleLogout();
+                    }}
+                    disabled={isLoggingOut}
+                    className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground disabled:opacity-50 disabled:pointer-events-none"
+                  >
+                    <LogOut className="h-5 w-5 stroke-[2]" />
+                    <span>{isLoggingOut ? "Logging out..." : "Log out"}</span>
+                  </button>
+                </div>
+              )}
+
+              <button
+                onClick={() => {
+                  console.log("🔵 Profile menu toggle clicked!");
+                  setProfileMenuOpen(!profileMenuOpen);
+                }}
+                className="flex w-full items-center gap-3 px-3 py-2 rounded-md hover:bg-accent transition-colors duration-200"
               >
-                <DropdownMenuItem className="rounded-lg py-2">
-                  <User className="mr-2 h-5 w-5 stroke-[2]" />
-                  <span>Profile</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  className="rounded-lg py-2"
-                  onSelect={() => router.push("/settings")}
-                >
-                  <Settings className="mr-2 h-5 w-5 stroke-[2]" />
-                  <span>Settings</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  className="rounded-lg py-2 flex items-center justify-between"
-                  onSelect={(e) => {
-                    e.preventDefault();
-                    toggleDarkMode();
-                  }}
-                >
-                  <div className="flex items-center">
-                    {darkMode ? (
-                      <Moon className="mr-2 h-5 w-5 stroke-[2]" />
-                    ) : (
-                      <Sun className="mr-2 h-5 w-5 stroke-[2]" />
-                    )}
-                    <span>Dark Mode</span>
-                  </div>
-                  <Switch checked={darkMode} onCheckedChange={toggleDarkMode} />
-                </DropdownMenuItem>
-                <DropdownMenuSeparator className="my-2" />
-                <DropdownMenuItem
-                  className="rounded-lg py-2"
-                  onAction={() => {
-                    console.log("🔵 MOBILE onAction triggered!");
-                    handleLogout();
-                  }}
-                  disabled={isLoggingOut}
-                >
-                  <LogOut className="mr-2 h-5 w-5 stroke-[2]" />
-                  <span>{isLoggingOut ? "Logging out..." : "Log out"}</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                <Avatar className="h-8 w-8">
+                  <AvatarImage src="/avatars/01.svg" alt="@username" />
+                  <AvatarFallback>SC</AvatarFallback>
+                </Avatar>
+                <div className="flex flex-col items-start text-sm flex-1">
+                  <span className="font-medium">
+                    {mounted && currentUser
+                      ? currentUser.name || "User"
+                      : "User"}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {mounted && currentUser
+                      ? currentUser.email || "user@example.com"
+                      : "user@example.com"}
+                  </span>
+                </div>
+                <ChevronDown
+                  className={cn(
+                    "h-4 w-4 transition-transform",
+                    profileMenuOpen && "rotate-180"
+                  )}
+                />
+              </button>
+            </div>
           </div>
         </div>
       </SheetContent>

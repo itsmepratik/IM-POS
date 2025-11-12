@@ -6,6 +6,7 @@ import {
   isValidImageUrl,
   cacheImageValid,
   cacheImageInvalid,
+  isImageCached,
 } from "@/lib/utils/imageCache";
 import { ImageErrorFallback } from "@/components/ui/image-error-boundary";
 
@@ -21,6 +22,12 @@ export function BrandLogo({
   fallbackToLocal = true,
 }: BrandLogoProps) {
   const [hasError, setHasError] = React.useState(false);
+  const hasLoadedRef = React.useRef(false);
+
+  // Reset loaded ref when imgSrc changes
+  React.useEffect(() => {
+    hasLoadedRef.current = false;
+  }, [imgSrc]);
 
   // Find the brand data from the database
   const brandData = React.useMemo(() => {
@@ -48,19 +55,20 @@ export function BrandLogo({
       setHasError(true);
       if (imgSrc) {
         cacheImageInvalid(imgSrc);
-        console.warn(`Failed to load brand logo for ${brand}: ${imgSrc}`);
       }
       if (e) {
         e.currentTarget.onerror = null;
       }
     },
-    [imgSrc, brand]
+    [imgSrc]
   );
 
   const handleLoad = React.useCallback(() => {
-    setHasError(false);
-    if (imgSrc) {
+    // Only cache if not already cached and not already loaded
+    if (imgSrc && !hasLoadedRef.current && !isImageCached(imgSrc)) {
+      setHasError(false);
       cacheImageValid(imgSrc);
+      hasLoadedRef.current = true;
     }
   }, [imgSrc]);
 
@@ -75,10 +83,7 @@ export function BrandLogo({
 
   return (
     <ImageErrorFallback
-      onError={(error) => {
-        console.error(`Brand logo error for ${brand}:`, error);
-        handleError();
-      }}
+      onError={handleError}
       className="w-full h-full"
     >
       <Image
