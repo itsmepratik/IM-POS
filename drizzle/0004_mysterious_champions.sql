@@ -1,1 +1,0 @@
-ALTER TABLE "trade_in_prices" ADD CONSTRAINT "trade_in_prices_size_condition_unique" UNIQUE("size","condition");

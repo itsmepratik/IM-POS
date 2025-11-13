@@ -121,7 +121,9 @@ interface SubmittedTransferOrder {
 
 export default function TransferPage() {
   const { toast } = useToast();
-  const { items, refreshItems } = useTransfer(); // Get items from the hook
+  // Set source location to be fixed as "Sanaiya" - use a fake ID to avoid confusion
+  const [sourceLocation] = useState<string>("loc0"); // Fixed to "Sanaiya (Main)"
+  const { items, refreshItems } = useTransfer(sourceLocation); // Get items from the hook with source location
   const {
     locations,
     categories,
@@ -147,9 +149,6 @@ export default function TransferPage() {
       console.log("Current locations available:", locations);
     }
   }, [locations]);
-
-  // Set source location to be fixed as "Sanaiya" - use a fake ID to avoid confusion
-  const [sourceLocation] = useState<string>("loc0"); // Fixed to "Sanaiya (Main)"
   const [destinationLocation, setDestinationLocation] = useState<string>("");
   const [generatedSales, setGeneratedSales] = useState<SaleItem[]>([]);
   const [isGeneratingLoading, setIsGeneratingLoading] = useState(false);

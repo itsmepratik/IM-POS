@@ -1,7 +1,7 @@
 "use client";
 
 import type React from "react";
-import { createContext, useContext, useState, useEffect, useMemo } from "react";
+import { createContext, useContext, useState, useEffect, useMemo, useRef } from "react";
 // Using actual Supabase service functions
 import {
   Item,
@@ -39,6 +39,7 @@ import {
 } from "../../lib/services/typesService";
 import { useBranch } from "../branch-context";
 import { toast } from "@/components/ui/use-toast";
+import { createClient } from "@/supabase/client";
 
 interface ItemsContextType {
   items: Item[];
@@ -161,6 +162,8 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
   const [brandMap, setBrandMap] = useState<Map<string, string>>(new Map()); // id -> name
 
   const { currentBranch, inventoryLocationId } = useBranch();
+  const subscriptionRef = useRef<ReturnType<typeof createClient>["channel"] | null>(null);
+  const currentLocationIdRef = useRef<string | null>(null);
 
   // Helper function to convert Map to Record
   const mapToRecord = (map: Map<string, string>): Record<string, string> => {
@@ -264,6 +267,102 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
   const refetchItems = async () => {
     await loadData();
   };
+
+  // Set up real-time subscription for inventory updates
+  useEffect(() => {
+    // Clean up previous subscription if it exists
+    if (subscriptionRef.current) {
+      const supabase = createClient();
+      supabase.removeChannel(subscriptionRef.current);
+      subscriptionRef.current = null;
+    }
+
+    // Get the current location ID (use the same logic as loadData)
+    const setupSubscription = async () => {
+      let locationIdForInventory = inventoryLocationId;
+
+      if (!locationIdForInventory && currentBranch?.id) {
+        // Try to derive location from shop
+        try {
+          const { fetchShops } = await import("@/lib/services/inventoryService");
+          const shops = await fetchShops();
+          const shop = shops.find((s) => s.id === currentBranch.id);
+          if (shop) {
+            locationIdForInventory = shop.locationId;
+          }
+        } catch (error) {
+          console.error("Error deriving location from shop:", error);
+        }
+      }
+
+      if (!locationIdForInventory) {
+        console.log("⚠️ No location ID available for inventory subscription");
+        return; // No location ID, skip subscription
+      }
+
+      // Store current location ID
+      const previousLocationId = currentLocationIdRef.current;
+      currentLocationIdRef.current = locationIdForInventory;
+
+      // Set up Supabase real-time subscription for inventory table
+      const supabase = createClient();
+      
+      const channel = supabase
+        .channel(`inventory-changes-${locationIdForInventory}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "inventory",
+            filter: `location_id=eq.${locationIdForInventory}`,
+          },
+          (payload) => {
+            console.log("🔄 Inventory update detected:", payload.new);
+            
+            // Refetch items to get updated stock levels
+            // Use a small delay to ensure database transaction is committed
+            setTimeout(() => {
+              refetchItems();
+            }, 100);
+          }
+        )
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "inventory",
+            filter: `location_id=eq.${locationIdForInventory}`,
+          },
+          (payload) => {
+            console.log("🔄 New inventory item detected:", payload.new);
+            
+            // Refetch items to include new inventory items
+            setTimeout(() => {
+              refetchItems();
+            }, 100);
+          }
+        )
+        .subscribe((status) => {
+          console.log("📡 Inventory subscription status:", status);
+        });
+
+      subscriptionRef.current = channel;
+    };
+
+    setupSubscription();
+
+    // Cleanup subscription on unmount or when location changes
+    return () => {
+      if (subscriptionRef.current) {
+        console.log("🔌 Unsubscribing from inventory channel");
+        const supabase = createClient();
+        supabase.removeChannel(subscriptionRef.current);
+        subscriptionRef.current = null;
+      }
+    };
+  }, [inventoryLocationId, currentBranch?.id]);
 
   const addItem = async (item: Omit<Item, "id">): Promise<Item | null> => {
     try {

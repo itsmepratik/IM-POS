@@ -112,10 +112,10 @@ import {
   LubricantProduct,
   Product,
 } from "@/lib/hooks/data/useIntegratedPOSData";
-import { FilterModal } from "./components/filter-modal";
-import { PartsModal } from "./components/parts-modal";
+import { FilterModal } from "./components/modals/filter-modal";
+import { PartsModal } from "./components/modals/parts-modal";
 import { TradeInDialog } from "./components/modals/trade-in-dialog";
-import { VolumeModal } from "./components/volume-modal";
+import { VolumeModal } from "./components/modals/volume-modal";
 import { BrandCard } from "./components/brand-card";
 import { BrandLogo } from "./components/brand-logo";
 import { OnHoldTicket } from "./components/on-hold-ticket";
@@ -3084,6 +3084,7 @@ function POSPageContent() {
                           filterTypes={filterTypes}
                           filterBrands={filterBrands}
                           brands={brands}
+                          products={products}
                           isLoading={isLoading}
                         />
                       ) : activeCategory === "Parts" ? (
@@ -3097,6 +3098,7 @@ function POSPageContent() {
                           partTypes={partTypes}
                           partBrands={partBrands}
                           brands={brands}
+                          products={products}
                           isLoading={isLoading}
                         />
                       ) : activeCategory === "Additives & Fluids" ? (

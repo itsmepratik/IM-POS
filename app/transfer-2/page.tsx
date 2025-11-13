@@ -72,6 +72,7 @@ import Link from "next/link";
 import { useTransfer } from "@/hooks/use-transfer";
 import { useTransferLocations } from "@/lib/hooks/data/useTransferLocations";
 import { Transfer2POSInterface } from "./components/Transfer2POSInterface";
+import { useStaffIDs } from "@/lib/hooks/useStaffIDs";
 
 // Define interfaces for our data (copied from original transfer)
 interface Location {
@@ -140,7 +141,9 @@ interface SubmittedTransferOrder {
 
 export default function Transfer2Page() {
   const { toast } = useToast();
-  const { items, refreshItems } = useTransfer(); // Get items from the hook
+  // Set source location to be fixed as "Sanaiya" - use the location name that fetchItems recognizes
+  const [sourceLocation] = useState<string>("sanaiya"); // Fixed to "Sanaiya (Main)"
+  const { items, refreshItems } = useTransfer(sourceLocation); // Get items from the hook with source location
   const {
     locations,
     categories,
@@ -196,8 +199,6 @@ export default function Transfer2Page() {
     }
   }, [locations]);
 
-  // Set source location to be fixed as "Sanaiya" - use a fake ID to avoid confusion
-  const [sourceLocation] = useState<string>("loc0"); // Fixed to "Sanaiya (Main)"
   const [destinationLocation, setDestinationLocation] = useState<string>("");
   const [showPOSInterface, setShowPOSInterface] = useState(false);
   const [posCart, setPosCart] = useState<POSCartItem[]>([]);
@@ -218,6 +219,13 @@ export default function Transfer2Page() {
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] =
     useState<SubmittedTransferOrder | null>(null);
+
+  // Staff ID authentication state
+  const { staffMembers } = useStaffIDs();
+  const [staffIdDialogOpen, setStaffIdDialogOpen] = useState(false);
+  const [enteredStaffId, setEnteredStaffId] = useState("");
+  const [staffIdError, setStaffIdError] = useState<string | null>(null);
+  const [selectedStaff, setSelectedStaff] = useState<{ id: string; name: string } | null>(null);
 
   // Initialize component state
   useEffect(() => {
@@ -279,8 +287,26 @@ export default function Transfer2Page() {
       return;
     }
 
-    setConfirmSubmitDialogOpen(true);
+    // Reset staff ID state and show staff ID dialog first
+    setEnteredStaffId("");
+    setStaffIdError(null);
+    setSelectedStaff(null);
+    setStaffIdDialogOpen(true);
   }, [posCart, toast]);
+
+  // Handle staff ID verification
+  const handleStaffIdVerify = useCallback(() => {
+    const found = staffMembers.find((staff) => staff.id === enteredStaffId);
+    if (found) {
+      setSelectedStaff({ id: found.id, name: found.name });
+      setStaffIdError(null);
+      // Close staff ID dialog and open confirmation dialog
+      setStaffIdDialogOpen(false);
+      setConfirmSubmitDialogOpen(true);
+    } else {
+      setStaffIdError("Invalid staff ID. Please try again.");
+    }
+  }, [enteredStaffId, staffMembers]);
 
   // Handle target date change
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -291,6 +317,17 @@ export default function Transfer2Page() {
   const handleSubmitTransfer = async () => {
     // Prevent double submission
     if (isSubmittingTransfer) {
+      return;
+    }
+
+    // Validate staff ID is set
+    if (!selectedStaff || !selectedStaff.id) {
+      toast({
+        title: "Error",
+        description: "Please verify your staff ID before submitting",
+        variant: "destructive",
+      });
+      setStaffIdDialogOpen(true);
       return;
     }
 
@@ -348,13 +385,34 @@ export default function Transfer2Page() {
         transferId,
         sourceLocation,
         destinationLocation,
+        staffId: selectedStaff.id,
+        staffName: selectedStaff.name,
         itemsCount: posCart.length,
         totalAmount,
         items: posCart.map(item => ({
           id: item.id,
           originalId: item.originalId,
           name: item.name,
+          quantity: item.quantity,
+          price: item.price,
         })),
+      });
+
+      // Get actual location names for notes
+      // Map "sanaiya" to "loc0" for lookup since locations array uses "loc0" as ID
+      const sourceLocationIdForLookup = sourceLocation === "sanaiya" ? "loc0" : sourceLocation;
+      const sourceLocationName = locations.find((l) => l.id === sourceLocationIdForLookup)?.name || 
+                                  (sourceLocation === "sanaiya" ? "Sanaiya (Main)" : "Unknown");
+      const destinationLocationName = locations.find((l) => l.id === destinationLocation)?.name || "Unknown";
+      const transferNotes = `Stock transfer between ${sourceLocationName} to ${destinationLocationName}`;
+
+      console.log("📝 Transfer notes from frontend:", {
+        sourceLocation,
+        sourceLocationIdForLookup,
+        sourceLocationName,
+        destinationLocation,
+        destinationLocationName,
+        transferNotes,
       });
 
       // Create stock transfer transaction in the database
@@ -367,7 +425,7 @@ export default function Transfer2Page() {
           transferId,
           sourceLocationId: sourceLocation,
           destinationLocationId: destinationLocation,
-          cashierId: "SYSTEM", // TODO: Get from user context
+          cashierId: selectedStaff.id, // Use validated staff ID
           items: posCart.map(item => {
             if (!item.originalId) {
               throw new Error(`Item ${item.name} is missing originalId (UUID)`);
@@ -383,12 +441,18 @@ export default function Transfer2Page() {
           }),
           totalAmount,
           targetDate,
+          notes: transferNotes, // Send notes directly from frontend
         }),
       });
 
       // Check if response is ok
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
+        console.error("❌ API Error Response:", {
+          status: response.status,
+          statusText: response.statusText,
+          errorData,
+        });
         throw new Error(
           errorData.message || errorData.error || `HTTP ${response.status}: Failed to create transfer transaction`
         );
@@ -399,9 +463,15 @@ export default function Transfer2Page() {
       console.log("✅ Transfer transaction created:", result);
 
       if (!result.ok) {
+        console.error("❌ Transaction creation failed:", result);
         throw new Error(
           result.error || result.message || "Failed to create transfer transaction"
         );
+      }
+      
+      if (!result.transaction) {
+        console.error("❌ No transaction returned from API:", result);
+        throw new Error("Transaction was not created - no transaction data returned");
       }
 
       const newOrder: SubmittedTransferOrder = {
@@ -412,7 +482,7 @@ export default function Transfer2Page() {
         items: transferItems,
         orderDate: new Date().toISOString(),
         status: "pending",
-        submittedBy: "Current User", // TODO: Get from user context
+        submittedBy: selectedStaff.name,
         targetDate,
         receivedItems: [],
         pendingItems: transferItems, // All items start as pending
@@ -422,6 +492,9 @@ export default function Transfer2Page() {
       setPosCart([]);
       setShowPOSInterface(false);
       setConfirmSubmitDialogOpen(false);
+      // Reset staff ID state after successful submission
+      setSelectedStaff(null);
+      setEnteredStaffId("");
 
       // Generate new transfer ID for next order
       setTransferId(
@@ -1003,7 +1076,7 @@ export default function Transfer2Page() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="loc0">Sanaiya (Main)</SelectItem>
+                    <SelectItem value="sanaiya">Sanaiya (Main)</SelectItem>
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground">
@@ -1118,6 +1191,7 @@ export default function Transfer2Page() {
                   <Transfer2POSInterface
                     onCartUpdate={handlePOSCartUpdate}
                     initialCart={posCart}
+                    sourceLocationId={sourceLocation}
                   />
                 </CardContent>
               </Card>
@@ -1249,6 +1323,72 @@ export default function Transfer2Page() {
         </div>
       </div>
 
+      {/* Staff ID Verification Dialog */}
+      <Dialog
+        open={staffIdDialogOpen}
+        onOpenChange={(open) => {
+          if (!open && !isSubmittingTransfer) {
+            setStaffIdDialogOpen(false);
+            setEnteredStaffId("");
+            setStaffIdError(null);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-semibold text-center">
+              Enter Staff ID
+            </DialogTitle>
+            <DialogDescription className="text-center">
+              Please enter your staff ID to proceed with the transfer.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col items-center py-4">
+            <form
+              className="flex flex-col items-center w-full"
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleStaffIdVerify();
+              }}
+            >
+              <Input
+                className="text-center text-2xl w-32 mb-2"
+                value={enteredStaffId}
+                onChange={(e) => {
+                  setEnteredStaffId(e.target.value.replace(/\D/g, ""));
+                  setStaffIdError(null);
+                }}
+                maxLength={6}
+                inputMode="numeric"
+                type="tel"
+                pattern="[0-9]*"
+                autoFocus
+                placeholder="ID"
+                disabled={isSubmittingTransfer}
+              />
+              {staffIdError && (
+                <div className="text-destructive text-sm mt-2">
+                  {staffIdError}
+                </div>
+              )}
+              {selectedStaff && (
+                <div className="text-green-600 text-sm mt-2 flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4" />
+                  Verified: {selectedStaff.name}
+                </div>
+              )}
+              <Button
+                className="w-full mt-4"
+                type="submit"
+                disabled={enteredStaffId.length === 0 || isSubmittingTransfer}
+              >
+                Verify ID
+              </Button>
+            </form>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Submit Transfer Confirmation Dialog */}
       <AlertDialog
         open={confirmSubmitDialogOpen}
@@ -1265,6 +1405,11 @@ export default function Transfer2Page() {
             <AlertDialogTitle>
               {isSubmittingTransfer ? "Submitting Transfer Order..." : "Submit Transfer Order"}
             </AlertDialogTitle>
+            {selectedStaff && (
+              <AlertDialogDescription>
+                Authorized by: {selectedStaff.name} (ID: {selectedStaff.id})
+              </AlertDialogDescription>
+            )}
             {isSubmittingTransfer ? (
               <div className="flex flex-col items-center justify-center py-4 space-y-4">
                 <div className="relative">

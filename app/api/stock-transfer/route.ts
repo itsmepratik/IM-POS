@@ -8,6 +8,7 @@ import {
   batches,
   products,
   categories,
+  shops,
 } from "@/lib/db/schema";
 import { eq, and, asc, gt, inArray } from "drizzle-orm";
 import { generateReferenceNumber } from "@/lib/utils/reference-numbers";
@@ -32,6 +33,7 @@ const StockTransferSchema = z.object({
   ),
   totalAmount: z.number(),
   targetDate: z.string().optional(),
+  notes: z.string().optional(), // Notes from frontend (preferred)
 });
 
 /**
@@ -41,6 +43,15 @@ const StockTransferSchema = z.object({
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
+    
+    console.log("📥 Received stock transfer request:", {
+      transferId: body.transferId,
+      sourceLocationId: body.sourceLocationId,
+      destinationLocationId: body.destinationLocationId,
+      cashierId: body.cashierId,
+      itemsCount: body.items?.length,
+      totalAmount: body.totalAmount,
+    });
 
     // Validate input
     const validatedInput = StockTransferSchema.parse(body);
@@ -52,6 +63,7 @@ export async function POST(req: NextRequest) {
       items,
       totalAmount,
       targetDate,
+      notes: frontendNotes,
     } = validatedInput;
 
     // Validate cashier/staff ID and convert to UUID
@@ -80,10 +92,12 @@ export async function POST(req: NextRequest) {
       const uuidRegex =
         /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
       if (uuidRegex.test(locationId)) {
+        console.log(`✅ Using UUID directly: ${locationId}`);
         return locationId;
       }
 
       // Otherwise, try to find the location by name in the database
+      console.log(`🔍 Looking up location by name: "${locationName}"`);
       const [location] = await db
         .select({ id: locations.id })
         .from(locations)
@@ -91,10 +105,35 @@ export async function POST(req: NextRequest) {
         .limit(1);
 
       if (location) {
+        console.log(`✅ Found location "${locationName}" with ID: ${location.id}`);
         return location.id;
       }
 
+      // Try alternative names for common locations
+      const alternativeNames: Record<string, string[]> = {
+        "Abu Dhurus": ["Abu Dhabi Branch", "Abu Dhabi"],
+        "Hafith": ["Hafeet Branch", "Hafeet", "Hafit"],
+        "Sanaiya": ["Sanaiya (Main)", "Main Branch"],
+      };
+
+      if (alternativeNames[locationName]) {
+        for (const altName of alternativeNames[locationName]) {
+          console.log(`🔍 Trying alternative name: "${altName}"`);
+          const [altLocation] = await db
+            .select({ id: locations.id })
+            .from(locations)
+            .where(eq(locations.name, altName))
+            .limit(1);
+          
+          if (altLocation) {
+            console.log(`✅ Found location "${altName}" with ID: ${altLocation.id}`);
+            return altLocation.id;
+          }
+        }
+      }
+
       // If no location found, get the first available location as fallback
+      console.warn(`⚠️ Location "${locationName}" not found, using first available location as fallback`);
       const [firstLocation] = await db
         .select({ id: locations.id })
         .from(locations)
@@ -104,22 +143,51 @@ export async function POST(req: NextRequest) {
         throw new Error("No locations available in the database");
       }
 
+      console.log(`⚠️ Using fallback location ID: ${firstLocation.id}`);
       return firstLocation.id;
     };
 
     // Map the location IDs to actual database UUIDs
+    // Handle both "sanaiya" and "loc0" for source location
+    const sourceLocationName = 
+      sourceLocationId === "sanaiya" || sourceLocationId === "loc0" 
+        ? "Sanaiya" 
+        : sourceLocationId === "main"
+        ? "Main Branch"
+        : sourceLocationId;
+    
     const actualSourceLocationId = await getValidLocationId(
       sourceLocationId,
-      sourceLocationId === "loc0" ? "Sanaiya (Main)" : "Unknown"
+      sourceLocationName
     );
+    
+    // Handle destination location mapping
+    // Try multiple possible location name variations
+    let destinationLocationName = destinationLocationId;
+    if (destinationLocationId === "loc1") {
+      // Try "Abu Dhurus" first, fallback to "Abu Dhabi Branch"
+      destinationLocationName = "Abu Dhurus";
+    } else if (destinationLocationId === "loc2") {
+      // Try "Hafith" first, fallback to "Hafeet Branch"
+      destinationLocationName = "Hafith";
+    } else if (!destinationLocationId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+      // If it's not a UUID, try to use it as a location name directly
+      destinationLocationName = destinationLocationId;
+    }
+    
     const actualDestinationLocationId = await getValidLocationId(
       destinationLocationId,
-      destinationLocationId === "loc1"
-        ? "Abu Dhurus"
-        : destinationLocationId === "loc2"
-        ? "Hafith"
-        : "Unknown"
+      destinationLocationName
     );
+    
+    console.log("📍 Location mapping:", {
+      sourceLocationId,
+      sourceLocationName,
+      actualSourceLocationId,
+      destinationLocationId,
+      destinationLocationName,
+      actualDestinationLocationId,
+    });
 
     // Generate sequential reference number using ST prefix
     const referenceNumber = await generateReferenceNumber(
@@ -140,16 +208,94 @@ export async function POST(req: NextRequest) {
       };
     });
 
+    // Find the shop ID for the destination location
+    // shop_id must reference a shop, not a location
+    const [destinationShop] = await db
+      .select({ id: shops.id })
+      .from(shops)
+      .where(eq(shops.locationId, actualDestinationLocationId))
+      .limit(1);
+
+    if (!destinationShop) {
+      console.error("❌ No shop found for destination location:", {
+        destinationLocationId: actualDestinationLocationId,
+        destinationLocationName,
+      });
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "Destination shop not found",
+          message: `No shop found for destination location: ${destinationLocationName || destinationLocationId}`,
+        },
+        { status: 400 }
+      );
+    }
+
+    console.log("✅ Found destination shop:", {
+      shopId: destinationShop.id,
+      destinationLocationId: actualDestinationLocationId,
+      destinationLocationName,
+    });
+
+    // Use notes from frontend if provided, otherwise generate them
+    let transferNotes: string;
+    let sourceLocationDisplayName: string;
+    let destinationLocationDisplayName: string;
+    
+    if (frontendNotes) {
+      // Use notes from frontend (preferred - more reliable)
+      transferNotes = frontendNotes;
+      console.log("📝 Using notes from frontend:", transferNotes);
+      
+      // Still fetch location names for logging purposes
+      const [sourceLocationData] = await db
+        .select({ name: locations.name })
+        .from(locations)
+        .where(eq(locations.id, actualSourceLocationId))
+        .limit(1);
+
+      const [destinationLocationData] = await db
+        .select({ name: locations.name })
+        .from(locations)
+        .where(eq(locations.id, actualDestinationLocationId))
+        .limit(1);
+
+      sourceLocationDisplayName = sourceLocationData?.name || sourceLocationName;
+      destinationLocationDisplayName = destinationLocationData?.name || destinationLocationName;
+    } else {
+      // Fallback: Generate notes from database location names
+      const [sourceLocationData] = await db
+        .select({ name: locations.name })
+        .from(locations)
+        .where(eq(locations.id, actualSourceLocationId))
+        .limit(1);
+
+      const [destinationLocationData] = await db
+        .select({ name: locations.name })
+        .from(locations)
+        .where(eq(locations.id, actualDestinationLocationId))
+        .limit(1);
+
+      sourceLocationDisplayName = sourceLocationData?.name || sourceLocationName;
+      destinationLocationDisplayName = destinationLocationData?.name || destinationLocationName;
+      transferNotes = `Stock transfer between ${sourceLocationDisplayName} to ${destinationLocationDisplayName}`;
+      console.log("📝 Generated notes from database:", transferNotes);
+    }
+
     // Perform all operations in a database transaction
     const result = await db.transaction(async (tx) => {
       // 1. Create the stock transfer transaction
       console.log("🔄 Creating stock transfer transaction:", {
         referenceNumber,
         sourceLocationId: actualSourceLocationId,
+        sourceLocationName: sourceLocationDisplayName,
         destinationLocationId: actualDestinationLocationId,
-        cashierId,
+        destinationLocationName: destinationLocationDisplayName,
+        destinationShopId: destinationShop.id,
+        cashierId: staffUuid,
         itemsCount: formattedItems.length,
         totalAmount,
+        notes: transferNotes,
       });
 
       const [transaction] = await tx
@@ -157,7 +303,7 @@ export async function POST(req: NextRequest) {
         .values({
           referenceNumber,
           locationId: actualSourceLocationId, // Source location
-          shopId: actualDestinationLocationId, // Destination location (using shopId field)
+          shopId: destinationShop.id, // Destination shop ID (not location ID!)
           cashierId: staffUuid, // Use UUID instead of staff_id text
           type: "STOCK_TRANSFER",
           totalAmount: totalAmount.toString(),
@@ -166,6 +312,7 @@ export async function POST(req: NextRequest) {
           receiptHtml: null,
           batteryBillHtml: null,
           originalReferenceNumber: null,
+          notes: transferNotes, // Store the transfer notes
         })
         .returning();
 
@@ -414,7 +561,12 @@ export async function POST(req: NextRequest) {
       { status: 201 }
     );
   } catch (error: any) {
-    console.error("Error creating stock transfer transaction:", error);
+    console.error("❌ Error creating stock transfer transaction:", {
+      error,
+      message: error?.message,
+      stack: error?.stack,
+      name: error?.name,
+    });
 
     // Handle validation errors
     if (error instanceof z.ZodError) {
@@ -432,11 +584,24 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Handle database transaction errors
+    if (error?.message?.includes("Inventory not found")) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "Inventory error",
+          message: error.message,
+        },
+        { status: 400 }
+      );
+    }
+
     // Handle other errors
     return NextResponse.json(
       {
         ok: false,
-        error: error.message || "Failed to create stock transfer transaction",
+        error: error?.message || "Failed to create stock transfer transaction",
+        details: error?.stack ? "Check server logs for details" : undefined,
       },
       { status: 500 }
     );

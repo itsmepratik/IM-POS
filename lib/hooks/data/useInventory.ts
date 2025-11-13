@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
+import { fetchItems } from "@/lib/services/inventoryService"
 
 // Define inventory item type
 export interface InventoryItem {
@@ -13,7 +14,7 @@ export interface InventoryItem {
   price: number
 }
 
-export function useInventory() {
+export function useInventory(locationId?: string) {
   const [items, setItems] = useState<InventoryItem[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
@@ -24,50 +25,47 @@ export function useInventory() {
     setError(null)
     
     try {
-      // In the future, this will fetch from Supabase
-      // For now, we'll simulate an API call with a timeout
-      await new Promise(resolve => setTimeout(resolve, 300))
+      // Use "sanaiya" as default location if not provided
+      const locationToFetch = locationId || "sanaiya"
       
-      // Temporary mock data
-      const data: InventoryItem[] = [
-        {
-          id: 1,
-          name: "Synthetic Motor Oil",
-          brand: "Mobil 1",
-          sku: "M1-5W30-1QT",
-          location: "A1-03",
-          stock: 558,
-          price: 39.99,
-        },
-        {
-          id: 2,
-          name: "Oil Filter",
-          brand: "l",
-          sku: "PH7317",
-          location: "B2-01",
-          stock: 85,
-          price: 8.99,
-        },
-        {
-          id: 3,
-          name: "Transmission Fluid",
-          brand: "Valvoline",
-          sku: "VAL-ATF-1GAL",
-          location: "A2-04",
-          stock: 42,
-          price: 29.99,
-        },
-      ]
+      // Fetch real inventory items from database
+      const dbItems = await fetchItems(locationToFetch)
+      
+      // Transform database items to InventoryItem format
+      const data: InventoryItem[] = dbItems.map((item, index) => {
+        // Generate a numeric ID from UUID string
+        const numericId = item.id 
+          ? parseInt(item.id.replace(/-/g, '').substring(0, 10), 16) || index + 1
+          : index + 1;
+        
+        // Use first 8 chars of UUID as SKU (remove dashes)
+        const sku = item.id 
+          ? item.id.replace(/-/g, '').substring(0, 8).toUpperCase()
+          : `SKU${String(index + 1).padStart(4, '0')}`;
+        
+        return {
+          id: numericId,
+          name: item.name,
+          brand: item.brand || "Unknown",
+          sku: sku,
+          location: "A1-01", // Default location code
+          stock: item.stock || 0,
+          price: item.price || 0,
+        };
+      })
       
       setItems(data)
+      console.log(`✅ Loaded ${data.length} inventory items for location: ${locationToFetch}`)
     } catch (err) {
+      console.error("Error fetching inventory items:", err)
       setError(err instanceof Error ? err : new Error('Unknown error occurred'))
+      setItems([])
     } finally {
       setIsLoading(false)
     }
-  }, [])
+  }, [locationId])
 
-  // Fetch data on mount
+  // Fetch data on mount and when locationId changes
   useEffect(() => {
     fetchInventoryItems()
   }, [fetchInventoryItems])

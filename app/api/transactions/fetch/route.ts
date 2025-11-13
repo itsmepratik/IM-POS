@@ -54,6 +54,7 @@ export async function GET(req: Request) {
         receipt_html,
         battery_bill_html,
         original_reference_number,
+        notes,
         created_at,
         customer_id,
         customers (
@@ -65,7 +66,16 @@ export async function GET(req: Request) {
         shops (
           id,
           name,
-          display_name
+          display_name,
+          location_id,
+          locations (
+            id,
+            name
+          )
+        ),
+        locations (
+          id,
+          name
         ),
         staff (
           id,

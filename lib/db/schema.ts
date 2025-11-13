@@ -155,6 +155,7 @@ export const transactions = pgTable("transactions", {
   customerId: uuid("customer_id").references(() => customers.id, {
     onDelete: "set null",
   }), // Link to customers table
+  notes: text("notes"), // Additional notes (e.g., stock transfer details, special instructions)
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });
 

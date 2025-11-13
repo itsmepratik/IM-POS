@@ -1,1 +1,0 @@
-ALTER TABLE "transactions" ALTER COLUMN "cashier_id" SET DATA TYPE text;

@@ -49,12 +49,15 @@ export interface IntegratedPOSData {
 
 /**
  * Hook for integrated POS data with real-time inventory synchronization
+ * @param overrideLocationId - Optional location ID to override the branch context (useful for transfers)
  */
-export function useIntegratedPOSData(): IntegratedPOSData {
+export function useIntegratedPOSData(overrideLocationId?: string | null): IntegratedPOSData {
   const { currentBranch, branchLoadError, inventoryLocationId } = useBranch();
 
-  // Use inventoryLocationId if available (for shop users with shared inventory), otherwise use currentBranch.id
-  const locationIdForInventory = inventoryLocationId || currentBranch?.id || null;
+  // Use overrideLocationId if provided, otherwise use inventoryLocationId if available (for shop users with shared inventory), otherwise use currentBranch.id
+  const locationIdForInventory = overrideLocationId !== undefined 
+    ? overrideLocationId 
+    : (inventoryLocationId || currentBranch?.id || null);
 
   // Brands state
   const [brands, setBrands] = useState<Brand[]>([]);
