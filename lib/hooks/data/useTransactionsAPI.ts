@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { createClient } from "@/supabase/client";
 
 export interface TransactionAPI {
   id: string;
@@ -43,10 +44,15 @@ export interface TransactionsAPIResponse {
   transactions: TransactionAPI[];
 }
 
-export function useTransactionsAPI(shopId?: string) {
+export function useTransactionsAPI(
+  shopId?: string,
+  startDate?: string,
+  endDate?: string
+) {
   const [transactions, setTransactions] = useState<TransactionAPI[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const subscriptionRef = useRef<ReturnType<typeof createClient>["channel"] | null>(null);
 
   const fetchTransactions = useCallback(async () => {
     setIsLoading(true);
@@ -56,6 +62,12 @@ export function useTransactionsAPI(shopId?: string) {
       const url = new URL("/api/transactions/fetch", window.location.origin);
       if (shopId && shopId !== "all-stores") {
         url.searchParams.set("shopId", shopId);
+      }
+      if (startDate) {
+        url.searchParams.set("startDate", startDate);
+      }
+      if (endDate) {
+        url.searchParams.set("endDate", endDate);
       }
 
       const response = await fetch(url.toString());
@@ -77,11 +89,69 @@ export function useTransactionsAPI(shopId?: string) {
     } finally {
       setIsLoading(false);
     }
-  }, [shopId]);
+  }, [shopId, startDate, endDate]);
 
+  // Set up real-time subscription
   useEffect(() => {
     fetchTransactions();
-  }, [fetchTransactions]);
+
+    // Set up Supabase real-time subscription
+    const supabase = createClient();
+    
+    // Create a channel for transactions table
+    const channel = supabase
+      .channel("transactions-changes")
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "transactions",
+          ...(shopId && shopId !== "all-stores" ? { filter: `shop_id=eq.${shopId}` } : {}),
+        },
+        async (payload) => {
+          console.log("🔄 New transaction detected:", payload.new);
+          
+          // Fetch the new transaction with all relations
+          try {
+            const url = new URL("/api/transactions/fetch", window.location.origin);
+            url.searchParams.set("referenceNumber", payload.new.reference_number);
+            
+            const response = await fetch(url.toString());
+            if (response.ok) {
+              const data: TransactionsAPIResponse = await response.json();
+              if (data.ok && data.transactions.length > 0) {
+                const newTransaction = data.transactions[0];
+                
+                // Add the new transaction to the beginning of the list
+                setTransactions((prev) => {
+                  // Check if transaction already exists to avoid duplicates
+                  if (prev.some((t) => t.id === newTransaction.id)) {
+                    return prev;
+                  }
+                  return [newTransaction, ...prev];
+                });
+              }
+            }
+          } catch (error) {
+            console.error("Error fetching new transaction details:", error);
+            // Fallback: refetch all transactions
+            fetchTransactions();
+          }
+        }
+      )
+      .subscribe((status) => {
+        console.log("📡 Transactions subscription status:", status);
+      });
+
+    subscriptionRef.current = channel;
+
+    // Cleanup subscription on unmount or when shopId changes
+    return () => {
+      console.log("🔌 Unsubscribing from transactions channel");
+      supabase.removeChannel(channel);
+    };
+  }, [shopId, startDate, endDate, fetchTransactions]);
 
   return {
     transactions,

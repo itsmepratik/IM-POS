@@ -231,6 +231,7 @@ function POSPageContent() {
                       setIsFilterBrandModalOpen={setIsFilterBrandModalOpen}
                       filterTypes={filterTypes}
                       filterBrands={filterBrands}
+                      products={products}
                       isLoading={isLoading}
                     />
                   </div>
@@ -247,6 +248,7 @@ function POSPageContent() {
                       setIsPartBrandModalOpen={setIsPartBrandModalOpen}
                       partTypes={partTypes}
                       partBrands={partBrands}
+                      products={products}
                       isLoading={isLoading}
                     />
                   </div>

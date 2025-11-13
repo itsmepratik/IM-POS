@@ -3084,6 +3084,7 @@ function POSPageContent() {
                           filterTypes={filterTypes}
                           filterBrands={filterBrands}
                           brands={brands}
+                          products={products}
                           isLoading={isLoading}
                         />
                       ) : activeCategory === "Parts" ? (
@@ -3097,6 +3098,7 @@ function POSPageContent() {
                           partTypes={partTypes}
                           partBrands={partBrands}
                           brands={brands}
+                          products={products}
                           isLoading={isLoading}
                         />
                       ) : activeCategory === "Additives & Fluids" ? (

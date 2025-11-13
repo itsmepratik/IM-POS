@@ -43,6 +43,7 @@ export async function GET(
         car_plate_number,
         mobile_payment_account,
         mobile_number,
+        notes,
         created_at,
         shops (
           id,

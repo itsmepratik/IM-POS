@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
 import { useInventory, InventoryItem } from "@/lib/hooks/data/useInventory";
 
-export const useTransfer = () => {
-  const { items, isLoading, fetchInventoryItems } = useInventory();
+export const useTransfer = (sourceLocationId?: string) => {
+  // Use "sanaiya" as default location for Sanaiya (Main)
+  const locationId = sourceLocationId === "loc0" ? "sanaiya" : sourceLocationId || "sanaiya";
+  const { items, isLoading, fetchInventoryItems } = useInventory(locationId);
   
   // State for transfer functionality
   const [sourceLocation, setSourceLocation] = useState("");

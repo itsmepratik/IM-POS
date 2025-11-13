@@ -1,11 +1,12 @@
 "use client";
 
-import React from "react";
+import React, { useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { BrandCard } from "../shared/BrandCard";
 import { Brand } from "@/lib/services/inventoryService";
 import { useImagePreloader } from "@/lib/hooks/useImagePreloader";
+import { POSProduct } from "@/lib/types/unified-product";
 
 interface Part {
   id: number;
@@ -24,6 +25,7 @@ interface PartsCategoryProps {
   partTypes: string[];
   partBrands: string[];
   brands?: Brand[];
+  products: POSProduct[];
   isLoading: boolean;
 }
 
@@ -37,8 +39,27 @@ export function PartsCategory({
   partTypes,
   partBrands,
   brands,
+  products,
   isLoading,
 }: PartsCategoryProps) {
+  // Get brands for a specific part type
+  const getBrandsForType = useMemo(() => {
+    return (type: string): string[] => {
+      return Array.from(
+        new Set(
+          products
+            .filter(
+              (p) =>
+                p.category === "Parts" &&
+                p.type === type &&
+                p.brand
+            )
+            .map((p) => p.brand!)
+        )
+      );
+    };
+  }, [products]);
+
   // Extract brand image URLs for preloading
   const brandImageUrls = React.useMemo(() => {
     if (!brands) return [];
@@ -101,7 +122,7 @@ export function PartsCategory({
                   gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))",
                 }}
               >
-                {partBrands.map((brand) => (
+                {getBrandsForType(type).map((brand) => (
                   <BrandCard
                     key={brand}
                     brand={brand}

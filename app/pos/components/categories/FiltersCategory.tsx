@@ -6,6 +6,7 @@ import { ChevronDown, ChevronUp } from "lucide-react";
 import { BrandCard } from "../shared/BrandCard";
 import { Brand } from "@/lib/services/inventoryService";
 import { useImagePreloader } from "@/lib/hooks/useImagePreloader";
+import { POSProduct } from "@/lib/types/unified-product";
 
 interface FiltersCategoryProps {
   searchQuery?: string;
@@ -24,6 +25,7 @@ interface FiltersCategoryProps {
   filterTypes: string[];
   filterBrands: string[];
   brands?: Brand[];
+  products: POSProduct[];
   isLoading: boolean;
 }
 
@@ -37,8 +39,27 @@ export function FiltersCategory({
   filterTypes,
   filterBrands,
   brands,
+  products,
   isLoading,
 }: FiltersCategoryProps) {
+  // Get brands for a specific filter type
+  const getBrandsForType = useMemo(() => {
+    return (type: string): string[] => {
+      return Array.from(
+        new Set(
+          products
+            .filter(
+              (p) =>
+                p.category === "Filters" &&
+                p.type === type &&
+                p.brand
+            )
+            .map((p) => p.brand!)
+        )
+      );
+    };
+  }, [products]);
+
   // Extract brand image URLs for preloading
   const brandImageUrls = React.useMemo(() => {
     if (!brands) return [];
@@ -101,7 +122,7 @@ export function FiltersCategory({
                   gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))",
                 }}
               >
-                {filterBrands.map((brand) => (
+                {getBrandsForType(type).map((brand) => (
                   <BrandCard
                     key={brand}
                     brand={brand}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, memo, useMemo } from "react";
+import { useState, useEffect, useCallback, memo, useMemo, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -53,6 +53,7 @@ interface POSCartItem {
 interface Transfer2POSInterfaceProps {
   onCartUpdate: (cart: POSCartItem[]) => void;
   initialCart?: POSCartItem[];
+  sourceLocationId?: string | null; // Location ID to load products from (for transfers)
 }
 
 // Memoized Cart Item Component
@@ -70,7 +71,9 @@ const CartItem = memo(
       <div className="flex-1 min-w-0">
         <div className="font-medium text-sm truncate">{item.name}</div>
         {item.details && (
-          <div className="text-xs text-muted-foreground mt-0.5">{item.details}</div>
+          <div className="text-xs text-muted-foreground mt-0.5">
+            {item.details}
+          </div>
         )}
         {item.bottleType && (
           <div className="flex items-center gap-1 mt-1">
@@ -139,6 +142,7 @@ CartItem.displayName = "CartItem";
 export function Transfer2POSInterface({
   onCartUpdate,
   initialCart = [],
+  sourceLocationId,
 }: Transfer2POSInterfaceProps) {
   const { toast } = useToast();
   const [cart, setCart] = useState<POSCartItem[]>(initialCart);
@@ -165,8 +169,36 @@ export function Transfer2POSInterface({
     string | null
   >(null);
 
-  // Get real POS data
-  const { lubricantProducts, products, brands } = useIntegratedPOSData();
+  // Get real POS data - use sourceLocationId if provided (for transfers)
+  const { lubricantProducts, products, brands, isLoading, syncProducts } =
+    useIntegratedPOSData(sourceLocationId);
+
+  // Debug logging
+  useEffect(() => {
+    console.log("🔄 Transfer2POSInterface - Location & Products:", {
+      sourceLocationId,
+      lubricantProductsCount: lubricantProducts.length,
+      productsCount: products.length,
+      isLoading,
+    });
+  }, [sourceLocationId, lubricantProducts.length, products.length, isLoading]);
+
+  // Note: useInventoryPOSSync already syncs automatically when locationId changes
+  // This effect is just for logging/debugging purposes
+  useEffect(() => {
+    if (sourceLocationId) {
+      console.log(
+        `📍 Transfer2POSInterface - Using location: ${sourceLocationId}`
+      );
+      console.log(
+        `📦 Current products - Lubricants: ${lubricantProducts.length}, Regular: ${products.length}`
+      );
+    } else {
+      console.warn(
+        "⚠️ Transfer2POSInterface - No sourceLocationId provided, using branch context"
+      );
+    }
+  }, [sourceLocationId, lubricantProducts.length, products.length]);
 
   // Categories available - all 4 categories like original POS
   const categories = ["Lubricants", "Filters", "Parts", "Additives & Fluids"];
@@ -234,7 +266,8 @@ export function Transfer2POSInterface({
           id: product.id,
           originalId: product.originalId, // Store the UUID
           name: fullName,
-          price: product.price || product.basePrice,
+          // Handle both LubricantProduct (basePrice) and Product (price)
+          price: (product as any).price || (product as any).basePrice || 0,
           quantity,
           details,
           uniqueId,
@@ -294,14 +327,11 @@ export function Transfer2POSInterface({
   }, [toast]);
 
   // Handle lubricant selection (with volume options)
-  const handleLubricantSelect = useCallback(
-    (lubricant: any) => {
-      setSelectedOil(lubricant);
-      setSelectedVolumes([]);
-      setIsVolumeModalOpen(true);
-    },
-    []
-  );
+  const handleLubricantSelect = useCallback((lubricant: any) => {
+    setSelectedOil(lubricant);
+    setSelectedVolumes([]);
+    setIsVolumeModalOpen(true);
+  }, []);
 
   // Function to handle volume selection with bottle type prompt for smaller volumes
   const handleVolumeClick = useCallback(
@@ -330,7 +360,9 @@ export function Transfer2POSInterface({
   // Function to add volume with selected bottle type
   const addVolumeWithBottleType = useCallback(
     (size: string, bottleType: "open" | "closed") => {
-      const volumeDetails = selectedOil?.volumes.find((v: any) => v.size === size);
+      const volumeDetails = selectedOil?.volumes.find(
+        (v: any) => v.size === size
+      );
       if (volumeDetails) {
         setSelectedVolumes((prev) => {
           const existing = prev.find(
@@ -354,7 +386,11 @@ export function Transfer2POSInterface({
 
   // Handle quantity change for selected volumes
   const handleVolumeQuantityChange = useCallback(
-    (size: string, bottleType: "open" | "closed" | undefined, change: number) => {
+    (
+      size: string,
+      bottleType: "open" | "closed" | undefined,
+      change: number
+    ) => {
       setSelectedVolumes((prev) => {
         return prev
           .map((v) => {
@@ -397,7 +433,7 @@ export function Transfer2POSInterface({
     setIsVolumeModalOpen(false);
     setSelectedVolumes([]);
     setSelectedOil(null);
-    
+
     toast({
       title: "Items Added",
       description: `${selectedVolumes.length} volume(s) added to transfer bill`,
@@ -482,7 +518,9 @@ export function Transfer2POSInterface({
                 }`}
               >
                 {getCategoryIcon(category)}
-                <span className="hidden sm:inline truncate font-medium">{category}</span>
+                <span className="hidden sm:inline truncate font-medium">
+                  {category}
+                </span>
                 <span className="sm:hidden text-xs font-medium">
                   {category.split(" ")[0]}
                 </span>
@@ -491,7 +529,8 @@ export function Transfer2POSInterface({
           </div>
           {searchQuery && (
             <div className="text-xs text-muted-foreground px-1">
-              {filteredBrands.length} brand{filteredBrands.length !== 1 ? "s" : ""} found
+              {filteredBrands.length} brand
+              {filteredBrands.length !== 1 ? "s" : ""} found
             </div>
           )}
         </div>
@@ -520,7 +559,9 @@ export function Transfer2POSInterface({
                         <BrandLogo brand={brand} brands={brands} />
                       </div>
                       <div className="text-left flex-1 min-w-0">
-                        <h3 className="font-semibold text-base truncate">{brand}</h3>
+                        <h3 className="font-semibold text-base truncate">
+                          {brand}
+                        </h3>
                         <p className="text-sm text-muted-foreground">
                           {brandProducts.length} product
                           {brandProducts.length !== 1 ? "s" : ""}
@@ -543,9 +584,15 @@ export function Transfer2POSInterface({
                     <div className="p-4 pt-2 border-t bg-muted/30">
                       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                         {brandProducts.map((product) => {
-                          const productImageUrl = (product as any).imageUrl || (product as any).image;
-                          const productPrice = product.basePrice || product.price || 0;
-                          const isAvailable = (product as any).isAvailable !== false;
+                          const productImageUrl =
+                            (product as any).imageUrl || (product as any).image;
+                          // Handle both LubricantProduct (basePrice) and Product (price)
+                          const productPrice =
+                            (product as any).basePrice ||
+                            (product as any).price ||
+                            0;
+                          const isAvailable =
+                            (product as any).isAvailable !== false;
 
                           return (
                             <Button
@@ -576,7 +623,9 @@ export function Transfer2POSInterface({
                                   />
                                   {!isAvailable && (
                                     <div className="absolute inset-0 bg-background/80 rounded-lg flex items-center justify-center">
-                                      <span className="text-xs font-medium text-muted-foreground">Out of Stock</span>
+                                      <span className="text-xs font-medium text-muted-foreground">
+                                        Out of Stock
+                                      </span>
                                     </div>
                                   )}
                                 </div>
@@ -587,7 +636,10 @@ export function Transfer2POSInterface({
                                 </span>
                                 <div className="flex flex-col gap-1">
                                   {product.type && (
-                                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 w-fit mx-auto">
+                                    <Badge
+                                      variant="outline"
+                                      className="text-[10px] px-1.5 py-0 w-fit mx-auto"
+                                    >
                                       {product.type}
                                     </Badge>
                                   )}
@@ -606,13 +658,31 @@ export function Transfer2POSInterface({
               );
             })}
 
-            {filteredBrands.length === 0 && (
+            {isLoading && (
+              <div className="flex items-center justify-center h-32 text-muted-foreground">
+                <div className="text-center space-y-2">
+                  <Package className="h-10 w-10 mx-auto opacity-50 animate-pulse" />
+                  <p className="text-sm font-medium">Loading products...</p>
+                  {sourceLocationId && (
+                    <p className="text-xs">
+                      Loading inventory for location: {sourceLocationId}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+            {!isLoading && filteredBrands.length === 0 && (
               <div className="flex items-center justify-center h-32 text-muted-foreground">
                 <div className="text-center space-y-2">
                   <Package className="h-10 w-10 mx-auto opacity-50" />
                   <p className="text-sm font-medium">No products found</p>
                   {searchQuery && (
                     <p className="text-xs">Try searching for something else</p>
+                  )}
+                  {!searchQuery && sourceLocationId && (
+                    <p className="text-xs">
+                      No products available at this location
+                    </p>
                   )}
                 </div>
               </div>
@@ -643,7 +713,9 @@ export function Transfer2POSInterface({
                 </div>
                 <div>
                   <p className="text-sm font-medium">No items selected</p>
-                  <p className="text-xs mt-1">Add products to create transfer bill</p>
+                  <p className="text-xs mt-1">
+                    Add products to create transfer bill
+                  </p>
                 </div>
               </div>
             </div>
@@ -805,8 +877,7 @@ export function Transfer2POSInterface({
                             </div>
 
                             <span className="font-medium text-sm text-right w-full">
-                              OMR{" "}
-                              {(volume.price * volume.quantity).toFixed(3)}
+                              OMR {(volume.price * volume.quantity).toFixed(3)}
                             </span>
                           </div>
                         </div>

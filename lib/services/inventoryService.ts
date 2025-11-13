@@ -180,8 +180,18 @@ export const fetchItems = async (
       .eq("location_id", actualLocationId);
 
     if (error) {
-      console.error("Error fetching inventory:", error);
-      return [];
+      console.error("Error fetching inventory:", {
+        error,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code,
+        locationId,
+        actualLocationId,
+      });
+      throw new Error(
+        `Failed to fetch inventory for location "${locationId}" (resolved to "${actualLocationId}"): ${error.message || "Unknown error"}`
+      );
     }
 
     console.log("📦 Raw inventory data from database:", inventoryData);
@@ -342,8 +352,15 @@ export const fetchItems = async (
 
     return items;
   } catch (error) {
-    console.error("Error in fetchItems:", error);
-    return [];
+    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+    console.error("Error in fetchItems:", {
+      error,
+      message: errorMessage,
+      locationId,
+      stack: error instanceof Error ? error.stack : undefined,
+    });
+    // Re-throw the error so callers can handle it appropriately
+    throw new Error(`Failed to fetch items for location "${locationId}": ${errorMessage}`);
   }
 };
 

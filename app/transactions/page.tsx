@@ -34,6 +34,8 @@ import {
   startOfYear,
   isWithinInterval,
   startOfMonth,
+  startOfDay,
+  endOfDay,
   subMonths,
   subYears,
   isBefore,
@@ -819,12 +821,6 @@ export default function TransactionsPage() {
     loadStores();
   }, []);
 
-  // Use the new API hook
-  const {
-    transactions: apiTransactions,
-    isLoading,
-    error,
-  } = useTransactionsAPI(selectedStore);
   const [selectedPeriod, setSelectedPeriod] =
     useState<TimeOptionValue>("today");
   const [selectedTransaction, setSelectedTransaction] =
@@ -848,16 +844,6 @@ export default function TransactionsPage() {
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
-    // Check for time of day
-    const hour = new Date().getHours();
-    if (hour < 12) {
-      setTimeOfDay("morning");
-    } else if (hour < 18) {
-      setTimeOfDay("evening");
-    } else {
-      setTimeOfDay("full");
-    }
-
     // Set hasMounted to prevent hydration mismatch
     setHasMounted(true);
   }, []);
@@ -887,6 +873,69 @@ export default function TransactionsPage() {
         };
     }
   }, [selectedPeriod]);
+
+  // Calculate date range for API based on selectedPeriod and custom date selection
+  const dateRange = useMemo(() => {
+    const today = new Date();
+    
+    // If custom date range is selected, use that
+    if (date?.from) {
+      const start = startOfDay(date.from);
+      const end = date.to ? endOfDay(date.to) : endOfDay(date.from);
+      return {
+        startDate: format(start, "yyyy-MM-dd'T'HH:mm:ss"),
+        endDate: format(end, "yyyy-MM-dd'T'HH:mm:ss"),
+      };
+    }
+    
+    // Otherwise, calculate based on selectedPeriod
+    switch (selectedPeriod) {
+      case "today": {
+        const start = startOfDay(today);
+        const end = endOfDay(today);
+        return {
+          startDate: format(start, "yyyy-MM-dd'T'HH:mm:ss"),
+          endDate: format(end, "yyyy-MM-dd'T'HH:mm:ss"),
+        };
+      }
+      case "weekly": {
+        const start = startOfDay(subDays(today, 6));
+        const end = endOfDay(today);
+        return {
+          startDate: format(start, "yyyy-MM-dd'T'HH:mm:ss"),
+          endDate: format(end, "yyyy-MM-dd'T'HH:mm:ss"),
+        };
+      }
+      case "monthly": {
+        const start = startOfDay(subDays(today, 30));
+        const end = endOfDay(today);
+        return {
+          startDate: format(start, "yyyy-MM-dd'T'HH:mm:ss"),
+          endDate: format(end, "yyyy-MM-dd'T'HH:mm:ss"),
+        };
+      }
+      case "yearly": {
+        const start = startOfDay(subDays(today, 364));
+        const end = endOfDay(today);
+        return {
+          startDate: format(start, "yyyy-MM-dd'T'HH:mm:ss"),
+          endDate: format(end, "yyyy-MM-dd'T'HH:mm:ss"),
+        };
+      }
+      default:
+        return {
+          startDate: undefined,
+          endDate: undefined,
+        };
+    }
+  }, [selectedPeriod, date]);
+
+  // Use the new API hook with date range
+  const {
+    transactions: apiTransactions,
+    isLoading,
+    error,
+  } = useTransactionsAPI(selectedStore, dateRange.startDate, dateRange.endDate);
 
   const getDateRangeText = useCallback(() => {
     if (!date?.from) {
@@ -928,6 +977,27 @@ export default function TransactionsPage() {
 
       // Extract shop name from joined data
       const shopName = t.shops?.display_name || t.shops?.name || null;
+
+      // Use stored notes if available, otherwise compute from transaction type
+      let computedNotes: string | undefined;
+      
+      if (t.notes) {
+        // Use stored notes (preferred for stock transfers and other special cases)
+        computedNotes = t.notes;
+      } else if (t.type === "REFUND") {
+        computedNotes = "Item returned";
+      } else if (t.type === "EXPENSE") {
+        computedNotes = "Miscellaneous expense";
+      } else if (t.type === "ON_HOLD") {
+        computedNotes = `Car Plate: ${t.car_plate_number || "N/A"}`;
+      } else if (t.type === "ON_HOLD_PAID") {
+        computedNotes = `Settled from: ${t.original_reference_number || "N/A"}`;
+      } else if (t.type === "CREDIT_PAID") {
+        computedNotes = `Settled from: ${t.original_reference_number || "N/A"}`;
+      } else if (t.type === "STOCK_TRANSFER") {
+        // Fallback for old transactions without notes
+        computedNotes = "Stock transfer between locations";
+      }
 
       // Debug: Log if we have a customer_id but no customer name
       if (t.customer_id && !t.customers?.name) {
@@ -981,20 +1051,7 @@ export default function TransactionsPage() {
         reference: t.reference_number,
         storeId: t.shop_id || "unknown",
         date: new Date(t.created_at).toLocaleDateString(),
-        notes:
-          t.type === "REFUND"
-            ? "Item returned"
-            : t.type === "EXPENSE"
-            ? "Miscellaneous expense"
-            : t.type === "ON_HOLD"
-            ? `Car Plate: ${t.car_plate_number || "N/A"}`
-            : t.type === "ON_HOLD_PAID"
-            ? `Settled from: ${t.original_reference_number || "N/A"}`
-            : t.type === "CREDIT_PAID"
-            ? `Settled from: ${t.original_reference_number || "N/A"}`
-            : t.type === "STOCK_TRANSFER"
-            ? "Stock transfer between locations"
-            : undefined,
+        notes: computedNotes,
         cashier: cashierName,
         receiptHtml: t.receipt_html,
         batteryBillHtml: t.battery_bill_html,
@@ -1009,6 +1066,30 @@ export default function TransactionsPage() {
 
   const displayTransactions = useMemo(() => {
     let transactions = getTransactions();
+
+    // Apply time-of-day filter (only when period is "today")
+    if (selectedPeriod === "today" && timeOfDay !== "full") {
+      transactions = transactions.filter((transaction) => {
+        // Find the original API transaction to get created_at timestamp
+        const apiTransaction = apiTransactions.find(
+          (t) => t.id === transaction.id
+        );
+        if (!apiTransaction) return true;
+        
+        // Get the transaction hour from created_at
+        const transactionDate = new Date(apiTransaction.created_at);
+        const hour = transactionDate.getHours();
+        
+        if (timeOfDay === "morning") {
+          // Morning: 5:00 AM to 4:59 PM (5:00 to 16:59)
+          return hour >= 5 && hour < 17;
+        } else if (timeOfDay === "evening") {
+          // Evening: 5:00 PM to 11:59 PM (17:00 to 23:59)
+          return hour >= 17 && hour < 24;
+        }
+        return true;
+      });
+    }
 
     // Apply cashier filter
     if (selectedCashier && selectedCashier !== "all-cashiers") {
@@ -1034,7 +1115,7 @@ export default function TransactionsPage() {
         transaction.amount.toString().includes(query)
       );
     });
-  }, [getTransactions, searchQuery, selectedCashier]);
+  }, [getTransactions, searchQuery, selectedCashier, selectedPeriod, timeOfDay, apiTransactions]);
 
   // Calculate total credit (total amount considering sale as positive and refund as negative)
   const totalCredit = useMemo(() => {
