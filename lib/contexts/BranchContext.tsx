@@ -61,8 +61,6 @@ export function BranchProvider({ children }: { children: ReactNode }) {
   const supabase = createClient();
   const { currentUser, isAdmin } = useUser();
 
-  // Add stability to prevent unnecessary re-renders
-  const stableBranches = useMemo(() => branches, [JSON.stringify(branches)]);
 
   // Load branches from database using the fetchBranches service
   const loadBranches = async () => {
@@ -400,7 +398,7 @@ export function BranchProvider({ children }: { children: ReactNode }) {
 
   const contextValue = useMemo(
     () => ({
-      branches: stableBranches,
+      branches,
       currentBranch,
       isLoadingBranches,
       selectBranch,
@@ -410,7 +408,7 @@ export function BranchProvider({ children }: { children: ReactNode }) {
       isBranchLocked,
     }),
     [
-      stableBranches,
+      branches,
       currentBranch,
       isLoadingBranches,
       selectBranch,

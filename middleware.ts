@@ -54,24 +54,27 @@ export async function middleware(request: NextRequest) {
   // If user is authenticated, check role-based access
   if (user) {
     // Get user role from database
-    let userRole = "shop"; // default fallback
+    let userRole = "shop";
 
-    try {
-      const { data: roleData, error } = await supabase.rpc(
-        "get_user_role_for_middleware",
-        { user_id: user.id }
-      );
-
-      if (!error && roleData) {
-        userRole = roleData;
-      } else {
-        // Fallback based on email
+    const cachedRole = request.cookies.get("user_role")?.value;
+    if (cachedRole) {
+      userRole = cachedRole;
+    } else {
+      try {
+        const { data: roleData, error } = await supabase.rpc(
+          "get_user_role_for_middleware",
+          { user_id: user.id }
+        );
+        if (!error && roleData) {
+          userRole = roleData;
+        } else {
+          userRole = user.email === "admin@hnsautomotive.com" ? "admin" : "shop";
+        }
+      } catch (error) {
+        console.error("Error getting user role in middleware:", error);
         userRole = user.email === "admin@hnsautomotive.com" ? "admin" : "shop";
       }
-    } catch (error) {
-      console.error("Error getting user role in middleware:", error);
-      // Fallback based on email
-      userRole = user.email === "admin@hnsautomotive.com" ? "admin" : "shop";
+      supabaseResponse.cookies.set("user_role", userRole, { maxAge: 300, path: "/" });
     }
 
     const pathname = request.nextUrl.pathname;

@@ -92,13 +92,6 @@ export default function RootLayout({
         <meta name="orientation" content="portrait" />
         <link rel="apple-touch-icon" href="/favicon.ico" />
 
-        {/* Cache-busting headers to make normal reload behave like hard refresh */}
-        <meta
-          httpEquiv="Cache-Control"
-          content="no-cache, no-store, must-revalidate"
-        />
-        <meta httpEquiv="Pragma" content="no-cache" />
-        <meta httpEquiv="Expires" content="0" />
         <style
           suppressHydrationWarning
           dangerouslySetInnerHTML={{
