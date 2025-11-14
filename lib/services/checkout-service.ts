@@ -37,6 +37,10 @@ export interface CheckoutRequest {
   cashierId: string;
   cart: CheckoutItem[];
   tradeIns?: CheckoutTradeIn[];
+  discount?: {
+    type: "percentage" | "amount";
+    value: number;
+  };
   carPlateNumber?: string; // For 'on hold' payments
   customerId?: string; // Optional customer ID for linking transactions to customers
   mobilePaymentAccount?: string; // Account used for mobile payment (Adanan or Forman)
@@ -121,6 +125,13 @@ class CheckoutService {
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
+
+      // Log the request being sent (especially discount)
+      console.log("📤 CheckoutService: Sending request to API:", {
+        hasDiscount: !!request.discount,
+        discount: request.discount,
+        cartLength: request.cart.length,
+      });
 
       const response = await fetch("/api/checkout", {
         method: "POST",

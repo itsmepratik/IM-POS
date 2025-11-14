@@ -394,6 +394,7 @@ export async function POST(req: NextRequest) {
       cashierId: cashierIdInput,
       cart,
       tradeIns,
+      discount,
       carPlateNumber,
       customerId,
       mobilePaymentAccount,
@@ -403,6 +404,19 @@ export async function POST(req: NextRequest) {
     console.log(
       `[${requestId}] Customer ID received:`,
       customerId || "None (Anonymous)"
+    );
+    console.log(
+      `[${requestId}] Discount received:`,
+      discount ? `${discount.type} - ${discount.value}` : "None"
+    );
+    console.log(
+      `[${requestId}] Full validated input:`,
+      JSON.stringify({
+        cartLength: cart.length,
+        hasTradeIns: !!tradeIns,
+        hasDiscount: !!discount,
+        discount: discount,
+      }, null, 2)
     );
 
     // Validate cashier/staff ID and convert to UUID
@@ -489,8 +503,15 @@ export async function POST(req: NextRequest) {
       return item;
     });
 
-    // Calculate total amount
-    const totalAmount = calculateFinalTotal(cart, tradeIns);
+    // Calculate total amount with discount
+    const {
+      subtotalBeforeDiscount,
+      discountAmount,
+      tradeInTotal,
+      finalTotal,
+    } = calculateFinalTotal(cart, tradeIns, discount);
+    
+    const totalAmount = finalTotal;
 
     // Database is already initialized and tested above
 
@@ -619,17 +640,42 @@ export async function POST(req: NextRequest) {
           mobilePaymentAccount: paymentMethod?.toUpperCase() === "MOBILE" ? mobilePaymentAccount || null : null,
           mobileNumber: paymentMethod?.toUpperCase() === "MOBILE" ? mobileNumber || null : null,
           customerId: customerId || null, // Add customer_id to transaction
+          discountType: discount?.type || null,
+          discountValue: discount ? discount.value.toString() : null,
+          discountAmount: discountAmount > 0 ? discountAmount.toString() : null,
+          subtotalBeforeDiscount: subtotalBeforeDiscount.toString(),
         };
 
         console.log(
           `[${requestId}] Creating transaction with customer ID:`,
           transactionData.customerId
         );
+        console.log(
+          `[${requestId}] Discount data being inserted:`,
+          JSON.stringify({
+            discountType: transactionData.discountType,
+            discountValue: transactionData.discountValue,
+            discountAmount: transactionData.discountAmount,
+            subtotalBeforeDiscount: transactionData.subtotalBeforeDiscount,
+          }, null, 2)
+        );
 
         const [newTransaction] = await tx
           .insert(transactions)
           .values(transactionData)
           .returning();
+        
+        console.log(
+          `[${requestId}] Transaction created with ID:`,
+          newTransaction.id,
+          `Discount fields:`,
+          {
+            discountType: newTransaction.discountType,
+            discountValue: newTransaction.discountValue,
+            discountAmount: newTransaction.discountAmount,
+            subtotalBeforeDiscount: newTransaction.subtotalBeforeDiscount,
+          }
+        );
 
         // 2. Process each cart item with FIFO logic
         for (const cartItem of processedCart) {
@@ -962,6 +1008,14 @@ export async function POST(req: NextRequest) {
               tradeInValue: tradeIn.tradeInValue,
             };
           }),
+          discount: discount && discountAmount > 0
+            ? {
+                type: discount.type,
+                value: discount.value,
+                amount: discountAmount,
+              }
+            : undefined,
+          subtotalBeforeDiscount: subtotalBeforeDiscount,
           date: formatDate(now),
           time: formatTime(now),
         };

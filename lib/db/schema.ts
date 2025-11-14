@@ -156,6 +156,10 @@ export const transactions = pgTable("transactions", {
     onDelete: "set null",
   }), // Link to customers table
   notes: text("notes"), // Additional notes (e.g., stock transfer details, special instructions)
+  discountType: text("discount_type"), // Type of discount: "percentage" or "amount"
+  discountValue: numeric("discount_value"), // Discount percentage (0-100) or fixed amount in OMR
+  discountAmount: numeric("discount_amount"), // Calculated discount amount in OMR
+  subtotalBeforeDiscount: numeric("subtotal_before_discount"), // Original subtotal before discount
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });
 

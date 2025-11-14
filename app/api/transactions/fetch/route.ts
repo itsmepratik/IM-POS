@@ -55,6 +55,10 @@ export async function GET(req: Request) {
         battery_bill_html,
         original_reference_number,
         notes,
+        discount_type,
+        discount_value,
+        discount_amount,
+        subtotal_before_discount,
         created_at,
         customer_id,
         customers (

@@ -22,6 +22,12 @@ export const TradeInItemSchema = z.object({
   }),
 });
 
+// Discount schema
+export const DiscountSchema = z.object({
+  type: z.enum(["percentage", "amount"]),
+  value: z.number().nonnegative(),
+});
+
 // Checkout input schema
 export const CheckoutInputSchema = z.object({
   locationId: z.string().min(1), // Changed from .uuid() to support non-UUID IDs
@@ -30,6 +36,7 @@ export const CheckoutInputSchema = z.object({
   cashierId: z.string().min(1).optional(), // Changed from .uuid() to support non-UUID IDs
   cart: z.array(CartItemSchema),
   tradeIns: z.array(TradeInItemSchema).optional(),
+  discount: DiscountSchema.optional(), // Optional discount to apply
   carPlateNumber: z.string().min(1).optional(), // For 'on hold' payments
   customerId: z.string().uuid().optional(), // Optional customer ID for linking transactions to customers
   mobilePaymentAccount: z.string().optional(), // Account used for mobile payment (Adanan or Forman)
@@ -68,6 +75,7 @@ export const CheckoutResponseSchema = z.object({
 // Type exports
 export type CartItem = z.infer<typeof CartItemSchema>;
 export type TradeInItem = z.infer<typeof TradeInItemSchema>;
+export type Discount = z.infer<typeof DiscountSchema>;
 export type CheckoutInput = z.infer<typeof CheckoutInputSchema>;
 export type CheckoutResponse = z.infer<typeof CheckoutResponseSchema>;
 
@@ -83,13 +91,55 @@ export function calculateTradeInTotal(tradeIns: TradeInItem[]): number {
   return tradeIns.reduce((sum, item) => sum + item.tradeInValue, 0);
 }
 
+/**
+ * Calculate discount amount based on discount type and value
+ * @param subtotal - The subtotal before discount
+ * @param discount - The discount object with type and value
+ * @returns The calculated discount amount
+ */
+export function calculateDiscountAmount(
+  subtotal: number,
+  discount: Discount
+): number {
+  if (discount.type === "percentage") {
+    return subtotal * (discount.value / 100);
+  } else {
+    // For fixed amount, ensure discount doesn't exceed subtotal
+    return Math.min(discount.value, subtotal);
+  }
+}
+
+/**
+ * Calculate the final total after applying discount and trade-ins
+ * @param cart - Array of cart items
+ * @param tradeIns - Optional array of trade-in items
+ * @param discount - Optional discount to apply
+ * @returns Object containing subtotal, discount amount, trade-in total, and final total
+ */
 export function calculateFinalTotal(
   cart: CartItem[],
-  tradeIns?: TradeInItem[]
-): number {
-  const cartTotal = calculateCartTotal(cart);
+  tradeIns?: TradeInItem[],
+  discount?: Discount
+): {
+  subtotalBeforeDiscount: number;
+  discountAmount: number;
+  tradeInTotal: number;
+  finalTotal: number;
+} {
+  const subtotalBeforeDiscount = calculateCartTotal(cart);
+  const discountAmount = discount
+    ? calculateDiscountAmount(subtotalBeforeDiscount, discount)
+    : 0;
+  const subtotalAfterDiscount = subtotalBeforeDiscount - discountAmount;
   const tradeInTotal = tradeIns ? calculateTradeInTotal(tradeIns) : 0;
-  return cartTotal - tradeInTotal;
+  const finalTotal = Math.max(0, subtotalAfterDiscount - tradeInTotal);
+
+  return {
+    subtotalBeforeDiscount,
+    discountAmount,
+    tradeInTotal,
+    finalTotal,
+  };
 }
 
 export function isBatteryTransaction(items: CartItem[]): boolean {

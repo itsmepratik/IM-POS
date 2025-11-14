@@ -2229,6 +2229,7 @@ function POSPageContent() {
           carPlateNumber: carPlateNumber.trim(), // Include the car plate number
           customerId: currentCustomer?.id, // Include customer ID if available
           ...(tradeInsForAPI ? { tradeIns: tradeInsForAPI } : {}),
+          ...(appliedDiscount ? { discount: appliedDiscount } : {}),
         });
 
         if (!result.success) {
@@ -2396,7 +2397,7 @@ function POSPageContent() {
         paymentMethod: selectedPaymentMethod.toUpperCase(),
       });
 
-      const result = await checkoutService.processCheckout({
+      const checkoutPayload = {
         locationId: inventoryLocationId || currentBranch?.id || "default-location", // Will be derived from shopId if shopId is provided
         shopId: currentBranch?.id || "default-shop", // currentBranch.id is now a shop ID
         paymentMethod: selectedPaymentMethod.toUpperCase(),
@@ -2404,13 +2405,22 @@ function POSPageContent() {
         cart: cartForAPI,
         customerId: currentCustomer?.id, // Include customer ID if available
         ...(tradeInsForAPI ? { tradeIns: tradeInsForAPI } : {}),
+        ...(appliedDiscount ? { discount: appliedDiscount } : {}),
         ...(selectedPaymentMethod === "mobile" && paymentRecipient
           ? { mobilePaymentAccount: paymentRecipient }
           : {}),
         ...(selectedPaymentMethod === "mobile" && currentCustomer?.phone
           ? { mobileNumber: currentCustomer.phone }
           : {}),
+      };
+      
+      console.log("🔍 POS: Sending checkout request with discount:", {
+        hasDiscount: !!appliedDiscount,
+        discount: appliedDiscount,
+        payload: checkoutPayload,
       });
+
+      const result = await checkoutService.processCheckout(checkoutPayload);
 
       if (!result.success) {
         throw new Error(result.error || "Checkout processing failed");

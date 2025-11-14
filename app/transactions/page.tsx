@@ -84,6 +84,10 @@ interface TransactionDisplay extends Omit<Transaction, "items"> {
   shopName?: string | null;
   mobilePaymentAccount?: string | null;
   mobileNumber?: string | null;
+  discountType?: string | null;
+  discountValue?: string | null;
+  discountAmount?: string | null;
+  subtotalBeforeDiscount?: string | null;
 }
 
 type DayTime = "morning" | "evening" | "full";
@@ -414,17 +418,31 @@ function Receipt({ transaction }: { transaction: TransactionDisplay | null }) {
     })
   );
 
-  // Calculate subtotal
-  const subtotal = receiptItems.reduce(
-    (sum, item) => sum + parseFloat(item.price) * item.quantity,
-    0
-  );
+  // Use actual subtotal from transaction if available, otherwise calculate from mock items
+  const subtotalBeforeDiscount = transaction.subtotalBeforeDiscount
+    ? parseFloat(transaction.subtotalBeforeDiscount)
+    : receiptItems.reduce(
+        (sum, item) => sum + parseFloat(item.price) * item.quantity,
+        0
+      );
 
-  // Calculate tax (5%)
-  const tax = subtotal * 0.05;
+  // Get discount information
+  const discountAmount = transaction.discountAmount
+    ? parseFloat(transaction.discountAmount)
+    : 0;
+  const discountType = transaction.discountType;
+  const discountValue = transaction.discountValue
+    ? parseFloat(transaction.discountValue)
+    : 0;
+
+  // Calculate subtotal after discount
+  const subtotalAfterDiscount = subtotalBeforeDiscount - discountAmount;
+
+  // Calculate tax (5%) on subtotal after discount
+  const tax = subtotalAfterDiscount * 0.05;
 
   // Calculate total
-  const total = subtotal + tax;
+  const total = subtotalAfterDiscount + tax;
   const itemCount = receiptItems.reduce((sum, item) => sum + item.quantity, 0);
 
   // Format receipt number from transaction reference
@@ -620,8 +638,18 @@ function Receipt({ transaction }: { transaction: TransactionDisplay | null }) {
               <div class="receipt-summary">
                 <table>
                   <tr>
+                    <td>Subtotal</td>
+                    <td class="total-amount">OMR ${subtotalBeforeDiscount.toFixed(2)}</td>
+                  </tr>
+                  ${discountAmount > 0 ? `
+                  <tr class="discount-row">
+                    <td>Discount${discountType === "percentage" ? ` (${discountValue}%)` : ""}</td>
+                    <td class="total-amount">-OMR ${discountAmount.toFixed(2)}</td>
+                  </tr>
+                  ` : ""}
+                  <tr>
                     <td>Total w/o VAT</td>
-                    <td class="total-amount">OMR ${subtotal.toFixed(2)}</td>
+                    <td class="total-amount">OMR ${subtotalAfterDiscount.toFixed(2)}</td>
                   </tr>
                   <tr>
                     <td>VAT (5%)</td>
@@ -727,8 +755,20 @@ function Receipt({ transaction }: { transaction: TransactionDisplay | null }) {
 
           <div className="border-t border-dashed pt-2 mb-3">
             <div className="flex justify-between text-xs">
+              <span>Subtotal</span>
+              <span>OMR {subtotalBeforeDiscount.toFixed(2)}</span>
+            </div>
+            {discountAmount > 0 && (
+              <div className="flex justify-between text-xs text-green-600 font-semibold">
+                <span>
+                  Discount{discountType === "percentage" ? ` (${discountValue}%)` : ""}
+                </span>
+                <span>-OMR {discountAmount.toFixed(2)}</span>
+              </div>
+            )}
+            <div className="flex justify-between text-xs">
               <span>Total w/o VAT</span>
-              <span>OMR {subtotal.toFixed(2)}</span>
+              <span>OMR {subtotalAfterDiscount.toFixed(2)}</span>
             </div>
             <div className="flex justify-between text-xs">
               <span>VAT (5%)</span>
@@ -1060,6 +1100,10 @@ export default function TransactionsPage() {
         shopName: shopName,
         mobilePaymentAccount: t.mobile_payment_account,
         mobileNumber: t.mobile_number || t.customers?.phone || null,
+        discountType: t.discount_type || null,
+        discountValue: t.discount_value || null,
+        discountAmount: t.discount_amount || null,
+        subtotalBeforeDiscount: t.subtotal_before_discount || null,
       };
     });
   }, [apiTransactions]);
