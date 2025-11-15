@@ -149,7 +149,7 @@ function HomePageContent() {
                     ? "-"
                     : `${sales.changePercentage.toFixed(1)}% from last period`
                 }
-                link="/sales-info"
+                link="/sales-info/revenue"
               />
               <MetricCard
                 title="Net Profits"
@@ -167,7 +167,7 @@ function HomePageContent() {
                           : profit.profitChangePercentage.toFixed(1)
                       }% from last period`
                 }
-                link="/sales-info"
+                link="/sales-info/profits"
               />
             </div>
           </section>

@@ -255,7 +255,7 @@ const MobileView = memo(
 );
 MobileView.displayName = "MobileView";
 
-export default function SalesInfoPage() {
+export default function RevenuePage() {
   const [selectedStore, setSelectedStore] = useState("all-stores");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -342,7 +342,7 @@ export default function SalesInfoPage() {
           <Link href="/" className="text-gray-500 hover:text-gray-700">
             <ArrowLeft className="h-5 w-5" />
           </Link>
-          <h1 className="text-2xl font-semibold">Detailed Sales Report</h1>
+          <h1 className="text-2xl font-semibold">Detailed Revenue Report</h1>
         </div>
 
         <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:justify-between">
@@ -370,3 +370,4 @@ export default function SalesInfoPage() {
     </Layout>
   );
 }
+
