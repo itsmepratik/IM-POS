@@ -562,12 +562,16 @@ export async function POST(req: NextRequest) {
           productsData.forEach((product) => {
             productMap.set(product.id, product);
             // Check if any cart item is a battery
-            // Batteries are in the "Parts" category with type "Batteries"
+            // Batteries are in the "Parts" category with type "Battery" or "Batteries" (case-insensitive)
+            const isBatteryType = (type?: string | null): boolean => {
+              if (!type) return false;
+              const normalizedType = type.toLowerCase().trim();
+              return normalizedType === "battery" || normalizedType === "batteries";
+            };
+
             if (
-              (product.categoryName === "Parts" &&
-                product.productType === "Batteries") ||
-              product.categoryName?.toLowerCase().includes("battery") ||
-              product.productType?.toLowerCase().includes("battery")
+              product.categoryName === "Parts" &&
+              isBatteryType(product.productType)
             ) {
               isBatterySale = true;
             }

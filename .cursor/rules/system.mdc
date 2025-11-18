@@ -1,5 +1,6 @@
 ---
-alwaysApply:
+description: System Rules
+alwaysApply: manual
 ---
 
 # General Workflow

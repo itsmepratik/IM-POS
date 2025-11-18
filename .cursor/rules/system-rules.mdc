@@ -1,8 +1,6 @@
 ---
-Name: System Rules
 alwaysApply: false
 ---
-
 # Development Rules & Standards (Always follow them strictly)
 
 1. Write production-grade code. Always deliver readable, tested, performant, secure code — no sloppy code.

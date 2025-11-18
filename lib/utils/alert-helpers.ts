@@ -117,3 +117,27 @@ export function createInventoryDiscrepancyAlert(params: {
   };
 }
 
+/**
+ * Create a notification for refund errors
+ * Replicates the pattern used for lubricant volume alerts
+ */
+export function createRefundErrorAlert(params: {
+  itemName: string;
+  errorMessage: string;
+  originalReferenceNumber?: string;
+  refundAmount?: number;
+}): CreateNotificationParams {
+  return {
+    type: "error",
+    title: "Refund Error",
+    message: params.errorMessage,
+    category: "system",
+    metadata: {
+      itemName: params.itemName,
+      errorMessage: params.errorMessage,
+      originalReferenceNumber: params.originalReferenceNumber || null,
+      refundAmount: params.refundAmount || null,
+    },
+  };
+}
+

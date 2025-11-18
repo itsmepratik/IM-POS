@@ -26,7 +26,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Search, ArrowLeft, Check, AlertCircle, Printer } from "lucide-react";
+import { Search, ArrowLeft, Check, AlertCircle, Printer, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui/use-toast";
@@ -36,6 +36,9 @@ import { format } from "date-fns";
 import { useStaffIDs } from "@/lib/hooks/useStaffIDs";
 import { useCompanyInfo } from "@/lib/hooks/useCompanyInfo";
 import { useBranch } from "@/lib/contexts/DataProvider";
+import { useNotification } from "@/app/notification-context";
+import { createRefundErrorAlert } from "@/lib/utils/alert-helpers";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface CartItem {
   id: number;
@@ -141,9 +144,15 @@ async function parseTransactionItems(items: any[]): Promise<CartItem[]> {
     // Handle both old format (name, price) and new format (productId, sellingPrice)
     const productId = item.productId || item.id || `${index}`;
 
-    // Try to get name from multiple sources, with fallback to fetched product name
+    // For lubricant products, prefer volumeDescription as it contains the full product name with size
+    // This is critical for matching during refunds
+    const volumeDescription = item.volumeDescription || item.volume_description;
     const fetchedName = productNameMap.get(productId);
+    
+    // Priority: volumeDescription > name > productName > fetchedName
+    // For lubricants, volumeDescription is usually "Product Name - Size" (e.g., "Shell 20W-50 - 1L")
     const itemName =
+      volumeDescription || // CRITICAL: Use volumeDescription for lubricants (includes size)
       item.name ||
       item.productName ||
       item.product_name ||
@@ -151,20 +160,27 @@ async function parseTransactionItems(items: any[]): Promise<CartItem[]> {
       `Product ${productId}`;
 
     console.log(
-      `  🏷️ Product ${productId}: Fetched="${fetchedName}", Final="${itemName}"`
+      `  🏷️ Product ${productId}: VolumeDesc="${volumeDescription}", Fetched="${fetchedName}", Final="${itemName}"`
     );
 
     const itemPrice = item.price || item.sellingPrice || 0;
     const itemQuantity = item.quantity || 1;
     const itemId = item.id || item.productId || index;
+    
+    // Preserve original productId for matching purposes
+    const originalProductId = item.productId || item.product_id || item.id;
 
     return {
       id: typeof itemId === "string" ? parseInt(itemId) || index : itemId,
-      name: itemName,
+      name: itemName, // This will be volumeDescription for lubricants
       price: parseFloat(itemPrice.toString()),
       quantity: itemQuantity,
       uniqueId: `${itemId}-${Date.now()}-${index}`,
-      details: item.details || item.volumeDescription || undefined,
+      details: item.details || volumeDescription || undefined,
+      // Preserve original productId for refund matching
+      productId: originalProductId,
+      // CRITICAL: Preserve volumeDescription for lubricant matching
+      volumeDescription: volumeDescription,
     };
   });
 }
@@ -173,6 +189,7 @@ async function parseTransactionItems(items: any[]): Promise<CartItem[]> {
 
 export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
   const { toast } = useToast();
+  const { addPersistentNotification } = useNotification();
   const { staffMembers } = useStaffIDs();
   const { brand, registered } = useCompanyInfo();
   const { currentBranch } = useBranch();
@@ -181,6 +198,11 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
   const [refundComplete, setRefundComplete] = useState(false);
+  const [refundError, setRefundError] = useState<{
+    title: string;
+    message: string;
+    itemName?: string;
+  } | null>(null);
   const [step, setStep] = useState<
     "search" | "select" | "confirm" | "processing" | "complete"
   >("search");
@@ -312,6 +334,10 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
         ? prev.filter((id) => id !== uniqueId)
         : [...prev, uniqueId]
     );
+    // Clear error when user changes item selection
+    if (refundError) {
+      setRefundError(null);
+    }
   };
 
   const handleProceedToConfirm = () => {
@@ -323,6 +349,8 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
       });
       return;
     }
+    // Clear any previous errors when proceeding to confirm
+    setRefundError(null);
     setStep("confirm");
   };
 
@@ -344,14 +372,39 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
 
     try {
       // Get the selected items for the refund
+      // Preserve original productId and volumeDescription for better matching
       const selectedRefundItems = currentReceipt.items
         .filter((item) => selectedItems.includes(item.uniqueId))
-        .map((item) => ({
-          id: item.id,
-          name: item.name,
-          price: item.price,
-          quantity: item.quantity,
-        }));
+        .map((item) => {
+          // Try to preserve the original productId and volumeDescription from the transaction
+          // This helps with matching when IDs are converted to numbers
+          // CRITICAL: For lubricants, volumeDescription is essential for matching
+          const refundItem: any = {
+            id: item.id,
+            name: item.name, // This should already include volumeDescription for lubricants
+            price: item.price,
+            quantity: item.quantity,
+          };
+          
+          // If the item has a productId field (from original transaction), preserve it
+          // This helps the backend match items correctly
+          if ((item as any).productId) {
+            refundItem.productId = (item as any).productId;
+          }
+          
+          // CRITICAL: Preserve volumeDescription for lubricant products
+          // This ensures the backend can match lubricant items correctly
+          if ((item as any).volumeDescription) {
+            refundItem.volumeDescription = (item as any).volumeDescription;
+          }
+          
+          // Also preserve details if it contains volume info
+          if (item.details && !refundItem.volumeDescription) {
+            refundItem.volumeDescription = item.details;
+          }
+          
+          return refundItem;
+        });
 
       const refundAmount = selectedRefundItems.reduce(
         (sum, item) => sum + item.price * item.quantity,
@@ -391,7 +444,9 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.error || "Failed to process refund");
+        // Extract error details from response
+        const errorMessage = result.details || result.error || "Failed to process refund";
+        throw new Error(errorMessage);
       }
 
       console.log("✅ Refund processed successfully:", result.refund);
@@ -409,24 +464,126 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
     } catch (error) {
       console.error("❌ Refund processing failed:", error);
 
-      // Show error message and go back to confirm step for retry
-      toast({
-        title: "Refund Failed",
-        description:
-          error instanceof Error
-            ? error.message
-            : "Failed to process refund. Please try again.",
-        variant: "destructive",
-      });
+      // CRITICAL: Change step back from "processing" FIRST so error Alert can render
+      // This must happen BEFORE setting error state
+      
+      // Extract detailed error message
+      let errorTitle = "Refund Failed";
+      let errorDescription = "Failed to process refund. Please try again.";
+      let isCriticalError = false;
+      let itemName = "Unknown Item";
+      
+      // Extract item name from selected items if available
+      if (currentReceipt && selectedItems.length > 0) {
+        const firstSelectedItem = currentReceipt.items.find(item => selectedItems.includes(item.uniqueId));
+        if (firstSelectedItem) {
+          itemName = firstSelectedItem.name;
+        }
+      }
+      
+      if (error instanceof Error) {
+        errorDescription = error.message;
+        
+        // Check for specific error types
+        if (error.message.includes("already been refunded") || 
+            error.message.includes("Item already refunded") ||
+            error.message.includes("already fully refunded") ||
+            error.message.includes("already been partially refunded")) {
+          errorTitle = "Item Already Refunded";
+          errorDescription = error.message;
+          
+          // Extract item name from error message if available
+          const itemMatch = error.message.match(/Item "([^"]+)"/);
+          if (itemMatch) {
+            itemName = itemMatch[1];
+          }
+        } else if (error.message.includes("Invalid location ID") || error.message.includes("Invalid shop ID")) {
+          errorTitle = "Invalid Configuration";
+          errorDescription = error.message;
+          isCriticalError = true;
+        } else if (error.message.includes("Invalid cashier ID")) {
+          errorTitle = "Invalid Cashier";
+          errorDescription = error.message;
+        } else if (error.message.includes("not found") || error.message.includes("Item not found")) {
+          errorTitle = "Item Not Found";
+          errorDescription = error.message;
+          isCriticalError = true;
+        } else if (error.message.includes("exceeds")) {
+          errorTitle = "Invalid Refund Amount";
+          errorDescription = error.message;
+        } else if (error.message.includes("Failed to validate refund")) {
+          errorTitle = "Validation Error";
+          errorDescription = error.message;
+          isCriticalError = true;
+        }
+      }
 
-      // Reset cashier dialog state on error
-      setIsCashierSelectOpen(true);
+      // Close cashier dialog and reset its state FIRST
+      setIsCashierSelectOpen(false);
       setEnteredCashierId("");
       setFetchedCashier(null);
       setCashierIdError(null);
+      setSelectedCashier(null);
 
-      // Go back to confirm step on error
-      setStep("confirm");
+      // Determine where to go based on error type
+      if (isCriticalError) {
+        // For critical errors (not found, invalid config), go back to search
+        setStep("search");
+        // Clear receipt data
+        setCurrentReceipt(null);
+        setSelectedItems([]);
+        setRefundError(null);
+      } else {
+        // For other errors (already refunded, etc.), go back to confirm step
+        // Change step first, then set error in next tick to ensure UI updates
+        setStep("confirm");
+        
+        // Set error state in next tick to ensure confirm step renders first
+        setTimeout(() => {
+          setRefundError({
+            title: errorTitle,
+            message: errorDescription,
+            itemName: itemName,
+          });
+          console.log("🔴 Error state set:", { title: errorTitle, message: errorDescription });
+        }, 10);
+      }
+
+      // Show toast notification for immediate feedback
+      toast({
+        title: errorTitle,
+        description: errorDescription,
+        variant: "destructive",
+        duration: 10000, // Show longer for important errors
+      });
+
+      // Create and show persistent notification (EXACTLY like open bottle notifications)
+      // This replicates the exact pattern used in app/pos/page.tsx for lubricant volume alerts
+      console.log("🔔 Creating refund error notification...");
+      console.log("🔔 Error details:", { errorTitle, errorDescription, itemName });
+      
+      const alertParams = createRefundErrorAlert({
+        itemName: itemName,
+        errorMessage: errorDescription,
+        originalReferenceNumber: currentReceipt?.receiptNumber,
+        refundAmount: refundAmount,
+      });
+      
+      // Override title for better visibility
+      alertParams.title = errorTitle;
+      
+      console.log("🔔 Alert params:", JSON.stringify(alertParams, null, 2));
+      
+      // Call exactly like open bottle notifications - fire and forget with catch
+      addPersistentNotification(alertParams)
+        .then(() => {
+          console.log("✅ Refund notification created successfully in database");
+        })
+        .catch((error) => {
+          console.error("❌ Error creating persistent notification:", error);
+          console.error("❌ Error stack:", error?.stack);
+          console.error("❌ Error details:", JSON.stringify(error, null, 2));
+        });
     } finally {
       setIsProcessingRefund(false);
     }
@@ -938,6 +1095,32 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
                     exit={{ opacity: 0, y: -10 }}
                     className="space-y-4"
                   >
+                    {/* Display error if refund failed */}
+                    {refundError && (
+                      <Alert variant="destructive" className="mb-4 animate-in slide-in-from-top-2 relative border-2 border-red-500 bg-red-50 dark:bg-red-950">
+                        <div className="flex items-start gap-3 pr-8">
+                          <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
+                          <div className="flex-1">
+                            <AlertTitle className="font-semibold text-base text-red-900 dark:text-red-100 mb-1">
+                              {refundError.title}
+                            </AlertTitle>
+                            <AlertDescription className="text-sm text-red-800 dark:text-red-200">
+                              {refundError.message}
+                            </AlertDescription>
+                          </div>
+                          <button
+                            onClick={() => {
+                              console.log("🔴 Dismissing error");
+                              setRefundError(null);
+                            }}
+                            className="absolute top-3 right-3 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 p-1 hover:bg-red-200 dark:hover:bg-red-800"
+                            aria-label="Close error"
+                          >
+                            <X className="h-4 w-4 text-red-900 dark:text-red-100" />
+                          </button>
+                        </div>
+                      </Alert>
+                    )}
                     <div className="rounded-lg border p-4 mb-4">
                       <div className="text-sm font-medium mb-2">
                         Refund Summary

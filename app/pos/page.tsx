@@ -2771,23 +2771,26 @@ function POSPageContent() {
     // If, after filtering out the discount, there are no actual products, it's not a battery-only sale.
     if (actualProductItems.length === 0) return false;
 
+    // Helper to check if a type string indicates a battery (case-insensitive, handles both singular and plural)
+    const isBatteryType = (type?: string): boolean => {
+      if (!type) return false;
+      const normalizedType = type.toLowerCase().trim();
+      return normalizedType === "battery" || normalizedType === "batteries";
+    };
+
     return actualProductItems.every((item) => {
-      // Method 1: Check via product lookup (existing method)
+      // Method 1: Check via product lookup (primary method)
       const productInfo = products.find((p) => p.id === item.id);
       const isProductBattery =
-        productInfo?.category === "Parts" && productInfo?.type === "Batteries";
+        productInfo?.category === "Parts" && isBatteryType(productInfo?.type);
 
-      // Method 2: Check via cart item's own category/type properties
+      // Method 2: Check via cart item's own category/type properties (primary method)
       const isCartItemBattery =
-        item.category === "Parts" && item.type === "Batteries";
+        item.category === "Parts" && isBatteryType(item.type);
 
-      // Method 3: Check via item name (fallback method)
-      const isNameBattery =
-        item.name.toLowerCase().includes("battery") ||
-        item.name.toLowerCase().includes("batteries");
-
-      // Return true if any method identifies this as a battery
-      return isProductBattery || isCartItemBattery || isNameBattery;
+      // Return true if product is identified as a battery by category/type
+      // Note: Removed name-based fallback - relying solely on category/type for accuracy
+      return isProductBattery || isCartItemBattery;
     });
   };
 
@@ -2795,22 +2798,25 @@ function POSPageContent() {
   const cartContainsAnyBatteries = (cartItems: CartItem[]): boolean => {
     if (cartItems.length === 0) return false;
     return cartItems.some((item) => {
-      // Method 1: Check via product lookup (existing method)
+      // Helper to check if a type string indicates a battery (case-insensitive, handles both singular and plural)
+      const isBatteryType = (type?: string): boolean => {
+        if (!type) return false;
+        const normalizedType = type.toLowerCase().trim();
+        return normalizedType === "battery" || normalizedType === "batteries";
+      };
+
+      // Method 1: Check via product lookup (primary method)
       const productInfo = products.find((p) => p.id === item.id);
       const isProductBattery =
-        productInfo?.category === "Parts" && productInfo?.type === "Batteries";
+        productInfo?.category === "Parts" && isBatteryType(productInfo?.type);
 
-      // Method 2: Check via cart item's own category/type properties
+      // Method 2: Check via cart item's own category/type properties (primary method)
       const isCartItemBattery =
-        item.category === "Parts" && item.type === "Batteries";
+        item.category === "Parts" && isBatteryType(item.type);
 
-      // Method 3: Check via item name (fallback method)
-      const isNameBattery =
-        item.name.toLowerCase().includes("battery") ||
-        item.name.toLowerCase().includes("batteries");
-
-      // Return true if any method identifies this as a battery
-      return isProductBattery || isCartItemBattery || isNameBattery;
+      // Return true if product is identified as a battery by category/type
+      // Note: Removed name-based fallback - relying solely on category/type for accuracy
+      return isProductBattery || isCartItemBattery;
     });
   };
 

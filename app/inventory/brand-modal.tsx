@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -40,6 +40,22 @@ export default function BrandModal({ open, onOpenChange }: BrandModalProps) {
   const [imageErrors, setImageErrors] = useState<Set<string>>(new Set());
   const [sortBy, setSortBy] = useState<"name-asc" | "name-desc" | "image-first" | "image-last">("name-asc");
 
+  // Helper function to validate if a string is a valid URL
+  const isValidUrl = (url: string | null | undefined): boolean => {
+    if (!url || typeof url !== "string") return false;
+    const trimmed = url.trim();
+    if (trimmed === "") return false;
+    try {
+      // Check if it's a valid URL format (must be absolute URL)
+      const urlObj = new URL(trimmed);
+      // Ensure it's http or https
+      return urlObj.protocol === "http:" || urlObj.protocol === "https:";
+    } catch {
+      // If URL constructor throws, it's not a valid URL
+      return false;
+    }
+  };
+
   // Sort brands based on selected sort option
   const sortedBrands = useMemo(() => {
     const brands = [...brandObjects];
@@ -51,8 +67,8 @@ export default function BrandModal({ open, onOpenChange }: BrandModalProps) {
         return brands.sort((a, b) => b.name.localeCompare(a.name));
       case "image-first":
         return brands.sort((a, b) => {
-          const aHasImage = !!a.image_url;
-          const bHasImage = !!b.image_url;
+          const aHasImage = isValidUrl(a.image_url);
+          const bHasImage = isValidUrl(b.image_url);
           if (aHasImage === bHasImage) {
             return a.name.localeCompare(b.name);
           }
@@ -60,8 +76,8 @@ export default function BrandModal({ open, onOpenChange }: BrandModalProps) {
         });
       case "image-last":
         return brands.sort((a, b) => {
-          const aHasImage = !!a.image_url;
-          const bHasImage = !!b.image_url;
+          const aHasImage = isValidUrl(a.image_url);
+          const bHasImage = isValidUrl(b.image_url);
           if (aHasImage === bHasImage) {
             return a.name.localeCompare(b.name);
           }
@@ -179,6 +195,13 @@ export default function BrandModal({ open, onOpenChange }: BrandModalProps) {
   const handleImageError = (brandId: string) => {
     setImageErrors((prev) => new Set(prev).add(brandId));
   };
+
+  // Reset image errors when modal opens
+  useEffect(() => {
+    if (open) {
+      setImageErrors(new Set());
+    }
+  }, [open]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -357,20 +380,30 @@ export default function BrandModal({ open, onOpenChange }: BrandModalProps) {
                           <div className="flex items-start justify-between gap-3">
                             {/* Brand Image */}
                             <div className="relative w-16 h-16 rounded-lg border-2 bg-muted overflow-hidden flex-shrink-0">
-                              {brand.image_url && !imageErrors.has(brand.id) ? (
-                                <Image
-                                  src={brand.image_url}
-                                  alt={brand.name}
-                                  fill
-                                  sizes="64px"
-                                  className="object-contain p-2"
-                                  onError={() => handleImageError(brand.id)}
-                                />
-                              ) : (
-                                <div className="w-full h-full flex items-center justify-center">
-                                  <ImageIcon className="w-6 h-6 text-muted-foreground" />
-                                </div>
-                              )}
+                              {(() => {
+                                const imageUrl = brand.image_url?.trim();
+                                const hasValidUrl = isValidUrl(imageUrl) && !imageErrors.has(brand.id);
+                                
+                                if (hasValidUrl && imageUrl) {
+                                  return (
+                                    <Image
+                                      src={imageUrl}
+                                      alt={brand.name}
+                                      fill
+                                      sizes="64px"
+                                      className="object-contain p-2"
+                                      onError={() => handleImageError(brand.id)}
+                                      unoptimized
+                                    />
+                                  );
+                                }
+                                
+                                return (
+                                  <div className="w-full h-full flex items-center justify-center">
+                                    <ImageIcon className="w-6 h-6 text-muted-foreground" />
+                                  </div>
+                                );
+                              })()}
                             </div>
 
                             {/* Brand Info */}
