@@ -23,7 +23,21 @@ export interface ReceiptData {
   subtotalBeforeDiscount?: number;
   date: string;
   time: string;
+  cashier?: string;
+  paymentRecipient?: string;
+  posId?: string;
 }
+
+// Default company info (matches useCompanyInfo default)
+const DEFAULT_COMPANY_INFO = {
+  brand: {
+    name: "H Automotives Service Center",
+    addressLines: ["Saham, Sultanate of Oman"],
+    phones: ["92510750", "26856848"],
+    whatsapp: "72702537",
+    posId: "A0054",
+  },
+};
 
 export function generateThermalReceipt(data: ReceiptData): string {
   const {
@@ -36,173 +50,279 @@ export function generateThermalReceipt(data: ReceiptData): string {
     subtotalBeforeDiscount,
     date,
     time,
+    cashier,
+    paymentRecipient,
+    posId,
   } = data;
-  
+
+  // Use provided company info or defaults
+  const brandName = DEFAULT_COMPANY_INFO.brand.name;
+  const addressLines = DEFAULT_COMPANY_INFO.brand.addressLines;
+  const phones = DEFAULT_COMPANY_INFO.brand.phones;
+  const whatsapp = DEFAULT_COMPANY_INFO.brand.whatsapp || "72702537";
+  const POS_ID = posId || DEFAULT_COMPANY_INFO.brand.posId || "A0054";
+
   // Calculate subtotal from items if not provided
   const subtotal = subtotalBeforeDiscount ?? items.reduce(
     (sum, item) => sum + item.sellingPrice * item.quantity,
     0
   );
 
+  // Calculate discount amount
+  const discountAmount = discount?.amount || 0;
+
+  // Calculate VAT (5%)
+  const vat = (subtotal - discountAmount) * 0.05;
+
+  // Calculate total with VAT
+  const total = parseFloat(totalAmount);
+
+  // Calculate total item quantity
+  const totalItemQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
+
   return `
     <!DOCTYPE html>
     <html>
     <head>
-      <meta charset="UTF-8">
       <title>Receipt</title>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <style>
-        body { 
-          font-family: 'Courier New', monospace; 
-          font-size: 12px; 
-          margin: 0; 
-          padding: 10px; 
-          max-width: 300px;
+        body {
+          font-family: sans-serif !important;
+          padding: 0;
+          margin: 0;
+          width: 80mm;
+          font-size: 12px;
         }
-        .header { 
-          text-align: center; 
-          margin-bottom: 15px; 
+        * {
+          font-family: sans-serif !important;
+        }
+        .receipt-container {
+          padding: 2mm 1mm 2mm 1mm;
+        }
+        .receipt-header {
+          text-align: center;
+          margin-bottom: 10px;
+        }
+        .receipt-header h2 {
+          margin: 0;
+          font-size: 16px;
+        }
+        .receipt-header p {
+          margin: 2px 0;
+          font-size: 12px;
+        }
+        .receipt-info {
+          border-top: 1px dashed #000;
           border-bottom: 1px dashed #000;
-          padding-bottom: 10px;
+          padding: 5px 0;
+          margin-bottom: 10px;
         }
-        .item { 
-          display: flex; 
-          justify-content: space-between; 
-          margin: 3px 0; 
+        .receipt-info p {
+          margin: 2px 0;
+          font-size: 12px;
+        }
+        .receipt-table {
+          width: 100%;
+          border-collapse: collapse;
+          margin-bottom: 10px;
+          table-layout: fixed;
+        }
+        .receipt-table th {
+          text-align: left;
+          font-size: 12px;
+          padding-bottom: 5px;
+        }
+        .receipt-table td {
+          font-size: 12px;
+          padding: 2px 0;
+          word-wrap: break-word;
+          word-break: break-word;
+        }
+        .receipt-table .sno { width: 20px; }
+        .receipt-table .qty { width: 12px; text-align: center; padding-left: 8px; padding-right: 0px; border-spacing: 0; }
+        .receipt-table .description { width: auto; max-width: 100%; }
+        .receipt-table .description .name { display:inline-block; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .receipt-table .price { width: 44px; text-align: right; padding-right: 3px; }
+        .receipt-table .amount { width: 64px; text-align: right; padding-left: 21px; }
+        .receipt-table .price,
+        .receipt-table .amount,
+        .receipt-table .qty {
+          white-space: nowrap;
+          word-break: keep-all;
+          font-variant-numeric: tabular-nums;
+        }
+        .receipt-table .row-top td { padding-bottom: 0; }
+        .receipt-table .row-bottom td { padding-top: 0; }
+        .receipt-table .total {
+          width: 70px;
+          text-align: right;
+        }
+        .receipt-summary {
+          margin-top: 10px;
+          border-top: 1px dashed #000;
+          padding-top: 5px;
+        }
+        .receipt-summary table {
+          width: 100%;
+        }
+        .receipt-summary td {
+          font-size: 12px;
+        }
+        .receipt-summary .total-label {
+          font-weight: bold;
+        }
+        .receipt-summary .total-amount {
+          text-align: right;
+          font-weight: bold;
+        }
+        .receipt-footer {
+          margin-top: 10px;
+          text-align: center;
+          font-size: 12px;
+          border-top: 1px dashed #000;
+          padding-top: 5px;
+        }
+        .receipt-footer p {
+          margin: 3px 0;
+        }
+        .receipt-footer .arabic {
           font-size: 11px;
+          direction: rtl;
+          margin: 2px 0;
         }
-        .item-name {
-          flex: 1;
-          margin-right: 10px;
-        }
-        .item-price {
+        .whatsapp {
+          margin-top: 5px;
+          text-align: center;
+          font-size: 11px;
           font-weight: bold;
         }
-        .total { 
-          border-top: 1px solid #000; 
-          padding-top: 8px; 
-          margin-top: 15px; 
-          font-weight: bold;
+        @media print {
+          body {
+            width: 80mm;
+            margin: 0;
+            padding: 0;
+          }
         }
-        .trade-in {
-          color: #666;
-          font-size: 10px;
+        @page {
+          margin: 0;
+          size: 80mm auto;
         }
-        .discount {
+        .receipt-summary .discount-row {
           color: #22c55e;
           font-weight: bold;
-          font-size: 11px;
         }
-        .summary-row {
-          display: flex;
-          justify-content: space-between;
-          margin: 3px 0;
-          font-size: 11px;
-        }
-        .footer { 
-          text-align: center; 
-          margin-top: 20px; 
-          font-size: 10px; 
-          border-top: 1px dashed #000;
-          padding-top: 10px;
-        }
-        .separator {
-          border-top: 1px dashed #ccc;
-          margin: 5px 0;
+        .receipt-summary .discount-row td {
+          color: #22c55e;
+          font-weight: bold;
         }
       </style>
     </head>
     <body>
-      <div class="header">
-        <h2>RECEIPT</h2>
-        <p><strong>Ref:</strong> ${referenceNumber}</p>
-        <p>${date} ${time}</p>
-      </div>
-      
-      <div class="items">
-        ${items
-          .map(
-            (item) => `
-          <div class="item">
-            <span class="item-name">${item.name}${
-              item.volumeDescription ? ` (${item.volumeDescription})` : ""
-            } x${item.quantity}</span>
-            <span class="item-price">OMR ${(
-              item.sellingPrice * item.quantity
-            ).toFixed(3)}</span>
-          </div>
-        `
-          )
-          .join("")}
+      <div class="receipt-container">
+        <div class="receipt-header">
+          <h2>${brandName}</h2>
+          <p>${addressLines.join(" ")}</p>
+          <p>Ph: ${phones.join(" | ")}</p>
+        </div>
         
-        ${
-          tradeIns && tradeIns.length > 0
-            ? `
-          <div class="separator"></div>
-          <div class="trade-in">
-            <div style="font-weight: bold; margin-bottom: 5px;">Trade-ins:</div>
-            ${tradeIns
+        <div class="receipt-info">
+          <p style="display:flex;justify-content:space-between;align-items:center;">
+            <span>Invoice: ${referenceNumber}</span>
+            <span>POS ID: ${POS_ID}</span>
+          </p>
+          <p style="display:flex;justify-content:space-between;align-items:center;">
+            <span>Date: ${date}</span>
+            <span>Time: ${time}</span>
+          </p>
+        </div>
+        
+        <table class="receipt-table">
+          <thead>
+            <tr>
+              <th class="sno">#</th>
+              <th class="description">Description</th>
+              <th class="price">Price</th>
+              <th class="qty">Qty</th>
+              <th class="amount">Amt</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${items
               .map(
-                (tradeIn) => `
-              <div class="item">
-                <span class="item-name">${tradeIn.name} x${
-                  tradeIn.quantity
-                }</span>
-                <span class="item-price">-OMR ${tradeIn.tradeInValue.toFixed(
-                  3
-                )}</span>
-              </div>
+                (item, index) => `
+              <tr class="row-top">
+                <td class="sno">${index + 1}</td>
+                <td class="description" colspan="4">${item.name}${
+                  item.volumeDescription ? ` (${item.volumeDescription})` : ""
+                }</td>
+                <td class="price" style="display:none;"></td>
+                <td class="qty" style="display:none;"></td>
+                <td class="amount" style="display:none;"></td>
+              </tr>
+              <tr class="row-bottom">
+                <td class="sno"></td>
+                <td class="description"></td>
+                <td class="price">${item.sellingPrice.toFixed(3)}</td>
+                <td class="qty">(x${item.quantity})</td>
+                <td class="amount">${(item.sellingPrice * item.quantity).toFixed(3)}</td>
+              </tr>
             `
               )
               .join("")}
-          </div>
-        `
-            : ""
-        }
-      </div>
-      
-      <div class="total">
-        ${discount && discount.amount > 0
-          ? `
-        <div class="summary-row">
-          <span>Subtotal:</span>
-          <span>OMR ${subtotal.toFixed(3)}</span>
+          </tbody>
+        </table>
+        
+        <div class="receipt-summary">
+          <table>
+            <tr>
+              <td>Total w/o VAT</td>
+              <td class="total-amount">OMR ${subtotal.toFixed(3)}</td>
+            </tr>
+            ${
+              discount && discount.amount > 0
+                ? `
+            <tr class="discount-row" style="color: #22c55e; font-weight: bold;">
+              <td style="color: #22c55e; font-weight: bold;">Discount ${
+                discount.type === "percentage"
+                  ? `(${discount.value}%)`
+                  : "(Amount)"
+              }</td>
+              <td class="total-amount" style="color: #22c55e; font-weight: bold;">- OMR ${discount.amount.toFixed(3)}</td>
+            </tr>`
+                : ""
+            }
+            <tr>
+              <td>VAT (5%)</td>
+              <td class="total-amount">OMR ${vat.toFixed(3)}</td>
+            </tr>
+            <tr>
+              <td class="total-label">Total with VAT</td>
+              <td class="total-amount">OMR ${total.toFixed(3)}</td>
+            </tr>
+          </table>
         </div>
-        <div class="summary-row discount">
-          <span>Discount ${discount.type === "percentage" ? `(${discount.value}%)` : ""}:</span>
-          <span>-OMR ${discount.amount.toFixed(3)}</span>
+        
+        <div class="receipt-footer">
+          <p>Number of Items: ${totalItemQuantity}</p>
+          <p>Payment Method: ${paymentMethod.charAt(0).toUpperCase() + paymentMethod.slice(1)}</p>
+          ${
+            paymentMethod === "mobile" && paymentRecipient
+              ? `<p>Mobile Payment Recipient: ${paymentRecipient}</p>`
+              : ""
+          }
+          ${cashier ? `<p>Cashier: ${cashier}</p>` : ""}
+          <p>Keep this Invoice for your Exchanges</p>
+          <p class="arabic">احتفظ بهذه الفاتورة للتبديل</p>
+          <p>Exchange with in 15 Days</p>
+          <p class="arabic">التبديل خلال 15 يوم</p>
+          <p>Thank you for shopping with us.</p>
+          <p class="arabic">شكراً للتسوق معنا</p>
         </div>
-        ${tradeIns && tradeIns.length > 0
-          ? `
-        <div class="summary-row trade-in">
-          <span>Trade-in:</span>
-          <span>-OMR ${tradeIns.reduce((sum, ti) => sum + ti.tradeInValue, 0).toFixed(3)}</span>
+        
+        <div class="whatsapp">
+          WhatsApp ${whatsapp} for latest offers
         </div>
-        `
-          : ""
-        }
-        `
-          : tradeIns && tradeIns.length > 0
-          ? `
-        <div class="summary-row">
-          <span>Subtotal:</span>
-          <span>OMR ${subtotal.toFixed(3)}</span>
-        </div>
-        <div class="summary-row trade-in">
-          <span>Trade-in:</span>
-          <span>-OMR ${tradeIns.reduce((sum, ti) => sum + ti.tradeInValue, 0).toFixed(3)}</span>
-        </div>
-        `
-          : ""
-        }
-        <div class="item" style="margin-top: 8px; border-top: 1px solid #000; padding-top: 8px;">
-          <span><strong>TOTAL: OMR ${totalAmount}</strong></span>
-        </div>
-        <p>Payment: ${paymentMethod}</p>
-      </div>
-      
-      <div class="footer">
-        <p>Thank you for your business!</p>
-        <p>Keep this receipt for warranty</p>
       </div>
     </body>
     </html>

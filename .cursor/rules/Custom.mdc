@@ -1,0 +1,44 @@
+---
+Desc: Next.js + Supabase Custom Cursor Rules
+alwaysApply: true
+---
+
+# Project Overview
+- This project uses Next.js for frontend with React Server Components and SSR.
+- Supabase is the backend database with real-time data features.
+- TypeScript is used throughout for strong typing and better development experience.
+
+# React & Next.js Standards
+- Use React Server Components and Next.js SSR features by default.
+- Limit 'use client' directive to small interactive components only.
+- Always provide loading and error UI states for async data fetching.
+- Memoize expensive or repeated computations with useMemo.
+- Wrap pure components with React.memo for performance.
+- Use dynamic imports for large or rarely needed components.
+- Follow atomic design principles; keep UI components small and reusable.
+- Apply TailwindCSS classes consistently; avoid inline styles unless atomic override.
+
+# Supabase Integration
+- Use Supabase React hooks correctly (e.g., useQuery, useSubscription).
+- Explicitly type all data returned from Supabase APIs with TypeScript interfaces.
+- Properly clean up subscriptions and listeners in useEffect hooks.
+- Handle errors gracefully with try/catch and fallback UI for all async functions.
+
+# Code Style & Quality
+- Use 2-space indentation, single quotes for strings, and mandatory semicolons.
+- Adopt kebab-case for component and file names (e.g., my-component.tsx).
+- Write clear, meaningful variable and function names using camelCase.
+- Document all exported functions with JSDoc, including parameters and return types.
+- Avoid TODOs, placeholders, or unfinished code in completions.
+- Separate concerns: UI components, data hooks, and utilities in different files.
+
+# Performance & Optimization
+- Optimize image loading with lazy loading, WebP format, and defined sizes.
+- Avoid unnecessary client-side re-renders through immutable state updates.
+- Optimize database queries on Supabase side to avoid N+1 issues.
+
+# Testing & Documentation (Strictly use only when told to, otherwise do not.)
+- Write unit tests for public functions and components; maintain minimum 80% coverage.
+- Use descriptive test names to document intent.
+- Document architecture decisions and key third-party libraries used.
+

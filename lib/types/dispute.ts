@@ -18,7 +18,7 @@ export const DisputeInputSchema = z.object({
   }),
   locationId: z.string().uuid(),
   shopId: z.string().uuid().optional(),
-  cashierId: z.string().uuid().optional(),
+  cashierId: z.string().min(1).optional(), // Accepts staff_id text (e.g., "0010") which will be converted to UUID
   disputedItems: z
     .array(DisputedItemSchema)
     .min(1, "At least one disputed item is required"),
@@ -81,8 +81,45 @@ export function calculateDisputeTotal(
   return disputeType === "REFUND" ? -total : total;
 }
 
+/**
+ * Helper function to check if a product type string indicates a battery
+ */
+function isBatteryType(type?: string | null): boolean {
+  if (!type) return false;
+  const normalizedType = type.toLowerCase().trim();
+  return normalizedType === "battery" || normalizedType === "batteries";
+}
+
+/**
+ * Check if disputed items contain battery products
+ * This function checks volumeDescription as a fallback, but ideally
+ * product records should be checked using isBatteryTransaction()
+ */
 export function isBatteryDispute(items: DisputedItem[]): boolean {
   return items.some(
     (item) => item.volumeDescription?.toLowerCase().includes("battery") || false
   );
+}
+
+/**
+ * Validate if a transaction contains ONLY battery products
+ * This should be used with product records fetched from the database
+ * 
+ * @param productRecords - Array of product records with categoryName and productType/typeName
+ * @returns true if ALL products are batteries, false otherwise
+ */
+export function isBatteryTransaction(productRecords: Array<{
+  categoryName?: string | null;
+  productType?: string | null;
+  typeName?: string | null;
+}>): boolean {
+  if (productRecords.length === 0) return false;
+  
+  return productRecords.every((product) => {
+    const categoryName = product.categoryName;
+    const productType = product.productType || product.typeName;
+    
+    // Battery products are in "Parts" category with type "battery" or "batteries"
+    return categoryName === "Parts" && isBatteryType(productType);
+  });
 }

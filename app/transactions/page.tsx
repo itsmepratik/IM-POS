@@ -54,7 +54,10 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
+import { ReceiptComponent } from "@/app/pos/components/receipt-component";
+import { BillComponent } from "@/app/pos/components/bill-component";
 import { useSettingsUsers } from "@/lib/hooks/data/useSettingsUsers";
 import { useToast } from "@/components/ui/use-toast";
 import { useStaffIDs } from "@/lib/hooks/useStaffIDs";
@@ -69,7 +72,8 @@ interface TransactionDisplay extends Omit<Transaction, "items"> {
     | "on-hold"
     | "stock-transfer"
     | "on-hold-paid"
-    | "credit-paid";
+    | "credit-paid"
+    | "warranty-claim";
   items: string[];
   customerName?: string;
   reference: string;
@@ -172,6 +176,8 @@ const TransactionCard = memo(
                       ? "text-yellow-600"
                       : transaction.type === "stock-transfer"
                       ? "text-blue-600"
+                      : transaction.type === "warranty-claim"
+                      ? "text-cyan-600"
                       : transaction.type === "on-hold-paid" ||
                         transaction.type === "credit-paid"
                       ? "text-green-600"
@@ -180,6 +186,8 @@ const TransactionCard = memo(
                 >
                   {transaction.type === "refund"
                     ? "Refund"
+                    : transaction.type === "warranty-claim"
+                    ? "Warranty Claim"
                     : transaction.type === "expense"
                     ? "Expense"
                     : transaction.type === "credit"
@@ -218,6 +226,8 @@ const TransactionCard = memo(
                     ? "text-yellow-600"
                     : transaction.type === "stock-transfer"
                     ? "text-blue-600"
+                    : transaction.type === "warranty-claim"
+                    ? "text-cyan-600"
                     : transaction.type === "on-hold-paid" ||
                       transaction.type === "credit-paid"
                     ? "text-green-600"
@@ -343,26 +353,28 @@ function FixedSalesCard({
   transaction: TransactionDisplay | null;
 }) {
   return (
-    <div
-      className={`flex flex-row justify-between p-4 sm:p-5 border shadow-md rounded-md ${
-        !transaction
-          ? "bg-gray-600"
-          : transaction.type === "refund"
-          ? "bg-red-500"
-          : transaction.type === "expense"
-          ? "bg-purple-600"
-          : transaction.type === "credit"
-          ? "bg-orange-600"
-          : transaction.type === "on-hold"
-          ? "bg-yellow-600"
-          : transaction.type === "stock-transfer"
-          ? "bg-blue-600"
-          : transaction.type === "on-hold-paid" ||
-            transaction.type === "credit-paid"
-          ? "bg-green-600"
-          : "bg-green-600"
-      }`}
-    >
+      <div
+        className={`flex flex-row justify-between p-4 sm:p-5 border shadow-md rounded-md ${
+          !transaction
+            ? "bg-gray-600"
+            : transaction.type === "refund"
+            ? "bg-red-500"
+            : transaction.type === "expense"
+            ? "bg-purple-600"
+            : transaction.type === "credit"
+            ? "bg-orange-600"
+            : transaction.type === "on-hold"
+            ? "bg-yellow-600"
+            : transaction.type === "stock-transfer"
+            ? "bg-blue-600"
+            : transaction.type === "warranty-claim"
+            ? "bg-cyan-600"
+            : transaction.type === "on-hold-paid" ||
+              transaction.type === "credit-paid"
+            ? "bg-green-600"
+            : "bg-green-600"
+        }`}
+      >
       <div className="flex flex-col text-white">
         <div className="text-lg sm:text-xl font-semibold">
           {!transaction
@@ -377,6 +389,8 @@ function FixedSalesCard({
             ? "On Hold"
             : transaction.type === "stock-transfer"
             ? "Stock Transfer"
+            : transaction.type === "warranty-claim"
+            ? "Warranty Claim"
             : transaction.type === "on-hold-paid"
             ? "On-Hold Paid"
             : transaction.type === "credit-paid"
@@ -403,28 +417,35 @@ function FixedSalesCard({
   );
 }
 
-// Receipt component for the dialog
+// Receipt component for the dialog (fallback only - should rarely be used)
 function Receipt({ transaction }: { transaction: TransactionDisplay | null }) {
   if (!transaction) return null;
 
-  // Mock receipt items based on the transaction
-  const receiptItems = Array.from(
-    { length: Number(transaction.items[0].split(" ")[0]) || 1 },
-    (_, i) => ({
-      id: `item-${i}`,
-      name: `Item ${i + 1}`,
-      quantity: Math.floor(Math.random() * 3) + 1,
-      price: (Math.random() * 10 + 5).toFixed(2),
-    })
-  );
+  // This component is only used as a fallback when receipt generation fails
+  // In normal operation, receipts are generated from items_sold in handleViewReceipt
+  const receiptItems: Array<{ id: string; name: string; quantity: number; price: string }> = [];
+  
+  // Try to extract item count from transaction.items if available
+  const itemCount = transaction.items && transaction.items.length > 0 
+    ? Number(transaction.items[0].split(" ")[0]) || 0 
+    : 0;
+  
+  // Generate placeholder items only if we have an item count
+  if (itemCount > 0) {
+    for (let i = 0; i < Math.min(itemCount, 10); i++) {
+      receiptItems.push({
+        id: `item-${i}`,
+        name: `Item ${i + 1}`,
+        quantity: 1,
+        price: "0.000",
+      });
+    }
+  }
 
-  // Use actual subtotal from transaction if available, otherwise calculate from mock items
+  // Use actual subtotal from transaction if available
   const subtotalBeforeDiscount = transaction.subtotalBeforeDiscount
     ? parseFloat(transaction.subtotalBeforeDiscount)
-    : receiptItems.reduce(
-        (sum, item) => sum + parseFloat(item.price) * item.quantity,
-        0
-      );
+    : transaction.amount || 0;
 
   // Get discount information
   const discountAmount = transaction.discountAmount
@@ -443,7 +464,7 @@ function Receipt({ transaction }: { transaction: TransactionDisplay | null }) {
 
   // Calculate total
   const total = subtotalAfterDiscount + tax;
-  const itemCount = receiptItems.reduce((sum, item) => sum + item.quantity, 0);
+  const totalItemQuantity = receiptItems.reduce((sum, item) => sum + item.quantity, 0);
 
   // Format receipt number from transaction reference
   const receiptNumber = transaction.reference.substring(0, 8);
@@ -663,7 +684,7 @@ function Receipt({ transaction }: { transaction: TransactionDisplay | null }) {
               </div>
               
               <div class="receipt-footer">
-                <p>Number of Items: ${itemCount}</p>
+                <p>Number of Items: ${totalItemQuantity}</p>
                 <p>Payment Method: ${transaction.paymentMethod || "Cash"}</p>
                 <p>Cashier: ${transaction.cashier}</p>
                 <p>Keep this Invoice for your Exchanges</p>
@@ -708,6 +729,14 @@ function Receipt({ transaction }: { transaction: TransactionDisplay | null }) {
     <div className="flex-grow flex flex-col overflow-hidden">
       {/* This is the scrollable content area */}
       <div className="flex-grow overflow-y-auto p-6">
+        {receiptItems.length === 0 && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+            <p className="text-sm text-yellow-800">
+              <strong>Note:</strong> Receipt details could not be loaded. This is a fallback view.
+              Please try viewing the receipt again, or contact support if the issue persists.
+            </p>
+          </div>
+        )}
         <div
           id="receipt-content"
           className="bg-white border rounded-lg p-4 w-full max-w-sm mx-auto"
@@ -782,7 +811,7 @@ function Receipt({ transaction }: { transaction: TransactionDisplay | null }) {
 
           <div className="text-xs text-gray-600 border-t border-dashed pt-2">
             <div className="text-center space-y-0.5">
-              <p>Number of Items: {itemCount}</p>
+              <p>Number of Items: {totalItemQuantity}</p>
               <p>Payment Method: {transaction.paymentMethod || "Cash"}</p>
               <p>Cashier: {transaction.cashier}</p>
             </div>
@@ -1085,6 +1114,8 @@ export default function TransactionsPage() {
             ? "credit-paid"
             : t.type === "STOCK_TRANSFER"
             ? "stock-transfer"
+            : t.type === "WARRANTY_CLAIM"
+            ? "warranty-claim"
             : "sale",
         items: [`${t.items_sold?.length || 0} items`],
         customerName: customerName, // Use customer name from joined data
@@ -1189,9 +1220,47 @@ export default function TransactionsPage() {
     }
   };
 
+  const [receiptTransactionData, setReceiptTransactionData] = useState<{
+    cart: Array<{
+      id: number;
+      name: string;
+      price: number;
+      quantity: number;
+      details?: string;
+      uniqueId: string;
+    }>;
+    paymentMethod: string;
+    cashier?: string;
+    discount?: { type: "percentage" | "amount"; value: number } | null;
+    paymentRecipient?: string | null;
+    receiptNumber: string;
+    currentDate: string;
+    currentTime: string;
+  } | null>(null);
+  const [billTransactionData, setBillTransactionData] = useState<{
+    cart: Array<{
+      id: number;
+      name: string;
+      price: number;
+      quantity: number;
+      details?: string;
+      uniqueId: string;
+    }>;
+    billNumber: string;
+    currentDate: string;
+    currentTime: string;
+    customerName?: string;
+    cashier?: string;
+    appliedDiscount?: { type: "percentage" | "amount"; value: number } | null;
+    appliedTradeInAmount?: number;
+    isWarrantyClaim: boolean;
+  } | null>(null);
+  const [isReceiptPreviewOpen, setIsReceiptPreviewOpen] = useState(false);
+  const [isBillPreviewOpen, setIsBillPreviewOpen] = useState(false);
+
   const handleViewReceipt = async (transaction: TransactionDisplay) => {
     try {
-      // Fetch the full transaction record by ID
+      // Fetch full transaction data to convert to ReceiptComponent format
       const response = await fetch(`/api/transactions/${transaction.id}`);
 
       if (!response.ok) {
@@ -1200,43 +1269,257 @@ export default function TransactionsPage() {
 
       const data = await response.json();
 
-      if (!data.ok) {
+      if (!data.ok || !data.transaction) {
         throw new Error(data.error || "Failed to fetch transaction");
       }
 
-      const fullTransaction = data.transaction;
+      const tx = data.transaction;
 
-      // Check if battery_bill_html exists, otherwise use receipt_html
-      const htmlContent =
-        fullTransaction.battery_bill_html || fullTransaction.receipt_html;
+      // Check transaction type
+      const isWarrantyClaim = tx.type === "WARRANTY_CLAIM" || transaction.type === "warranty-claim";
 
-      if (htmlContent) {
-        // Create a new window and print the HTML content
-        const printWindow = window.open("", "_blank");
-        if (printWindow) {
-          printWindow.document.write(htmlContent);
-          printWindow.document.close();
+      // Fetch product names and category/type for items_sold
+      // Extract productIds, handling both string and number formats, and normalize to strings
+      const productIds = (tx.items_sold || [])
+        .map((item: any) => {
+          const id = item.productId || item.product_id;
+          // Normalize to string for consistent lookup
+          return id ? String(id) : null;
+        })
+        .filter((id: string | null) => id && id !== "9999" && id !== "null" && id !== "undefined");
 
-          // Wait for content to load, then print
-          setTimeout(() => {
-            printWindow.print();
-            // Close the window after print on desktop
-            if (
-              !/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-                navigator.userAgent
-              )
-            ) {
-              printWindow.close();
-            }
-          }, 500);
+      let productNamesMap = new Map<string, string>();
+      let productInfoMap = new Map<string, { category: string; type: string }>(); // Store full product info for battery detection
+      if (productIds.length > 0) {
+        try {
+          // Fetch products via API route to avoid client-side Supabase issues
+          const productsResponse = await fetch(`/api/products/by-ids?ids=${encodeURIComponent(JSON.stringify(productIds))}`);
+          
+          if (productsResponse.ok) {
+            const productsData = await productsResponse.json();
+            const products = productsData.products || [];
+            
+            products.forEach((p: any) => {
+              const normalizedId = String(p.id);
+              const brandName = (p.brandName || "").trim();
+              let productName = (p.name || "").trim();
+              
+              // Remove product ID if it's prepended to the name
+              if (productName && normalizedId) {
+                const nameLower = productName.toLowerCase();
+                const idLower = normalizedId.toLowerCase();
+                
+                if (nameLower.startsWith(idLower)) {
+                  const afterId = productName.substring(normalizedId.length).trim();
+                  if (afterId.length > 0 && /^[\s\-_:]/.test(afterId)) {
+                    productName = afterId.replace(/^[\s\-_:]+/, "").trim();
+                  } else if (afterId.length === 0) {
+                    productName = `Product ${normalizedId}`;
+                  }
+                }
+              }
+              
+              // Remove volume descriptions/details in parentheses (e.g., "(1L (closed bottle))")
+              // Iteratively remove parentheses content until no parentheses remain
+              let previousName = "";
+              while (productName !== previousName) {
+                previousName = productName;
+                // Remove outermost parentheses and their content
+                productName = productName.replace(/\s*\([^()]*\)/g, "").trim();
+              }
+              
+              // Remove any existing brand name from the beginning to avoid duplicates
+              if (brandName && productName) {
+                const brandLower = brandName.toLowerCase();
+                const nameLower = productName.toLowerCase();
+                
+                // Check if product name starts with brand name (case-insensitive)
+                if (nameLower.startsWith(brandLower)) {
+                  // Remove brand name and any separator that follows
+                  const afterBrand = productName.substring(brandName.length).trim();
+                  if (afterBrand.length > 0 && /^[\s\-]/.test(afterBrand)) {
+                    productName = afterBrand.replace(/^[\s\-]+/, "").trim();
+                  } else if (afterBrand.length === 0) {
+                    // Product name is just the brand, keep it as is
+                    productName = brandName;
+                  }
+                }
+              }
+              
+              // Format: Brand first, then product name
+              let formattedName: string;
+              if (brandName && productName) {
+                formattedName = `${brandName} ${productName}`;
+              } else if (brandName) {
+                formattedName = brandName;
+              } else if (productName) {
+                formattedName = productName;
+              } else {
+                formattedName = `Product ${normalizedId}`;
+              }
+              
+              productNamesMap.set(normalizedId, formattedName);
+              productInfoMap.set(normalizedId, { 
+                category: p.category || "", 
+                type: p.type || "" 
+              });
+            });
+          } else {
+            console.error("Failed to fetch products:", await productsResponse.text());
+          }
+        } catch (err) {
+          console.error("Error fetching product names:", err);
         }
+      }
+
+      // Convert items_sold to CartItem format and create productId mapping
+      const uniqueIdToProductIdMap = new Map<string, string>();
+      const cart = (tx.items_sold || []).map((item: any, index: number) => {
+        // Normalize productId to string for consistent lookup
+        const productId = String(item.productId || item.product_id || "");
+        
+        // Get product name from map, with proper fallback
+        let productName: string;
+        if (productId === "9999" || productId === "") {
+          productName = item.volumeDescription || "Labor - Custom Service";
+        } else {
+          // Ensure we're using normalized productId for lookup
+          const normalizedProductId = String(productId).trim();
+          productName = productNamesMap.get(normalizedProductId);
+          
+          if (!productName) {
+            // Debug: log when product name is not found
+            console.warn(`Product name not found for productId: ${normalizedProductId}`, {
+              availableIds: Array.from(productNamesMap.keys()),
+              itemData: item
+            });
+            
+            // Fallback: try to extract name from item if available
+            productName = item.name || item.productName;
+            
+            // If we got a name from item, clean it
+            if (productName) {
+              // Clean the name if it contains the product ID
+              if (productName.includes(normalizedProductId)) {
+                productName = productName.replace(new RegExp(normalizedProductId, "gi"), "").trim();
+                productName = productName.replace(/^[\s\-_:]+/, "").trim();
+              }
+            }
+            
+            // Final fallback
+            if (!productName || productName === normalizedProductId) {
+              productName = `Product ${normalizedProductId}`;
+            }
+          }
+        }
+
+        // Use a separator that won't appear in UUIDs (UUIDs use hyphens, so use double colon)
+        const uniqueId = `${productId}::${index}`;
+        uniqueIdToProductIdMap.set(uniqueId, productId);
+
+        const rawDetails = item.volumeDescription || item.volume_description;
+        const finalDetails = (rawDetails && rawDetails.trim().toLowerCase() !== productName.trim().toLowerCase()) 
+          ? rawDetails 
+          : undefined;
+
+        return {
+          id: index + 1,
+          name: productName,
+          price: parseFloat(item.sellingPrice || item.selling_price || 0),
+          quantity: item.quantity || 1,
+          details: finalDetails,
+          uniqueId,
+        };
+      });
+
+      // Helper function to check if cart contains only batteries
+      const cartContainsOnlyBatteries = (): boolean => {
+        if (cart.length === 0) return false;
+
+        // Filter out discount items
+        const actualProductItems = cart.filter(
+          (item) => !item.name.toLowerCase().includes("discount on old battery")
+        );
+
+        if (actualProductItems.length === 0) return false;
+
+        const isBatteryType = (type?: string): boolean => {
+          if (!type) return false;
+          const normalizedType = type.toLowerCase().trim();
+          return normalizedType === "battery" || normalizedType === "batteries";
+        };
+
+        // Check if all items are batteries
+        return actualProductItems.every((item) => {
+          // Get productId from mapping
+          const productId = uniqueIdToProductIdMap.get(item.uniqueId);
+          if (!productId) return false;
+          
+          const productInfo = productInfoMap.get(productId);
+          if (!productInfo) return false;
+          
+          return productInfo.category === "Parts" && isBatteryType(productInfo.type);
+        });
+      };
+
+      // Format date and time
+      const txDate = new Date(tx.created_at);
+      const currentDate = txDate.toLocaleDateString("en-GB");
+      const currentTime = txDate.toLocaleTimeString("en-GB", {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      });
+
+      // Get cashier name
+      let cashierName: string | undefined;
+      if (tx.cashier_id && staffMembers) {
+        const cashier = staffMembers.find((s) => s.id === tx.cashier_id);
+        cashierName = cashier?.name;
+      }
+
+      // Parse discount
+      let discount: { type: "percentage" | "amount"; value: number } | null = null;
+      if (tx.discount_type && tx.discount_amount) {
+        discount = {
+          type: tx.discount_type as "percentage" | "amount",
+          value: parseFloat(tx.discount_value || "0"),
+        };
+      }
+
+      // Determine which component to use
+      const isBatteryOnly = cartContainsOnlyBatteries();
+
+      if (isWarrantyClaim || (tx.type === "SALE" && isBatteryOnly)) {
+        // Use BillComponent for warranty claims or battery-only sales
+        setBillTransactionData({
+          cart,
+          billNumber: tx.reference_number || transaction.reference,
+          currentDate,
+          currentTime,
+          customerName: tx.customers?.name || tx.car_plate_number || transaction.customerName || "Guest",
+          cashier: cashierName,
+          appliedDiscount: discount,
+          appliedTradeInAmount: undefined, // TODO: Calculate from trade-in transactions if needed
+          isWarrantyClaim: isWarrantyClaim,
+        });
+        setIsBillPreviewOpen(true);
       } else {
-        // Fallback to the dialog view
-        setSelectedTransaction(transaction);
-        setReceiptOpen(true);
+        // Use ReceiptComponent for regular sales
+        setReceiptTransactionData({
+          cart,
+          paymentMethod: tx.payment_method || "cash",
+          cashier: cashierName,
+          discount,
+          paymentRecipient: tx.mobile_payment_account || undefined,
+          receiptNumber: tx.reference_number || transaction.reference,
+          currentDate,
+          currentTime,
+        });
+        setIsReceiptPreviewOpen(true);
       }
     } catch (error) {
-      console.error("Error fetching transaction for print:", error);
+      console.error("Error fetching transaction:", error);
       // Fallback to the dialog view
       setSelectedTransaction(transaction);
       setReceiptOpen(true);
@@ -1538,6 +1821,80 @@ export default function TransactionsPage() {
             </Button>
           </DialogHeader>
           <Receipt transaction={selectedTransaction} />
+        </DialogContent>
+      </Dialog>
+
+      {/* Receipt Preview Dialog - Using ReceiptComponent from POS */}
+      <Dialog open={isReceiptPreviewOpen} onOpenChange={setIsReceiptPreviewOpen}>
+        <DialogContent className="w-[95%] max-w-[520px] p-4 rounded-lg max-h-[90vh] overflow-auto">
+          <DialogHeader>
+            <DialogTitle className="text-center text-xl">
+              Receipt Preview
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="mt-2">
+            {receiptTransactionData && (
+              <ReceiptComponent
+                cart={receiptTransactionData.cart}
+                paymentMethod={receiptTransactionData.paymentMethod}
+                cashier={receiptTransactionData.cashier}
+                discount={receiptTransactionData.discount}
+                paymentRecipient={receiptTransactionData.paymentRecipient}
+                receiptNumber={receiptTransactionData.receiptNumber}
+                currentDate={receiptTransactionData.currentDate}
+                currentTime={receiptTransactionData.currentTime}
+              />
+            )}
+          </div>
+
+          <DialogFooter className="mt-4">
+            <Button
+              variant="outline"
+              onClick={() => setIsReceiptPreviewOpen(false)}
+              className="w-full"
+            >
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bill Preview Dialog - Using BillComponent from POS (for battery sales and warranty claims) */}
+      <Dialog open={isBillPreviewOpen} onOpenChange={setIsBillPreviewOpen}>
+        <DialogContent className="w-[95%] max-w-[520px] p-4 rounded-lg max-h-[90vh] overflow-auto">
+          <DialogHeader>
+            <DialogTitle className="text-center text-xl">
+              {billTransactionData?.isWarrantyClaim ? "Warranty Claim Certificate" : "Battery Bill Preview"}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="mt-2">
+            {billTransactionData && (
+              <BillComponent
+                cart={billTransactionData.cart}
+                billNumber={billTransactionData.billNumber}
+                currentDate={billTransactionData.currentDate}
+                currentTime={billTransactionData.currentTime}
+                customerName={billTransactionData.customerName}
+                cashier={billTransactionData.cashier}
+                appliedDiscount={billTransactionData.appliedDiscount}
+                appliedTradeInAmount={billTransactionData.appliedTradeInAmount}
+                hideButton={false}
+                isWarrantyClaim={billTransactionData.isWarrantyClaim}
+              />
+            )}
+          </div>
+
+          <DialogFooter className="mt-4">
+            <Button
+              variant="outline"
+              onClick={() => setIsBillPreviewOpen(false)}
+              className="w-full"
+            >
+              Close
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </Layout>

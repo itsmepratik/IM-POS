@@ -2,4 +2,9 @@
 alwaysApply: true
 ---
 
-Stack: Next.js 15 (frontend) + bun 1.3.1 + Supabase Cloud (free-tier Postgres DB).
+Main Stack: Next.js 15 (frontend) + bun 1.3.1 + Supabase Cloud (free-tier Postgres DB).
+
+- Always strictly use bun or bunx commands possible.
+- Always strictly use the Supabase mcp for checking, analysing, running any sql or any and all other database related stuff always.
+- Always strictly plan or investigate ahead first and then implement.
+- Must Always Strictly write clean and production grade code and follow the latest up-to-date best practices.

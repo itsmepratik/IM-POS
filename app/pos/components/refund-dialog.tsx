@@ -39,6 +39,8 @@ import { useBranch } from "@/lib/contexts/DataProvider";
 import { useNotification } from "@/app/notification-context";
 import { createRefundErrorAlert } from "@/lib/utils/alert-helpers";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { isBatteryTransaction } from "@/lib/types/dispute";
+import type { DisputedItem } from "@/lib/types/dispute";
 
 interface CartItem {
   id: number;
@@ -47,6 +49,8 @@ interface CartItem {
   quantity: number;
   details?: string;
   uniqueId: string;
+  productId?: string;
+  volumeDescription?: string;
 }
 
 interface Receipt {
@@ -107,6 +111,56 @@ const fetchProductNames = async (
     return productNameMap;
   } catch (error) {
     console.error("❌ Exception fetching product names:", error);
+    return new Map();
+  }
+};
+
+// Helper function to fetch product details with category and type for battery validation
+const fetchProductDetails = async (
+  productIds: string[]
+): Promise<Map<string, { categoryName: string | null; productType: string | null; typeName: string | null }>> => {
+  if (productIds.length === 0) return new Map();
+
+  try {
+    // Import Supabase client dynamically
+    const { createClient } = await import("@/supabase/client");
+    const supabase = createClient();
+
+    console.log("🔍 Fetching product details for battery validation:", productIds);
+
+    // Query products table with category and type information
+    const { data: productsData, error } = await supabase
+      .from("products")
+      .select(`
+        id,
+        product_type,
+        categories(name),
+        types(name)
+      `)
+      .in("id", productIds);
+
+    if (error) {
+      console.error("❌ Error fetching product details:", error);
+      return new Map();
+    }
+
+    console.log("✅ Fetched product details:", productsData);
+
+    // Create a map of product ID to product details
+    const productDetailsMap = new Map();
+    productsData?.forEach((product: any) => {
+      productDetailsMap.set(product.id, {
+        categoryName: product.categories?.name || null,
+        productType: product.product_type || null,
+        typeName: product.types?.name || null,
+      });
+    });
+
+    console.log("📊 Product details map:", Object.fromEntries(productDetailsMap));
+
+    return productDetailsMap;
+  } catch (error) {
+    console.error("❌ Exception fetching product details:", error);
     return new Map();
   }
 };
@@ -1634,6 +1688,7 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
   const { toast } = useToast();
   const { staffMembers } = useStaffIDs();
   const { brand, registered } = useCompanyInfo();
+  const { currentBranch, inventoryLocationId } = useBranch();
   const [receiptNumber, setReceiptNumber] = useState("");
   const [currentReceipt, setCurrentReceipt] = useState<Receipt | null>(null);
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
@@ -1658,12 +1713,72 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
   const [customerName, setCustomerName] = useState<string>("");
   const [tradeInAmount, setTradeInAmount] = useState<number>(0);
   const [isSearching, setIsSearching] = useState(false);
+  const [currentCustomer, setCurrentCustomer] = useState<{
+    id: string;
+    name: string;
+    email?: string;
+    phone?: string;
+  } | null>(null);
+  const [warrantyClaimTransaction, setWarrantyClaimTransaction] = useState<{
+    referenceNumber: string;
+    batteryBillHtml: string | null;
+  } | null>(null);
 
   // Calculate claim amount (same as refund for now)
   const claimAmount =
     currentReceipt?.items
       .filter((item) => selectedItems.includes(item.uniqueId))
       .reduce((sum, item) => sum + item.price * item.quantity, 0) || 0;
+
+  // Validate if a transaction contains only battery products
+  const validateBatteryTransaction = async (items: any[]): Promise<{
+    isValid: boolean;
+    error?: string;
+  }> => {
+    if (!items || items.length === 0) {
+      return {
+        isValid: false,
+        error: "Transaction contains no items",
+      };
+    }
+
+    // Extract product IDs from transaction items
+    const productIds = items
+      .map((item: any) => item.productId || item.id || item.product_id)
+      .filter((id: any) => id && typeof id === "string");
+
+    if (productIds.length === 0) {
+      return {
+        isValid: false,
+        error: "Could not identify products in this transaction",
+      };
+    }
+
+    // Fetch product details with category and type
+    const productDetailsMap = await fetchProductDetails(productIds);
+
+    if (productDetailsMap.size === 0) {
+      return {
+        isValid: false,
+        error: "Could not fetch product details for validation",
+      };
+    }
+
+    // Convert map to array for validation
+    const productRecords = Array.from(productDetailsMap.values());
+
+    // Validate that all products are batteries
+    const isValid = isBatteryTransaction(productRecords);
+
+    if (!isValid) {
+      return {
+        isValid: false,
+        error: "Warranty claims are only available for battery purchases. This transaction contains non-battery items.",
+      };
+    }
+
+    return { isValid: true };
+  };
 
   // Handle looking up a receipt
   const handleLookupReceipt = async () => {
@@ -1708,6 +1823,21 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
       // Convert API response to the format expected by the UI
       const transaction = data.transactions[0];
 
+      // Validate that this is a battery-only transaction
+      const validation = await validateBatteryTransaction(
+        transaction.items_sold || []
+      );
+
+      if (!validation.isValid) {
+        toast({
+          title: "Invalid Transaction Type",
+          description: validation.error || "This transaction is not eligible for warranty claims.",
+          variant: "destructive",
+          duration: 5000,
+        });
+        return;
+      }
+
       // Convert the transaction to Receipt format for the UI
       const parsedItems = await parseTransactionItems(
         transaction.items_sold || []
@@ -1733,6 +1863,7 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
           email: transaction.customers.email,
           phone: transaction.customers.phone,
         });
+        setCustomerName(transaction.customers.name);
       }
 
       setCurrentReceipt(receiptData);
@@ -1741,7 +1872,7 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
 
       toast({
         title: "Receipt found",
-        description: `Found transaction ${receiptNumber} with ${receiptData.items.length} items.`,
+        description: `Found battery transaction ${receiptNumber} with ${receiptData.items.length} items.`,
       });
     } catch (error) {
       console.error("Error looking up receipt:", error);
@@ -1792,6 +1923,40 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
 
     if (!currentReceipt || !activeCashier || isProcessingRefund) return;
 
+    // Validate branch and location
+    if (!currentBranch) {
+      toast({
+        title: "Branch Required",
+        description: "Please select a branch before processing the warranty claim.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const shopId = currentBranch.id;
+    
+    // Get locationId - prefer inventoryLocationId, otherwise fetch from shop
+    let locationId = inventoryLocationId;
+    if (!locationId && shopId) {
+      try {
+        const { fetchShops } = await import("@/lib/services/inventoryService");
+        const shops = await fetchShops();
+        const shop = shops.find((s) => s.id === shopId);
+        if (shop) {
+          locationId = shop.locationId;
+        } else {
+          throw new Error(`Shop ${shopId} not found`);
+        }
+      } catch (error) {
+        console.error("Error fetching shop location:", error);
+        throw new Error("Could not determine location. Please ensure a branch is selected.");
+      }
+    }
+    
+    if (!locationId) {
+      throw new Error("Location ID is required. Please select a branch.");
+    }
+
     setIsProcessingRefund(true);
 
     try {
@@ -1804,16 +1969,77 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
       // Set loading state in main dialog
       setStep("processing");
 
-      // Simulate processing time for warranty claim
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      // Get selected items and transform to DisputedItem format
+      const selectedClaimItems: DisputedItem[] = currentReceipt.items
+        .filter((item) => selectedItems.includes(item.uniqueId))
+        .map((item) => {
+          const productId = (item as any).productId;
+          if (!productId || typeof productId !== "string") {
+            throw new Error(`Invalid product ID for item: ${item.name}`);
+          }
+
+          return {
+            productId,
+            quantity: item.quantity,
+            sellingPrice: item.price,
+            volumeDescription: (item as any).volumeDescription || item.details,
+          };
+        });
+
+      if (selectedClaimItems.length === 0) {
+        throw new Error("No items selected for warranty claim");
+      }
+
+      // Call the dispute API with WARRANTY_CLAIM type
+      const response = await fetch("/api/dispute", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          originalBillNumber: currentReceipt.receiptNumber,
+          disputeType: "WARRANTY_CLAIM",
+          locationId,
+          shopId,
+          cashierId: activeCashier.id,
+          disputedItems: selectedClaimItems,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(
+          result.error ||
+            result.details ||
+            "Failed to process warranty claim. Please try again."
+        );
+      }
+
+      // Store warranty claim transaction data
+      if (result.data?.disputeTransaction) {
+        setWarrantyClaimTransaction({
+          referenceNumber: result.data.disputeTransaction.referenceNumber,
+          batteryBillHtml: result.data.batteryBillHtml || null,
+        });
+      }
 
       setStep("complete");
       setClaimComplete(true);
+
+      toast({
+        title: "Warranty Claim Processed",
+        description: `Warranty claim ${result.data?.disputeTransaction?.referenceNumber || "processed"} has been recorded successfully.`,
+        duration: 5000,
+      });
     } catch (error) {
       console.error("Warranty claim processing error:", error);
       toast({
         title: "Claim Failed",
-        description: "Failed to process warranty claim. Please try again.",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to process warranty claim. Please try again.",
         variant: "destructive",
         duration: 5000,
       });
@@ -1842,6 +2068,9 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
       setCashierIdError(null);
       setSelectedCashier(null);
       setShowRefundReceipt(false);
+      setCurrentCustomer(null);
+      setCustomerName("");
+      setWarrantyClaimTransaction(null);
       onClose();
     } else if (step === "search") {
       onClose();
@@ -1855,16 +2084,42 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
 
   // Add print function that delegates to the component's print functionality
   const handlePrint = () => {
+    // Check if we have a warranty claim transaction with HTML from API
+    if (warrantyClaimTransaction?.batteryBillHtml) {
+      // Use the HTML generated by the API
+      const printWindow = window.open("", "_blank");
+      if (!printWindow) {
+        alert("Please allow popups to print the warranty claim receipt.");
+        return;
+      }
+      printWindow.document.open();
+      printWindow.document.write(warrantyClaimTransaction.batteryBillHtml);
+      printWindow.document.close();
+      printWindow.document.title = "";
+
+      setTimeout(() => {
+        printWindow.print();
+        if (
+          !/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+            navigator.userAgent
+          )
+        ) {
+          // Don't auto-close on mobile devices
+        }
+      }, 500);
+      return;
+    }
+
+    // Fallback: Generate HTML manually if API HTML is not available
     // Get selected items for the warranty claim
     const selectedClaimItems =
       currentReceipt?.items.filter((item) =>
         selectedItems.includes(item.uniqueId)
       ) || [];
 
-    // Generate a random bill number with W prefix
-    const warrantyBillNumber = `W${Math.floor(Math.random() * 10000)
-      .toString()
-      .padStart(4, "0")}`;
+    // Use the actual warranty claim reference number from API response
+    const warrantyBillNumber = warrantyClaimTransaction?.referenceNumber || 
+      `WBX${Math.floor(Math.random() * 10000).toString().padStart(4, "0")}`;
 
     // Open a new window for printing
     const printWindow = window.open("", "_blank");
@@ -2698,9 +2953,8 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
                                 selectedItems.includes(item.uniqueId)
                               ) || []
                             }
-                            billNumber={`W${Math.floor(Math.random() * 10000)
-                              .toString()
-                              .padStart(4, "0")}`}
+                            billNumber={warrantyClaimTransaction?.referenceNumber || 
+                              `WBX${Math.floor(Math.random() * 10000).toString().padStart(4, "0")}`}
                             currentDate={format(new Date(), "dd/MM/yyyy")}
                             currentTime={format(new Date(), "HH:mm:ss")}
                             customerName={customerName || ""}
@@ -2879,14 +3133,19 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
               <AlertDialogAction
                 onClick={() => {
                   const found = staffMembers.find(
-                    (c) => c.id === enteredCashierId
+                    (c) => c.id === enteredCashierId.trim()
                   );
                   if (found) {
-                    setFetchedCashier(found);
-                    setSelectedCashier(found);
+                    // Ensure we use the staff_id text (found.id) not UUID
+                    const cashierForApi = {
+                      id: found.id, // staff_id text like "0010"
+                      name: found.name,
+                    };
+                    setFetchedCashier(cashierForApi);
+                    setSelectedCashier(cashierForApi);
                     setCashierIdError(null);
                     // Pass the cashier directly to avoid async state issues
-                    handleFinalizeClaim(found);
+                    handleFinalizeClaim(cashierForApi);
                   } else {
                     setCashierIdError("Invalid cashier ID. Please try again.");
                   }

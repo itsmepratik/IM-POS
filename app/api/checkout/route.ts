@@ -989,7 +989,24 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        // 4. Generate receipts
+        // 4. Fetch cashier name if cashierId exists
+        let cashierName: string | undefined;
+        if (cashierId) {
+          try {
+            const { createClient } = await import("@/supabase/server");
+            const supabase = await createClient();
+            const { data: staffData } = await supabase
+              .from("staff")
+              .select("name")
+              .eq("id", cashierId)
+              .single();
+            cashierName = staffData?.name;
+          } catch (error) {
+            console.log(`[${requestId}] Could not fetch cashier name:`, error);
+          }
+        }
+
+        // 5. Generate receipts
         const now = new Date();
         const receiptData: ReceiptData = {
           referenceNumber: newTransaction.referenceNumber,
@@ -1022,6 +1039,9 @@ export async function POST(req: NextRequest) {
           subtotalBeforeDiscount: subtotalBeforeDiscount,
           date: formatDate(now),
           time: formatTime(now),
+          cashier: cashierName,
+          paymentRecipient: paymentMethod?.toUpperCase() === "MOBILE" ? mobilePaymentAccount || undefined : undefined,
+          posId: "A0054", // Default POS ID, can be made configurable later
         };
 
         let receiptHtml = "";

@@ -11,7 +11,7 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     const parsed = ParamsSchema.safeParse({ id: params.id });
 
@@ -44,7 +44,18 @@ export async function GET(
         mobile_payment_account,
         mobile_number,
         notes,
+        discount_type,
+        discount_value,
+        discount_amount,
+        subtotal_before_discount,
         created_at,
+        customer_id,
+        customers (
+          id,
+          name,
+          email,
+          phone
+        ),
         shops (
           id,
           name,
@@ -68,6 +79,29 @@ export async function GET(
         { error: "Transaction not found" },
         { status: 404 }
       );
+    }
+
+    // If no customer is linked but we have an original reference, try to get customer from original transaction
+    if (!transactionData.customers && transactionData.original_reference_number) {
+      const { data: originalTx } = await supabase
+        .from("transactions")
+        .select(`
+          customers (
+            id,
+            name,
+            email,
+            phone
+          )
+        `)
+        .eq("reference_number", transactionData.original_reference_number)
+        .single();
+
+      if (originalTx?.customers) {
+        // @ts-ignore - We're manually patching the customer data
+        transactionData.customers = originalTx.customers;
+        // @ts-ignore - We're manually patching the customer data
+        transactionData.customer_id = originalTx.customers.id;
+      }
     }
 
     return NextResponse.json({
