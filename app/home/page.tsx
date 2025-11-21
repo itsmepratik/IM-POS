@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/table";
 import { Wallet, ArrowUpRight } from "lucide-react";
 import { useDashboardData } from "./hooks/useDashboardData";
+import { createClient } from "@/supabase/client";
 import { usePaymentTypes } from "./hooks/usePaymentTypes";
 import { format } from "date-fns";
 import { BranchProvider } from "@/app/branch-context";
@@ -61,16 +62,34 @@ function HomePageContent() {
   // Use null as initial state to avoid hydration mismatch
   const [branchSelection, setBranchSelection] = useState<string | null>(null);
   const [hasMounted, setHasMounted] = useState(false);
+  const [shops, setShops] = useState<{ id: string; name: string }[]>([]);
   const { currentUser } = useUser();
 
   // Set initial state after component mounts
   useEffect(() => {
     setBranchSelection("all");
     setHasMounted(true);
+
+    // Fetch shops
+    const fetchShops = async () => {
+      const supabase = createClient();
+      const { data } = await supabase.from("shops").select("id, name");
+      if (data) {
+        setShops(data);
+      }
+    };
+    fetchShops();
   }, []);
 
-  const { sales, profit, payments, lastUpdated, isLoading } =
+  const { sales, profit, payments, lastUpdated, isLoading, setBranchFilter } =
     useDashboardData();
+
+  // Sync branch selection with dashboard data
+  useEffect(() => {
+    if (branchSelection) {
+      setBranchFilter(branchSelection);
+    }
+  }, [branchSelection, setBranchFilter]);
 
   usePaymentTypes();
 
@@ -93,9 +112,11 @@ function HomePageContent() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All branches</SelectItem>
-                    <SelectItem value="main">Main (Sanaya)</SelectItem>
-                    <SelectItem value="branch1">Hafith</SelectItem>
-                    <SelectItem value="branch2">Abu-Dhurus</SelectItem>
+                    {shops.map((shop) => (
+                      <SelectItem key={shop.id} value={shop.id}>
+                        {shop.name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               ) : (

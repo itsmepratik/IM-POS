@@ -3146,7 +3146,7 @@ function POSPageContent() {
           </div>
 
           {/* Desktop Cart */}
-          <div className="hidden lg:block lg:w-[360px] xl:w-[400px] 2xl:w-[450px]">
+          <div className="hidden lg:block lg:w-[400px] xl:w-[450px] 2xl:w-[500px]">
             <Card className="h-[calc(100vh-4rem)] flex flex-col">
               <CardHeader className="flex-row items-center justify-between space-y-0 pb-3 px-4">
                 <CardTitle>Cart</CardTitle>

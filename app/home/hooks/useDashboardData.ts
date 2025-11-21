@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from "react"
 import { subDays, startOfMonth, endOfMonth, startOfDay, endOfDay, subMonths } from "date-fns"
 import { useBranch } from "@/app/branch-context"
+import { createClient } from "@/supabase/client"
 
 // === TYPES ===
 
@@ -279,46 +280,59 @@ export function useDashboardData(): UseDashboardDataReturn {
   
   // === DATA FETCHING LOGIC ===
   
-  // This will be replaced with real Supabase queries in the future
-  // For now, we're generating mock data
-  
-  const fetchSalesMetrics = async () => {
-    // Simulate API call (minimal delay for better responsiveness)
-    await new Promise(resolve => setTimeout(resolve, 20))
+  const fetchSalesMetrics = async (): Promise<SalesMetrics> => {
+    const supabase = createClient()
     
+    // Handle branch filter: ensure we pass null if it's 'all' or undefined
+    const shopId = (branchFilter === 'all' || !branchFilter) ? null : branchFilter
+    
+    console.log("Fetching net revenue for shop:", shopId)
+
+    // Calculate net revenue
+    const { data: netRevenue, error } = await supabase.rpc('get_net_revenue', {
+      start_date: dateRange.start.toISOString(),
+      end_date: dateRange.end.toISOString(),
+      filter_shop_id: shopId
+    })
+
+    if (error) {
+      console.error('Error fetching net revenue:', error)
+    }
+
     // Get date range duration in days
     const durationDays = Math.ceil(
       (dateRange.end.getTime() - dateRange.start.getTime()) / (1000 * 60 * 60 * 24)
     )
     
-    // Generate mock sales total (more consistent than random)
-    const basePerDay = 1500 // $1500 base sales per day
-    const totalSales = durationDays * basePerDay * (1 + Math.random() * 0.5)
+    // For now, we only have real data for totalSales. 
+    // Other metrics will remain mock/calculated based on this real total until we implement them.
+    const totalSales = Number(netRevenue) || 0
     
-    // Generate previous period sales (slightly lower on average)
-    const previousPeriodSales = totalSales * (0.8 + Math.random() * 0.3)
+    // Generate previous period sales (mock for now - fixed at 90% of current)
+    const previousPeriodSales = totalSales * 0.9
     
     // Calculate change percentage
-    const changePercentage = ((totalSales - previousPeriodSales) / previousPeriodSales) * 100
+    const changePercentage = previousPeriodSales > 0 
+      ? ((totalSales - previousPeriodSales) / previousPeriodSales) * 100
+      : 0
     
-    // Transaction count and average ticket
-    const transactionCount = Math.floor(durationDays * 25 * (0.8 + Math.random() * 0.4))
-    const avgTicketValue = totalSales / transactionCount
+    // Transaction count and average ticket (mock for now)
+    const transactionCount = Math.floor(durationDays * 25)
+    const avgTicketValue = transactionCount > 0 ? totalSales / transactionCount : 0
     
-    // Sales by category
+    // Sales by category (mock distribution of real total)
     const categories = ["Oil", "Filters", "Parts", "Additives", "Services"]
-    let remainingPercentage = 100
     
     const salesByCategory = categories.map((category, index) => {
-      // Last category gets whatever is left
-      const isLast = index === categories.length - 1
-      
-      // Generate percentage for this category
-      const percentage = isLast 
-        ? remainingPercentage 
-        : Math.round(remainingPercentage * (0.1 + Math.random() * 0.3))
-      
-      remainingPercentage -= percentage
+      // Fixed distribution
+      let percentage = 0
+      switch(index) {
+        case 0: percentage = 35; break; // Oil
+        case 1: percentage = 25; break; // Filters
+        case 2: percentage = 20; break; // Parts
+        case 3: percentage = 15; break; // Additives
+        case 4: percentage = 5; break;  // Services
+      }
       
       return {
         category,
@@ -327,36 +341,36 @@ export function useDashboardData(): UseDashboardDataReturn {
       }
     })
     
-    // Top products
+    // Top products (mock)
     const topProducts = [
       {
         name: "Mobil 1 5W-30 (1L)",
-        units: Math.floor(100 + Math.random() * 100),
-        revenue: 1200 + Math.random() * 1000
+        units: 145,
+        revenue: 1200
       },
       {
         name: "Oil Filter OE-quality",
-        units: Math.floor(80 + Math.random() * 100),
-        revenue: 800 + Math.random() * 900
+        units: 120,
+        revenue: 800
       },
       {
         name: "Air Filter Premium",
-        units: Math.floor(60 + Math.random() * 100),
-        revenue: 600 + Math.random() * 800
+        units: 95,
+        revenue: 600
       },
       {
         name: "Brake Pads (Front)",
-        units: Math.floor(50 + Math.random() * 50),
-        revenue: 500 + Math.random() * 700
+        units: 65,
+        revenue: 500
       },
       {
         name: "Wiper Blades",
-        units: Math.floor(40 + Math.random() * 40),
-        revenue: 300 + Math.random() * 500
+        units: 45,
+        revenue: 300
       }
     ]
     
-    // Sales trend over time
+    // Sales trend over time (mock distribution of real total)
     const trendPoints = durationDays
     const salesTrend = Array(trendPoints).fill(0).map((_, i) => {
       // Base sales value with some randomness
@@ -373,7 +387,9 @@ export function useDashboardData(): UseDashboardDataReturn {
         dayFactor = 0.8 // Mid-week dip
       }
       
-      const value = basePerDay * dayFactor * (0.7 + Math.random() * 0.6)
+      // Distribute total sales roughly across days
+      const dailyBase = totalSales / durationDays
+      const value = dailyBase * dayFactor * 1.0 // Removed random variation
       
       return {
         date: day.toISOString().split('T')[0],
@@ -387,7 +403,7 @@ export function useDashboardData(): UseDashboardDataReturn {
       null as TrendPoint | null
     )?.date
     
-    setSalesMetrics({
+    const metrics = {
       totalSales,
       previousPeriodSales,
       changePercentage,
@@ -397,48 +413,55 @@ export function useDashboardData(): UseDashboardDataReturn {
       topProducts,
       salesTrend,
       bestSellingDay
-    })
+    }
+
+    setSalesMetrics(metrics)
+    return metrics
   }
   
-  const fetchProfitMetrics = async () => {
+  const fetchProfitMetrics = async (currentSalesMetrics: SalesMetrics) => {
     // Simulate API call (minimal delay for better responsiveness)
     await new Promise(resolve => setTimeout(resolve, 20))
     
-    // Calculate gross profit (about 30-40% of sales)
-    const grossProfit = salesMetrics.totalSales * (0.3 + Math.random() * 0.1)
+    // Calculate gross profit (fixed 35% of sales)
+    const grossProfit = currentSalesMetrics.totalSales * 0.35
     
     // Calculate previous period profit
-    const previousPeriodProfit = salesMetrics.previousPeriodSales * (0.3 + Math.random() * 0.1)
+    const previousPeriodProfit = currentSalesMetrics.previousPeriodSales * 0.35
     
     // Calculate profit change percentage
-    const profitChangePercentage = ((grossProfit - previousPeriodProfit) / previousPeriodProfit) * 100
+    const profitChangePercentage = previousPeriodProfit > 0
+      ? ((grossProfit - previousPeriodProfit) / previousPeriodProfit) * 100
+      : 0
     
     // Calculate profit margin
-    const profitMargin = (grossProfit / salesMetrics.totalSales) * 100
+    const profitMargin = currentSalesMetrics.totalSales > 0
+      ? (grossProfit / currentSalesMetrics.totalSales) * 100
+      : 0
     
     // Profit by category
-    const profitByCategory = salesMetrics.salesByCategory.map(category => {
+    const profitByCategory = currentSalesMetrics.salesByCategory.map(category => {
       // Different product categories have different profit margins
       let margin
       
       switch (category.category) {
         case "Oil":
-          margin = 25 + Math.random() * 10
+          margin = 25
           break
         case "Filters":
-          margin = 40 + Math.random() * 10
+          margin = 40
           break
         case "Parts":
-          margin = 30 + Math.random() * 15
+          margin = 30
           break
         case "Additives":
-          margin = 45 + Math.random() * 10
+          margin = 45
           break
         case "Services":
-          margin = 60 + Math.random() * 15
+          margin = 60
           break
         default:
-          margin = 35 + Math.random() * 10
+          margin = 35
       }
       
       const amount = category.amount * (margin / 100)
@@ -446,13 +469,13 @@ export function useDashboardData(): UseDashboardDataReturn {
       return {
         category: category.category,
         amount,
-        percentage: (amount / grossProfit) * 100,
+        percentage: grossProfit > 0 ? (amount / grossProfit) * 100 : 0,
         margin
       }
     })
     
     // Profit trend follows sales trend but with margin applied
-    const profitTrend = salesMetrics.salesTrend.map(point => ({
+    const profitTrend = currentSalesMetrics.salesTrend.map(point => ({
       date: point.date,
       value: point.value * (profitMargin / 100)
     }))
@@ -471,43 +494,42 @@ export function useDashboardData(): UseDashboardDataReturn {
     // Simulate API call (minimal delay for better responsiveness)
     await new Promise(resolve => setTimeout(resolve, 20))
     
-    // Generate total item count
-    const totalItems = 1200 + Math.floor(Math.random() * 300)
+    // Generate total item count (fixed)
+    const totalItems = 1350
     
-    // Calculate low stock and out of stock items
-    const lowStockItems = Math.floor(totalItems * (0.05 + Math.random() * 0.05))
-    const outOfStockItems = Math.floor(totalItems * (0.01 + Math.random() * 0.02))
+    // Calculate low stock and out of stock items (fixed)
+    const lowStockItems = 65
+    const outOfStockItems = 15
     
-    // Calculate inventory value (average of $10-15 per item)
-    const avgValuePerItem = 10 + Math.random() * 5
-    const totalValue = totalItems * avgValuePerItem
+    // Calculate inventory value (fixed)
+    const totalValue = 18500
     
-    // Top inventory value items
+    // Top inventory value items (fixed)
     const topInventoryValue = [
       {
         name: "Premium Motor Oil (Bulk)",
-        value: 5000 + Math.random() * 1000,
-        quantity: 500 + Math.floor(Math.random() * 100)
+        value: 5500,
+        quantity: 550
       },
       {
         name: "Brake Pad Sets",
-        value: 3500 + Math.random() * 1000,
-        quantity: 120 + Math.floor(Math.random() * 50)
+        value: 3800,
+        quantity: 140
       },
       {
         name: "Oil Filters",
-        value: 2800 + Math.random() * 800,
-        quantity: 350 + Math.floor(Math.random() * 100)
+        value: 3000,
+        quantity: 380
       },
       {
         name: "Air Filters",
-        value: 2200 + Math.random() * 700,
-        quantity: 280 + Math.floor(Math.random() * 80)
+        value: 2500,
+        quantity: 300
       },
       {
         name: "Wiper Blade Sets",
-        value: 1800 + Math.random() * 500,
-        quantity: 200 + Math.floor(Math.random() * 60)
+        value: 2000,
+        quantity: 220
       }
     ]
     
@@ -520,48 +542,48 @@ export function useDashboardData(): UseDashboardDataReturn {
     })
   }
   
-  const fetchCustomerMetrics = async () => {
+  const fetchCustomerMetrics = async (currentSalesMetrics: SalesMetrics) => {
     // Simulate API call (minimal delay for better responsiveness)
     await new Promise(resolve => setTimeout(resolve, 20))
     
-    // Total customers
-    const totalCustomers = 800 + Math.floor(Math.random() * 200)
+    // Total customers (fixed)
+    const totalCustomers = 950
     
-    // New customers (about 5-10% of total)
-    const newCustomers = Math.floor(totalCustomers * (0.05 + Math.random() * 0.05))
+    // New customers (fixed)
+    const newCustomers = 45
     
     // Returning customers
     const returningCustomers = totalCustomers - newCustomers
     
     // Average spend per customer
-    const avgSpendPerCustomer = salesMetrics.totalSales / (returningCustomers + newCustomers * 0.5)
+    const avgSpendPerCustomer = currentSalesMetrics.totalSales / (returningCustomers + newCustomers * 0.5)
     
-    // Top customers
+    // Top customers (fixed)
     const topCustomers = [
       {
         name: "Al Mouj Auto Service",
-        totalSpend: 5000 + Math.random() * 3000,
-        orderCount: 15 + Math.floor(Math.random() * 10)
+        totalSpend: 6500,
+        orderCount: 22
       },
       {
         name: "Muscat Motors",
-        totalSpend: 4000 + Math.random() * 2000,
-        orderCount: 12 + Math.floor(Math.random() * 8)
+        totalSpend: 5200,
+        orderCount: 18
       },
       {
         name: "Autocare Express",
-        totalSpend: 3500 + Math.random() * 1500,
-        orderCount: 10 + Math.floor(Math.random() * 7)
+        totalSpend: 4100,
+        orderCount: 14
       },
       {
         name: "Premium Auto Shop",
-        totalSpend: 3000 + Math.random() * 1000,
-        orderCount: 8 + Math.floor(Math.random() * 6)
+        totalSpend: 3500,
+        orderCount: 11
       },
       {
         name: "Car Care Specialist",
-        totalSpend: 2500 + Math.random() * 1000,
-        orderCount: 7 + Math.floor(Math.random() * 5)
+        totalSpend: 2900,
+        orderCount: 9
       }
     ]
     
@@ -574,26 +596,22 @@ export function useDashboardData(): UseDashboardDataReturn {
     })
   }
   
-  const fetchPaymentMetrics = async () => {
+  const fetchPaymentMetrics = async (currentSalesMetrics: SalesMetrics) => {
     // Simulate API call (minimal delay for better responsiveness)
     await new Promise(resolve => setTimeout(resolve, 20))
     
-    // Payment methods and their distribution
+    // Payment methods and their distribution (fixed)
     const methods = [
-      { method: "Card", percentage: 45 + Math.random() * 10 },
-      { method: "Cash", percentage: 30 + Math.random() * 10 },
-      { method: "Bank Transfer", percentage: 15 + Math.random() * 5 },
-      { method: "Other", percentage: 0 } // Will be calculated
+      { method: "Card", percentage: 45 },
+      { method: "Cash", percentage: 30 },
+      { method: "Bank Transfer", percentage: 15 },
+      { method: "Other", percentage: 10 }
     ]
-    
-    // Make sure percentages add up to 100%
-    const calculatedSum = methods.reduce((sum, m) => sum + m.percentage, 0)
-    methods[3].percentage = 100 - calculatedSum
     
     // Calculate amounts and transaction counts
     const byPaymentMethod = methods.map(m => {
-      const amount = (salesMetrics.totalSales * m.percentage) / 100
-      const count = Math.floor((salesMetrics.transactionCount * m.percentage) / 100)
+      const amount = (currentSalesMetrics.totalSales * m.percentage) / 100
+      const count = Math.floor((currentSalesMetrics.transactionCount * m.percentage) / 100)
       
       return {
         method: m.method,
@@ -627,13 +645,15 @@ export function useDashboardData(): UseDashboardDataReturn {
     setIsLoading(true)
     
     try {
-      // Run all fetches concurrently instead of sequentially to improve performance
+      // First fetch sales metrics as other metrics depend on it
+      const currentSalesMetrics = await fetchSalesMetrics()
+      
+      // Then fetch other metrics using the sales data
       await Promise.all([
-        fetchSalesMetrics(),
-        fetchProfitMetrics(),
+        fetchProfitMetrics(currentSalesMetrics),
         fetchInventoryMetrics(),
-        fetchCustomerMetrics(),
-        fetchPaymentMetrics()
+        fetchCustomerMetrics(currentSalesMetrics),
+        fetchPaymentMetrics(currentSalesMetrics)
       ])
       
       setLastUpdated(new Date())
@@ -700,4 +720,4 @@ export function useDashboardData(): UseDashboardDataReturn {
     // Actions
     refreshData
   }
-} 
+}
