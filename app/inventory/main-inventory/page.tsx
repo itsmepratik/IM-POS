@@ -994,15 +994,6 @@ function MobileView() {
             {filteredItems.length}{" "}
             {filteredItems.length === 1 ? "item" : "items"} found
           </div>
-          {showLowStockOnly && (
-            <Badge
-              variant="outline"
-              className="bg-amber-100 border-amber-300 text-amber-700 text-xs flex items-center gap-1"
-            >
-              <AlertCircle className="h-3 w-3" />
-              Low Stock
-            </Badge>
-          )}
           {showOutOfStockOnly && (
             <Badge
               variant="outline"
@@ -1013,7 +1004,31 @@ function MobileView() {
             </Badge>
           )}
         </div>
+        <div className="flex items-center gap-2">
+          <label htmlFor="mobileShowBatteries" className="text-sm font-medium">
+            Show batteries
+          </label>
+          <ClientOnly>
+            <Checkbox
+              id="mobileShowBatteries"
+              checked={showBatteries}
+              onCheckedChange={(checked) => {
+                setShowBatteries(!!checked);
+              }}
+            />
+          </ClientOnly>
+        </div>
       </div>
+
+      {showBatteries && (
+        <div className="flex items-center gap-2 pb-2">
+          <span className="text-sm font-medium">State:</span>
+          <BatteryStateSwitch
+            value={batteryState}
+            onChange={setBatteryState}
+          />
+        </div>
+      )}
 
       <div className="space-y-2">
         {!isLoading &&
