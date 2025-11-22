@@ -594,6 +594,15 @@ function MobileView() {
     // Counts
     outOfStockCount,
     lowStockCount,
+
+    // Advanced filters
+    minPrice,
+    setMinPrice,
+    maxPrice,
+    setMaxPrice,
+    stockStatus,
+    setStockStatus,
+    resetFilters,
   } = useInventoryData();
 
   const [itemModalOpen, setItemModalOpen] = useState(false);
@@ -728,6 +737,28 @@ function MobileView() {
     [setShowInStock, setShowLowStockOnly, setShowOutOfStockOnly]
   );
 
+  // Handle min price change
+  const handleMinPriceChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      setMinPrice(e.target.value);
+    },
+    [setMinPrice]
+  );
+
+  // Handle max price change
+  const handleMaxPriceChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      setMaxPrice(e.target.value);
+    },
+    [setMaxPrice]
+  );
+
+  // Handle clear all filters
+  const handleClearAllFilters = useCallback(() => {
+    resetFilters();
+    setFiltersOpen(false);
+  }, [resetFilters]);
+
   return (
     <div className="space-y-4 mt-[0px] pt-3 pb-4">
       <div className="mb-2 flex flex-col gap-4">
@@ -790,10 +821,65 @@ function MobileView() {
       {/* Filters Sheet */}
       <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
         <SheetContent side="right" className="w-[280px] sm:w-[380px]">
-          <SheetHeader>
+          <SheetHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <SheetTitle>Filters</SheetTitle>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleClearAllFilters}
+              className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-3 w-3 mr-1" />
+              Clear All
+            </Button>
           </SheetHeader>
-          <div className="py-4 space-y-4">
+          <div className="py-4 space-y-6">
+            {/* Price Range Filter */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                <span className="text-green-600">💰</span>
+                Price Range
+              </label>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  placeholder="Min"
+                  value={minPrice}
+                  onChange={handleMinPriceChange}
+                  className="flex-1"
+                />
+                <span className="text-gray-400">-</span>
+                <Input
+                  type="number"
+                  placeholder="Max"
+                  value={maxPrice}
+                  onChange={handleMaxPriceChange}
+                  className="flex-1"
+                />
+              </div>
+            </div>
+
+            {/* Stock Status Filter */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                <span className="text-orange-600">📦</span>
+                Stock Status
+              </label>
+              <ClientOnly>
+                <Select value={stockStatus} onValueChange={setStockStatus}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="All Stock" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Stock</SelectItem>
+                    <SelectItem value="in-stock">In Stock</SelectItem>
+                    <SelectItem value="low-stock">Low Stock</SelectItem>
+                    <SelectItem value="out-of-stock">Out of Stock</SelectItem>
+                  </SelectContent>
+                </Select>
+              </ClientOnly>
+            </div>
+
             <div className="space-y-4">
               <h3 className="text-sm font-medium">Categories</h3>
               <ClientOnly>
@@ -814,14 +900,7 @@ function MobileView() {
                   </SelectContent>
                 </Select>
               </ClientOnly>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleCategoryModalOpen}
-                className="w-full"
-              >
-                Categories
-              </Button>
+
             </div>
 
             <div className="space-y-4 pt-2">
@@ -842,14 +921,7 @@ function MobileView() {
                   </SelectContent>
                 </Select>
               </ClientOnly>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleBrandModalOpen}
-                className="w-full"
-              >
-                Brands
-              </Button>
+
             </div>
 
             {/* Stock Options */}

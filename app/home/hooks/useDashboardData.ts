@@ -158,7 +158,7 @@ export function useDashboardData(): UseDashboardDataReturn {
   
   // Filters
   const [dateRange, setDateRangeState] = useState<DateRange>({
-    start: startOfDay(subDays(new Date(), 30)),
+    start: startOfDay(new Date()),
     end: endOfDay(new Date())
   })
   
@@ -300,16 +300,29 @@ export function useDashboardData(): UseDashboardDataReturn {
     }
 
     // Get date range duration in days
-    const durationDays = Math.ceil(
+    const durationDays = Math.max(1, Math.ceil(
       (dateRange.end.getTime() - dateRange.start.getTime()) / (1000 * 60 * 60 * 24)
-    )
+    ))
+
+    // Calculate previous period range
+    const previousStart = new Date(dateRange.start)
+    previousStart.setDate(previousStart.getDate() - durationDays)
+    const previousEnd = new Date(dateRange.end)
+    previousEnd.setDate(previousEnd.getDate() - durationDays)
+
+    // Fetch net revenue for previous period
+    const { data: prevNetRevenue, error: prevError } = await supabase.rpc('get_net_revenue', {
+      start_date: previousStart.toISOString(),
+      end_date: previousEnd.toISOString(),
+      filter_shop_id: shopId
+    })
+
+    if (prevError) {
+      console.error('Error fetching previous net revenue:', prevError)
+    }
     
-    // For now, we only have real data for totalSales. 
-    // Other metrics will remain mock/calculated based on this real total until we implement them.
     const totalSales = Number(netRevenue) || 0
-    
-    // Generate previous period sales (mock for now - fixed at 90% of current)
-    const previousPeriodSales = totalSales * 0.9
+    const previousPeriodSales = Number(prevNetRevenue) || 0
     
     // Calculate change percentage
     const changePercentage = previousPeriodSales > 0 
