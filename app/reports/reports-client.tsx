@@ -48,9 +48,7 @@ export default function ReportsClient() {
     setHasMounted(true)
   }, [])
 
-  if (currentUser?.role === "staff") {
-    return <div className="text-center py-8">You don&apos;t have permission to access this page.</div>
-  }
+
 
   const generateReport = async () => {
     try {

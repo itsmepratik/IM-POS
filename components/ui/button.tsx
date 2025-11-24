@@ -5,28 +5,33 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center whitespace-nowrap rounded-lg text-sm font-medium outline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring/70 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0",
+  "inline-flex items-center justify-center whitespace-nowrap text-sm font-medium outline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring/70 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0",
   {
     variants: {
       variant: {
-        default:
-          "bg-primary text-primary-foreground relative transition-all duration-200 ease-in-out active:transition-none " +
-          "shadow-chonky-primary hover:translate-y-[-2px] hover:shadow-chonky-primary-hover active:translate-y-[3px] active:shadow-chonky-primary-active",
+        default: "bg-primary text-primary-foreground hover:bg-primary/90 rounded-[14px]",
         destructive:
-          "bg-destructive text-destructive-foreground relative transition-all duration-200 ease-in-out active:transition-none " +
-          "shadow-chonky-destructive hover:translate-y-[-2px] hover:shadow-chonky-destructive-hover active:translate-y-[3px] active:shadow-chonky-destructive-active",
+          "bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-[14px]",
         outline:
-          "border border-input bg-background shadow-sm shadow-black/5 hover:bg-accent hover:text-accent-foreground transition-colors",
+          "border border-input bg-background hover:bg-accent hover:text-accent-foreground rounded-[14px]",
         secondary:
-          "bg-secondary text-secondary-foreground relative transition-all duration-200 ease-in-out active:transition-none " +
+          "bg-secondary text-secondary-foreground hover:bg-secondary/80 rounded-[14px]",
+        chonky:
+          "bg-primary text-primary-foreground relative transition-all duration-200 ease-in-out active:transition-none rounded-lg " +
+          "shadow-chonky-primary hover:translate-y-[-2px] hover:shadow-chonky-primary-hover active:translate-y-[3px] active:shadow-chonky-primary-active",
+        "chonky-destructive":
+          "bg-destructive text-destructive-foreground relative transition-all duration-200 ease-in-out active:transition-none rounded-lg " +
+          "shadow-chonky-destructive hover:translate-y-[-2px] hover:shadow-chonky-destructive-hover active:translate-y-[3px] active:shadow-chonky-destructive-active",
+        "chonky-secondary":
+          "bg-secondary text-secondary-foreground relative transition-all duration-200 ease-in-out active:transition-none rounded-lg " +
           "shadow-chonky-secondary hover:translate-y-[-2px] hover:shadow-chonky-secondary-hover active:translate-y-[3px] active:shadow-chonky-secondary-active",
-        ghost: "hover:bg-accent hover:text-accent-foreground transition-colors",
-        link: "text-primary underline-offset-4 hover:underline transition-colors",
+        ghost: "hover:bg-accent hover:text-accent-foreground transition-colors rounded-[14px]",
+        link: "text-primary underline-offset-4 hover:underline transition-colors rounded-[14px]",
       },
       size: {
         default: "h-10 px-4 py-2",
-        sm: "h-10 rounded-lg px-3 text-xs",
-        lg: "h-12 rounded-lg px-8",
+        sm: "h-10 px-3 text-xs",
+        lg: "h-12 px-8",
         icon: "h-10 w-10",
       },
     },

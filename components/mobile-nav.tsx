@@ -24,6 +24,7 @@ import {
   Moon,
   Sun,
   Package,
+  Wrench,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -87,6 +88,13 @@ export function MobileNav({ className }: { className?: string }) {
       icon: <RefreshCcw className="h-4 w-4" />,
       isAdmin: false,
       permission: "transactions.access" as const,
+    },
+    {
+      title: "Internal Tool",
+      href: "/internal-tool",
+      icon: <Wrench className="h-4 w-4" />,
+      isAdmin: true,
+      permission: "admin.access" as const,
     },
   ];
 

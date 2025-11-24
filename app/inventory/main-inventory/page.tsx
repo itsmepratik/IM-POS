@@ -1747,13 +1747,7 @@ function DesktopView() {
 function ItemsPageContent() {
   const { currentUser } = useUser();
 
-  if (currentUser?.role === "staff") {
-    return (
-      <div className="text-center py-8">
-        You don&apos;t have permission to access this page.
-      </div>
-    );
-  }
+
 
   return (
     <div className="w-full h-full">

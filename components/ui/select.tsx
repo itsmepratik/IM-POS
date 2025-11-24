@@ -134,7 +134,7 @@ SelectLabel.displayName = SelectPrimitive.Label.displayName
 const SelectItem = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Item>,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Item>
->(({ className, children, ...props }, ref) => {
+>(({ className, children, value, ...props }, ref) => {
   const [mounted, setMounted] = React.useState(false)
   const id = React.useId()
 
@@ -144,9 +144,9 @@ const SelectItem = React.forwardRef<
 
   const safeProps = React.useMemo(() => {
     const filtered: Record<string, any> = {}
-    Object.entries(props).forEach(([key, value]) => {
+    Object.entries(props).forEach(([key, val]) => {
       if (!key.startsWith('data-')) {
-        filtered[key] = value
+        filtered[key] = val
       }
     })
     return filtered
@@ -155,6 +155,7 @@ const SelectItem = React.forwardRef<
   return (
     <SelectPrimitive.Item
       ref={ref}
+      value={value}
       className={cn(
         "relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-2 pr-8 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
         className

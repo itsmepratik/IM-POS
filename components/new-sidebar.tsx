@@ -28,6 +28,7 @@ import {
   Moon,
   Sun,
   Package,
+  Wrench,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -113,6 +114,13 @@ export function Sidebar({
       icon: <RefreshCcw className="h-4 w-4" />,
       permission: "transactions.access" as const,
       adminOnly: false,
+    },
+    {
+      title: "Internal Tool",
+      href: "/internal-tool",
+      icon: <Wrench className="h-4 w-4" />,
+      permission: "admin.access" as const,
+      adminOnly: true,
     },
   ];
 

@@ -29,8 +29,8 @@ export function Cart({
       <div className="flex items-center justify-between px-4 py-3 border-b">
         <h2 className="text-[clamp(1.125rem,3vw,1.25rem)] font-semibold">Cart</h2>
         <Button
-          variant="ghost"
-          className="text-[clamp(0.875rem,2vw,1rem)] text-muted-foreground hover:text-destructive"
+          variant="chonky-destructive"
+          className="text-[clamp(0.875rem,2vw,1rem)]"
           onClick={onClear}
           disabled={items.length === 0}
         >
@@ -62,6 +62,7 @@ export function Cart({
           </span>
         </div>
         <Button
+          variant="chonky"
           className="w-full text-[clamp(0.875rem,2vw,1rem)]"
           size="lg"
           onClick={onCheckout}

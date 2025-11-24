@@ -513,7 +513,7 @@ export function Transfer2POSInterface({
                 }}
                 className={`flex items-center gap-2 justify-start transition-all duration-200 ${
                   activeCategory === category
-                    ? "shadow-md"
+                    ? ""
                     : "hover:bg-accent hover:border-primary/20"
                 }`}
               >
@@ -547,7 +547,7 @@ export function Transfer2POSInterface({
               return (
                 <div
                   key={brand}
-                  className="border rounded-lg overflow-hidden bg-card shadow-sm hover:shadow-md transition-shadow duration-200"
+                  className="border rounded-lg overflow-hidden bg-card shadow-sm transition-shadow duration-200"
                 >
                   <Button
                     variant="ghost"
@@ -598,7 +598,7 @@ export function Transfer2POSInterface({
                             <Button
                               key={product.id}
                               variant="outline"
-                              className="h-auto min-h-[160px] flex flex-col items-center justify-between p-3 hover:shadow-lg hover:border-primary/50 hover:scale-[1.02] transition-all duration-200 overflow-hidden border-2 bg-card group"
+                              className="h-auto min-h-[160px] flex flex-col items-center justify-between p-3 hover:border-primary/50 transition-all duration-200 overflow-hidden bg-card group"
                               onClick={() => {
                                 if (activeCategory === "Lubricants") {
                                   handleLubricantSelect(product);

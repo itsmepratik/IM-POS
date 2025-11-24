@@ -6,7 +6,7 @@ import { toast } from "@/components/ui/use-toast";
 const LOW_STOCK_THRESHOLD = 5;
 
 export const useInventoryData = () => {
-  const { items, categories, brands, deleteItem, duplicateItem } = useItems();
+  const { items, categories, brands, deleteItem, duplicateItem, isLoading } = useItems();
 
   // Search and filter states
   const [searchQuery, setSearchQuery] = useState("");
@@ -329,5 +329,8 @@ export const useInventoryData = () => {
     // Counts
     outOfStockCount,
     lowStockCount,
+
+    // Loading state
+    isLoading,
   };
 };

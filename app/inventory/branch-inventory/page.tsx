@@ -754,13 +754,7 @@ function BranchInventoryPage() {
     }
   }, [checkViewport]);
 
-  if (currentUser?.role === "staff") {
-    return (
-      <div className="text-center py-8">
-        You don&apos;t have permission to access this page.
-      </div>
-    );
-  }
+
 
   // Get available branches
   const branches = [ABU_DHABI_BRANCH, HAFITH_BRANCH];
