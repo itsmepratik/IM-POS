@@ -33,7 +33,7 @@ export function TradeInDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   initialAmount?: number;
-  onApply: (totalAmount: number) => void;
+  onApply: (totalAmount: number, batteries: TradeinBattery[]) => void;
 }) {
   const [batteries, setBatteries] = useState<TradeinBattery[]>([]);
   const [entry, setEntry] = useState<{
@@ -228,12 +228,13 @@ export function TradeInDialog({
                 <Button
                   onClick={editingId ? onUpdate : onAdd}
                   className="px-6 w-full sm:w-auto"
+                  variant="chonky"
                 >
                   {editingId ? "Update" : "Add Battery"}
                 </Button>
                 {editingId && (
                   <Button
-                    variant="outline"
+                    variant="chonky-secondary"
                     onClick={() => {
                       setEditingId(null);
                       setEntry({ size: "", status: "", amount: 0 });
@@ -349,7 +350,7 @@ export function TradeInDialog({
 
         <DialogFooter className="flex-shrink-0 flex flex-col sm:flex-row gap-2 sm:gap-3 mt-3 sm:mt-4">
           <Button
-            variant="outline"
+            variant="chonky-secondary"
             className="sm:flex-1 h-10 sm:h-11"
             onClick={() => {
               onOpenChange(false);
@@ -359,9 +360,10 @@ export function TradeInDialog({
           </Button>
           <Button
             className="sm:flex-1 h-10 sm:h-11"
+            variant="chonky"
             disabled={batteries.length === 0}
             onClick={() => {
-              onApply(total);
+              onApply(total, batteries);
               onOpenChange(false);
             }}
           >

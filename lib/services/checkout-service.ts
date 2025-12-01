@@ -126,11 +126,14 @@ class CheckoutService {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
 
-      // Log the request being sent (especially discount)
+      //Log the request being sent (especially discount and trade-ins)
       console.log("📤 CheckoutService: Sending request to API:", {
         hasDiscount: !!request.discount,
         discount: request.discount,
         cartLength: request.cart.length,
+        hasTradeIns: !!request.tradeIns,
+        tradeInsLength: request.tradeIns?.length || 0,
+        tradeIns: request.tradeIns,
       });
 
       const response = await fetch("/api/checkout", {

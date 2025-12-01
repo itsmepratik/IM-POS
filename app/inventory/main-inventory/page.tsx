@@ -553,7 +553,7 @@ TableRow.displayName = "TableRow";
 function MobileView() {
   const [isPending, startTransition] = useTransition();
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 7;
+  const itemsPerPage = 10;
 
   const {
     filteredItems,
@@ -1106,7 +1106,7 @@ function MobileView() {
 function DesktopView() {
   const [isPending, startTransition] = useTransition();
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 7;
+  const itemsPerPage = 10;
 
   const {
     filteredItems,

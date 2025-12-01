@@ -9,7 +9,7 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -2620,6 +2620,7 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
                       <Button
                         onClick={handleLookupReceipt}
                         disabled={!receiptNumber || isSearching}
+                        variant="chonky"
                       >
                         {isSearching ? (
                           <>
@@ -2977,29 +2978,29 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
           <DialogFooter className="px-3 py-3 border-t flex-wrap gap-y-2">
             {step === "search" && (
               <div className="flex gap-2 sm:gap-3 w-full justify-end flex-wrap">
-                <Button variant="outline" onClick={handleCloseDialog}>
+                <Button variant="chonky-secondary" onClick={handleCloseDialog}>
                   Close
                 </Button>
               </div>
             )}
             {step === "select" && (
               <div className="flex gap-2 sm:gap-3 w-full justify-end flex-wrap">
-                <Button variant="ghost" onClick={() => setStep("search")}>
+                <Button variant="chonky-secondary" onClick={() => setStep("search")}>
                   Back
                 </Button>
-                <Button onClick={handleProceedToConfirm}>
+                <Button onClick={handleProceedToConfirm} variant="chonky">
                   Continue to Confirm
                 </Button>
               </div>
             )}
             {step === "confirm" && (
               <div className="flex gap-2 sm:gap-3 w-full justify-end flex-wrap">
-                <Button variant="ghost" onClick={() => setStep("select")}>
+                <Button variant="chonky-secondary" onClick={() => setStep("select")}>
                   Back
                 </Button>
                 <Button
                   onClick={() => setIsConfirmDialogOpen(true)}
-                  variant="destructive"
+                  variant="chonky-destructive"
                 >
                   Process Claim
                 </Button>
@@ -3027,6 +3028,7 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
                   <Button
                     onClick={() => setShowRefundReceipt(true)}
                     className="gap-2"
+                    variant="chonky"
                   >
                     <Printer className="h-4 w-4" /> View Warranty Bill
                   </Button>
@@ -3034,20 +3036,20 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
                 {showRefundReceipt && (
                   <div className="flex gap-2 sm:gap-3 w-full justify-end flex-wrap">
                     <Button
-                      variant="outline"
+                      variant="chonky-secondary"
                       onClick={() => setShowRefundReceipt(false)}
                       className="gap-2"
                     >
                       Back
                     </Button>
-                    <Button onClick={handlePrint} className="gap-2">
+                    <Button onClick={handlePrint} className="gap-2" variant="chonky">
                       <Printer className="h-4 w-4" /> Print Warranty Bill
                     </Button>
-                    <Button onClick={handleCloseDialog}>Done</Button>
+                    <Button onClick={handleCloseDialog} variant="chonky">Done</Button>
                   </div>
                 )}
                 {!showRefundReceipt && (
-                  <Button onClick={handleCloseDialog}>Done</Button>
+                  <Button onClick={handleCloseDialog} variant="chonky">Done</Button>
                 )}
               </div>
             )}
@@ -3072,7 +3074,7 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
           <AlertDialogFooter className="flex-wrap gap-y-2">
             <div className="flex gap-2 sm:gap-3 w-full justify-end flex-wrap">
               <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={handleConfirmClaim}>
+              <AlertDialogAction onClick={handleConfirmClaim} className={cn(buttonVariants({ variant: "chonky" }))}>
                 Confirm
               </AlertDialogAction>
             </div>
@@ -3151,6 +3153,7 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
                   }
                 }}
                 disabled={isProcessingRefund || !enteredCashierId.trim()}
+                className={cn(buttonVariants({ variant: "chonky" }))}
               >
                 {isProcessingRefund ? (
                   <>

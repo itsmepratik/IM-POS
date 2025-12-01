@@ -38,13 +38,13 @@ const defaultCompanyInfo: CompanyInfo = {
     posId: "POS-01",
   },
   registered: {
-    name: "AL-TARATH NATIONAL CO.",
+    name: "FAYD AL-NOOR AL-SAATA TRAD. & CONT.",
     arabicName: "شركة الطارث الوطنية",
-    crNumber: "1001886",
+    crNumber: "1092602",
     addressLines: ["W.Saham", "Al-Sanaiya", "Sultanate of Oman"],
     contactNumber: "71170805",
     serviceDescription: {
-      english: "TYRE REPAIRING & OIL CHANGING OF VEHICLES",
+      english: "METAL TURNING & REPAIR OF CAR HUBS & BRAKES",
       arabic: "إصلاح الإطارات وتغيير النفط للمركبات",
     },
   },

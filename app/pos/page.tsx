@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic"; // Ensure dynamic rendering and no serve
 
 import { useState, useMemo, useCallback, memo, useRef, useEffect } from "react";
 import { Layout } from "@/components/layout";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -126,7 +126,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { useStaffIDs } from "@/lib/hooks/useStaffIDs";
 import { Vehicle, CustomerData } from "@/app/customers/customer-form";
 import { CategoryProvider } from "./context/CategoryContext";
-import { CartProvider } from "./context/CartContext";
+import { CartProvider, useCart } from "./context/CartContext";
 import { LubricantCategory } from "./components/categories/LubricantCategory";
 import { FiltersCategory } from "./components/categories/FiltersCategory";
 import { PartsCategory } from "./components/categories/PartsCategory";
@@ -988,7 +988,7 @@ function POSCustomerForm({
         <DialogFooter className="px-6 py-4 border-t shrink-0 flex flex-col sm:flex-row gap-3 sm:gap-2 fixed bottom-0 left-0 right-0 bg-background sm:relative">
           <Button
             type="button"
-            variant="secondary"
+            variant="chonky-secondary"
             onClick={onSkip}
             className="w-full sm:w-auto order-2 sm:order-1"
           >
@@ -997,6 +997,7 @@ function POSCustomerForm({
           <Button
             type="submit"
             form="customer-form"
+            variant="chonky"
             className="w-full sm:w-auto order-1 sm:order-2"
             disabled={isSubmitting}
           >
@@ -1043,7 +1044,13 @@ function POSPageContent() {
   // Ref to track last notification creation to prevent duplicates
   const lastNotificationRef = useRef<{ key: string; timestamp: number } | null>(null);
 
-  const [cart, setCart] = useState<CartItem[]>([]);
+  const {
+    cart,
+    addToCart: contextAddToCart,
+    removeFromCart: contextRemoveFromCart,
+    updateQuantity: contextUpdateQuantity,
+    clearCart: contextClearCart,
+  } = useCart();
   const [activeCategory, setActiveCategory] = useState<string>("Lubricants");
   const [searchQuery, setSearchQuery] = useState("");
   const [showCart, setShowCart] = useState(false);
@@ -1270,35 +1277,29 @@ function POSPageContent() {
   };
   // Memoize handlers
   const removeFromCart = useCallback((productId: number, uniqueId?: string) => {
-    setCart((prevCart) => {
-      // If uniqueId is provided, only remove the item with matching uniqueId
-      if (uniqueId) {
-        return prevCart.filter((item) => item.uniqueId !== uniqueId);
+    if (uniqueId) {
+      contextRemoveFromCart(uniqueId);
+    } else {
+      // Fallback for backward compatibility
+      const item = cart.find((i) => i.id === productId);
+      if (item) {
+        contextRemoveFromCart(item.uniqueId);
       }
-      // Otherwise fall back to filtering by id (for backward compatibility)
-      return prevCart.filter((item) => item.id !== productId);
-    });
-  }, []);
+    }
+  }, [contextRemoveFromCart, cart]);
 
   const updateQuantity = useCallback(
     (productId: number, newQuantity: number, uniqueId?: string) => {
-      if (newQuantity < 1) {
-        removeFromCart(productId, uniqueId);
+      if (uniqueId) {
+        contextUpdateQuantity(uniqueId, newQuantity);
       } else {
-        setCart((prevCart) =>
-          prevCart.map((item) =>
-            uniqueId
-              ? item.uniqueId === uniqueId
-                ? { ...item, quantity: newQuantity }
-                : item
-              : item.id === productId
-              ? { ...item, quantity: newQuantity }
-              : item
-          )
-        );
+        const item = cart.find((i) => i.id === productId);
+        if (item) {
+          contextUpdateQuantity(item.uniqueId, newQuantity);
+        }
       }
     },
-    [removeFromCart]
+    [contextUpdateQuantity, cart]
   );
 
   const addToCart = useCallback(
@@ -1310,59 +1311,41 @@ function POSPageContent() {
       bottleType?: "open" | "closed"
     ) => {
       const uniqueId = `${product.id}-${details || ""}`;
-      setCart((prevCart) => {
-        const existingItem = prevCart.find(
-          (item) => item.uniqueId === uniqueId
-        );
-        if (existingItem) {
-          return prevCart.map((item) =>
-            item.uniqueId === uniqueId
-              ? { 
-                  ...item, 
-                  quantity: item.quantity + quantity,
-                  // Preserve bottleType if it exists, or use the new one
-                  bottleType: bottleType || item.bottleType
-                }
-              : item
-          );
-        }
+      
+      // Find the original product to get full product details
+      const originalProduct =
+        products.find((p) => p.id === product.id) ||
+        lubricantProducts.find((p) => p.id === product.id);
 
-        // Find the original product to get full product details
-        const originalProduct =
-          products.find((p) => p.id === product.id) ||
-          lubricantProducts.find((p) => p.id === product.id);
+      const brand =
+        originalProduct && "brand" in originalProduct
+          ? originalProduct.brand
+          : undefined;
+      const fullName = brand ? `${brand} ${product.name}` : product.name;
 
-        const brand =
-          originalProduct && "brand" in originalProduct
-            ? originalProduct.brand
-            : undefined;
-        const fullName = brand ? `${brand} ${product.name}` : product.name;
+      // Extract category and type information for proper battery detection
+      const category = originalProduct?.category;
+      const type = originalProduct?.type;
 
-        // Extract category and type information for proper battery detection
-        const category = originalProduct?.category;
-        const type = originalProduct?.type;
+      const newItem: CartItem = {
+        ...product,
+        name: fullName,
+        quantity,
+        details,
+        uniqueId,
+        // Include category and type for proper battery detection
+        ...(category && { category }),
+        ...(type && { type }),
+        ...(brand && { brand }),
+        // Include source for lubricants (required by checkout API)
+        ...(source && { source }),
+        // Include bottleType for lubricants (used to determine source in API preparation)
+        ...(bottleType && { bottleType }),
+      };
 
-        return [
-          ...prevCart,
-          {
-            ...product,
-            name: fullName,
-            quantity,
-            details,
-            uniqueId,
-            // Include category and type for proper battery detection
-            ...(category && { category }),
-            ...(type && { type }),
-            ...(brand && { brand }),
-            // Include source for lubricants (required by checkout API)
-            ...(source && { source }),
-            // Include bottleType for lubricants (used to determine source in API preparation)
-            ...(bottleType && { bottleType }),
-          },
-        ];
-      });
+      contextAddToCart([newItem]);
     },
-    [products, lubricantProducts]
+    [products, lubricantProducts, contextAddToCart]
   );
 
   // Update selectedOil when lubricantProducts refresh (e.g., after checkout)
@@ -1906,7 +1889,7 @@ function POSPageContent() {
   };
 
   const clearCart = () => {
-    setCart([]);
+    contextClearCart();
     setAppliedTradeInAmount(0);
     // Reset trade-in dialog state directly instead of calling resetTradeInDialog()
     // which relies on setTradeinBatteries that seems to be out of scope
@@ -2368,10 +2351,17 @@ function POSPageContent() {
       // Prepare trade-ins if any - Enable for battery checkouts
       let tradeInsForAPI = undefined;
 
-      // Check if this is a battery sale and has trade-ins
+      // Check if this is a battery sale (for logging/logic) but send trade-ins regardless
       const isBatterySale = cartContainsAnyBatteries(cart);
-      if (isBatterySale && tradeinBatteries.length > 0) {
-        // For battery sales, create trade-in entries using battery size as name
+      console.log('🔋 Trade-in Debug:', {
+        isBatterySale,
+        tradeinBatteriesLength: tradeinBatteries.length,
+        tradeinBatteries: tradeinBatteries,
+        cartItems: cart.map(item => ({ id: item.id, name: item.name, category: item.category, type: item.type }))
+      });
+      
+      if (tradeinBatteries.length > 0) {
+        // Create trade-in entries using battery size as name
         tradeInsForAPI = tradeinBatteries.map((battery) => ({
           productId: `tradein-${battery.size
             .toLowerCase()
@@ -2383,6 +2373,9 @@ function POSPageContent() {
           name: battery.size, // Use battery size as the name
           costPrice: battery.amount, // Use trade-in amount as cost price
         }));
+        console.log('✅ Trade-ins prepared for API:', tradeInsForAPI);
+      } else {
+        console.log('❌ No trade-ins will be sent:', { isBatterySale, tradeinBatteriesLength: tradeinBatteries.length });
       }
 
       // Use the enhanced checkout service with retry and offline support
@@ -2623,7 +2616,7 @@ function POSPageContent() {
   // Function to reset all POS state after a transaction is complete
   const resetPOSState = () => {
     // Reset cart
-    setCart([]);
+    contextClearCart();
     setShowCart(false);
 
     // Reset payment info
@@ -3686,7 +3679,7 @@ function POSPageContent() {
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
                 <AlertDialogAction
                   onClick={clearCart}
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  className={cn(buttonVariants({ variant: "chonky-destructive" }))}
                 >
                   Clear Cart
                 </AlertDialogAction>
@@ -3730,7 +3723,7 @@ function POSPageContent() {
                 >
                   <Button
                     variant={
-                      selectedPaymentMethod === "mobile" ? "default" : "outline"
+                      selectedPaymentMethod === "mobile" ? "chonky" : "outline"
                     }
                     className={cn(
                       "h-24 flex flex-col items-center justify-center gap-2",
@@ -3749,7 +3742,7 @@ function POSPageContent() {
                   </Button>
                   <Button
                     variant={
-                      selectedPaymentMethod === "cash" ? "default" : "outline"
+                      selectedPaymentMethod === "cash" ? "chonky" : "outline"
                     }
                     className={cn(
                       "h-24 flex flex-col items-center justify-center gap-2",
@@ -3767,7 +3760,7 @@ function POSPageContent() {
                     <span>Cash</span>
                   </Button>
                   <Button
-                    variant={showOtherOptions ? "default" : "outline"}
+                    variant={showOtherOptions ? "chonky" : "outline"}
                     className={cn(
                       "h-24 flex flex-col items-center justify-center gap-2",
                       (selectedPaymentMethod === "card" ||
@@ -3796,7 +3789,7 @@ function POSPageContent() {
                   >
                     <Button
                       variant={
-                        selectedPaymentMethod === "card" ? "default" : "outline"
+                        selectedPaymentMethod === "card" ? "chonky" : "outline"
                       }
                       className={cn(
                         "h-24 flex flex-col items-center justify-center gap-2",
@@ -3816,7 +3809,7 @@ function POSPageContent() {
                     <Button
                       variant={
                         selectedPaymentMethod === "on-hold"
-                          ? "default"
+                          ? "chonky"
                           : "outline"
                       }
                       className={cn(
@@ -3837,7 +3830,7 @@ function POSPageContent() {
                     <Button
                       variant={
                         selectedPaymentMethod === "credit"
-                          ? "default"
+                          ? "chonky"
                           : "outline"
                       }
                       className={cn(
@@ -3897,7 +3890,7 @@ function POSPageContent() {
                               key={staff.id}
                               variant={
                                 paymentRecipient === staff.name
-                                  ? "default"
+                                  ? "chonky"
                                   : "outline"
                               }
                               className={cn(
@@ -3920,6 +3913,7 @@ function POSPageContent() {
                   </div>
                   <Button
                     className="w-full h-12 text-base"
+                    variant="chonky"
                     disabled={
                       !selectedPaymentMethod ||
                       (selectedPaymentMethod === "mobile" &&
@@ -4438,6 +4432,7 @@ function POSPageContent() {
                   <Button
                     className="w-full mt-4"
                     type="submit"
+                    variant="chonky"
                     disabled={enteredCashierId.length === 0}
                   >
                     Proceed
@@ -4464,6 +4459,7 @@ function POSPageContent() {
 
                 <Button
                   className="w-full h-12 text-base"
+                  variant="chonky"
                   onClick={handleFinalizePayment}
                   disabled={
                     (selectedPaymentMethod === "mobile" && !paymentRecipient) ||
@@ -4553,11 +4549,12 @@ function POSPageContent() {
                     setShowReceiptDialog(true);
                   }}
                   className="w-full"
+                  variant="chonky"
                 >
                   View Receipt
                 </Button>
                 <Button
-                  variant="outline"
+                  variant="chonky-secondary"
                   onClick={() => {
                     setShowSuccess(false);
                     resetPOSState();
@@ -4656,7 +4653,7 @@ function POSPageContent() {
 
             <DialogFooter className="mt-4">
               <Button
-                variant="outline"
+                variant="chonky-secondary"
                 onClick={() => {
                   setShowReceiptDialog(false);
                 }}
@@ -4687,7 +4684,7 @@ function POSPageContent() {
           <div className="space-y-6 py-4">
             <div className="grid grid-cols-2 gap-4">
               <Button
-                variant={discountType === "percentage" ? "default" : "outline"}
+                variant={discountType === "percentage" ? "chonky" : "outline"}
                 className={cn(
                   "h-20 flex flex-col items-center justify-center gap-2",
                   discountType === "percentage" && "ring-2 ring-primary"
@@ -4698,7 +4695,7 @@ function POSPageContent() {
                 <span>Percentage (%)</span>
               </Button>
               <Button
-                variant={discountType === "amount" ? "default" : "outline"}
+                variant={discountType === "amount" ? "chonky" : "outline"}
                 className={cn(
                   "h-20 flex flex-col items-center justify-center gap-2",
                   discountType === "amount" && "ring-2 ring-primary"
@@ -4747,7 +4744,7 @@ function POSPageContent() {
 
           <DialogFooter className="flex flex-col gap-2 sm:flex-row">
             <Button
-              variant="outline"
+              variant="chonky-secondary"
               className="flex-1"
               onClick={() => setIsDiscountDialogOpen(false)}
             >
@@ -4755,6 +4752,7 @@ function POSPageContent() {
             </Button>
             <Button
               className="flex-1"
+              variant="chonky"
               onClick={applyDiscount}
               disabled={discountValue <= 0}
             >
@@ -4792,7 +4790,12 @@ function POSPageContent() {
         open={isTradeInDialogOpen}
         onOpenChange={setIsTradeInDialogOpen}
         initialAmount={appliedTradeInAmount}
-        onApply={(total) => setAppliedTradeInAmount(total)}
+        onApply={(total, batteries) => {
+          console.log('🔋🔋 Trade-in Dialog onApply called:', { total, batteriesCount: batteries.length, batteries });
+          setAppliedTradeInAmount(total);
+          setTradeinBatteries(batteries);
+          console.log('✅ Trade-in batteries state updated');
+        }}
       />
 
       {/* Dispute Dialog */}
@@ -4809,7 +4812,7 @@ function POSPageContent() {
             {/* Refund Option */}
             <Button
               className="flex flex-col items-center justify-center gap-2 h-20 p-3"
-              variant="outline"
+              variant="chonky-secondary"
               onClick={() => {
                 setIsDisputeDialogOpen(false);
                 setIsRefundDialogOpen(true);
@@ -4822,7 +4825,7 @@ function POSPageContent() {
             {/* Warranty Claim Option */}
             <Button
               className="flex flex-col items-center justify-center gap-2 h-20 p-3"
-              variant="outline"
+              variant="chonky-secondary"
               onClick={() => {
                 setIsDisputeDialogOpen(false);
                 setIsWarrantyDialogOpen(true);
@@ -4835,7 +4838,7 @@ function POSPageContent() {
             {/* Settlement Option */}
             <Button
               className="flex flex-col items-center justify-center gap-2 h-20 p-3"
-              variant="outline"
+              variant="chonky-secondary"
               onClick={() => {
                 setIsDisputeDialogOpen(false);
                 setIsSettlementModalOpen(true);
@@ -4848,7 +4851,7 @@ function POSPageContent() {
             {/* Miscellaneous Option */}
             <Button
               className="flex flex-col items-center justify-center gap-2 h-20 p-3"
-              variant="outline"
+              variant="chonky-secondary"
               onClick={() => {
                 setIsDisputeDialogOpen(false);
                 setIsMiscellaneousDialogOpen(true);
@@ -4882,7 +4885,7 @@ function POSPageContent() {
           <div className="flex flex-col items-center justify-center py-4">
             <div className="flex items-center justify-center gap-4 mb-6">
               <Button
-                variant="outline"
+                variant="chonky-secondary"
                 size="icon"
                 className="h-12 w-12 rounded-full"
                 onClick={() =>
@@ -4916,7 +4919,7 @@ function POSPageContent() {
               </div>
 
               <Button
-                variant="outline"
+                variant="chonky-secondary"
                 size="icon"
                 className="h-12 w-12 rounded-full"
                 onClick={() =>
@@ -4935,28 +4938,28 @@ function POSPageContent() {
             </p>
             <div className="grid grid-cols-4 gap-2 px-2">
               <Button
-                variant="outline"
+                variant="chonky-secondary"
                 className="w-full text-sm"
                 onClick={() => setLaborAmount(0.5)}
               >
                 0.5
               </Button>
               <Button
-                variant="outline"
+                variant="chonky-secondary"
                 className="w-full text-sm"
                 onClick={() => setLaborAmount(1)}
               >
                 1
               </Button>
               <Button
-                variant="outline"
+                variant="chonky-secondary"
                 className="w-full text-sm"
                 onClick={() => setLaborAmount(2)}
               >
                 2
               </Button>
               <Button
-                variant="outline"
+                variant="chonky-secondary"
                 className="w-full text-sm"
                 onClick={() => setLaborAmount(3)}
               >
@@ -4967,7 +4970,7 @@ function POSPageContent() {
 
           <DialogFooter className="flex flex-row gap-3 px-2">
             <Button
-              variant="outline"
+              variant="chonky-secondary"
               className="flex-1 h-12 text-base"
               onClick={() => setIsLaborDialogOpen(false)}
             >
@@ -4975,6 +4978,7 @@ function POSPageContent() {
             </Button>
             <Button
               className="flex-1 h-12 text-base bg-orange-500 hover:bg-orange-600"
+              variant="chonky"
               onClick={() => {
                 if (laborAmount > 0) {
                   // Add labor charge to cart

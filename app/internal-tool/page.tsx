@@ -8,60 +8,69 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Layout } from "@/components/layout";
-import { carData, lubricants, oilFilters, filterPricing, baseFilterPrice } from "./data";
+import { lubricants, filterPricing, baseFilterPrice } from "./data";
+import { useVehicleData } from "./hooks/useVehicleData";
 
 const InternalToolPage = () => {
+  const {
+    makes,
+    models,
+    years,
+    engines,
+    vehicle,
+    loading,
+    fetchModels,
+    fetchYears,
+    fetchEngines,
+    fetchVehicleDetails,
+    setVehicle
+  } = useVehicleData();
+
   const [selectedMake, setSelectedMake] = useState<string>("");
   const [selectedModel, setSelectedModel] = useState<string>("");
   const [selectedYear, setSelectedYear] = useState<string>("");
   const [selectedEngine, setSelectedEngine] = useState<string>("");
-  const [oilVolume, setOilVolume] = useState<number | null>(null);
-  const [oilFilterPartNumber, setOilFilterPartNumber] = useState<string | null>(null);
+  
   const [filterQuality, setFilterQuality] = useState<string>("none");
   const [showLubricants, setShowLubricants] = useState(false);
 
-  const makes = Object.keys(carData);
-  const models = selectedMake && selectedMake in carData ? Object.keys(carData[selectedMake as keyof typeof carData]) : [];
-  const years = selectedMake && selectedModel && selectedMake in carData && selectedModel in carData[selectedMake as keyof typeof carData]
-    ? Object.keys(carData[selectedMake as keyof typeof carData][selectedModel as any]) 
-    : [];
-  const engines = selectedMake && selectedModel && selectedYear && 
-                  selectedMake in carData && 
-                  selectedModel in carData[selectedMake as keyof typeof carData] &&
-                  selectedYear in (carData[selectedMake as keyof typeof carData][selectedModel as any] || {})
-    ? Object.keys(carData[selectedMake as keyof typeof carData][selectedModel as any][selectedYear as any] || {})
-    : [];
+  const handleMakeChange = (value: string) => {
+    setSelectedMake(value);
+    setSelectedModel("");
+    setSelectedYear("");
+    setSelectedEngine("");
+    setVehicle(null);
+    setShowLubricants(false);
+    fetchModels(value);
+  };
+
+  const handleModelChange = (value: string) => {
+    setSelectedModel(value);
+    setSelectedYear("");
+    setSelectedEngine("");
+    setVehicle(null);
+    setShowLubricants(false);
+    fetchYears(selectedMake, value);
+  };
+
+  const handleYearChange = (value: string) => {
+    setSelectedYear(value);
+    setSelectedEngine("");
+    setVehicle(null);
+    setShowLubricants(false);
+    fetchEngines(selectedMake, selectedModel, parseInt(value));
+  };
+
+  const handleEngineChange = (value: string) => {
+    setSelectedEngine(value);
+    setVehicle(null);
+    setShowLubricants(false);
+  };
 
   const handleCalculate = () => {
-    if (selectedMake && selectedModel && selectedYear && selectedEngine && 
-        selectedMake in carData) {
-      const makeData = carData[selectedMake as keyof typeof carData];
-      if (selectedModel in makeData) {
-        const modelData = makeData[selectedModel as any];
-        if (selectedYear in modelData) {
-          const yearData = modelData[selectedYear as any];
-          if (selectedEngine in yearData) {
-            const volume = yearData[selectedEngine as any];
-            setOilVolume(volume);
-            setShowLubricants(false);
-            
-            // Get oil filter part number
-            if (selectedMake in oilFilters) {
-              const filterMakeData = oilFilters[selectedMake as keyof typeof oilFilters];
-              if (selectedModel in filterMakeData) {
-                const filterModelData = filterMakeData[selectedModel as any];
-                if (selectedYear in filterModelData) {
-                  const filterYearData = filterModelData[selectedYear as any];
-                  if (selectedEngine in filterYearData) {
-                    const partNumber = filterYearData[selectedEngine as any];
-                    setOilFilterPartNumber(partNumber);
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
+    if (selectedMake && selectedModel && selectedYear && selectedEngine) {
+      fetchVehicleDetails(selectedMake, selectedModel, parseInt(selectedYear), selectedEngine);
+      setShowLubricants(false);
     }
   };
 
@@ -70,8 +79,7 @@ const InternalToolPage = () => {
     setSelectedModel("");
     setSelectedYear("");
     setSelectedEngine("");
-    setOilVolume(null);
-    setOilFilterPartNumber(null);
+    setVehicle(null);
     setFilterQuality("none");
     setShowLubricants(false);
   };
@@ -93,14 +101,7 @@ const InternalToolPage = () => {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="make">Make</Label>
-                <Select value={selectedMake} onValueChange={(value) => {
-                  setSelectedMake(value);
-                  setSelectedModel("");
-                  setSelectedYear("");
-                  setSelectedEngine("");
-                  setOilVolume(null);
-                  setShowLubricants(false);
-                }}>
+                <Select value={selectedMake} onValueChange={handleMakeChange} disabled={loading && makes.length === 0}>
                   <SelectTrigger id="make">
                     <SelectValue placeholder="Select make" />
                   </SelectTrigger>
@@ -118,14 +119,8 @@ const InternalToolPage = () => {
                 <Label htmlFor="model">Model</Label>
                 <Select 
                   value={selectedModel} 
-                  onValueChange={(value) => {
-                    setSelectedModel(value);
-                    setSelectedYear("");
-                    setSelectedEngine("");
-                    setOilVolume(null);
-                    setShowLubricants(false);
-                  }}
-                  disabled={!selectedMake}
+                  onValueChange={handleModelChange}
+                  disabled={!selectedMake || (loading && models.length === 0)}
                 >
                   <SelectTrigger id="model">
                     <SelectValue placeholder="Select model" />
@@ -144,20 +139,15 @@ const InternalToolPage = () => {
                 <Label htmlFor="year">Year</Label>
                 <Select 
                   value={selectedYear} 
-                  onValueChange={(value) => {
-                    setSelectedYear(value);
-                    setSelectedEngine("");
-                    setOilVolume(null);
-                    setShowLubricants(false);
-                  }}
-                  disabled={!selectedModel}
+                  onValueChange={handleYearChange}
+                  disabled={!selectedModel || (loading && years.length === 0)}
                 >
                   <SelectTrigger id="year">
                     <SelectValue placeholder="Select year" />
                   </SelectTrigger>
                   <SelectContent>
                     {years.map((year) => (
-                      <SelectItem key={year} value={year}>
+                      <SelectItem key={year} value={year.toString()}>
                         {year}
                       </SelectItem>
                     ))}
@@ -169,8 +159,8 @@ const InternalToolPage = () => {
                 <Label htmlFor="engine">Engine Size</Label>
                 <Select 
                   value={selectedEngine} 
-                  onValueChange={setSelectedEngine}
-                  disabled={!selectedYear}
+                  onValueChange={handleEngineChange}
+                  disabled={!selectedYear || (loading && engines.length === 0)}
                 >
                   <SelectTrigger id="engine">
                     <SelectValue placeholder="Select engine" />
@@ -189,10 +179,10 @@ const InternalToolPage = () => {
             <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
               <Button 
                 onClick={handleCalculate} 
-                disabled={!selectedEngine}
+                disabled={!selectedEngine || loading}
                 className="flex-1 text-sm"
               >
-                Calculate Oil Volume
+                {loading ? "Loading..." : "Calculate Oil Volume"}
               </Button>
               <Button 
                 onClick={handleReset} 
@@ -205,7 +195,7 @@ const InternalToolPage = () => {
           </CardContent>
         </Card>
 
-        {oilVolume !== null && (
+        {vehicle && (
           <Card className="shadow-xl border-border/50">
             <CardHeader>
               <CardTitle className="text-2xl">Results</CardTitle>
@@ -216,23 +206,23 @@ const InternalToolPage = () => {
                 <h3 className="text-lg font-semibold mb-3">Required Oil Volume</h3>
                 <div className="rounded-lg bg-accent/50 p-4 sm:p-6 text-center border border-border">
                   <p className="text-sm text-muted-foreground">
-                    {selectedMake} {selectedModel} {selectedYear} ({selectedEngine})
+                    {vehicle.make} {vehicle.model} {vehicle.year} ({vehicle.engine})
                   </p>
                   <p className="mt-2 text-3xl font-bold text-primary">
-                    {oilVolume} L
+                    {vehicle.oil_capacity} L
                   </p>
                   <p className="mt-1 text-sm text-muted-foreground">liters of oil required</p>
                 </div>
               </div>
 
               {/* Oil Filter */}
-              {oilFilterPartNumber && (
+              {vehicle.oil_filter_part_number && (
                 <div>
                   <h3 className="text-lg font-semibold mb-3">Oil Filter</h3>
                   <div className="space-y-4">
                     <div className="rounded-lg bg-accent/50 p-4 border border-border">
                       <p className="text-sm text-muted-foreground mb-1">Part Number</p>
-                      <p className="text-lg font-semibold text-foreground">{oilFilterPartNumber}</p>
+                      <p className="text-lg font-semibold text-foreground">{vehicle.oil_filter_part_number}</p>
                     </div>
                     
                     <div className="space-y-3">
@@ -281,7 +271,7 @@ const InternalToolPage = () => {
                                 <p className="text-xs text-muted-foreground">Lubricant</p>
                               </div>
                               <p className="text-base font-semibold">
-                                ${(lubricant.pricePerLiter * oilVolume).toFixed(2)}
+                                ${(lubricant.pricePerLiter * vehicle.oil_capacity).toFixed(2)}
                               </p>
                             </div>
 
@@ -303,7 +293,7 @@ const InternalToolPage = () => {
                               <p className="text-lg font-bold">Total ({lubricant.name})</p>
                               <p className="text-2xl font-bold text-primary">
                                 ${(
-                                  lubricant.pricePerLiter * oilVolume +
+                                  lubricant.pricePerLiter * vehicle.oil_capacity +
                                   baseFilterPrice * filterPricing[filterQuality as keyof typeof filterPricing].multiplier
                                 ).toFixed(2)}
                               </p>
@@ -321,11 +311,11 @@ const InternalToolPage = () => {
           </Card>
         )}
 
-        {showLubricants && oilVolume !== null && (
+        {showLubricants && vehicle && (
           <Card className="shadow-xl border-border/50">
             <CardHeader>
               <CardTitle className="text-2xl">Available Lubricants</CardTitle>
-              <CardDescription className="text-sm">Pricing based on {oilVolume}L oil volume requirement</CardDescription>
+              <CardDescription className="text-sm">Pricing based on {vehicle.oil_capacity}L oil volume requirement</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-2 sm:space-y-3">
@@ -338,7 +328,7 @@ const InternalToolPage = () => {
                       </div>
                       <div className="text-right">
                         <p className="text-base sm:text-lg font-semibold text-foreground">
-                          ${(lubricant.pricePerLiter * oilVolume).toFixed(2)}
+                          ${(lubricant.pricePerLiter * vehicle.oil_capacity).toFixed(2)}
                         </p>
                         <p className="text-xs text-muted-foreground">
                           ${lubricant.pricePerLiter}/L

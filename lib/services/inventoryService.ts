@@ -160,6 +160,8 @@ export const fetchItems = async (
           low_stock_threshold,
           cost_price,
           manufacturing_date,
+          is_battery,
+          battery_state,
           category_id,
           brand_id,
           categories (
@@ -333,8 +335,8 @@ export const fetchItems = async (
           created_at: null, // Not available in current schema
           updated_at: null, // Not available in current schema
           lowStockAlert: product.low_stock_threshold,
-          isBattery: false, // Not available in current schema
-          batteryState: undefined, // Not available in current schema
+          isBattery: product.is_battery || false,
+          batteryState: product.battery_state as "new" | "scrap" | "resellable" | undefined,
           costPrice: product.cost_price
             ? parseFloat(product.cost_price)
             : undefined,
@@ -444,6 +446,26 @@ export const createItem = async (
       return null;
     }
 
+    // Check if this is a battery product by looking at type_id or type text
+    let isBatteryProduct = false;
+    if (item.type_id) {
+      // Check if type is "Battery" or "Batteries" by querying types table
+      const { data: typeData } = await supabase
+        .from("types")
+        .select("name")
+        .eq("id", item.type_id)
+        .single();
+      
+      if (typeData) {
+        const typeName = typeData.name.toLowerCase().trim();
+        isBatteryProduct = typeName === "battery" || typeName === "batteries";
+      }
+    } else if (item.type) {
+      // Legacy check using type text
+      const typeName = item.type.toLowerCase().trim();
+      isBatteryProduct = typeName === "battery" || typeName === "batteries";
+    }
+
     // Create product first
     const productInsert: any = {
       name: item.name,
@@ -455,6 +477,8 @@ export const createItem = async (
       cost_price:
         item.costPrice && item.costPrice > 0 ? item.costPrice : null,
       manufacturing_date: item.manufacturingDate,
+      is_battery: isBatteryProduct,
+      battery_state: isBatteryProduct ? (item.batteryState || "new") : null,
     };
 
     // Prefer type_id over type (text) for new products
@@ -617,6 +641,10 @@ export const updateItem = async (
         updates.costPrice && updates.costPrice > 0 ? updates.costPrice : null;
     if (updates.manufacturingDate !== undefined)
       productUpdates.manufacturing_date = updates.manufacturingDate;
+    if (updates.isBattery !== undefined)
+      productUpdates.is_battery = updates.isBattery;
+    if (updates.batteryState !== undefined)
+      productUpdates.battery_state = updates.batteryState;
     // Note: is_oil column doesn't exist in database, so we skip this update
 
     if (Object.keys(productUpdates).length > 0) {
@@ -803,6 +831,18 @@ export const deleteItem = async (
 
     // If no other inventory exists, delete the product
     if (!otherInventory || otherInventory.length === 0) {
+      // First, delete any trade-in transactions that reference this product
+      // This is necessary because the foreign key constraint is set to RESTRICT
+      const { error: tradeInError } = await supabase
+        .from("trade_in_transactions")
+        .delete()
+        .eq("product_id", id);
+
+      if (tradeInError) {
+        console.error("Error deleting trade-in transactions:", tradeInError);
+        // Continue anyway - product might not have trade-in records
+      }
+
       const { error: productError } = await supabase
         .from("products")
         .delete()

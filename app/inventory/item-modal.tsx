@@ -71,6 +71,8 @@ interface ExtendedItem extends Omit<Item, "is_oil" | "image_url"> {
   costPrice?: number; // UI version of cost_price
   manufacturingDate?: string; // UI version of manufacturing_date
   batches: Batch[]; // Make batches always required and non-optional
+  isBattery?: boolean; // UI version of is_battery
+  batteryState?: "new" | "scrap" | "resellable"; // Battery state for categorization
 }
 
 interface ItemModalProps {
@@ -121,6 +123,8 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
     bottleStates: item?.bottleStates || { open: 0, closed: 0 },
     volumes: item?.volumes || [],
     batches: item?.batches || [],
+    isBattery: item?.isBattery || false,
+    batteryState: item?.batteryState || "new",
   });
   const [newBatch, setNewBatch] = useState<Omit<Batch, "id">>({
     item_id: "",
@@ -185,6 +189,10 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
       );
 
       // Map backend field names to frontend field names
+      const typeName = item.type || "";
+      const isBatteryType = typeName.toLowerCase() === "battery" || 
+                           typeName.toLowerCase() === "batteries";
+
       const formDataObj = {
         id: item.id,
         name: item.name || "",
@@ -212,6 +220,8 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
         description: item.description || item.notes || null,
         image_url: item.image_url || item.imageUrl || null,
         is_oil: item.is_oil || item.isOil || false,
+        isBattery: item.isBattery || isBatteryType || false,
+        batteryState: item.batteryState || "new",
       };
 
       console.log("Transformed form data:", {
@@ -260,6 +270,8 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
         description: null,
         image_url: null,
         is_oil: false,
+        isBattery: false,
+        batteryState: "new",
       } as ExtendedItem);
     }
     setActiveTab("general");
@@ -312,6 +324,8 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
         description: null,
         image_url: null,
         is_oil: false,
+        isBattery: false,
+        batteryState: "new",
       } as ExtendedItem);
 
       // Reset batch editing state
@@ -454,6 +468,9 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
       is_oil: updatedFormData.isOil, // Map to backend field name
       costPrice: updatedFormData.costPrice || 0,
       manufacturingDate: updatedFormData.manufacturingDate || null,
+      // Battery fields
+      isBattery: updatedFormData.isBattery || false,
+      batteryState: updatedFormData.isBattery ? updatedFormData.batteryState : undefined,
       // Explicitly include bottle states for oil products
       bottleStates:
         updatedFormData.isOil && updatedFormData.bottleStates
@@ -948,10 +965,19 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
                                         const selectedType = categoryTypes.find(
                                           (t) => t.id === value
                                         );
+                                        const typeName = selectedType?.name || "";
+                                        
+                                        // Check if this is a battery type
+                                        const isBatteryType = typeName.toLowerCase() === "battery" || 
+                                                             typeName.toLowerCase() === "batteries";
+                                        
                                         setFormData({
                                           ...formData,
                                           type_id: value || null,
-                                          type: selectedType?.name || "",
+                                          type: typeName,
+                                          isBattery: isBatteryType,
+                                          // Set default battery state to "new" for manually added batteries
+                                          batteryState: isBatteryType ? (formData.batteryState || "new") : undefined,
                                         });
                                       }}
                                     >
@@ -971,6 +997,35 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
                                   </div>
                                 ) : null;
                               })()}
+                              {/* Battery State Selector - appears when battery type is selected */}
+                              {formData.isBattery && (
+                                <div>
+                                  <Label htmlFor="batteryState">Battery State</Label>
+                                  <Select
+                                    value={formData.batteryState || "new"}
+                                    onValueChange={(value: "new" | "scrap" | "resellable") => {
+                                      setFormData({
+                                        ...formData,
+                                        batteryState: value,
+                                      });
+                                    }}
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Select battery state" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="new">New</SelectItem>
+                                      <SelectItem value="scrap">Scrap</SelectItem>
+                                      <SelectItem value="resellable">Resellable</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    {formData.batteryState === "new" && "For new batteries added to inventory"}
+                                    {formData.batteryState === "scrap" && "For batteries in scrap condition"}
+                                    {formData.batteryState === "resellable" && "For batteries that can be resold"}
+                                  </p>
+                                </div>
+                              )}
                               <DateInput
                                 id="manufacturingDate"
                                 label="M.F.D"

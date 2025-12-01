@@ -177,7 +177,7 @@ export function ProductModal({
             return (
               <Button
                 key={variant.id}
-                variant={isSelected ? "secondary" : "outline"}
+                variant={isSelected ? "chonky" : "chonky-secondary"}
                 className={`h-auto py-4 px-4 flex flex-col items-center gap-1.5 ${
                   isSelected ? "bg-blue-50" : ""
                 }`}
@@ -205,7 +205,7 @@ export function ProductModal({
                       {/* Left side: quantity controls */}
                       <div className="flex items-center gap-2">
                         <Button
-                          variant="outline"
+                          variant="chonky-secondary"
                           size="icon"
                           className="h-8 w-8 rounded-md"
                           onClick={() => handleQuantityChange(variant.id, -1)}
@@ -216,7 +216,7 @@ export function ProductModal({
                           {variant.quantity}
                         </span>
                         <Button
-                          variant="outline"
+                          variant="chonky-secondary"
                           size="icon"
                           className="h-8 w-8 rounded-md"
                           onClick={() => handleQuantityChange(variant.id, 1)}
@@ -258,13 +258,14 @@ export function ProductModal({
 
         <div className="flex justify-between gap-3 pt-2">
           <Button
-            variant="outline"
+            variant="chonky-secondary"
             className="w-1/3 px-4 text-[clamp(0.875rem,2vw,1rem)]"
             onClick={() => onOpenChange(false)}
           >
             Cancel
           </Button>
           <Button
+            variant="chonky"
             className="w-2/3 px-4 text-[clamp(0.875rem,2vw,1rem)]"
             onClick={handleAddToCart}
             disabled={

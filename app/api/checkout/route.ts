@@ -18,8 +18,10 @@ import {
   openBottleDetails,
   shops,
   productVolumes,
+  types,
+  tradeInPrices,
 } from "@/lib/db/schema";
-import { eq, asc, and, inArray, gt } from "drizzle-orm";
+import { eq, asc, and, inArray, gt, or } from "drizzle-orm";
 import {
   CheckoutInputSchema,
   calculateFinalTotal,
@@ -520,13 +522,21 @@ export async function POST(req: NextRequest) {
       try {
         // 1. Fetch product names and categories for receipt generation
         // Filter out labor charges (productId: "9999") from product lookups
+        const uuidRegex =
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
         const productIds = [
           ...cart
             .filter(
-              (item) => item.productId !== "9999" && item.productId !== 9999
+              (item) =>
+                item.productId !== "9999" &&
+                item.productId !== 9999 &&
+                uuidRegex.test(String(item.productId))
             )
             .map((item) => item.productId),
-          ...(tradeIns?.map((ti) => ti.productId) || []),
+          ...(tradeIns
+            ?.filter((ti) => uuidRegex.test(String(ti.productId)))
+            .map((ti) => ti.productId) || []),
         ];
         const productMap = new Map();
         let isBatterySale = false;
@@ -554,6 +564,8 @@ export async function POST(req: NextRequest) {
               categoryId: products.categoryId,
               productType: products.productType,
               categoryName: categories.name,
+              brandId: products.brandId,
+              isBattery: products.isBattery,
             })
             .from(products)
             .leftJoin(categories, eq(products.categoryId, categories.id))
@@ -881,17 +893,112 @@ export async function POST(req: NextRequest) {
 
         // 3. Handle trade-ins if present
         if (tradeIns && tradeIns.length > 0) {
+          console.log(`[${requestId}] ✅ Received ${tradeIns.length} trade-ins after validation`);
+          console.log(`[${requestId}] 📋 Trade-in data:`, JSON.stringify(tradeIns, null, 2));
+          console.log(`[${requestId}] isBatterySale=${isBatterySale}`);
+          
+          // Extract battery brand from cart (use first battery found)
+          let batteryBrandId: string | null = null;
+          for (const cartItem of cart) {
+            const product = productMap.get(cartItem.productId);
+            if (product?.isBattery) {
+              batteryBrandId = product.brandId || null;
+              console.log(`[${requestId}] 🏷️ Extracted battery brand ID from cart: ${batteryBrandId}`);
+              break;
+            }
+          }
+          
+          if (!batteryBrandId) {
+            console.log(`[${requestId}] ⚠️ No battery found in cart, trade-in will have no brand`);
+          }
+          
+          // Query trade-in prices for selling price lookup
+          const tradeInPricesData = await tx
+            .select({
+              size: tradeInPrices.size,
+              condition: tradeInPrices.condition,
+              tradeInValue: tradeInPrices.tradeInValue,
+            })
+            .from(tradeInPrices);
+          
+          console.log(`[${requestId}] 💰 Loaded ${tradeInPricesData.length} trade-in prices for lookup`);
+          
+          // Query for Parts category and Battery type IDs once (for battery trade-ins)
+          let partsCategoryId: string | null = null;
+          let batteryTypeId: string | null = null;
+          
+          // Check if any trade-in is a battery (has size and condition)
+          const hasBatteryTradeIns = tradeIns.some(ti => ti.size && ti.condition);
+          
+          if (hasBatteryTradeIns) {
+            // Fetch Parts category ID
+            const [partsCategory] = await tx
+              .select({ id: categories.id })
+              .from(categories)
+              .where(eq(categories.name, "Parts"))
+              .limit(1);
+            
+            if (partsCategory) {
+              partsCategoryId = partsCategory.id;
+              console.log(`[${requestId}] Found Parts category ID: ${partsCategoryId}`);
+              
+              // Fetch Battery type ID
+              const batteryTypes = await tx
+                .select({ id: types.id, name: types.name })
+                .from(types)
+                .where(
+                  or(
+                    eq(types.name, "Battery"),
+                    eq(types.name, "Batteries")
+                  )
+                )
+                .limit(1);
+              
+              if (batteryTypes.length > 0) {
+                batteryTypeId = batteryTypes[0].id;
+                console.log(`[${requestId}] Found Battery type ID: ${batteryTypeId} (${batteryTypes[0].name})`);
+              } else {
+                console.warn(`[${requestId}] Battery type not found in types table`);
+              }
+            } else {
+              console.error(`[${requestId}] Parts category not found - cannot create trade-in batteries`);
+            }
+          }
+          
           for (const tradeIn of tradeIns) {
-            // Create trade-in transaction record
-            await tx.insert(tradeInTransactions).values({
-              transactionId: newTransaction.id,
+            console.log(`[${requestId}] Processing trade-in:`, {
               productId: tradeIn.productId,
+              name: tradeIn.name,
+              size: tradeIn.size,
+              condition: tradeIn.condition,
+              costPrice: tradeIn.costPrice,
               quantity: tradeIn.quantity,
-              tradeInValue: tradeIn.tradeInValue.toString(),
+              hasName: !!tradeIn.name,
+              hasCostPrice: !!tradeIn.costPrice,
             });
 
+            // Check if this specific trade-in is a battery (based on its own data)
+            const isBatteryTradeIn = !!(
+              tradeIn.size &&
+              tradeIn.condition &&
+              tradeIn.name &&
+              tradeIn.costPrice
+            );
+
+            console.log(
+              `[${requestId}] Trade-in battery check: isBatteryTradeIn=${isBatteryTradeIn}, hasPartsCategoryId=${!!partsCategoryId}`
+            );
+
+            let finalProductId = tradeIn.productId;
+            const uuidRegex =
+              /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
             // For battery trade-ins, create/update inventory with battery size as name
-            if (isBatterySale && tradeIn.name && tradeIn.costPrice) {
+            if (isBatteryTradeIn && partsCategoryId) {
+              console.log(
+                `[${requestId}] Creating/updating battery trade-in: ${tradeIn.name}`
+              );
+
               // Check if a product with this name already exists
               const [existingProduct] = await tx
                 .select()
@@ -899,22 +1006,66 @@ export async function POST(req: NextRequest) {
                 .where(eq(products.name, tradeIn.name))
                 .limit(1);
 
-              let productId = tradeIn.productId;
-
               if (!existingProduct) {
+                console.log(
+                  `[${requestId}] Creating new battery product: ${tradeIn.name}`
+                );
+                
+                // Lookup selling price from trade-in prices
+                const matchingPrice = tradeInPricesData.find(
+                  p => p.size === tradeIn.size && 
+                       p.condition.toLowerCase() === tradeIn.condition.toLowerCase()
+                );
+                
+                const sellingPrice = matchingPrice ? Number(matchingPrice.tradeInValue) : null;
+                console.log(`[${requestId}] 💵 Selling price for ${tradeIn.size} ${tradeIn.condition}: ${sellingPrice || 'NOT FOUND'}`);
+                
+                // Prepare values for new product
+                const productValues: any = {
+                  name: tradeIn.name, // Battery size as name
+                  categoryId: partsCategoryId, // Use actual Parts category ID
+                  typeId: batteryTypeId, // Use actual Battery type ID
+                  brandId: batteryBrandId, // Use battery brand from cart
+                  productType: null, // Clear legacy field when using typeId
+                  description: `Trade-in battery - ${tradeIn.size} (${tradeIn.condition})`,
+                  isBattery: true,
+                  batteryState:
+                    tradeIn.condition.toLowerCase() === "scrap"
+                      ? "scrap"
+                      : "resellable",
+                  costPrice: tradeIn.costPrice.toString(), // Trade-in amount as cost
+                };
+
+                // Only use the provided ID if it's a valid UUID
+                if (uuidRegex.test(tradeIn.productId)) {
+                  productValues.id = tradeIn.productId;
+                }
+
                 // Create new product for this trade-in battery size
                 const [newProduct] = await tx
                   .insert(products)
-                  .values({
-                    id: tradeIn.productId,
-                    name: tradeIn.name, // Battery size as name
-                    categoryId: "parts-category-id", // Default to parts category
-                    productType: "Trade-in Battery",
-                    description: `Trade-in battery - ${tradeIn.size} (${tradeIn.condition})`,
-                  })
+                  .values(productValues)
                   .returning();
-                productId = newProduct.id;
+                finalProductId = newProduct.id;
+                console.log(
+                  `[${requestId}] Created battery product with ID: ${finalProductId}`
+                );
+              } else {
+                finalProductId = existingProduct.id;
+                console.log(
+                  `[${requestId}] Using existing battery product: ${finalProductId}`
+                );
               }
+
+              // Lookup selling price from trade-in prices (needed for both new and existing inventory)
+              const matchingPriceForInventory = tradeInPricesData.find(
+                p => p.size === tradeIn.size && 
+                     p.condition.toLowerCase() === tradeIn.condition.toLowerCase()
+              );
+              
+              const inventorySellingPrice = matchingPriceForInventory 
+                ? Number(matchingPriceForInventory.tradeInValue) 
+                : null;
 
               // Find or create inventory record for trade-in product
               const [tradeInInventory] = await tx
@@ -922,71 +1073,87 @@ export async function POST(req: NextRequest) {
                 .from(inventory)
                 .where(
                   and(
-                    eq(inventory.productId, productId),
-                    eq(inventory.locationId, locationId)
+                    eq(inventory.productId, finalProductId),
+                    eq(inventory.locationId, actualLocationId)
                   )
                 )
                 .limit(1);
 
+              let inventoryId;
+
               if (tradeInInventory) {
-                // Increment standard stock for trade-in product
-                const currentTradeInStock = tradeInInventory.standardStock ?? 0;
+                // Update existing inventory
                 await tx
                   .update(inventory)
                   .set({
-                    standardStock: currentTradeInStock + tradeIn.quantity,
+                    standardStock:
+                      Number(tradeInInventory.standardStock) +
+                      Number(tradeIn.quantity),
+                    sellingPrice: inventorySellingPrice?.toString() || tradeInInventory.sellingPrice,
                   })
                   .where(eq(inventory.id, tradeInInventory.id));
+                inventoryId = tradeInInventory.id;
+                console.log(
+                  `[${requestId}] Updated inventory ${inventoryId} for product ${finalProductId} with selling price ${inventorySellingPrice}`
+                );
               } else {
-                // Create new inventory record with cost price
-                await tx.insert(inventory).values({
-                  productId: productId,
-                  locationId: locationId,
-                  standardStock: tradeIn.quantity,
-                });
+                // Create new inventory record
+                const [newInventory] = await tx
+                  .insert(inventory)
+                  .values({
+                    productId: finalProductId,
+                    locationId: actualLocationId,
+                    standardStock: Number(tradeIn.quantity),
+                    minStockLevel: 0,
+                    maxStockLevel: 100,
+                    sellingPrice: inventorySellingPrice?.toString() || null,
+                  })
+                  .returning();
+                inventoryId = newInventory.id;
+                console.log(
+                  `[${requestId}] Created inventory ${inventoryId} for product ${finalProductId} with selling price ${inventorySellingPrice}`
+                );
               }
 
-              // Create a batch record with the trade-in amount as cost price
+              // Create batch record for the trade-in
+              // Use the trade-in amount as the cost price
               await tx.insert(batches).values({
-                inventoryId: tradeInInventory?.id || productId, // Use inventory ID if available
-                costPrice: tradeIn.costPrice.toString(),
-                quantityReceived: tradeIn.quantity,
-                stockRemaining: tradeIn.quantity,
+                inventoryId: inventoryId,
+                quantity: Number(tradeIn.quantity),
+                costPrice: tradeIn.costPrice.toString(), // Trade-in value is the cost
+                receivedDate: new Date(),
+                expiryDate: null, // Batteries don't strictly expire in this context
                 supplier: `Trade-in (${tradeIn.condition})`,
                 isActiveBatch: true,
+                quantityReceived: Number(tradeIn.quantity),
+                stockRemaining: Number(tradeIn.quantity),
               });
-            } else {
-              // Handle regular trade-ins (non-battery)
-              const [tradeInInventory] = await tx
-                .select()
-                .from(inventory)
-                .where(
-                  and(
-                    eq(inventory.productId, tradeIn.productId),
-                    eq(inventory.locationId, locationId)
-                  )
-                )
-                .limit(1);
+              console.log(
+                `[${requestId}] Created batch for inventory ${inventoryId} with cost ${tradeIn.costPrice}`
+              );
+            } else if (isBatteryTradeIn && !partsCategoryId) {
+              console.error(`[${requestId}] Cannot create battery trade-in - Parts category not found`);
+            }
+            // Note: We only support battery trade-ins, so non-battery trade-ins are skipped
 
-              if (tradeInInventory) {
-                // Increment standard stock for trade-in product
-                const currentTradeInStock = tradeInInventory.standardStock ?? 0;
-                await tx
-                  .update(inventory)
-                  .set({
-                    standardStock: currentTradeInStock + tradeIn.quantity,
-                  })
-                  .where(eq(inventory.id, tradeInInventory.id));
-              } else {
-                // If no inventory record exists, create one
-                await tx.insert(inventory).values({
-                  productId: tradeIn.productId,
-                  locationId: locationId,
-                  standardStock: tradeIn.quantity,
-                });
-              }
+            // Create trade-in transaction record only if we have a valid UUID
+            // (i.e., only for successfully processed battery trade-ins)
+            const uuidRegexForValidation =
+              /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+            
+            if (uuidRegexForValidation.test(finalProductId)) {
+              await tx.insert(tradeInTransactions).values({
+                transactionId: newTransaction.id,
+                productId: finalProductId,
+                quantity: tradeIn.quantity,
+                tradeInValue: tradeIn.tradeInValue.toString(),
+              });
+              console.log(`[${requestId}] Created trade-in transaction record for product ${finalProductId}`);
+            } else {
+              console.warn(`[${requestId}] Skipping trade-in transaction record - invalid product ID: ${finalProductId}`);
             }
           }
+          console.log(`[${requestId}] Completed processing all trade-ins`);
         }
 
         // 4. Fetch cashier name if cashierId exists

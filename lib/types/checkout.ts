@@ -15,11 +15,13 @@ export const TradeInItemSchema = z.object({
   quantity: z.number().positive(),
   tradeInValue: z.number().nonnegative(),
   size: z.string().min(1, "Battery size is required"),
-  condition: z.enum(["Scrap", "Resalable"], {
+  condition: z.enum(["scrap", "resellable", "Scrap", "Resalable"], {
     errorMap: () => ({
-      message: "Condition must be either 'Scrap' or 'Resalable'",
+      message: "Condition must be either 'scrap' or 'resellable'",
     }),
   }),
+  name: z.string().min(1, "Battery name is required"), // Battery size used as product name
+  costPrice: z.number().nonnegative(), // Trade-in value used as cost price
 });
 
 // Discount schema

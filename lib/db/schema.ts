@@ -83,6 +83,8 @@ export const products = pgTable("products", {
   lowStockThreshold: integer("low_stock_threshold").default(0),
   costPrice: numeric("cost_price"),
   manufacturingDate: timestamp("manufacturing_date", { withTimezone: true }),
+  isBattery: boolean("is_battery").default(false),
+  batteryState: text("battery_state"), // 'new', 'scrap', 'resellable'
 });
 
 export const productVolumes = pgTable("product_volumes", {

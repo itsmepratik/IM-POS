@@ -75,7 +75,7 @@ export function VolumeModal({
             {volumes.map((volume) => (
               <Button
                 key={volume.id}
-                variant="outline"
+                variant="chonky-secondary"
                 className="h-auto py-3 px-4 flex flex-col items-center gap-1.5"
                 onClick={() => onVolumeClick(volume)}
               >
@@ -101,7 +101,7 @@ export function VolumeModal({
                     >
                       <div className="flex items-center gap-2 sm:gap-3">
                         <Button
-                          variant="outline"
+                          variant="chonky-secondary"
                           size="icon"
                           className="h-8 w-8 sm:h-9 sm:w-9"
                           onClick={() => onQuantityChange(volume.id, -1)}
@@ -112,7 +112,7 @@ export function VolumeModal({
                           {volume.quantity}
                         </span>
                         <Button
-                          variant="outline"
+                          variant="chonky-secondary"
                           size="icon"
                           className="h-8 w-8 sm:h-9 sm:w-9"
                           onClick={() => onQuantityChange(volume.id, 1)}
@@ -137,7 +137,7 @@ export function VolumeModal({
 
           <div className="flex justify-between gap-3 pt-2">
             <Button
-              variant="outline"
+              variant="chonky-secondary"
               className="px-4 sm:px-6 text-[clamp(0.875rem,2vw,1rem)]"
               onClick={() => onOpenChange(false)}
             >
@@ -145,6 +145,7 @@ export function VolumeModal({
             </Button>
             <div className="flex gap-2">
               <Button
+                variant="chonky"
                 className="px-4 sm:px-6 text-[clamp(0.875rem,2vw,1rem)]"
                 onClick={onAddToCart}
                 disabled={selectedVolumes.length === 0}
@@ -152,7 +153,7 @@ export function VolumeModal({
                 Go to Cart
               </Button>
               <Button
-                variant="outline"
+                variant="chonky-secondary"
                 size="icon"
                 className="h-10 w-10"
                 onClick={onNext}

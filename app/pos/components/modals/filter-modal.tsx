@@ -214,7 +214,7 @@ export function FilterModal({
                     >
                       <div className="flex items-center gap-1 flex-shrink-0">
                         <Button
-                          variant="outline"
+                          variant="chonky-secondary"
                           size="icon"
                           className="h-5 w-5"
                           onClick={() => onQuantityChange(filter.id, -1)}
@@ -225,7 +225,7 @@ export function FilterModal({
                           {filter.quantity}
                         </span>
                         <Button
-                          variant="outline"
+                          variant="chonky-secondary"
                           size="icon"
                           className="h-5 w-5"
                           onClick={() => onQuantityChange(filter.id, 1)}
@@ -251,7 +251,7 @@ export function FilterModal({
 
           <div className="flex justify-between gap-3 pt-2 w-full">
             <Button
-              variant="outline"
+              variant="chonky-secondary"
               className="px-4 sm:px-6 text-[clamp(0.875rem,2vw,1rem)]"
               onClick={() => onOpenChange(false)}
             >
@@ -259,6 +259,7 @@ export function FilterModal({
             </Button>
             <div className="flex gap-2">
               <Button
+                variant="chonky"
                 className="px-4 sm:px-6 text-[clamp(0.875rem,2vw,1rem)]"
                 onClick={onAddToCart}
                 disabled={selectedFilters.length === 0}
@@ -266,7 +267,7 @@ export function FilterModal({
                 Go to Cart
               </Button>
               <Button
-                variant="outline"
+                variant="chonky-secondary"
                 size="icon"
                 className="h-10 w-10"
                 onClick={onNext}
