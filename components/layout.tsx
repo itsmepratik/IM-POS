@@ -117,7 +117,7 @@ export function Layout({ children, pageTitle }: LayoutProps) {
         {/* Footer */}
         <footer className="w-full bg-gray-50 py-4 px-4 md:px-6 lg:px-8">
           <div className="text-center text-sm text-gray-600">
-            © 2025 Developed by Pratik. All rights reserved.
+            © 2025 Developed by Pratik. All rights reserved. Version: 15.5.0
           </div>
         </footer>
       </div>
