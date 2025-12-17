@@ -9,24 +9,24 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/90 rounded-[14px]",
+        default: "bg-primary text-primary-foreground rounded-[12px] shadow-[0_0_20px_hsl(var(--primary)/0.5),inset_0_0_0_1.5px_rgba(255,255,255,0.35)] hover:brightness-95 active:brightness-90 active:scale-[0.98] transition-all duration-200",
         destructive:
-          "bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-[14px]",
+          "bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-[12px]",
         outline:
-          "border border-input bg-background hover:bg-accent hover:text-accent-foreground rounded-[14px]",
+          "border border-input bg-background hover:bg-accent hover:text-accent-foreground rounded-[12px]",
         secondary:
-          "bg-secondary text-secondary-foreground hover:bg-secondary/80 rounded-[14px]",
+          "bg-secondary text-secondary-foreground hover:bg-secondary/80 rounded-[12px]",
         chonky:
-          "bg-primary text-primary-foreground relative transition-all duration-200 ease-in-out active:transition-none rounded-lg " +
+          "bg-primary text-primary-foreground relative transition-all duration-200 ease-in-out active:transition-none rounded-[12px] " +
           "shadow-chonky-primary hover:translate-y-[-2px] hover:shadow-chonky-primary-hover active:translate-y-[3px] active:shadow-chonky-primary-active",
         "chonky-destructive":
-          "bg-destructive text-destructive-foreground relative transition-all duration-200 ease-in-out active:transition-none rounded-lg " +
+          "bg-destructive text-destructive-foreground relative transition-all duration-200 ease-in-out active:transition-none rounded-[12px] " +
           "shadow-chonky-destructive hover:translate-y-[-2px] hover:shadow-chonky-destructive-hover active:translate-y-[3px] active:shadow-chonky-destructive-active",
         "chonky-secondary":
-          "bg-secondary text-secondary-foreground relative transition-all duration-200 ease-in-out active:transition-none rounded-lg " +
+          "bg-secondary text-secondary-foreground relative transition-all duration-200 ease-in-out active:transition-none rounded-[12px] " +
           "shadow-chonky-secondary hover:translate-y-[-2px] hover:shadow-chonky-secondary-hover active:translate-y-[3px] active:shadow-chonky-secondary-active",
-        ghost: "hover:bg-accent hover:text-accent-foreground transition-colors rounded-[14px]",
-        link: "text-primary underline-offset-4 hover:underline transition-colors rounded-[14px]",
+        ghost: "hover:bg-accent hover:text-accent-foreground transition-colors rounded-[12px]",
+        link: "text-primary underline-offset-4 hover:underline transition-colors rounded-[12px]",
       },
       size: {
         default: "h-10 px-4 py-2",

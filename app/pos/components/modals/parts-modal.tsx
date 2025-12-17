@@ -194,7 +194,7 @@ export function PartsModal({
                     >
                       <div className="flex items-center gap-1 flex-shrink-0">
                         <Button
-                          variant="chonky-secondary"
+                          variant="outline"
                           size="icon"
                           className="h-5 w-5"
                           onClick={() => onQuantityChange(part.id, -1)}
@@ -205,7 +205,7 @@ export function PartsModal({
                           {part.quantity}
                         </span>
                         <Button
-                          variant="chonky-secondary"
+                          variant="outline"
                           size="icon"
                           className="h-5 w-5"
                           onClick={() => onQuantityChange(part.id, 1)}
@@ -231,7 +231,7 @@ export function PartsModal({
 
           <div className="flex justify-between gap-3 pt-2 w-full">
             <Button
-              variant="chonky-secondary"
+              variant="outline"
               className="px-4 sm:px-6 text-[clamp(0.875rem,2vw,1rem)]"
               onClick={() => onOpenChange(false)}
             >

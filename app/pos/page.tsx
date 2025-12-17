@@ -990,7 +990,7 @@ function POSCustomerForm({
             type="button"
             variant="chonky-secondary"
             onClick={onSkip}
-            className="w-full sm:w-auto order-2 sm:order-1"
+            className="w-full sm:w-auto order-2 sm:order-1 h-auto px-4 py-[9px]"
           >
             Skip
           </Button>
@@ -998,7 +998,7 @@ function POSCustomerForm({
             type="submit"
             form="customer-form"
             variant="chonky"
-            className="w-full sm:w-auto order-1 sm:order-2"
+            className="w-full sm:w-auto order-1 sm:order-2 h-auto px-4 py-[9px]"
             disabled={isSubmitting}
           >
             {isSubmitting ? (
@@ -1756,7 +1756,7 @@ function POSPageContent() {
             price: volume.price,
           },
           details,
-          totalVolume, // Pass the total volume amount, not item count
+          volume.quantity, // Pass the item quantity, not total volume
           source,
           volume.bottleType || "closed" // Pass bottleType (or "closed" for highest volumes)
         );
@@ -2978,7 +2978,7 @@ function POSPageContent() {
                       <Button
                         variant="outline"
                         size="default"
-                        className="dispute-button h-10 px-4 flex items-center gap-2 relative transition-all duration-200 ease-in-out active:transition-none"
+                        className="dispute-button h-auto px-4 py-[9px] rounded-[12px] flex items-center gap-2 relative transition-all duration-200 ease-in-out active:transition-none"
                         onClick={() => setIsDisputeDialogOpen(true)}
                       >
                         <RotateCcw className="h-4 w-4" />
@@ -3025,7 +3025,7 @@ function POSPageContent() {
                   <Button
                     variant="outline"
                     size="default"
-                    className="dispute-button h-10 px-4 flex items-center gap-2 relative transition-all duration-200 ease-in-out active:transition-none"
+                    className="dispute-button h-auto px-4 py-[9px] flex items-center gap-2 relative transition-all duration-200 ease-in-out active:transition-none"
                     onClick={() => setIsDisputeDialogOpen(true)}
                   >
                     <RotateCcw className="h-4 w-4" />
@@ -3054,7 +3054,7 @@ function POSPageContent() {
                     {/* Labor Pill Button */}
                     <Button
                       variant="outline"
-                      className="w-full rounded-full border-2 border-orange-300 bg-orange-50 hover:bg-orange-100 text-orange-700 px-8 py-1 font-medium hover:border-orange-400 transition-colors shadow-sm mt-2 mb-2"
+                      className="w-full rounded-[12px] border-2 border-orange-300 bg-orange-50 hover:bg-orange-100 text-orange-700 px-4 py-[9px] font-medium hover:border-orange-400 transition-colors shadow-sm mt-2 mb-2"
                       onClick={() => setIsLaborDialogOpen(true)}
                     >
                       <Wrench className="h-4 w-4 mr-2" />
@@ -3144,8 +3144,8 @@ function POSPageContent() {
               <CardHeader className="flex-row items-center justify-between space-y-0 pb-3 px-4">
                 <CardTitle>Cart</CardTitle>
                 <Button
-                  variant="destructive"
-                  className="flex items-center gap-2"
+                  variant="chonky-destructive"
+                  className="flex items-center gap-2 rounded-[12px] px-4 py-[9px] h-auto"
                   onClick={() => setShowClearCartDialog(true)}
                   disabled={cart.length === 0}
                 >
@@ -3215,9 +3215,9 @@ function POSPageContent() {
                   <div className="space-y-1">
                     <div className="flex gap-2 mb-2">
                       <Button
-                        variant="outline"
+                        variant="chonky-secondary"
                         className={cn(
-                          "h-9 flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-800",
+                          "h-auto py-[9px] rounded-[12px] flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-800",
                           cartContainsAnyBatteries(cart) ? "flex-1" : "w-full" // Condition updated here
                         )}
                         onClick={() => setIsDiscountDialogOpen(true)}
@@ -3228,8 +3228,8 @@ function POSPageContent() {
                       </Button>
                       {cartContainsAnyBatteries(cart) && (
                         <Button
-                          variant="outline"
-                          className="h-9 flex-1 flex items-center justify-center gap-2 bg-orange-100 hover:bg-orange-200 text-orange-800 border-orange-300"
+                          variant="chonky-secondary"
+                          className="h-auto py-[9px] rounded-[12px] flex-1 flex items-center justify-center gap-2 bg-orange-100 hover:bg-orange-200 text-orange-800 border-orange-300"
                           onClick={() => {
                             // Pre-populate with existing trade-in data if available
                             if (appliedTradeInAmount > 0) {
@@ -3252,7 +3252,8 @@ function POSPageContent() {
                     </div>
 
                     <Button
-                      className="w-full h-9"
+                      variant="chonky"
+                      className="w-full h-auto py-[9px] rounded-[12px]"
                       disabled={cart.length === 0 || isCheckoutLoading}
                       onClick={handleCheckout}
                     >
@@ -3285,9 +3286,8 @@ function POSPageContent() {
                   </CardTitle>
                   <div className="flex items-center gap-2">
                     <Button
-                      variant="destructive"
-                      size="sm"
-                      className="flex items-center gap-2 text-[clamp(0.875rem,2vw,1rem)]"
+                      variant="chonky-destructive"
+                      className="flex items-center gap-2 text-[clamp(0.875rem,2vw,1rem)] h-auto px-4 py-[9px] rounded-[12px]"
                       onClick={() => setShowClearCartDialog(true)}
                       disabled={cart.length === 0}
                     >
@@ -3297,7 +3297,7 @@ function POSPageContent() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-9 w-9 bg-orange-100/70 hover:bg-orange-200/80 text-orange-700 border border-orange-200 shadow-sm rounded-lg transition-colors"
+                      className="h-9 w-9 bg-orange-100/70 hover:bg-orange-200/80 text-orange-700 border border-orange-200 shadow-sm rounded-[12px] transition-colors"
                       onClick={() => setShowCart(false)}
                     >
                       <X className="h-4 w-4" />
@@ -3364,9 +3364,9 @@ function POSPageContent() {
                     <div className="space-y-1">
                       <div className="flex gap-2 mb-2">
                         <Button
-                          variant="outline"
+                          variant="chonky-secondary"
                           className={cn(
-                            "h-9 flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-800",
+                            "h-auto py-[9px] rounded-[12px] flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-800",
                             cartContainsAnyBatteries(cart) ? "flex-1" : "w-full" // Condition updated here
                           )}
                           onClick={() => setIsDiscountDialogOpen(true)}
@@ -3377,8 +3377,8 @@ function POSPageContent() {
                         </Button>
                         {cartContainsAnyBatteries(cart) && (
                           <Button
-                            variant="outline"
-                            className="h-9 flex-1 flex items-center justify-center gap-2 bg-orange-100 hover:bg-orange-200 text-orange-800 border-orange-300"
+                            variant="chonky-secondary"
+                            className="h-auto py-[9px] rounded-[12px] flex-1 flex items-center justify-center gap-2 bg-orange-100 hover:bg-orange-200 text-orange-800 border-orange-300"
                             onClick={() => {
                               // Pre-populate with existing trade-in data if available
                               if (appliedTradeInAmount > 0) {
@@ -3401,7 +3401,7 @@ function POSPageContent() {
                       </div>
 
                       <Button
-                        className="w-full h-9"
+                        className="w-full h-auto py-[9px]"
                         disabled={cart.length === 0 || isCheckoutLoading}
                         onClick={handleCheckout}
                       >
@@ -3606,6 +3606,7 @@ function POSPageContent() {
                   </Button>
                   <div className="flex gap-2">
                     <Button
+                      variant="chonky"
                       className="px-2 sm:px-6 text-sm sm:text-base"
                       onClick={handleAddSelectedToCart}
                       disabled={selectedVolumes.length === 0}
@@ -4885,7 +4886,7 @@ function POSPageContent() {
           <div className="flex flex-col items-center justify-center py-4">
             <div className="flex items-center justify-center gap-4 mb-6">
               <Button
-                variant="chonky-secondary"
+                variant="outline"
                 size="icon"
                 className="h-12 w-12 rounded-full"
                 onClick={() =>
@@ -4919,7 +4920,7 @@ function POSPageContent() {
               </div>
 
               <Button
-                variant="chonky-secondary"
+                variant="outline"
                 size="icon"
                 className="h-12 w-12 rounded-full"
                 onClick={() =>
@@ -4938,28 +4939,28 @@ function POSPageContent() {
             </p>
             <div className="grid grid-cols-4 gap-2 px-2">
               <Button
-                variant="chonky-secondary"
+                variant="outline"
                 className="w-full text-sm"
                 onClick={() => setLaborAmount(0.5)}
               >
                 0.5
               </Button>
               <Button
-                variant="chonky-secondary"
+                variant="outline"
                 className="w-full text-sm"
                 onClick={() => setLaborAmount(1)}
               >
                 1
               </Button>
               <Button
-                variant="chonky-secondary"
+                variant="outline"
                 className="w-full text-sm"
                 onClick={() => setLaborAmount(2)}
               >
                 2
               </Button>
               <Button
-                variant="chonky-secondary"
+                variant="outline"
                 className="w-full text-sm"
                 onClick={() => setLaborAmount(3)}
               >
@@ -4970,7 +4971,7 @@ function POSPageContent() {
 
           <DialogFooter className="flex flex-row gap-3 px-2">
             <Button
-              variant="chonky-secondary"
+              variant="outline"
               className="flex-1 h-12 text-base"
               onClick={() => setIsLaborDialogOpen(false)}
             >

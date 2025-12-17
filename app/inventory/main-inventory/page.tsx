@@ -1747,8 +1747,6 @@ function DesktopView() {
 function ItemsPageContent() {
   const { currentUser } = useUser();
 
-
-
   return (
     <div className="w-full h-full">
       <div className="hidden md:block h-full">

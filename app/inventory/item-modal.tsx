@@ -745,48 +745,50 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
           {isMounted ? (
             <div className="flex flex-col h-full w-full">
               <div className="px-4 md:px-6">
-                <div className="inline-flex h-9 items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground w-full justify-start mb-4">
-                  <button
-                    key="general-tab"
-                    type="button"
-                    onClick={() => setActiveTab("general")}
-                    className={cn(
-                      "inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
-                      activeTab === "general"
-                        ? "bg-accent text-accent-foreground shadow-sm"
-                        : "hover:bg-accent/50"
-                    )}
-                  >
-                    General
-                  </button>
-                  {formData.isOil && (
+                <div className="flex justify-center w-full mb-6">
+                  <div className="flex items-center p-1 bg-muted/50 border rounded-lg w-fit shadow-sm">
                     <button
-                      key="volumes-tab"
+                      key="general-tab"
                       type="button"
-                      onClick={() => setActiveTab("volumes")}
+                      onClick={() => setActiveTab("general")}
                       className={cn(
-                        "inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
-                        activeTab === "volumes"
-                          ? "bg-accent text-accent-foreground shadow-sm"
-                          : "hover:bg-accent/50"
+                        "inline-flex items-center justify-center whitespace-nowrap rounded-md px-4 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+                        activeTab === "general"
+                          ? "bg-background text-foreground shadow-sm font-semibold"
+                          : "text-muted-foreground hover:bg-background/50 hover:text-foreground"
                       )}
                     >
-                      Volumes
+                      General
                     </button>
-                  )}
-                  <button
-                    key="batches-tab"
-                    type="button"
-                    onClick={() => setActiveTab("batches")}
-                    className={cn(
-                      "inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
-                      activeTab === "batches"
-                        ? "bg-accent text-accent-foreground shadow-sm"
-                        : "hover:bg-accent/50"
+                    {formData.isOil && (
+                      <button
+                        key="volumes-tab"
+                        type="button"
+                        onClick={() => setActiveTab("volumes")}
+                        className={cn(
+                          "inline-flex items-center justify-center whitespace-nowrap rounded-md px-4 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+                          activeTab === "volumes"
+                            ? "bg-background text-foreground shadow-sm font-semibold"
+                            : "text-muted-foreground hover:bg-background/50 hover:text-foreground"
+                        )}
+                      >
+                        Volumes
+                      </button>
                     )}
-                  >
-                    Batches
-                  </button>
+                    <button
+                      key="batches-tab"
+                      type="button"
+                      onClick={() => setActiveTab("batches")}
+                      className={cn(
+                        "inline-flex items-center justify-center whitespace-nowrap rounded-md px-4 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+                        activeTab === "batches"
+                          ? "bg-background text-foreground shadow-sm font-semibold"
+                          : "text-muted-foreground hover:bg-background/50 hover:text-foreground"
+                      )}
+                    >
+                      Batches
+                    </button>
+                  </div>
                 </div>
               </div>
 
