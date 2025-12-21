@@ -6,9 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Badge } from "@/components/ui/badge";
 import { Layout } from "@/components/layout";
-import { lubricants, filterPricing, baseFilterPrice } from "./data";
 import { useVehicleData } from "./hooks/useVehicleData";
 
 const InternalToolPage = () => {
@@ -18,6 +17,8 @@ const InternalToolPage = () => {
     years,
     engines,
     vehicle,
+    lubricants,
+    filterProduct,
     loading,
     fetchModels,
     fetchYears,
@@ -31,7 +32,6 @@ const InternalToolPage = () => {
   const [selectedYear, setSelectedYear] = useState<string>("");
   const [selectedEngine, setSelectedEngine] = useState<string>("");
   
-  const [filterQuality, setFilterQuality] = useState<string>("none");
   const [showLubricants, setShowLubricants] = useState(false);
 
   const handleMakeChange = (value: string) => {
@@ -80,9 +80,10 @@ const InternalToolPage = () => {
     setSelectedYear("");
     setSelectedEngine("");
     setVehicle(null);
-    setFilterQuality("none");
     setShowLubricants(false);
   };
+
+  const isFilterAvailable = filterProduct?.isAvailable && filterProduct.stock > 0;
 
   return (
     <Layout>
@@ -221,29 +222,36 @@ const InternalToolPage = () => {
                   <h3 className="text-lg font-semibold mb-3">Oil Filter</h3>
                   <div className="space-y-4">
                     <div className="rounded-lg bg-accent/50 p-4 border border-border">
-                      <p className="text-sm text-muted-foreground mb-1">Part Number</p>
-                      <p className="text-lg font-semibold text-foreground">{vehicle.oil_filter_part_number}</p>
-                    </div>
-                    
-                    <div className="space-y-3">
-                      <Label className="text-sm font-medium">Select Filter Quality</Label>
-                      <RadioGroup value={filterQuality} onValueChange={setFilterQuality}>
-                        <div className="grid gap-2 sm:gap-3">
-                          {Object.entries(filterPricing).map(([key, value]) => (
-                            <div key={key} className="flex items-center space-x-2 sm:space-x-3">
-                              <RadioGroupItem value={key} id={key} />
-                              <Label htmlFor={key} className="flex-1 cursor-pointer">
-                                <div className="flex justify-between items-center">
-                                  <span className="font-medium text-sm">{value.label}</span>
-                                  <span className="text-primary font-semibold text-sm">
-                                    {key === "none" ? "$0.00" : `$${(baseFilterPrice * value.multiplier).toFixed(2)}`}
-                                  </span>
-                                </div>
-                              </Label>
-                            </div>
-                          ))}
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="text-sm text-muted-foreground mb-1">Part Number</p>
+                          <p className="text-lg font-semibold text-foreground">{vehicle.oil_filter_part_number}</p>
                         </div>
-                      </RadioGroup>
+                        {filterProduct ? (
+                          <div className="text-right">
+                             {filterProduct.isAvailable ? (
+                                <>
+                                  <p className="text-xl font-bold text-primary">OMR {filterProduct.price.toFixed(2)}</p>
+                                  {filterProduct.stock > 0 ? (
+                                    <Badge variant="secondary" className="mt-1 bg-green-100 text-green-800 hover:bg-green-100">
+                                      In Stock ({filterProduct.stock})
+                                    </Badge>
+                                  ) : (
+                                    <Badge variant="destructive" className="mt-1">
+                                      Out of Stock
+                                    </Badge>
+                                  )}
+                                </>
+                             ) : (
+                              <Badge variant="outline" className="mt-1 border-destructive text-destructive">
+                                Part Not in Database
+                              </Badge>
+                             )}
+                          </div>
+                        ) : (
+                          <div className="text-sm text-muted-foreground">Checking availability...</div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -256,10 +264,17 @@ const InternalToolPage = () => {
                 View Available Lubricants & Pricing
               </Button>
 
-              {/* Price Breakdown - Only show when filter is not "none" */}
-              {filterQuality !== "none" && showLubricants && (
+              {/* Price Breakdown - Show when filter is valid and available, or if just lubricants, but user logic wants distinct view */}
+              {/* Actually per previous logic: "The available lubricant will only be needed if no filter is selected." 
+                  But now we ALWAYS have a filter selected if the car has one. 
+                  Maybe we interpret "filter selected" as "Is there a valid filter to buy?"
+                  Let's stick to the spirit: If we can show a total package (Filter + Oil), show Price Breakdown.
+                  If the filter is unavailable, we might just show Lubricants. 
+               */}
+              
+              {showLubricants && isFilterAvailable && filterProduct && (
                 <div className="mt-6">
-                  <h3 className="text-lg font-semibold mb-3">Price Breakdown</h3>
+                  <h3 className="text-lg font-semibold mb-3">Price Breakdown (Oil + Filter)</h3>
                   <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
                     <CardContent className="pt-6 space-y-4">
                       <div className="space-y-3">
@@ -268,33 +283,30 @@ const InternalToolPage = () => {
                             <div className="flex justify-between items-center p-3 sm:p-4 rounded-lg bg-background/50">
                               <div>
                                 <p className="font-medium text-sm">{lubricant.name}</p>
-                                <p className="text-xs text-muted-foreground">Lubricant</p>
+                                <p className="text-xs text-muted-foreground">{lubricant.type}</p>
                               </div>
                               <p className="text-base font-semibold">
-                                ${(lubricant.pricePerLiter * vehicle.oil_capacity).toFixed(2)}
+                                OMR {(lubricant.pricePerLiter * vehicle.oil_capacity).toFixed(2)}
                               </p>
                             </div>
 
                             <div className="flex justify-between items-center p-3 sm:p-4 rounded-lg bg-background/50">
                               <div>
-                                <p className="font-medium text-sm">Oil Filter</p>
-                                <p className="text-xs text-muted-foreground">
-                                  {filterPricing[filterQuality as keyof typeof filterPricing].label}
-                                </p>
+                                <p className="font-medium text-sm">Oil Filter ({filterProduct.name})</p>
                               </div>
                               <p className="text-base font-semibold">
-                                ${(baseFilterPrice * filterPricing[filterQuality as keyof typeof filterPricing].multiplier).toFixed(2)}
+                                OMR {filterProduct.price.toFixed(2)}
                               </p>
                             </div>
 
                             <Separator />
 
                             <div className="flex justify-between items-center p-4 sm:p-6 rounded-lg bg-primary/20 border-2 border-primary/50">
-                              <p className="text-lg font-bold">Total ({lubricant.name})</p>
+                              <p className="text-lg font-bold">Total</p>
                               <p className="text-2xl font-bold text-primary">
-                                ${(
+                                OMR {(
                                   lubricant.pricePerLiter * vehicle.oil_capacity +
-                                  baseFilterPrice * filterPricing[filterQuality as keyof typeof filterPricing].multiplier
+                                  filterProduct.price
                                 ).toFixed(2)}
                               </p>
                             </div>
@@ -311,7 +323,8 @@ const InternalToolPage = () => {
           </Card>
         )}
 
-        {showLubricants && vehicle && (
+        {/* Available Lubricants - Show if filter is NOT available or explicitly requested without filter context */}
+        {showLubricants && vehicle && (!isFilterAvailable) && (
           <Card className="shadow-xl border-border/50">
             <CardHeader>
               <CardTitle className="text-2xl">Available Lubricants</CardTitle>
@@ -319,25 +332,29 @@ const InternalToolPage = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-2 sm:space-y-3">
-                {lubricants.map((lubricant, index) => (
-                  <div key={index}>
-                    <div className="flex items-center justify-between rounded-lg border border-border bg-card p-3 sm:p-4">
-                      <div className="space-y-1">
-                        <p className="font-medium text-foreground text-sm">{lubricant.name}</p>
-                        <p className="text-xs text-muted-foreground">{lubricant.type}</p>
+                {lubricants.length > 0 ? (
+                  lubricants.map((lubricant, index) => (
+                    <div key={index}>
+                      <div className="flex items-center justify-between rounded-lg border border-border bg-card p-3 sm:p-4">
+                        <div className="space-y-1">
+                          <p className="font-medium text-foreground text-sm">{lubricant.name}</p>
+                          <p className="text-xs text-muted-foreground">{lubricant.type}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-base sm:text-lg font-semibold text-foreground">
+                            OMR {(lubricant.pricePerLiter * vehicle.oil_capacity).toFixed(2)}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            OMR {lubricant.pricePerLiter}/L
+                          </p>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <p className="text-base sm:text-lg font-semibold text-foreground">
-                          ${(lubricant.pricePerLiter * vehicle.oil_capacity).toFixed(2)}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          ${lubricant.pricePerLiter}/L
-                        </p>
-                      </div>
+                      {index < lubricants.length - 1 && <Separator className="my-2" />}
                     </div>
-                    {index < lubricants.length - 1 && <Separator className="my-2" />}
-                  </div>
-                ))}
+                  ))
+                ) : (
+                   <p className="text-center text-muted-foreground py-4">No lubricants found in database.</p>
+                )}
               </div>
             </CardContent>
           </Card>

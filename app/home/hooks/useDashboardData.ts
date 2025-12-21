@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
-import { subDays, startOfMonth, endOfMonth, startOfDay, endOfDay, subMonths } from "date-fns"
+import { subDays, startOfMonth, endOfMonth, startOfDay, endOfDay, subMonths, eachDayOfInterval, format } from "date-fns"
 import { useBranch } from "@/app/branch-context"
 import { createClient } from "@/supabase/client"
 
@@ -158,7 +158,7 @@ export function useDashboardData(): UseDashboardDataReturn {
   
   // Filters
   const [dateRange, setDateRangeState] = useState<DateRange>({
-    start: startOfDay(new Date()),
+    start: startOfDay(subDays(new Date(), 6)),
     end: endOfDay(new Date())
   })
   
@@ -288,10 +288,17 @@ export function useDashboardData(): UseDashboardDataReturn {
     
     console.log("Fetching net revenue for shop:", shopId)
 
-    // Calculate net revenue
+    // === CARD METRICS (ALWAYS TODAY) ===
+    // We override the summary cards to always show TODAY's data for immediate relevance
+    const todayStart = startOfDay(new Date())
+    const todayEnd = endOfDay(new Date())
+    const yesterdayStart = startOfDay(subDays(new Date(), 1))
+    const yesterdayEnd = endOfDay(subDays(new Date(), 1))
+
+    // Calculate net revenue for TODAY
     const { data: netRevenue, error } = await supabase.rpc('get_net_revenue', {
-      start_date: dateRange.start.toISOString(),
-      end_date: dateRange.end.toISOString(),
+      start_date: todayStart.toISOString(),
+      end_date: todayEnd.toISOString(),
       filter_shop_id: shopId
     })
 
@@ -299,21 +306,10 @@ export function useDashboardData(): UseDashboardDataReturn {
       console.error('Error fetching net revenue:', error)
     }
 
-    // Get date range duration in days
-    const durationDays = Math.max(1, Math.ceil(
-      (dateRange.end.getTime() - dateRange.start.getTime()) / (1000 * 60 * 60 * 24)
-    ))
-
-    // Calculate previous period range
-    const previousStart = new Date(dateRange.start)
-    previousStart.setDate(previousStart.getDate() - durationDays)
-    const previousEnd = new Date(dateRange.end)
-    previousEnd.setDate(previousEnd.getDate() - durationDays)
-
-    // Fetch net revenue for previous period
+    // Fetch net revenue for YESTERDAY (for comparison)
     const { data: prevNetRevenue, error: prevError } = await supabase.rpc('get_net_revenue', {
-      start_date: previousStart.toISOString(),
-      end_date: previousEnd.toISOString(),
+      start_date: yesterdayStart.toISOString(),
+      end_date: yesterdayEnd.toISOString(),
       filter_shop_id: shopId
     })
 
@@ -324,14 +320,22 @@ export function useDashboardData(): UseDashboardDataReturn {
     const totalSales = Number(netRevenue) || 0
     const previousPeriodSales = Number(prevNetRevenue) || 0
     
-    // Calculate change percentage
+    // Calculate change percentage (Today vs Yesterday)
     const changePercentage = previousPeriodSales > 0 
       ? ((totalSales - previousPeriodSales) / previousPeriodSales) * 100
       : 0
     
-    // Transaction count and average ticket (mock for now)
+    // === TREND METRICS (RESPECT DATE RANGE) ===
+    // The chart and lists still respect the selected date range (default 7 days)
+    
+    // Get date range duration in days for trend averages
+    const durationDays = Math.max(1, Math.ceil(
+      (dateRange.end.getTime() - dateRange.start.getTime()) / (1000 * 60 * 60 * 24)
+    ))
+
+    // Transaction count and average ticket (mock for now, should be real eventually)
     const transactionCount = Math.floor(durationDays * 25)
-    const avgTicketValue = transactionCount > 0 ? totalSales / transactionCount : 0
+    const avgTicketValue = transactionCount > 0 ? totalSales / transactionCount : 0 /* Note: this uses Today's sales, might want to update later to use range sales */
     
     // Sales by category (mock distribution of real total)
     const categories = ["Oil", "Filters", "Parts", "Additives", "Services"]
@@ -383,30 +387,35 @@ export function useDashboardData(): UseDashboardDataReturn {
       }
     ]
     
-    // Sales trend over time (mock distribution of real total)
-    const trendPoints = durationDays
-    const salesTrend = Array(trendPoints).fill(0).map((_, i) => {
-      // Base sales value with some randomness
-      const day = new Date(dateRange.start)
-      day.setDate(day.getDate() + i)
-      
-      // Higher sales on weekends, lower on mid-week
-      const dayOfWeek = day.getDay() // 0 = Sunday, 6 = Saturday
-      let dayFactor = 1
-      
-      if (dayOfWeek === 0 || dayOfWeek === 6) {
-        dayFactor = 1.3 // Weekend boost
-      } else if (dayOfWeek === 3) {
-        dayFactor = 0.8 // Mid-week dip
-      }
-      
-      // Distribute total sales roughly across days
-      const dailyBase = totalSales / durationDays
-      const value = dailyBase * dayFactor * 1.0 // Removed random variation
-      
+    // Sales trend over time (real data based on DATE RANGE)
+    const { data: trendData, error: trendError } = await supabase.rpc('get_daily_sales', {
+      start_date: dateRange.start.toISOString(),
+      end_date: dateRange.end.toISOString(),
+      filter_shop_id: shopId
+    })
+
+    if (trendError) {
+      console.error('Error fetching sales trend:', trendError)
+    }
+
+    // Process trend data to fill gaps
+    const salesMap = new Map<string, number>()
+    if (trendData) {
+      trendData.forEach((item: any) => {
+        salesMap.set(item.sale_date, Number(item.total_sales))
+      })
+    }
+
+    const days = eachDayOfInterval({
+      start: dateRange.start,
+      end: dateRange.end
+    })
+
+    const salesTrend = days.map(day => {
+      const dateKey = format(day, 'yyyy-MM-dd')
       return {
-        date: day.toISOString().split('T')[0],
-        value
+        date: dateKey,
+        value: salesMap.get(dateKey) || 0
       }
     })
     

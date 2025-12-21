@@ -58,16 +58,27 @@ export async function getRevenueData() {
   const getCategoryName = (productId: string): "fluid" | "part" | "service" => {
     const product = productMap.get(productId)
     if (!product) return 'part' // default
+
+    // Try to get category from relationships first
+    let catName: string | undefined
     const type = typeMap.get(product.type_id)
-    if (!type) return 'part'
-    const catName = categoryMap.get(type.category_id)
+    if (type) {
+      catName = categoryMap.get(type.category_id)
+    }
     
-    if (!catName) return 'part'
-    
-    const lower = catName.toLowerCase()
-    if (lower.includes('fluid') || lower.includes('oil') || lower.includes('lubricant') || lower.includes('additive')) return 'fluid'
-    if (lower.includes('part') || lower.includes('filter')) return 'part'
-    if (lower.includes('service')) return 'service'
+    if (catName) {
+      const lower = catName.toLowerCase()
+      if (lower.includes('fluid') || lower.includes('oil') || lower.includes('lubricant') || lower.includes('additive')) return 'fluid'
+      if (lower.includes('part') || lower.includes('filter')) return 'part'
+      if (lower.includes('service')) return 'service'
+    }
+
+    // Fallback: Check product name if category lookup failed
+    const lowerName = product.name.toLowerCase()
+    // Match common viscosity patterns (e.g., 0w-20, 5w30), oil, layout, etc.
+    if (/\d+w-?\d+/i.test(lowerName) || lowerName.includes('oil') || lowerName.includes('fluid') || lowerName.includes('lubricant')) {
+        return 'fluid'
+    }
     
     return 'part'
   }

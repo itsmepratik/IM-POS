@@ -137,7 +137,7 @@ const DesktopView = memo(
           </thead>
           <tbody>
             {salesData.map((item) => (
-              <React.Fragment key={item.name}>
+              <React.Fragment key={`${item.name}-${item.storeId}`}>
                 <tr
                   className={`border-b ${
                     item.category === "fluid"
@@ -238,7 +238,7 @@ const MobileView = memo(
       <div className="space-y-4">
         {salesData.map((item) => (
           <MobileItemCard
-            key={item.name}
+            key={`${item.name}-${item.storeId}`}
             item={item}
             isExpanded={expandedItems.includes(item.name)}
             onToggle={() => toggleItem(item.name)}

@@ -38,6 +38,7 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import { useUser } from "@/app/user-context";
 import { RouteProtection } from "@/components/route-protection";
+import { SalesTrendChart } from "./components/SalesTrendChart";
 
 interface Product {
   id: number;
@@ -243,25 +244,42 @@ function HomePageContent() {
                     <div className="h-4 w-full bg-gray-200 animate-pulse rounded" />
                   </div>
                 ) : (
-                  <div className="space-y-3">
-                    {sales.topProducts.slice(0, 5).map((product, index) => (
-                      <div
-                        key={index}
-                        className="flex justify-between items-center w-full"
-                      >
-                        <span className="truncate w-[45%]">{product.name}</span>
-                        <span className="text-xs text-muted-foreground text-center">
-                          {product.units} sales
-                        </span>
-                        <span className="text-sm whitespace-nowrap text-right">
-                          OMR {product.revenue.toFixed(2)}
-                        </span>
-                      </div>
-                    ))}
+                  <div className="space-y-4 max-w-2xl">
+                    <div className="grid grid-cols-[1fr_80px_110px] gap-4 px-1 text-[10px] uppercase font-bold text-muted-foreground/70 tracking-wider">
+                      <span className="truncate">Product Name</span>
+                      <span className="text-center">Sales</span>
+                      <span className="text-right">Amount</span>
+                    </div>
+                    <div className="space-y-3">
+                      {sales.topProducts.slice(0, 5).map((product, index) => (
+                        <div
+                          key={index}
+                          className="grid grid-cols-[1fr_80px_110px] gap-4 items-center w-full min-w-0"
+                        >
+                          <span className="text-[14px] font-medium truncate min-w-0" title={product.name}>
+                            {product.name}
+                          </span>
+                          <span className="text-xs text-muted-foreground text-center tabular-nums">
+                            {product.units}
+                          </span>
+                          <span className="text-sm text-right whitespace-nowrap tabular-nums">
+                            OMR {product.revenue.toFixed(2)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
               </CardContent>
             </Card>
+          </section>
+
+          <section>
+            <SalesTrendChart 
+               data={sales.salesTrend} 
+               isLoading={isLoading} 
+               trendPercentage={sales.changePercentage} 
+            />
           </section>
         </div>
       </div>
@@ -280,7 +298,7 @@ function MetricCard({ title, value, comparison, link }: MetricCardProps) {
   return (
     <Card className="border-2 rounded-[33px]">
       <CardHeader className="pb-2">
-        <CardTitle className="text-base font-medium">{title}</CardTitle>
+        <CardTitle className="text-base font-bold">{title}</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="text-2xl font-bold" style={{ color: "#5f5f5f" }}>

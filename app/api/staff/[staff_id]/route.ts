@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getStaffById, validateStaffId } from "@/lib/utils/staff-validation";
+import { getStaffByTextId } from "@/lib/utils/staff-validation";
 import { z } from "zod";
 
 /**
@@ -23,14 +23,14 @@ export async function GET(
       );
     }
 
-    const staff = await getStaffById(staff_id);
+    const staff = await getStaffByTextId(staff_id);
 
     if (!staff) {
       return NextResponse.json(
         {
           success: false,
           error: "Staff member not found",
-          details: `No active staff member found with ID: ${staff_id}`,
+          details: `No staff member found with ID: ${staff_id}`,
         },
         { status: 404 }
       );
@@ -80,7 +80,7 @@ export async function PATCH(
     }
 
     // Check if staff exists
-    const existing = await getStaffById(staff_id);
+    const existing = await getStaffByTextId(staff_id);
     if (!existing) {
       return NextResponse.json(
         {
@@ -158,3 +158,72 @@ export async function PATCH(
   }
 }
 
+
+/**
+ * DELETE /api/staff/[staff_id]
+ * Delete (or deactivate) a staff member
+ */
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: { staff_id: string } }
+) {
+  try {
+    const { staff_id } = params;
+
+    if (!staff_id) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Staff ID is required",
+        },
+        { status: 400 }
+      );
+    }
+
+    const { createClient } = await import("@/supabase/server");
+    const supabase = await createClient();
+
+    // Check if staff exists
+    const existing = await getStaffByTextId(staff_id);
+    if (!existing) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Staff member not found",
+        },
+        { status: 404 }
+      );
+    }
+
+    const { error } = await supabase
+      .from("staff")
+      .delete()
+      .eq("staff_id", staff_id);
+
+    if (error) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Failed to delete staff member",
+          details: error.message,
+        },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: "Staff member deleted successfully",
+    });
+  } catch (error) {
+    console.error("Error deleting staff member:", error);
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Internal server error",
+        details: error instanceof Error ? error.message : "Unknown error",
+      },
+      { status: 500 }
+    );
+  }
+}

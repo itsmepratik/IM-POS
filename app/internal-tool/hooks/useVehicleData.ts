@@ -11,18 +11,39 @@ export interface VehicleData {
   oil_filter_part_number: string | null;
 }
 
+export interface LubricantProduct {
+  id: string;
+  name: string;
+  pricePerLiter: number;
+  type: string;
+  stock: number;
+}
+
+export interface FilterProduct {
+  id: string;
+  name: string;
+  price: number;
+  stock: number;
+  isAvailable: boolean;
+}
+
 export const useVehicleData = () => {
   const [makes, setMakes] = useState<string[]>([]);
   const [models, setModels] = useState<string[]>([]);
   const [years, setYears] = useState<number[]>([]);
   const [engines, setEngines] = useState<string[]>([]);
   const [vehicle, setVehicle] = useState<VehicleData | null>(null);
+  
+  const [lubricants, setLubricants] = useState<LubricantProduct[]>([]);
+  const [filterProduct, setFilterProduct] = useState<FilterProduct | null>(null);
+  
   const [loading, setLoading] = useState(false);
 
   const supabase = createClient();
 
   useEffect(() => {
     fetchMakes();
+    fetchLubricants();
   }, []);
 
   const fetchMakes = async () => {
@@ -105,8 +126,105 @@ export const useVehicleData = () => {
 
     if (data) {
       setVehicle(data);
+      if (data.oil_filter_part_number) {
+        fetchFilterProduct(data.oil_filter_part_number);
+      } else {
+        setFilterProduct(null);
+      }
     }
     setLoading(false);
+  };
+
+  const parseVolume = (volStr: string): number => {
+    const clean = volStr.toLowerCase().replace(/\s/g, "");
+    if (clean.includes("ml")) {
+      return parseFloat(clean) / 1000;
+    }
+    return parseFloat(clean);
+  };
+
+  const fetchLubricants = async () => {
+    // Lubricants Category ID: c9a58df4-eb3d-424a-a9d6-7c26f3f57c1b
+    const { data: products, error } = await supabase
+      .from("products")
+      .select(`
+        id,
+        name,
+        product_type,
+        inventory (
+          total_stock
+        ),
+        product_volumes (
+          volume_description,
+          selling_price
+        )
+      `)
+      .eq("category_id", "c9a58df4-eb3d-424a-a9d6-7c26f3f57c1b");
+
+    if (products) {
+      const mappedLubricants: LubricantProduct[] = products.map((p: any) => {
+        // Find highest volume
+        let maxVol = 0;
+        let priceForMaxVol = 0;
+
+        if (p.product_volumes && p.product_volumes.length > 0) {
+          p.product_volumes.forEach((v: any) => {
+            const vol = parseVolume(v.volume_description);
+            if (vol > maxVol) {
+              maxVol = vol;
+              priceForMaxVol = v.selling_price;
+            }
+          });
+        }
+        
+        // Fallback or calculation
+        const pricePerLiter = maxVol > 0 ? (priceForMaxVol / maxVol) : 0;
+
+        return {
+          id: p.id,
+          name: p.name,
+          type: p.product_type || "Standard",
+          pricePerLiter: pricePerLiter,
+          stock: p.inventory?.[0]?.total_stock || 0
+        };
+      });
+      setLubricants(mappedLubricants);
+    }
+  };
+
+  const fetchFilterProduct = async (partNumber: string) => {
+    // Determine if we have this part in our products table
+    const { data, error } = await supabase
+      .from("products")
+      .select(`
+        id,
+        name,
+        inventory (
+          selling_price,
+          total_stock
+        )
+      `)
+      .eq("name", partNumber)
+      .maybeSingle(); // Use maybeSingle to handle 'not found' without error
+
+    if (data) {
+      setFilterProduct({
+        id: data.id,
+        name: data.name,
+        price: data.inventory?.[0]?.selling_price || 0,
+        stock: data.inventory?.[0]?.total_stock || 0,
+        isAvailable: true
+      });
+    } else {
+      // Product not found in our database
+      setFilterProduct({
+        id: "",
+        name: partNumber,
+        price: 0,
+        stock: 0,
+        isAvailable: false
+      });
+    }
   };
 
   return {
@@ -115,11 +233,13 @@ export const useVehicleData = () => {
     years,
     engines,
     vehicle,
+    lubricants,
+    filterProduct,
     loading,
     fetchModels,
     fetchYears,
     fetchEngines,
     fetchVehicleDetails,
-    setVehicle // Allow resetting vehicle
+    setVehicle
   };
 };

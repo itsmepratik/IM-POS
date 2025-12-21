@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/supabase/server";
-import { getAllActiveStaff } from "@/lib/utils/staff-validation";
+import { getAllStaff, getStaffByTextId } from "@/lib/utils/staff-validation";
 
 /**
  * GET /api/staff
@@ -9,7 +9,8 @@ import { getAllActiveStaff } from "@/lib/utils/staff-validation";
  */
 export async function GET(req: NextRequest) {
   try {
-    const staffMembers = await getAllActiveStaff();
+    // For settings, we want ALL staff members
+    const staffMembers = await getAllStaff();
 
     return NextResponse.json({
       success: true,
@@ -56,8 +57,8 @@ export async function POST(req: NextRequest) {
 
     const { staff_id, name, is_active = true } = validation.data;
 
-    // Check if staff_id already exists
-    const existing = await getStaffById(staff_id);
+    // Check if staff_id already exists (globally unique)
+    const existing = await getStaffByTextId(staff_id);
     if (existing) {
       return NextResponse.json(
         {
