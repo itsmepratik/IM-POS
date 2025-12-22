@@ -48,6 +48,16 @@ import {
 import { ItemsProvider, useItems, type Item } from "../items-context";
 import { ItemModal } from "../item-modal";
 import { CategoryModal } from "../category-modal";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useUser } from "../../user-context";
 import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
@@ -603,6 +613,12 @@ function MobileView() {
     stockStatus,
     setStockStatus,
     resetFilters,
+
+    // Delete dialog
+    itemToDelete,
+    handleConfirmDelete,
+    handleCancelDelete,
+    isDeleting,
   } = useInventoryData();
 
   const [itemModalOpen, setItemModalOpen] = useState(false);
@@ -1163,6 +1179,12 @@ function DesktopView() {
     // Counts
     outOfStockCount,
     lowStockCount,
+
+    // Delete dialog
+    itemToDelete,
+    handleConfirmDelete,
+    handleCancelDelete,
+    isDeleting,
   } = useInventoryData();
 
   const [itemModalOpen, setItemModalOpen] = useState(false);
@@ -1740,6 +1762,40 @@ function DesktopView() {
         isOpen={tradeInsModalOpen}
         onClose={handleTradeInsModalClose}
       />
+
+      <AlertDialog open={!!itemToDelete} onOpenChange={(open) => !open && handleCancelDelete()}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the item
+              from the inventory.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleCancelDelete} disabled={isDeleting}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handleConfirmDelete();
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={isDeleting}
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

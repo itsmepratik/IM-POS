@@ -157,6 +157,9 @@ export const useVehicleData = () => {
         product_volumes (
           volume_description,
           selling_price
+        ),
+        brands (
+          name
         )
       `)
       .eq("category_id", "c9a58df4-eb3d-424a-a9d6-7c26f3f57c1b");
@@ -183,6 +186,7 @@ export const useVehicleData = () => {
         return {
           id: p.id,
           name: p.name,
+          brand: p.brands?.name || "Unknown Brand",
           type: p.product_type || "Standard",
           pricePerLiter: pricePerLiter,
           stock: p.inventory?.[0]?.total_stock || 0

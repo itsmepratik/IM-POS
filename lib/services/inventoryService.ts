@@ -41,6 +41,7 @@ export type Item = {
   costPrice?: number;
   manufacturingDate?: string | null;
   totalOpenVolume?: number; // Total volume in liters from open_bottle_details (for lubricants)
+  specification?: string | null;
 };
 
 export type Volume = {
@@ -162,6 +163,7 @@ export const fetchItems = async (
           manufacturing_date,
           is_battery,
           battery_state,
+          specification,
           category_id,
           brand_id,
           categories (
@@ -341,6 +343,7 @@ export const fetchItems = async (
             ? parseFloat(product.cost_price)
             : undefined,
           manufacturingDate: product.manufacturing_date,
+          specification: product.specification,
           // Debug logging for manufacturing date
           ...(product.manufacturing_date && {
             debug_manufacturingDate: product.manufacturing_date,
@@ -436,7 +439,8 @@ export const createItem = async (
         brand_id: item.brand_id,
         price: item.price,
         stock: item.stock,
-        is_oil: item.is_oil,
+        is_oil: item.isOil,
+        specification: item.specification,
       },
     });
 
@@ -479,6 +483,7 @@ export const createItem = async (
       manufacturing_date: item.manufacturingDate,
       is_battery: isBatteryProduct,
       battery_state: isBatteryProduct ? (item.batteryState || "new") : null,
+      specification: item.specification || null,
     };
 
     // Prefer type_id over type (text) for new products
@@ -542,7 +547,7 @@ export const createItem = async (
     }
 
     // Create volumes if it's an oil product
-    if (item.is_oil && item.volumes && item.volumes.length > 0) {
+    if (item.isOil && item.volumes && item.volumes.length > 0) {
       const volumeInserts = item.volumes.map((vol) => ({
         product_id: productData.id,
         volume_description: vol.size,
@@ -645,6 +650,8 @@ export const updateItem = async (
       productUpdates.is_battery = updates.isBattery;
     if (updates.batteryState !== undefined)
       productUpdates.battery_state = updates.batteryState;
+    if (updates.specification !== undefined)
+      productUpdates.specification = updates.specification;
     // Note: is_oil column doesn't exist in database, so we skip this update
 
     if (Object.keys(productUpdates).length > 0) {
@@ -700,7 +707,6 @@ export const updateItem = async (
     // Update volumes if provided (for oil/lubricant products)
     if (
       updates.volumes !== undefined &&
-      updates.is_oil !== false &&
       updates.isOil !== false
     ) {
       // Get existing volumes

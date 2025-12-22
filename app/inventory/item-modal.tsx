@@ -61,18 +61,21 @@ import { v4 as uuidv4 } from "uuid";
 import { toast } from "@/components/ui/use-toast";
 
 // Extended Item interface to include additional properties needed in the modal
-interface ExtendedItem extends Omit<Item, "is_oil" | "image_url"> {
+interface ExtendedItem extends Omit<Item, "is_oil" | "image_url" | "price" | "stock" | "costPrice" | "lowStockAlert"> {
+  price: number | string;
+  stock: number | string;
   isOil: boolean; // UI version of is_oil
   imageUrl?: string; // UI version of image_url
   imageBlob?: string;
   notes?: string; // UI version of description
-  lowStockAlert?: number;
-  cost?: number;
-  costPrice?: number; // UI version of cost_price
+  lowStockAlert?: number | string;
+  cost?: number | string;
+  costPrice?: number | string; // UI version of cost_price
   manufacturingDate?: string; // UI version of manufacturing_date
   batches: Batch[]; // Make batches always required and non-optional
   isBattery?: boolean; // UI version of is_battery
   batteryState?: "new" | "scrap" | "resellable"; // Battery state for categorization
+  specification?: string; // New field for "For" dropdown (OEM, First Copy, Second Copy / Petrol, Diesel)
 }
 
 interface ItemModalProps {
@@ -107,24 +110,31 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
     id: item?.id || "",
     name: item?.name || "",
     category: item?.category || "",
-    stock: item?.stock || 0,
-    price: item?.price || 0,
+    stock: item?.stock !== undefined ? item.stock : "",
+    price: item?.price !== undefined ? item.price : "",
     cost: 0,
-    costPrice: item?.costPrice || 0,
+    costPrice: item?.costPrice !== undefined ? item.costPrice : "",
     manufacturingDate: item?.manufacturingDate || "",
     brand: item?.brand || "",
     type: item?.type || "",
     type_id: item?.type_id || null,
-    imageUrl: "",
+    type_name: item?.type_name || null,
+    imageUrl: item?.image_url || undefined,
     imageBlob: "",
-    notes: "",
-    lowStockAlert: 5,
+    notes: item?.description || "",
+    description: item?.description || null,
+    category_id: item?.category_id || null,
+    brand_id: item?.brand_id || null,
+    created_at: item?.created_at || null,
+    updated_at: item?.updated_at || null,
+    lowStockAlert: item?.low_stock_threshold || 10,
     isOil: item?.is_oil || false,
     bottleStates: item?.bottleStates || { open: 0, closed: 0 },
     volumes: item?.volumes || [],
     batches: item?.batches || [],
     isBattery: item?.isBattery || false,
     batteryState: item?.batteryState || "new",
+    specification: item?.specification || "",
   });
   const [newBatch, setNewBatch] = useState<Omit<Batch, "id">>({
     item_id: "",
@@ -222,6 +232,7 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
         is_oil: item.is_oil || item.isOil || false,
         isBattery: item.isBattery || isBatteryType || false,
         batteryState: item.batteryState || "new",
+        specification: item.specification || "",
       };
 
       console.log("Transformed form data:", {
@@ -249,15 +260,17 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
         id: "",
         name: "",
         category: "",
-        stock: 0,
-        price: 0,
+        stock: "",
+        price: "",
         cost: 0,
         brand: "",
         type: "",
+        type_id: null,
+        type_name: null,
         imageUrl: "",
         imageBlob: "",
         notes: "",
-        lowStockAlert: 5,
+        lowStockAlert: 10,
         isOil: false,
         bottleStates: { open: 0, closed: 0 },
         volumes: [],
@@ -304,15 +317,17 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
         id: "",
         name: "",
         category: "",
-        stock: 0,
-        price: 0,
+        stock: "", // Initialize as empty string
+        price: "", // Initialize as empty string
         cost: 0,
         brand: "",
         type: "",
+        type_id: null,
+        type_name: null,
         imageUrl: "",
         imageBlob: "",
         notes: "",
-        lowStockAlert: 5,
+        lowStockAlert: 10,
         isOil: false,
         bottleStates: { open: 0, closed: 0 },
         volumes: [],
@@ -326,6 +341,7 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
         is_oil: false,
         isBattery: false,
         batteryState: "new",
+        specification: "",
       } as ExtendedItem);
 
       // Reset batch editing state
@@ -374,10 +390,11 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
 
   // Calculate total margin based on batches and price
   const calculateMargin = () => {
+    const price = typeof formData.price === 'string' ? parseFloat(formData.price) || 0 : formData.price;
     if (
       !formData.batches ||
       formData.batches.length === 0 ||
-      formData.price <= 0
+      price <= 0
     )
       return 0;
 
@@ -394,7 +411,7 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
       ) / totalQuantity;
 
     const marginPercentage =
-      ((formData.price - weightedCostPrice) / formData.price) * 100;
+      ((price - weightedCostPrice) / price) * 100;
     return Math.round(marginPercentage * 100) / 100; // Round to 2 decimals
   };
 
@@ -458,15 +475,16 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
       id: updatedFormData.id,
       name: updatedFormData.name,
       category: updatedFormData.category,
-      stock: updatedFormData.stock,
-      price: updatedFormData.price,
+      stock: typeof updatedFormData.stock === 'string' ? Number(updatedFormData.stock) || 0 : updatedFormData.stock,
+      price: typeof updatedFormData.price === 'string' ? Number(updatedFormData.price) || 0 : updatedFormData.price,
       brand: updatedFormData.brand,
       type: updatedFormData.type || null,
       type_id: updatedFormData.type_id || null,
+      type_name: updatedFormData.type_name || null,
       image_url: updatedFormData.imageUrl || null, // Map to backend field name
       description: updatedFormData.notes || null, // Use notes for description
       is_oil: updatedFormData.isOil, // Map to backend field name
-      costPrice: updatedFormData.costPrice || 0,
+      costPrice: typeof updatedFormData.costPrice === 'string' ? Number(updatedFormData.costPrice) || 0 : (updatedFormData.costPrice || 0),
       manufacturingDate: updatedFormData.manufacturingDate || null,
       // Battery fields
       isBattery: updatedFormData.isBattery || false,
@@ -487,11 +505,12 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
       category_id: updatedFormData.category_id || null,
       brand_id: updatedFormData.brand_id || null,
       // Add low stock threshold
-      lowStockAlert: updatedFormData.lowStockAlert || 5,
+      lowStockAlert: typeof updatedFormData.lowStockAlert === 'string' ? Number(updatedFormData.lowStockAlert) || 10 : (updatedFormData.lowStockAlert || 10),
       // Required fields for a valid Item
       created_at: updatedFormData.created_at || null,
       updated_at: updatedFormData.updated_at || null,
       notes: updatedFormData.notes || null, // Make sure notes is explicitly included
+      specification: updatedFormData.specification || null,
     };
 
     console.log("Saving item data:", JSON.stringify(itemToSave, null, 2));
@@ -873,7 +892,7 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
                                         ? formData.volumes &&
                                           formData.volumes.length > 0
                                           ? formData.volumes
-                                          : [{ size: "", price: 0 }]
+                                          : [{ size: "", price: "" }]
                                         : [],
                                       bottleStates: isLubricants
                                         ? formData.bottleStates || {
@@ -999,6 +1018,63 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
                                   </div>
                                 ) : null;
                               })()}
+
+                              {/* Conditional "For" Dropdown */}
+                              {/* Logic: 
+                                  - For "Parts" category (and any type): Show OEM, First Copy, Second Copy
+                                  - For "Lubricants" category: Show Petrol, Diesel 
+                              */}
+                              {formData.category && (
+                                <>
+                                  {formData.category === "Filters" && (
+                                    <div>
+                                      <Label htmlFor="specification">For</Label>
+                                      <Select
+                                        value={formData.specification || ""}
+                                        onValueChange={(value) =>
+                                          setFormData({
+                                            ...formData,
+                                            specification: value,
+                                          })
+                                        }
+                                      >
+                                        <SelectTrigger id="specification">
+                                          <SelectValue placeholder="Select type" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="OEM">OEM</SelectItem>
+                                          <SelectItem value="First Copy">First Copy</SelectItem>
+                                          <SelectItem value="Second Copy">Second Copy</SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                  )}
+
+                                  {formData.category === "Lubricants" && (
+                                    <div>
+                                      <Label htmlFor="specification">For</Label>
+                                      <Select
+                                        value={formData.specification || ""}
+                                        onValueChange={(value) =>
+                                          setFormData({
+                                            ...formData,
+                                            specification: value,
+                                          })
+                                        }
+                                      >
+                                        <SelectTrigger id="specification">
+                                          <SelectValue placeholder="Select engine type" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="Petrol">Petrol</SelectItem>
+                                          <SelectItem value="Diesel">Diesel</SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                  )}
+                                </>
+                              )}
+
                               {/* Battery State Selector - appears when battery type is selected */}
                               {formData.isBattery && (
                                 <div>
@@ -1093,10 +1169,11 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
                                   onChange={(e) =>
                                     setFormData({
                                       ...formData,
-                                      price: parseFloat(e.target.value) || 0,
+                                      price: e.target.value === "" ? "" : parseFloat(e.target.value),
                                     })
                                   }
                                   required
+                                  placeholder="0"
                                 />
                               </div>
                               <div>
@@ -1106,14 +1183,14 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
                                   type="number"
                                   min="0"
                                   step="0.01"
-                                  value={formData.costPrice || 0}
+                                  value={formData.costPrice || ""}
                                   onChange={(e) =>
                                     setFormData({
                                       ...formData,
-                                      costPrice:
-                                        parseFloat(e.target.value) || 0,
+                                      costPrice: e.target.value === "" ? "" : parseFloat(e.target.value),
                                     })
                                   }
+                                  placeholder="0"
                                 />
                               </div>
                               <div>
@@ -1122,11 +1199,11 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
                                   id="stock"
                                   type="number"
                                   min="0"
-                                  value={formData.stock || 0}
+                                  value={formData.stock === 0 ? "" : formData.stock}
                                   onChange={(e) =>
                                     setFormData({
                                       ...formData,
-                                      stock: parseInt(e.target.value) || 0,
+                                      stock: e.target.value === "" ? "" : parseInt(e.target.value),
                                     })
                                   }
                                   required
@@ -1135,6 +1212,7 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
                                       formData.batches.length > 0) ||
                                     formData.isOil // Disable for oil products
                                   }
+                                  placeholder="0"
                                 />
                                 {formData.batches &&
                                   formData.batches.length > 0 && (
@@ -1158,12 +1236,11 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
                                   id="lowStockThreshold"
                                   type="number"
                                   min="0"
-                                  value={formData.lowStockAlert || 5}
+                                  value={formData.lowStockAlert || ""}
                                   onChange={(e) =>
                                     setFormData({
                                       ...formData,
-                                      lowStockAlert:
-                                        parseInt(e.target.value) || 0,
+                                      lowStockAlert: e.target.value === "" ? "" : parseInt(e.target.value),
                                     })
                                   }
                                 />
@@ -1227,10 +1304,18 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
                                     id="openBottles"
                                     type="number"
                                     min="0"
-                                    value={formData.bottleStates?.open ?? 0}
+                                    min="0"
+                                    value={
+                                      formData.bottleStates?.open === 0 ||
+                                      formData.bottleStates?.open === undefined
+                                        ? ""
+                                        : formData.bottleStates?.open
+                                    }
                                     onChange={(e) => {
                                       const openValue =
-                                        parseInt(e.target.value) || 0;
+                                        e.target.value === ""
+                                          ? 0
+                                          : parseInt(e.target.value);
                                       const closedValue =
                                         formData.bottleStates?.closed ?? 0;
                                       const newBottleStates = {
@@ -1271,10 +1356,18 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
                                     id="closedBottles"
                                     type="number"
                                     min="0"
-                                    value={formData.bottleStates?.closed ?? 0}
+                                    min="0"
+                                    value={
+                                      formData.bottleStates?.closed === 0 ||
+                                      formData.bottleStates?.closed === undefined
+                                        ? ""
+                                        : formData.bottleStates?.closed
+                                    }
                                     onChange={(e) => {
                                       const closedValue =
-                                        parseInt(e.target.value) || 0;
+                                        e.target.value === ""
+                                          ? 0
+                                          : parseInt(e.target.value);
                                       const openValue =
                                         formData.bottleStates?.open ?? 0;
                                       const newBottleStates = {
@@ -1370,14 +1463,26 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
                                           type="number"
                                           min="0"
                                           step="0.01"
-                                          value={volume.price}
+                                          id={`price-${index}`}
+                                          type="number"
+                                          min="0"
+                                          step="0.01"
+                                          value={
+                                            volume.price === 0 &&
+                                            volume.price !== "" // Ensure 0 is treated as empty if needed, or better: logic for empty string
+                                              ? ""
+                                              : volume.price
+                                          }
                                           onChange={(e) =>
                                             updateVolume(
                                               index,
                                               "price",
-                                              parseFloat(e.target.value) || 0
+                                              e.target.value === ""
+                                                ? ""
+                                                : parseFloat(e.target.value)
                                             )
                                           }
+                                          placeholder="0"
                                         />
                                       </div>
                                       <Button

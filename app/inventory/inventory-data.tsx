@@ -39,6 +39,10 @@ export const useInventoryData = () => {
   // Editing modal states
   const [editingItem, setEditingItem] = useState<Item | undefined>(undefined);
 
+  // Delete dialog states
+  const [itemToDelete, setItemToDelete] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   // Debounce search query to reduce filter frequency
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -209,51 +213,62 @@ export const useInventoryData = () => {
     setEditingItem(undefined);
   }, []);
 
-  const handleDelete = useCallback(
-    async (id: string) => {
-      if (
-        window.confirm(
-          "Are you sure you want to delete this item from the current branch? This action cannot be undone."
-        )
-      ) {
-        try {
-          const item = items.find((item) => item.id === id);
-          const itemName = item?.name || "Item";
 
-          console.log(`User confirmed deletion of item: ${itemName} (${id})`);
-          console.log("Calling deleteItem with id:", id);
-          const success = await deleteItem(id);
 
-          if (success) {
-            console.log(`Item ${id} successfully deleted`);
-            toast({
-              title: "Item deleted",
-              description: `${itemName} has been deleted from this branch.`,
-              variant: "default",
-            });
+  const handleDeleteClick = useCallback((id: string) => {
+    setItemToDelete(id);
+  }, []);
 
-            // Context already reloads items after deletion; avoid redundant refetch
-          } else {
-            console.error(`Failed to delete item ${id}`);
-            toast({
-              title: "Deletion failed",
-              description: `Could not delete ${itemName}. There might be related records or a server issue.`,
-              variant: "destructive",
-            });
-          }
-        } catch (error) {
-          console.error("Error in handleDelete:", error);
-          toast({
-            title: "Deletion error",
-            description:
-              "An unexpected error occurred while trying to delete the item.",
-            variant: "destructive",
-          });
-        }
+  const handleConfirmDelete = useCallback(async () => {
+    if (!itemToDelete) return;
+
+    setIsDeleting(true);
+    const id = itemToDelete;
+
+    try {
+      const item = items.find((item) => item.id === id);
+      const itemName = item?.name || "Item";
+
+      console.log(`User confirmed deletion of item: ${itemName} (${id})`);
+      console.log("Calling deleteItem with id:", id);
+      const success = await deleteItem(id);
+
+      if (success) {
+        console.log(`Item ${id} successfully deleted`);
+        toast({
+          title: "Item deleted",
+          description: `${itemName} has been deleted from this branch.`,
+          variant: "default",
+        });
+        setItemToDelete(null); // Close dialog on success
+      } else {
+        console.error(`Failed to delete item ${id}`);
+        toast({
+          title: "Deletion failed",
+          description: `Could not delete ${itemName}. There might be related records or a server issue.`,
+          variant: "destructive",
+        });
+        // We might want to keep the dialog open or close it depending on UX preference
+        // Closing it for now to avoid stuck state
+        setItemToDelete(null);
       }
-    },
-    [deleteItem, items, toast]
-  );
+    } catch (error) {
+      console.error("Error in handleDelete:", error);
+      toast({
+        title: "Deletion error",
+        description:
+          "An unexpected error occurred while trying to delete the item.",
+        variant: "destructive",
+      });
+      setItemToDelete(null);
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [itemToDelete, items, deleteItem, toast]);
+
+  const handleCancelDelete = useCallback(() => {
+    setItemToDelete(null);
+  }, []);
 
   const handleDuplicate = useCallback(
     (id: string) => {
@@ -323,7 +338,12 @@ export const useInventoryData = () => {
     // CRUD operations
     handleEdit,
     handleAddItem,
-    handleDelete,
+
+    handleDelete: handleDeleteClick, // Expose the click handler as handleDelete
+    handleConfirmDelete,
+    handleCancelDelete,
+    itemToDelete, // Expose the state for the dialog
+    isDeleting,
     handleDuplicate,
 
     // Counts

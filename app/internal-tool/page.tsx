@@ -282,6 +282,7 @@ const InternalToolPage = () => {
                           <div key={index} className="space-y-3">
                             <div className="flex justify-between items-center p-3 sm:p-4 rounded-lg bg-background/50">
                               <div>
+                                <p className="font-bold text-sm text-primary">{lubricant.brand}</p>
                                 <p className="font-medium text-sm">{lubricant.name}</p>
                                 <p className="text-xs text-muted-foreground">{lubricant.type}</p>
                               </div>
@@ -337,6 +338,7 @@ const InternalToolPage = () => {
                     <div key={index}>
                       <div className="flex items-center justify-between rounded-lg border border-border bg-card p-3 sm:p-4">
                         <div className="space-y-1">
+                          <p className="font-bold text-primary text-base">{lubricant.brand}</p>
                           <p className="font-medium text-foreground text-sm">{lubricant.name}</p>
                           <p className="text-xs text-muted-foreground">{lubricant.type}</p>
                         </div>

@@ -619,36 +619,47 @@ export function useDashboardData(): UseDashboardDataReturn {
   }
   
   const fetchPaymentMetrics = async (currentSalesMetrics: SalesMetrics) => {
-    // Simulate API call (minimal delay for better responsiveness)
-    await new Promise(resolve => setTimeout(resolve, 20))
+    const supabase = createClient()
+    const shopId = (branchFilter === 'all' || !branchFilter) ? null : branchFilter
+    const today = new Date()
     
-    // Payment methods and their distribution (fixed)
-    const methods = [
-      { method: "Card", percentage: 45 },
-      { method: "Cash", percentage: 30 },
-      { method: "Bank Transfer", percentage: 15 },
-      { method: "Other", percentage: 10 }
-    ]
-    
-    // Calculate amounts and transaction counts
-    const byPaymentMethod = methods.map(m => {
-      const amount = (currentSalesMetrics.totalSales * m.percentage) / 100
-      const count = Math.floor((currentSalesMetrics.transactionCount * m.percentage) / 100)
-      
-      return {
-        method: m.method,
-        amount,
-        count,
-        percentage: m.percentage
-      }
+    // Fetch daily payment metrics from the database
+    const { data: metricsData, error } = await supabase.rpc('get_daily_payment_metrics', {
+      query_date: today.toISOString(),
+      target_shop_id: shopId
     })
+
+    if (error) {
+      console.error("Error fetching payment metrics:", JSON.stringify(error, null, 2))
+      return
+    }
+
+    // Calculate totals for percentage
+    const totalAmount = metricsData?.reduce((sum: number, item: any) => sum + Number(item.total_amount), 0) || 0
     
-    // Generate payment trend data
-    const trend: PaymentTrendPoint[] = []
+    // Process and map the data
+    const byPaymentMethod: PaymentMethodData[] = metricsData?.map((item: any) => ({
+      method: item.payment_method || "Unknown",
+      amount: Number(item.total_amount),
+      count: Number(item.transaction_count),
+      percentage: totalAmount > 0 ? (Number(item.total_amount) / totalAmount) * 100 : 0
+    })) || []
     
+    // If no data, fall back to empty state rather than mock data
+    if (byPaymentMethod.length === 0) {
+      setPaymentMetrics({
+        byPaymentMethod: [],
+        trend: []
+      })
+      return
+    }
+
+    // Sort by percentage descending
+    byPaymentMethod.sort((a, b) => b.percentage - a.percentage)
+
     setPaymentMetrics({
       byPaymentMethod,
-      trend
+      trend: [] // Trend data requires a separate query/RPC if needed
     })
   }
   
