@@ -95,6 +95,13 @@ export function Sidebar({
       adminOnly: false,
     },
     {
+      title: "Internal Tool",
+      href: "/internal-tool",
+      icon: <Wrench className="h-4 w-4" />,
+      permission: "admin.access" as const,
+      adminOnly: true,
+    },
+    {
       title: "Customers",
       href: "/customers",
       icon: <Users className="h-4 w-4" />,
@@ -114,13 +121,6 @@ export function Sidebar({
       icon: <RefreshCcw className="h-4 w-4" />,
       permission: "transactions.access" as const,
       adminOnly: false,
-    },
-    {
-      title: "Internal Tool",
-      href: "/internal-tool",
-      icon: <Wrench className="h-4 w-4" />,
-      permission: "admin.access" as const,
-      adminOnly: true,
     },
   ];
 

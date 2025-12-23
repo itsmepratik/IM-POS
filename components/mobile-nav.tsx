@@ -69,6 +69,13 @@ export function MobileNav({ className }: { className?: string }) {
       permission: "pos.access" as const,
     },
     {
+      title: "Internal Tool",
+      href: "/internal-tool",
+      icon: <Wrench className="h-4 w-4" />,
+      isAdmin: true,
+      permission: "admin.access" as const,
+    },
+    {
       title: "Customers",
       href: "/customers",
       icon: <Users className="h-4 w-4" />,
@@ -88,13 +95,6 @@ export function MobileNav({ className }: { className?: string }) {
       icon: <RefreshCcw className="h-4 w-4" />,
       isAdmin: false,
       permission: "transactions.access" as const,
-    },
-    {
-      title: "Internal Tool",
-      href: "/internal-tool",
-      icon: <Wrench className="h-4 w-4" />,
-      isAdmin: true,
-      permission: "admin.access" as const,
     },
   ];
 
@@ -217,6 +217,62 @@ export function MobileNav({ className }: { className?: string }) {
                 </Link>
               ))}
 
+              {mounted && currentUser && hasPermission("inventory.access") && (
+                <div className="space-y-1">
+                  <button
+                    onClick={() => setInventoryOpen(!inventoryOpen)}
+                    className={cn(
+                      "flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
+                      mounted && pathname.startsWith("/inventory")
+                        ? "bg-accent text-accent-foreground"
+                        : "transparent"
+                    )}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Warehouse className="h-4 w-4" />
+                      <span>Inventory</span>
+                    </div>
+                    <ChevronDown
+                      className={cn(
+                        "h-4 w-4 transition-transform",
+                        inventoryOpen && "rotate-180"
+                      )}
+                    />
+                  </button>
+
+                  {inventoryOpen && (
+                    <div className="ml-6 space-y-1">
+                      <Link
+                        href="/inventory/main-inventory"
+                        onClick={() => setOpen(false)}
+                        className={cn(
+                          "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
+                          mounted && pathname === "/inventory/main-inventory"
+                            ? "bg-accent text-accent-foreground"
+                            : "transparent"
+                        )}
+                      >
+                        <Warehouse className="h-4 w-4" />
+                        <span>Main</span>
+                      </Link>
+                      <Link
+                        href="/inventory/branch-inventory"
+                        onClick={() => setOpen(false)}
+                        className={cn(
+                          "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
+                          mounted && pathname === "/inventory/branch-inventory"
+                            ? "bg-accent text-accent-foreground"
+                            : "transparent"
+                        )}
+                      >
+                        <Building className="h-4 w-4" />
+                        <span>Branch</span>
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {showAdminItems && (
                 <div className="space-y-1">
                   <button
@@ -296,62 +352,6 @@ export function MobileNav({ className }: { className?: string }) {
                       >
                         <Package className="h-4 w-4" />
                         <span>Transfer 2.0</span>
-                      </Link>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {mounted && currentUser && hasPermission("inventory.access") && (
-                <div className="space-y-1">
-                  <button
-                    onClick={() => setInventoryOpen(!inventoryOpen)}
-                    className={cn(
-                      "flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
-                      mounted && pathname.startsWith("/inventory")
-                        ? "bg-accent text-accent-foreground"
-                        : "transparent"
-                    )}
-                  >
-                    <div className="flex items-center gap-3">
-                      <Warehouse className="h-4 w-4" />
-                      <span>Inventory</span>
-                    </div>
-                    <ChevronDown
-                      className={cn(
-                        "h-4 w-4 transition-transform",
-                        inventoryOpen && "rotate-180"
-                      )}
-                    />
-                  </button>
-
-                  {inventoryOpen && (
-                    <div className="ml-6 space-y-1">
-                      <Link
-                        href="/inventory/main-inventory"
-                        onClick={() => setOpen(false)}
-                        className={cn(
-                          "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
-                          mounted && pathname === "/inventory/main-inventory"
-                            ? "bg-accent text-accent-foreground"
-                            : "transparent"
-                        )}
-                      >
-                        <Warehouse className="h-4 w-4" />
-                        <span>Main</span>
-                      </Link>
-                      <Link
-                        href="/inventory/branch-inventory"
-                        onClick={() => setOpen(false)}
-                        className={cn(
-                          "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
-                          mounted && pathname === "/inventory/branch-inventory"
-                            ? "bg-accent text-accent-foreground"
-                            : "transparent"
-                        )}
-                      >
-                        <Building className="h-4 w-4" />
-                        <span>Branch</span>
                       </Link>
                     </div>
                   )}
