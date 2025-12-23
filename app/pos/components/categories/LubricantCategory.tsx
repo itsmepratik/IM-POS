@@ -21,6 +21,7 @@ interface LubricantProduct {
   name: string;
   basePrice: number;
   type: string;
+  specification?: string;
   image?: string;
   volumes: {
     size: string;
@@ -171,42 +172,169 @@ export function LubricantCategory({
             )}
           </Button>
           {expandedBrand === brand && (
-            <div className="p-4 bg-muted/50 grid grid-cols-2 sm:grid-cols-3 gap-4">
-              {lubricantProducts
-                .filter((lubricant) => lubricant.brand === brand)
-                .map((lubricant) => (
-                  <Button
-                    key={lubricant.id}
-                    variant="outline"
-                    className="border-2 rounded-[33px] flex flex-col items-center justify-between p-3 sm:p-4 h-[160px] sm:h-[180px] md:h-[200px] overflow-hidden"
-                    onClick={() => onLubricantSelect(lubricant)}
-                  >
-                    <div className="relative w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 mt-1 mb-1">
-                      {lubricant.image ? (
-                        <LubricantImage
-                          imageUrl={lubricant.image}
-                          brand={lubricant.brand}
-                          type={lubricant.type}
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-muted rounded-md">
-                          <ImageIcon className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 text-muted-foreground" />
-                        </div>
-                      )}
-                    </div>
-                    <div className="text-center flex-1 flex flex-col justify-between">
-                      <span
-                        className="text-center font-medium text-xs sm:text-sm w-full px-1 word-wrap whitespace-normal leading-tight hyphens-auto"
-                        style={{ lineHeight: 1.1 }}
-                      >
-                        {lubricant.name}
-                      </span>
-                      <span className="block text-sm text-primary mt-2">
-                        OMR {lubricant.basePrice.toFixed(3)}
-                      </span>
-                    </div>
-                  </Button>
-                ))}
+            <div className="p-4 bg-muted/50 space-y-6">
+              {/* Petrol Products */}
+              {lubricantProducts.filter(
+                (p) => p.brand === brand && p.specification === "Petrol"
+              ).length > 0 && (
+                <div>
+                  <h3 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wider">
+                    Petrol
+                  </h3>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                    {lubricantProducts
+                      .filter(
+                        (p) => p.brand === brand && p.specification === "Petrol"
+                      )
+                      .map((lubricant) => (
+                        <Button
+                          key={lubricant.id}
+                          variant="outline"
+                          className="border-2 rounded-[33px] flex flex-col items-center justify-between p-3 sm:p-4 h-[160px] sm:h-[180px] md:h-[200px] overflow-hidden"
+                          onClick={() => onLubricantSelect(lubricant)}
+                        >
+                          <div className="relative w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 mt-1 mb-1">
+                            {lubricant.image ? (
+                              <LubricantImage
+                                imageUrl={lubricant.image}
+                                brand={lubricant.brand}
+                                type={lubricant.type}
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center bg-muted rounded-md">
+                                <ImageIcon className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 text-muted-foreground" />
+                              </div>
+                            )}
+                          </div>
+                          <div className="text-center flex-1 flex flex-col justify-between">
+                            <span
+                              className="text-center font-medium text-xs sm:text-sm w-full px-1 word-wrap whitespace-normal leading-tight hyphens-auto"
+                              style={{ lineHeight: 1.1 }}
+                            >
+                              {lubricant.name}
+                            </span>
+                            <span className="block text-sm text-primary mt-2">
+                              OMR {lubricant.basePrice.toFixed(3)}
+                            </span>
+                          </div>
+                        </Button>
+                      ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Diesel Products */}
+              {lubricantProducts.filter(
+                (p) => p.brand === brand && p.specification === "Diesel"
+              ).length > 0 && (
+                <div>
+                  <h3 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wider">
+                    Diesel
+                  </h3>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                    {lubricantProducts
+                      .filter(
+                        (p) => p.brand === brand && p.specification === "Diesel"
+                      )
+                      .map((lubricant) => (
+                        <Button
+                          key={lubricant.id}
+                          variant="outline"
+                          className="border-2 rounded-[33px] flex flex-col items-center justify-between p-3 sm:p-4 h-[160px] sm:h-[180px] md:h-[200px] overflow-hidden"
+                          onClick={() => onLubricantSelect(lubricant)}
+                        >
+                          <div className="relative w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 mt-1 mb-1">
+                            {lubricant.image ? (
+                              <LubricantImage
+                                imageUrl={lubricant.image}
+                                brand={lubricant.brand}
+                                type={lubricant.type}
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center bg-muted rounded-md">
+                                <ImageIcon className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 text-muted-foreground" />
+                              </div>
+                            )}
+                          </div>
+                          <div className="text-center flex-1 flex flex-col justify-between">
+                            <span
+                              className="text-center font-medium text-xs sm:text-sm w-full px-1 word-wrap whitespace-normal leading-tight hyphens-auto"
+                              style={{ lineHeight: 1.1 }}
+                            >
+                              {lubricant.name}
+                            </span>
+                            <span className="block text-sm text-primary mt-2">
+                              OMR {lubricant.basePrice.toFixed(3)}
+                            </span>
+                          </div>
+                        </Button>
+                      ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Other Products (Unspecified or Other types) */}
+              {lubricantProducts.filter(
+                (p) =>
+                  p.brand === brand &&
+                  p.specification !== "Petrol" &&
+                  p.specification !== "Diesel"
+              ).length > 0 && (
+                <div>
+                  {(lubricantProducts.some(
+                    (p) =>
+                      p.brand === brand &&
+                      (p.specification === "Petrol" ||
+                        p.specification === "Diesel")
+                  ) ) && (
+                    <h3 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wider">
+                      Other
+                    </h3>
+                  )}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                    {lubricantProducts
+                      .filter(
+                        (p) =>
+                          p.brand === brand &&
+                          p.specification !== "Petrol" &&
+                          p.specification !== "Diesel"
+                      )
+                      .map((lubricant) => (
+                        <Button
+                          key={lubricant.id}
+                          variant="outline"
+                          className="border-2 rounded-[33px] flex flex-col items-center justify-between p-3 sm:p-4 h-[160px] sm:h-[180px] md:h-[200px] overflow-hidden"
+                          onClick={() => onLubricantSelect(lubricant)}
+                        >
+                          <div className="relative w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 mt-1 mb-1">
+                            {lubricant.image ? (
+                              <LubricantImage
+                                imageUrl={lubricant.image}
+                                brand={lubricant.brand}
+                                type={lubricant.type}
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center bg-muted rounded-md">
+                                <ImageIcon className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 text-muted-foreground" />
+                              </div>
+                            )}
+                          </div>
+                          <div className="text-center flex-1 flex flex-col justify-between">
+                            <span
+                              className="text-center font-medium text-xs sm:text-sm w-full px-1 word-wrap whitespace-normal leading-tight hyphens-auto"
+                              style={{ lineHeight: 1.1 }}
+                            >
+                              {lubricant.name}
+                            </span>
+                            <span className="block text-sm text-primary mt-2">
+                              OMR {lubricant.basePrice.toFixed(3)}
+                            </span>
+                          </div>
+                        </Button>
+                      ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

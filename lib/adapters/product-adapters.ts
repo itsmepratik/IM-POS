@@ -128,6 +128,7 @@ export function itemToUnifiedProduct(
     batches: batches.length > 0 ? batches : undefined,
     createdAt: item.created_at,
     updatedAt: item.updated_at,
+    specification: item.specification,
   };
 }
 
@@ -183,6 +184,7 @@ export function unifiedProductToItem(
     updated_at: product.updatedAt,
     lowStockAlert: product.lowStockThreshold,
     costPrice: product.costPrice,
+    specification: product.specification,
   };
 }
 
@@ -253,6 +255,7 @@ export function unifiedProductToPOSLubricantProduct(
     isAvailable: product.inventory?.isAvailable || false,
     hasOpenBottles: (product.inventory?.openBottlesStock || 0) > 0,
     totalOpenVolume: product.inventory?.totalOpenVolume ?? 0, // Use actual volume from open_bottle_details, not bottle count
+    specification: product.specification || undefined,
   };
 }
 

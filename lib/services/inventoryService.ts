@@ -42,6 +42,7 @@ export type Item = {
   manufacturingDate?: string | null;
   totalOpenVolume?: number; // Total volume in liters from open_bottle_details (for lubricants)
   specification?: string | null;
+  types?: Type[]; // Array of associated types
 };
 
 export type Volume = {
@@ -177,6 +178,13 @@ export const fetchItems = async (
           types (
             id,
             name
+          ),
+          product_types (
+            types (
+              id,
+              name,
+              category_id
+            )
           )
         )
       `
@@ -321,6 +329,9 @@ export const fetchItems = async (
                 closed: inv.closed_bottles_stock || 0,
               }
             : undefined,
+          types: product.product_types
+            ? product.product_types.map((pt: any) => pt.types).filter(Boolean)
+            : [],
           category: product.categories?.name || "Uncategorized", // Using the actual category name
           brand: product.brands?.name || "N/A", // Use brands table via brand_id foreign key
           brand_id: product.brand_id,
@@ -440,7 +451,9 @@ export const createItem = async (
         price: item.price,
         stock: item.stock,
         is_oil: item.isOil,
+        is_oil: item.isOil,
         specification: item.specification,
+        type_ids: item.types?.map(t => t.id),
       },
     });
 
@@ -555,6 +568,35 @@ export const createItem = async (
       }));
 
       await supabase.from("product_volumes").insert(volumeInserts);
+    }
+
+    // Insert types into product_types junction table
+    if (item.types && item.types.length > 0) {
+      const typeInserts = item.types.map((type) => ({
+        product_id: productData.id,
+        type_id: type.id,
+      }));
+
+      const { error: typesError } = await supabase
+        .from("product_types")
+        .insert(typeInserts);
+
+      if (typesError) {
+        console.error("Error inserting product types:", typesError);
+        // Continue despite error, as product was created
+      }
+    } else if (productData.type_id) {
+       // Fallback: if types array not provided but type_id is (single select mode), add it to product_types
+       const { error: typeError } = await supabase
+        .from("product_types")
+        .insert({
+          product_id: productData.id,
+          type_id: productData.type_id,
+        });
+        
+       if (typeError) {
+          console.error("Error inserting fallback product type:", typeError);
+       }
     }
 
     return await fetchItem(productData.id, locationId);
@@ -752,6 +794,57 @@ export const updateItem = async (
         if (!newVolumeDescriptions.has(volumeDesc)) {
           await supabase.from("product_volumes").delete().eq("id", volumeId);
         }
+      }
+    }
+
+    // Update product types if provided
+    if (updates.types !== undefined) {
+      // 1. Delete existing relationships
+      await supabase
+        .from("product_types")
+        .delete()
+        .eq("product_id", id);
+
+      // 2. Insert new relationships
+      if (updates.types.length > 0) {
+        const typeInserts = updates.types.map((type) => ({
+          product_id: id,
+          type_id: type.id,
+        }));
+
+        await supabase.from("product_types").insert(typeInserts);
+        
+        // Also update the legacy/primary type_id on the product for backward compatibility
+        // Use the first type as the primary one
+        if (updates.types.length > 0) {
+           await supabase
+            .from("products")
+            .update({ type_id: updates.types[0].id })
+            .eq("id", id);
+        }
+      } else {
+        // If types cleared, clear primary type_id too
+        await supabase
+          .from("products")
+          .update({ type_id: null })
+          .eq("id", id);
+      }
+    } else if (updates.type_id !== undefined) {
+      // If updating via single type_id (legacy/simple mode)
+      // Sync it to product_types table as well
+      
+      // 1. Delete existing relationships
+      await supabase
+        .from("product_types")
+        .delete()
+        .eq("product_id", id);
+        
+      // 2. Insert new single relationship if not null
+      if (updates.type_id) {
+        await supabase.from("product_types").insert({
+          product_id: id,
+          type_id: updates.type_id,
+        });
       }
     }
 

@@ -40,7 +40,10 @@ import {
   AlertCircle,
   Pencil,
   Trash2 as Trash2Icon,
+  Link,
+  Upload,
 } from "lucide-react";
+import { ImageUpload } from "./components/image-upload";
 import { Textarea } from "@/components/ui/textarea";
 import { DateInput } from "@/components/ui/date-input";
 import { format } from "date-fns";
@@ -59,6 +62,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { v4 as uuidv4 } from "uuid";
 import { toast } from "@/components/ui/use-toast";
+import { MultiSelect, Option } from "@/components/ui/multi-select";
 
 // Extended Item interface to include additional properties needed in the modal
 interface ExtendedItem extends Omit<Item, "is_oil" | "image_url" | "price" | "stock" | "costPrice" | "lowStockAlert"> {
@@ -75,7 +79,10 @@ interface ExtendedItem extends Omit<Item, "is_oil" | "image_url" | "price" | "st
   batches: Batch[]; // Make batches always required and non-optional
   isBattery?: boolean; // UI version of is_battery
   batteryState?: "new" | "scrap" | "resellable"; // Battery state for categorization
+  batteryState?: "new" | "scrap" | "resellable"; // Battery state for categorization
   specification?: string; // New field for "For" dropdown (OEM, First Copy, Second Copy / Petrol, Diesel)
+  types?: Type[]; // Array of types
+  selectedTypeIds?: string[]; // IDs for multi-select
 }
 
 interface ItemModalProps {
@@ -106,6 +113,7 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
   const [imageError, setImageError] = useState(false);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>("general");
+  const [imageTab, setImageTab] = useState<"url" | "upload">("upload");
   const [formData, setFormData] = useState<ExtendedItem>({
     id: item?.id || "",
     name: item?.name || "",
@@ -233,6 +241,8 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
         isBattery: item.isBattery || isBatteryType || false,
         batteryState: item.batteryState || "new",
         specification: item.specification || "",
+        types: item.types || [],
+        selectedTypeIds: item.types?.map(t => t.id) || (item.type_id ? [item.type_id] : []),
       };
 
       console.log("Transformed form data:", {
@@ -251,11 +261,16 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
       setFormData(formDataObj as ExtendedItem);
 
       // Initialize other state
-      if (item.image_url || item.imageUrl) {
+        if (item.image_url || item.imageUrl) {
         setImageUrl(item.image_url || item.imageUrl || null);
+        // If image exists and starts with existing storage URL or just path, default to upload tab potentially
+        // But for now let's stick to simple logic: if it looks like a blob storage url (from our bucket), maybe 'upload' tab?
+        // Actually, let's default to 'upload' as requested, unless it's clearly an external URL user wants to edit as text.
+        setImageTab("upload"); 
       }
     } else {
       // Default values for a new item
+      setImageTab("upload");
       setFormData({
         id: "",
         name: "",
@@ -311,6 +326,7 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
       setActiveTab("general");
       setIsEditingBatch(false);
       setEditingBatchId(null);
+      setImageTab("upload");
 
       // Reset form data to clean state
       setFormData({
@@ -510,7 +526,9 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
       created_at: updatedFormData.created_at || null,
       updated_at: updatedFormData.updated_at || null,
       notes: updatedFormData.notes || null, // Make sure notes is explicitly included
+      notes: updatedFormData.notes || null, // Make sure notes is explicitly included
       specification: updatedFormData.specification || null,
+      types: updatedFormData.selectedTypeIds?.map(id => ({ id } as any)) || [], 
     };
 
     console.log("Saving item data:", JSON.stringify(itemToSave, null, 2));
@@ -967,57 +985,87 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
                                   </SelectContent>
                                 </Select>
                               </div>
-                              {/* Type field - moved to left column to fill empty space */}
-                              {formData.category && (() => {
-                                // Get category ID from category name
-                                const categoryId = Object.keys(categoryMap).find(
-                                  (id) => categoryMap[id] === formData.category
-                                );
-                                const categoryTypes = categoryId
-                                  ? getTypesForCategory(categoryId)
-                                  : [];
-                                
-                                return categoryTypes.length > 0 ? (
-                                  <div>
-                                    <Label htmlFor="type">Type</Label>
-                                    <Select
-                                      value={formData.type_id || ""}
-                                      onValueChange={(value) => {
-                                        const selectedType = categoryTypes.find(
-                                          (t) => t.id === value
-                                        );
-                                        const typeName = selectedType?.name || "";
-                                        
-                                        // Check if this is a battery type
-                                        const isBatteryType = typeName.toLowerCase() === "battery" || 
-                                                             typeName.toLowerCase() === "batteries";
-                                        
-                                        setFormData({
-                                          ...formData,
-                                          type_id: value || null,
-                                          type: typeName,
-                                          isBattery: isBatteryType,
-                                          // Set default battery state to "new" for manually added batteries
-                                          batteryState: isBatteryType ? (formData.batteryState || "new") : undefined,
-                                        });
-                                      }}
-                                    >
-                                      <SelectTrigger>
-                                        <SelectValue
-                                          placeholder={`Select ${formData.category.toLowerCase()} type`}
+                                {/* Type field - MultiSelect for Lubricants, Single for others */}
+                                {formData.category && (() => {
+                                  // Get category ID from category name
+                                  const categoryId = Object.keys(categoryMap).find(
+                                    (id) => categoryMap[id] === formData.category
+                                  );
+                                  const categoryTypes = categoryId
+                                    ? getTypesForCategory(categoryId)
+                                    : [];
+                                  
+                                  if (categoryTypes.length === 0) return null;
+
+                                  // Convert types to options for MultiSelect
+                                  const typeOptions: Option[] = categoryTypes.map(t => ({
+                                    label: t.name,
+                                    value: t.id
+                                  }));
+
+                                  if (formData.category === "Lubricants") {
+                                    return (
+                                      <div>
+                                        <Label htmlFor="type-multiselect">Types</Label>
+                                        <MultiSelect
+                                          options={typeOptions}
+                                          selected={formData.selectedTypeIds || []}
+                                          onChange={(selected) => {
+                                            setFormData({
+                                              ...formData,
+                                              selectedTypeIds: selected,
+                                            });
+                                          }}
+                                          placeholder="Select types..."
+                                          className="w-full"
                                         />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        {categoryTypes.map((type) => (
-                                          <SelectItem key={type.id} value={type.id}>
-                                            {type.name}
-                                          </SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
-                                ) : null;
-                              })()}
+                                      </div>
+                                    );
+                                  }
+
+                                  // Standard Single Select for other categories
+                                  return (
+                                    <div>
+                                      <Label htmlFor="type">Type</Label>
+                                      <Select
+                                        value={formData.type_id || (formData.selectedTypeIds && formData.selectedTypeIds.length > 0 ? formData.selectedTypeIds[0] : "")}
+                                        onValueChange={(value) => {
+                                          const selectedType = categoryTypes.find(
+                                            (t) => t.id === value
+                                          );
+                                          const typeName = selectedType?.name || "";
+                                          
+                                          // Check if this is a battery type
+                                          const isBatteryType = typeName.toLowerCase() === "battery" || 
+                                                               typeName.toLowerCase() === "batteries";
+                                          
+                                          setFormData({
+                                            ...formData,
+                                            type_id: value || null,
+                                            selectedTypeIds: value ? [value] : [],
+                                            type: typeName,
+                                            isBattery: isBatteryType,
+                                            // Set default battery state to "new" for manually added batteries
+                                            batteryState: isBatteryType ? (formData.batteryState || "new") : undefined,
+                                          });
+                                        }}
+                                      >
+                                        <SelectTrigger>
+                                          <SelectValue
+                                            placeholder={`Select ${formData.category.toLowerCase()} type`}
+                                          />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          {categoryTypes.map((type) => (
+                                            <SelectItem key={type.id} value={type.id}>
+                                              {type.name}
+                                            </SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                  );
+                                })()}
 
                               {/* Conditional "For" Dropdown */}
                               {/* Logic: 
@@ -1248,19 +1296,82 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
                             </div>
                           </div>
 
-                          <div>
-                            <Label htmlFor="image">Image URL</Label>
-                            <Input
-                              id="image"
-                              value={formData.imageUrl}
-                              onChange={(e) =>
-                                setFormData({
-                                  ...formData,
-                                  imageUrl: e.target.value,
-                                })
-                              }
-                              placeholder="https://example.com/image.jpg or /local-path/image.jpg"
-                            />
+                          <div className="space-y-2">
+                            <Label>Product Image</Label>
+                            <div className="flex items-center space-x-2 mb-2">
+                              <Button
+                                type="button"
+                                variant={imageTab === "upload" ? "default" : "outline"}
+                                size="sm"
+                                onClick={() => setImageTab("upload")}
+                                className="flex-1"
+                              >
+                                <Upload className="w-3 h-3 mr-2" />
+                                Upload
+                              </Button>
+                              <Button
+                                type="button"
+                                variant={imageTab === "url" ? "default" : "outline"}
+                                size="sm"
+                                onClick={() => setImageTab("url")}
+                                className="flex-1"
+                              >
+                                <Link className="w-3 h-3 mr-2" />
+                                Image URL
+                              </Button>
+                            </div>
+
+                            {imageTab === "upload" ? (
+                              <ImageUpload
+                                value={imageUrl}
+                                onUpload={(url) => {
+                                  setImageUrl(url);
+                                  setFormData((prev) => ({ ...prev, imageUrl: url }));
+                                  // Clear any previous error
+                                  setImageError(false);
+                                }}
+                                onRemove={() => {
+                                  setImageUrl(null);
+                                  setFormData((prev) => ({ ...prev, imageUrl: "" }));
+                                }}
+                              />
+                            ) : (
+                              <div className="space-y-2">
+                                <div className="flex gap-2">
+                                  <div className="relative flex-1">
+                                    <ImageIcon className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                                    <Input
+                                      id="imageUrl"
+                                      placeholder="https://"
+                                      className="pl-8"
+                                      value={formData.imageUrl || ""}
+                                      onChange={(e) =>
+                                        setFormData({ ...formData, imageUrl: e.target.value })
+                                      }
+                                    />
+                                  </div>
+                                </div>
+                                {imageUrl && !imageError && (
+                                  <div className="relative aspect-video w-full overflow-hidden rounded-md border bg-muted">
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img
+                                      src={imageUrl}
+                                      alt="Preview"
+                                      className="h-full w-full object-contain"
+                                      onError={handleImageError}
+                                    />
+                                  </div>
+                                )}
+                                {imageError && imageUrl && (
+                                  <div className="flex h-40 w-full items-center justify-center rounded-md border border-dashed bg-muted text-muted-foreground">
+                                    <div className="flex flex-col items-center">
+                                      <AlertCircle className="mb-2 h-6 w-6" />
+                                      <span className="text-xs">Invalid Image URL</span>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            )}
                           </div>
 
                           <div>

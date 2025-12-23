@@ -39,6 +39,7 @@ export interface UnifiedProduct {
   // Metadata
   createdAt: string | null;
   updatedAt: string | null;
+  specification?: string | null;
 }
 
 // Location-specific inventory information
@@ -113,6 +114,7 @@ export interface POSLubricantProduct {
   isAvailable: boolean;
   hasOpenBottles?: boolean; // Whether any non-empty open bottles exist
   totalOpenVolume?: number; // Total volume available in open bottles
+  specification?: string;
 }
 
 // POS lubricant volume with stock information
@@ -165,6 +167,7 @@ export const UnifiedProductSchema = z.object({
 
   createdAt: z.string().datetime().nullable(),
   updatedAt: z.string().datetime().nullable(),
+  specification: z.string().nullable().optional(),
 });
 
 export const ProductInventorySchema = z.object({
@@ -227,6 +230,7 @@ export const POSLubricantProductSchema = z.object({
     })
   ),
   isAvailable: z.boolean(),
+  specification: z.string().optional(),
 });
 
 // Type guards
