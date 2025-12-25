@@ -157,7 +157,7 @@ export function PartsModal({
             {parts.map((part) => (
               <button
                 key={part.id}
-                className="flex flex-col items-center justify-center border-2 rounded-[33px] bg-background shadow-sm p-3 sm:p-4 h-[160px] sm:h-[180px] md:h-[200px] transition hover:bg-accent focus:outline-none focus:ring-2 focus:ring-primary/50 w-full"
+                className="flex flex-col items-center justify-center border-2 rounded-[18px] bg-background shadow-sm p-3 sm:p-4 h-[160px] sm:h-[180px] md:h-[200px] transition hover:bg-accent focus:outline-none focus:ring-2 focus:ring-primary/50 w-full"
                 onClick={() => onPartClick(part)}
                 type="button"
               >

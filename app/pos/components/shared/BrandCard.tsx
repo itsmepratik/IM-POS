@@ -16,7 +16,7 @@ export function BrandCard({
 }: BrandCardProps) {
   return (
     <button
-      className="flex flex-col items-center justify-center border-2 rounded-[33px] bg-background shadow-sm p-3 sm:p-4 h-[120px] sm:h-[140px] md:h-[160px] transition hover:bg-accent focus:outline-none focus:ring-2 focus:ring-primary/50"
+      className="flex flex-col items-center justify-center border-2 rounded-[18px] bg-background shadow-sm p-3 sm:p-4 h-[120px] sm:h-[140px] md:h-[160px] transition hover:bg-accent focus:outline-none focus:ring-2 focus:ring-primary/50"
       onClick={onClick}
       type="button"
     >

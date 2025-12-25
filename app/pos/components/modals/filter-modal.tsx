@@ -158,11 +158,7 @@ export function FilterModal({
         <DialogHeader className="pb-4">
           <DialogTitle className="text-[clamp(1.125rem,3vw,1.25rem)] font-semibold">
             {selectedFilterBrand} - {selectedFilterType}
-            {isPreloading && totalImages > 0 && (
-              <span className="ml-2 text-sm text-muted-foreground">
-                (Loading {totalImages} images...)
-              </span>
-            )}
+
           </DialogTitle>
         </DialogHeader>
 
@@ -177,7 +173,7 @@ export function FilterModal({
             {filters.map((filter) => (
               <button
                 key={filter.id}
-                className="flex flex-col items-center justify-center border-2 rounded-[33px] bg-background shadow-sm p-3 sm:p-4 h-[160px] sm:h-[180px] md:h-[200px] transition hover:bg-accent focus:outline-none focus:ring-2 focus:ring-primary/50 w-full"
+                className="flex flex-col items-center justify-center border-2 rounded-[18px] bg-background shadow-sm p-3 sm:p-4 h-[160px] sm:h-[180px] md:h-[200px] transition hover:bg-accent focus:outline-none focus:ring-2 focus:ring-primary/50 w-full"
                 onClick={() => onFilterClick(filter)}
                 type="button"
               >

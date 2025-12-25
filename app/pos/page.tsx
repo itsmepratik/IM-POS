@@ -1381,6 +1381,35 @@ function POSPageContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lubricantProducts]);
 
+  // Helper to calculate total closed bottles of a specific product already in cart
+  const calculateCartClosedCount = (productId: string | number): number => {
+    return cart.reduce((total, item) => {
+      // Check if item matches current lubricant product (by numeric ID or original UUID)
+      const matches = item.id === productId || item.originalId === productId;
+      
+      // Cart items for lubricants have source "CLOSED" or "OPEN"
+      if (matches && (item.source === "CLOSED" || (!item.source && !item.bottleType) || item.bottleType === "closed")) {
+         // item.quantity for closed bottles is the number of bottles
+         return total + (item.quantity || 0);
+      }
+      return total;
+    }, 0);
+  };
+
+  // Helper to calculate total open volume of a specific product already in cart
+  const calculateCartOpenVolume = (productId: string | number): number => {
+    return cart.reduce((total, item) => {
+      // Check if item matches current lubricant product
+      const matches = item.id === productId || item.originalId === productId;
+      
+      if (matches && (item.source === "OPEN" || item.bottleType === "open")) {
+         // item.quantity for open source is volume in liters
+         return total + (item.quantity || 0);
+      }
+      return total;
+    }, 0);
+  };
+
   const handleLubricantSelect = useCallback((lubricant: LubricantProduct) => {
     setSelectedOil(lubricant);
     setSelectedVolumes([]);
@@ -1427,15 +1456,7 @@ function POSPageContent() {
       }, 0);
   };
 
-  // Helper function to calculate total open bottle volume already in cart for a product
-  const calculateCartOpenVolume = (productId: number): number => {
-    return cart
-      .filter((item) => item.id === productId && item.bottleType === "open")
-      .reduce((total, item) => {
-        // item.quantity already represents total volume in liters (see handleAddSelectedToCart)
-        return total + item.quantity;
-      }, 0);
-  };
+
 
   // Function to add volume with selected bottle type
   const addVolumeWithBottleType = (
@@ -3511,28 +3532,65 @@ function POSPageContent() {
                                   size="icon"
                                   className="h-7 w-7 shrink-0"
                                   disabled={
-                                    volume.bottleType === "open" &&
-                                    selectedOil?.totalOpenVolume !== undefined &&
                                     (() => {
-                                      // Calculate current total excluding this specific volume
-                                      const currentTotalOpenVolume = selectedVolumes
-                                        .filter((v) => !(v.size === volume.size && v.bottleType === volume.bottleType))
-                                        .filter((v) => v.bottleType === "open")
-                                        .reduce((total, v) => {
-                                          const volumeAmount = parseVolumeString(v.size);
-                                          return total + volumeAmount * v.quantity;
-                                        }, 0);
+                                      // 1. OPEN BOTTLE VALIDATION
+                                      if (volume.bottleType === "open" && selectedOil?.totalOpenVolume !== undefined) {
+                                        // Calculate current total excluding this specific volume
+                                        const currentTotalOpenVolume = selectedVolumes
+                                          .filter((v) => !(v.size === volume.size && v.bottleType === volume.bottleType))
+                                          .filter((v) => v.bottleType === "open")
+                                          .reduce((total, v) => {
+                                            const volumeAmount = parseVolumeString(v.size);
+                                            return total + volumeAmount * v.quantity;
+                                          }, 0);
+                                        
+                                        // Calculate volume already in cart for this product
+                                        const cartOpenVolume = calculateCartOpenVolume(selectedOil.id);
+                                        
+                                        // Add this volume with incremented quantity
+                                        const volumeAmount = parseVolumeString(volume.size);
+                                        const newQuantity = volume.quantity + 1;
+                                        const newModalTotal = currentTotalOpenVolume + (volumeAmount * newQuantity);
+                                        const newTotal = newModalTotal + cartOpenVolume;
+                                        
+                                        return newTotal > selectedOil.totalOpenVolume;
+                                      }
                                       
-                                      // Calculate volume already in cart for this product
-                                      const cartOpenVolume = calculateCartOpenVolume(selectedOil.id);
+                                      // 2. CLOSED BOTTLE VALIDATION
+                                      // Default to closed if no bottleType or explicitly closed
+                                      if (!volume.bottleType || volume.bottleType === "closed") {
+                                        // Ensure we have available quantity data, otherwise fallback to existing behavior
+                                        if (volume.availableQuantity === undefined && !selectedOil?.volumes?.[0]?.bottleStates?.closed) return false;
+                                        
+                                        // Total available closed bottles
+                                        const availableClosed = selectedOil?.volumes?.[0]?.bottleStates?.closed || 0;
+                                        
+                                        // Calculate closed bottles currently selected in modal (excluding this one logic is tricky if multiple sizes use same stock)
+                                        // Assumption: All closed volumes draw from the same "closedBottlesStock"?? 
+                                        // Wait, the API/Inventory model counts "Closed Bottles" as units of *bottles*. 
+                                        // BUT, a "4L" bottle is different from a "1L" bottle.
+                                        // The current inventory model seems to group "closedBottlesStock" at the Product level (which usually implies a specific size if it varies, or maybe they stack?).
+                                        // Looking at `inventoryService.ts`, items have volumes. If an Item represents a specific bottle size (e.g. 4L can), then stock is for THAT size.
+                                        // If the Product (Unified) aggregates multiple sizes (e.g. 1L and 4L variants), then `closedBottlesStock` might be ambiguous or sum of all?
+                                        // Let's check `product-adapters.ts`: "distribute bottles across volumes... equal distribution". 
+                                        // This implies specific stock tracking per size is NOT fully robust in the Unified model yet for mixed sizes.
+                                        // However, typical lubricants are sold as distinct Products in the simplified POS view (e.g. "Shell Helix 4L" vs "Shell Helix 1L").
+                                        // If `LubricantProduct` here comes from `unifiedProductToPOSLubricantProduct`, it has `volumes`.
+                                        // If the product represents a single SKU (e.g. 4L can), then closedBottlesStock is the count of those cans.
+                                        // In that case, ANY closed volume selection decrements that stock.
+                                        
+                                        const cartClosedCount = calculateCartClosedCount(selectedOil.id);
+                                        
+                                        // Sum of ALL closed bottles currently in modal for this product
+                                        const modalClosedCount = selectedVolumes
+                                          .filter(v => !v.bottleType || v.bottleType === "closed")
+                                          .reduce((sum, v) => sum + v.quantity, 0);
+                                          
+                                        // Check if adding 1 more exceeds available
+                                        return (cartClosedCount + modalClosedCount + 1) > availableClosed;
+                                      }
                                       
-                                      // Add this volume with incremented quantity
-                                      const volumeAmount = parseVolumeString(volume.size);
-                                      const newQuantity = volume.quantity + 1;
-                                      const newModalTotal = currentTotalOpenVolume + (volumeAmount * newQuantity);
-                                      const newTotal = newModalTotal + cartOpenVolume;
-                                      
-                                      return newTotal > selectedOil.totalOpenVolume;
+                                      return false;
                                     })()
                                   }
                                   onClick={() =>

@@ -117,10 +117,7 @@ export function PartsCategory({
             </Button>
             {selectedPartType === type && (
               <div
-                className="p-4 bg-muted/50 grid gap-4"
-                style={{
-                  gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))",
-                }}
+                className="p-4 bg-muted/50 grid gap-4 grid-cols-2 md:grid-cols-4"
               >
                 {getBrandsForType(type).map((brand) => (
                   <BrandCard

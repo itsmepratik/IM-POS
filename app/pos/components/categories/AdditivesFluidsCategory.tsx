@@ -172,7 +172,7 @@ export function AdditivesFluidsCategory({
                   <Button
                     key={product.id}
                     variant="outline"
-                    className="border-2 rounded-[33px] flex flex-col items-center justify-between p-4 h-auto min-h-[150px] transition-all hover:shadow-md overflow-hidden"
+                    className="border-2 rounded-[18px] flex flex-col items-center justify-between p-4 h-auto min-h-[150px] transition-all hover:shadow-md overflow-hidden"
                     onClick={() => {
                       addToCart({
                         id: product.id,
