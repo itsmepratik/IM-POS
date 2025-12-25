@@ -115,7 +115,7 @@ import {
 import { FilterModal } from "./components/modals/filter-modal";
 import { PartsModal } from "./components/modals/parts-modal";
 import { TradeInDialog } from "./components/modals/trade-in-dialog";
-import { VolumeModal } from "./components/modals/volume-modal";
+// VolumeModal import removed as logic is inline
 import { BrandCard } from "./components/brand-card";
 import { BrandLogo } from "./components/brand-logo";
 import { OnHoldTicket } from "./components/on-hold-ticket";
@@ -3418,9 +3418,12 @@ function POSPageContent() {
           <Dialog open={isVolumeModalOpen} onOpenChange={setIsVolumeModalOpen}>
             <DialogContent className="w-[90%] max-w-[500px] p-4 sm:p-6 rounded-lg">
               <DialogHeader className="pb-3 sm:pb-4">
-                <DialogTitle className="text-base sm:text-xl font-semibold">
-                  {selectedOil?.brand} - {selectedOil?.type}
+                <DialogTitle className="text-base sm:text-l font-semibold">
+                  {selectedOil?.brand} - {selectedOil?.name}
                 </DialogTitle>
+                <div className="text-xs sm:text-sm text-muted-foreground font-normal mt-1">
+                  {selectedOil?.type}
+                </div>
                 <DialogDescription className="sr-only">
                   Select the volume for this lubricant product
                 </DialogDescription>

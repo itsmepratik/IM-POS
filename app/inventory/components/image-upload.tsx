@@ -15,6 +15,8 @@ interface ImageUploadProps {
   value?: string | null;
   disabled?: boolean;
   className?: string;
+  bucketName?: string;
+  folderName?: string;
 }
 
 export function ImageUpload({
@@ -23,6 +25,8 @@ export function ImageUpload({
   value,
   disabled = false,
   className,
+  bucketName = "Product Images",
+  folderName = "products",
 }: ImageUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -81,7 +85,7 @@ export function ImageUpload({
       const supabase = createClient();
       const fileExt = file.name.split(".").pop();
       const fileName = `${uuidv4()}-${Date.now()}.${fileExt}`;
-      const filePath = `products/${fileName}`;
+      const filePath = `${folderName}/${fileName}`;
 
       // Simulate progress for better UX since Supabase client doesn't provide upload progress
       const progressInterval = setInterval(() => {
@@ -95,7 +99,7 @@ export function ImageUpload({
       }, 100);
 
       const { error: uploadError } = await supabase.storage
-        .from("Product Images")
+        .from(bucketName)
         .upload(filePath, file, {
           cacheControl: "3600",
           upsert: false,
@@ -111,13 +115,13 @@ export function ImageUpload({
 
       const {
         data: { publicUrl },
-      } = supabase.storage.from("Product Images").getPublicUrl(filePath);
+      } = supabase.storage.from(bucketName).getPublicUrl(filePath);
 
       onUpload(publicUrl);
       
       toast({
         title: "Image uploaded",
-        description: "Product image has been uploaded successfully.",
+        description: "Image has been uploaded successfully.",
       });
     } catch (error) {
       console.error("Error uploading image:", error);
@@ -170,7 +174,7 @@ export function ImageUpload({
   };
 
   return (
-    <div className={cn("w-full", className)}>
+    <div className={cn("w-full h-48", className)}>
       <input
         type="file"
         ref={fileInputRef}
@@ -181,7 +185,7 @@ export function ImageUpload({
       />
 
       {value ? (
-        <div className="relative group rounded-lg overflow-hidden border border-border bg-muted/30 h-48 w-full flex items-center justify-center">
+        <div className="relative group rounded-lg overflow-hidden border border-border bg-muted/30 h-full w-full flex items-center justify-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={value}
@@ -224,13 +228,12 @@ export function ImageUpload({
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
           className={cn(
-            "relative flex flex-col items-center justify-center w-full h-48 rounded-lg border-2 border-dashed transition-all duration-200 cursor-pointer overflow-hidden",
+            "relative flex flex-col items-center justify-center w-full h-full rounded-lg border-2 border-dashed transition-all duration-200 cursor-pointer overflow-hidden",
             isDragging
               ? "border-primary bg-primary/10"
               : "border-muted-foreground/25 hover:border-primary/50 hover:bg-muted/50",
             disabled && "opacity-60 cursor-not-allowed hover:bg-transparent hover:border-muted-foreground/25",
-            error && "border-destructive/50 bg-destructive/5",
-            className
+            error && "border-destructive/50 bg-destructive/5"
           )}
         >
           {isUploading ? (
@@ -268,7 +271,7 @@ export function ImageUpload({
                   {error ? error : isDragging ? "Drop image here" : "Click or drag image"}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  SVG, PNG, JPG or GIF (max. 5MB)
+                  SVG, PNG, JPG (max. 5MB)
                 </p>
               </div>
             </div>

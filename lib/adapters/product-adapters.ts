@@ -84,13 +84,8 @@ export function itemToUnifiedProduct(
             formattedManufacturingDate = date.toISOString().split("T")[0];
           }
         }
-      } else if (item.manufacturingDate instanceof Date) {
-        // Handle Date objects directly
-        formattedManufacturingDate = item.manufacturingDate
-          .toISOString()
-          .split("T")[0];
       } else {
-        // Try to convert to Date and format
+        // Handle unexpected types safely by casting to any
         const date = new Date(item.manufacturingDate as any);
         if (!isNaN(date.getTime())) {
           formattedManufacturingDate = date.toISOString().split("T")[0];
@@ -117,12 +112,13 @@ export function itemToUnifiedProduct(
     brandId: item.brand_id,
     brandName: item.brand,
     productType: item.type,
+    types: item.types?.map((t) => t.name) || [],
     basePrice: item.price || 0,
     costPrice: item.costPrice,
-    lowStockThreshold: item.lowStockAlert || 5,
+    lowStockThreshold: item.lowStockAlert || 5, // Default low stock threshold
     manufacturingDate: formattedManufacturingDate,
     inventory,
-    isLubricant: Boolean(item.is_oil || item.isOil),
+    isLubricant: Boolean(item.isOil),
     volumes: volumes.length > 0 ? volumes : undefined,
     bottleStates: item.bottleStates,
     batches: batches.length > 0 ? batches : undefined,
@@ -168,22 +164,23 @@ export function unifiedProductToItem(
     price: product.inventory?.sellingPrice || product.basePrice,
     stock: product.inventory?.standardStock,
     bottleStates: product.bottleStates,
-    category: product.categoryName,
-    brand: product.brandName,
-    brand_id: product.brandId,
-    category_id: product.categoryId,
-    type: product.productType,
-    description: product.description,
-    is_oil: product.isLubricant,
+    category: product.categoryName || undefined,
+    brand: product.brandName || undefined,
+    brand_id: product.brandId || null,
+    category_id: product.categoryId || null,
+    type: product.productType || null,
+    type_id: null,
+    type_name: product.productType || null,
+    description: product.description || null,
     isOil: product.isLubricant,
-    imageUrl: product.imageUrl,
-    image_url: product.imageUrl,
+    image_url: product.imageUrl || null,
+    imageUrl: product.imageUrl || undefined,
     volumes: volumes.length > 0 ? volumes : undefined,
     batches: batches.length > 0 ? batches : undefined,
     created_at: product.createdAt,
     updated_at: product.updatedAt,
     lowStockAlert: product.lowStockThreshold,
-    costPrice: product.costPrice,
+    costPrice: product.costPrice || undefined,
     specification: product.specification,
   };
 }
@@ -217,8 +214,8 @@ export function unifiedProductToPOSProduct(
     name: product.name,
     price: product.inventory?.sellingPrice || product.basePrice,
     category,
-    brand: product.brandName,
-    type: product.productType,
+    brand: product.brandName || undefined,
+    type: product.productType || product.types?.join(", ") || undefined,
     availableQuantity: product.inventory?.totalStock || 0,
     imageUrl: product.imageUrl || undefined,
     isAvailable: product.inventory?.isAvailable || false,
@@ -249,7 +246,10 @@ export function unifiedProductToPOSLubricantProduct(
     brand: product.brandName || "Unknown Brand",
     name: product.name,
     basePrice: product.basePrice,
-    type: product.productType || "Unknown Type",
+    type:
+      product.types && product.types.length > 0
+        ? product.types.join(" / ")
+        : product.productType || "Unknown Type",
     image: product.imageUrl || undefined,
     volumes,
     isAvailable: product.inventory?.isAvailable || false,
@@ -407,8 +407,19 @@ export function itemsToUnifiedProducts(
       brandId: baseItem.brand_id,
       brandName: baseItem.brand || null,
       productType: baseItem.type || null,
+      types: Array.from(
+        new Set(
+          productItems
+            .flatMap((item) => item.types || [])
+            .map((t) => t.name)
+        )
+      ),
+      lowStockThreshold: baseItem.lowStockAlert || 5,
+      manufacturingDate: baseItem.manufacturingDate || null,
+      costPrice: baseItem.costPrice,
+      specification: baseItem.specification,
       inventory: mergedInventory,
-      isLubricant: baseItem.isOil || false,
+      isLubricant: Boolean(baseItem.isOil),
       volumes: Array.from(volumeMap.values()),
       bottleStates: mergedInventory.openBottlesStock > 0 || mergedInventory.closedBottlesStock > 0
         ? {

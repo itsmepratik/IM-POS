@@ -190,10 +190,10 @@ export function LubricantCategory({
                         <Button
                           key={lubricant.id}
                           variant="outline"
-                          className="border-2 rounded-[33px] flex flex-col items-center justify-between p-3 sm:p-4 h-[160px] sm:h-[180px] md:h-[200px] overflow-hidden"
+                          className="border-2 rounded-[33px] flex flex-col items-center justify-between p-3 sm:p-4 h-[180px] sm:h-[200px] md:h-[220px] overflow-hidden shadow-sm hover:shadow-md transition-all"
                           onClick={() => onLubricantSelect(lubricant)}
                         >
-                          <div className="relative w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 mt-1 mb-1">
+                          <div className="relative w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 mt-1 mb-1 shrink-0">
                             {lubricant.image ? (
                               <LubricantImage
                                 imageUrl={lubricant.image}
@@ -206,14 +206,16 @@ export function LubricantCategory({
                               </div>
                             )}
                           </div>
-                          <div className="text-center flex-1 flex flex-col justify-between">
-                            <span
-                              className="text-center font-medium text-xs sm:text-sm w-full px-1 word-wrap whitespace-normal leading-tight hyphens-auto"
-                              style={{ lineHeight: 1.1 }}
-                            >
-                              {lubricant.name}
-                            </span>
-                            <span className="block text-sm text-primary mt-2">
+                          <div className="text-center flex-1 flex flex-col justify-between w-full">
+                            <div className="flex flex-col w-full">
+                              <span
+                                className="text-center font-semibold text-xs sm:text-sm w-full px-1 word-wrap whitespace-normal leading-tight hyphens-auto line-clamp-2"
+                                style={{ lineHeight: 1.1 }}
+                              >
+                                {lubricant.name}
+                              </span>
+                            </div>
+                            <span className="block text-sm font-bold text-primary mt-1">
                               OMR {lubricant.basePrice.toFixed(3)}
                             </span>
                           </div>
@@ -240,10 +242,10 @@ export function LubricantCategory({
                         <Button
                           key={lubricant.id}
                           variant="outline"
-                          className="border-2 rounded-[33px] flex flex-col items-center justify-between p-3 sm:p-4 h-[160px] sm:h-[180px] md:h-[200px] overflow-hidden"
+                          className="border-2 rounded-[33px] flex flex-col items-center justify-between p-3 sm:p-4 h-[180px] sm:h-[200px] md:h-[220px] overflow-hidden shadow-sm hover:shadow-md transition-all"
                           onClick={() => onLubricantSelect(lubricant)}
                         >
-                          <div className="relative w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 mt-1 mb-1">
+                          <div className="relative w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 mt-1 mb-1 shrink-0">
                             {lubricant.image ? (
                               <LubricantImage
                                 imageUrl={lubricant.image}
@@ -256,14 +258,15 @@ export function LubricantCategory({
                               </div>
                             )}
                           </div>
-                          <div className="text-center flex-1 flex flex-col justify-between">
-                            <span
-                              className="text-center font-medium text-xs sm:text-sm w-full px-1 word-wrap whitespace-normal leading-tight hyphens-auto"
-                              style={{ lineHeight: 1.1 }}
-                            >
-                              {lubricant.name}
-                            </span>
-                            <span className="block text-sm text-primary mt-2">
+                          <div className="text-center flex-1 flex flex-col justify-between w-full">
+                            <div className="flex flex-col w-full">
+                              <span className="text-center font-semibold text-xs sm:text-sm w-full px-1 word-wrap whitespace-normal leading-tight hyphens-auto line-clamp-2"
+                                style={{ lineHeight: 1.1 }}
+                              >
+                                {lubricant.name}
+                              </span>
+                            </div>
+                            <span className="block text-sm font-bold text-primary mt-1">
                               OMR {lubricant.basePrice.toFixed(3)}
                             </span>
                           </div>
@@ -303,10 +306,10 @@ export function LubricantCategory({
                         <Button
                           key={lubricant.id}
                           variant="outline"
-                          className="border-2 rounded-[33px] flex flex-col items-center justify-between p-3 sm:p-4 h-[160px] sm:h-[180px] md:h-[200px] overflow-hidden"
+                          className="border-2 rounded-[33px] flex flex-col items-center justify-between p-3 sm:p-4 h-[180px] sm:h-[200px] md:h-[220px] overflow-hidden shadow-sm hover:shadow-md transition-all"
                           onClick={() => onLubricantSelect(lubricant)}
                         >
-                          <div className="relative w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 mt-1 mb-1">
+                          <div className="relative w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 mt-1 mb-1 shrink-0">
                             {lubricant.image ? (
                               <LubricantImage
                                 imageUrl={lubricant.image}
@@ -319,14 +322,16 @@ export function LubricantCategory({
                               </div>
                             )}
                           </div>
-                          <div className="text-center flex-1 flex flex-col justify-between">
-                            <span
-                              className="text-center font-medium text-xs sm:text-sm w-full px-1 word-wrap whitespace-normal leading-tight hyphens-auto"
-                              style={{ lineHeight: 1.1 }}
-                            >
-                              {lubricant.name}
-                            </span>
-                            <span className="block text-sm text-primary mt-2">
+                          <div className="text-center flex-1 flex flex-col justify-between w-full">
+                            <div className="flex flex-col w-full">
+                              <span
+                                className="text-center font-semibold text-xs sm:text-sm w-full px-1 word-wrap whitespace-normal leading-tight hyphens-auto line-clamp-2"
+                                style={{ lineHeight: 1.1 }}
+                              >
+                                {lubricant.name}
+                              </span>
+                            </div>
+                            <span className="block text-sm font-bold text-primary mt-1">
                               OMR {lubricant.basePrice.toFixed(3)}
                             </span>
                           </div>

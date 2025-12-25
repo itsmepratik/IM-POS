@@ -20,6 +20,7 @@ export interface UnifiedProduct {
   brandId?: string | null;
   brandName?: string | null;
   productType?: string | null;
+  types?: string[]; // Array of type names
 
   // Pricing and stock information
   basePrice: number;
@@ -137,6 +138,7 @@ export const UnifiedProductSchema = z.object({
   brandId: z.string().uuid().nullable().optional(),
   brandName: z.string().nullable().optional(),
   productType: z.string().nullable().optional(),
+  types: z.array(z.string()).optional(),
 
   basePrice: z.number().min(0, "Base price must be non-negative"),
   costPrice: z.number().min(0).nullable().optional(),
