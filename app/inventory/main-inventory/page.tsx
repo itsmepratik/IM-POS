@@ -172,7 +172,7 @@ const MobileItemCard = memo(
             <div className="flex-1 min-w-0">
               <div className="flex items-start justify-between gap-2">
                 <div>
-                  <h3 className="font-medium truncate">{item.name}</h3>
+                  <h3 className="font-medium whitespace-normal break-words pr-2">{item.name}</h3>
                   {item.brand && (
                     <p className="text-sm text-muted-foreground">
                       {item.brand}
@@ -803,7 +803,7 @@ function MobileView() {
         {/* Buttons row below search */}
         <div className="flex items-center gap-2 justify-between">
           <div className="flex items-center gap-2">
-            <Button onClick={openAddItemModal} size="sm">
+            <Button onClick={openAddItemModal} size="sm" className="overflow-visible">
               <Plus className="h-4 w-4 mr-1" />
               Add
             </Button>

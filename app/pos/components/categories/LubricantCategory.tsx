@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ChevronDown, ChevronUp, ImageIcon, AlertCircle } from "lucide-react";
 import Image from "next/image";
+import { useNotification } from "@/app/notification-context";
 import {
   isValidImageUrl,
   cacheImageValid,
@@ -125,6 +126,8 @@ export function LubricantCategory({
   lubricantBrands,
   isLoading,
 }: LubricantCategoryProps) {
+  const { addPersistentNotification } = useNotification();
+
   // Filter brands based on search query
   const filteredLubricantBrands = useMemo(() => {
     return lubricantBrands.filter((brand) =>
@@ -206,11 +209,17 @@ export function LubricantCategory({
                           onClick={() => {
                              const totalClosed = lubricant.volumes?.[0]?.bottleStates?.closed || 0;
                              const totalOpen = lubricant.totalOpenVolume || 0;
-                             if (totalClosed > 0 || totalOpen > 0) {
-                               onLubricantSelect(lubricant);
+                             if (totalClosed <= 0 && totalOpen <= 0) {
+                               addPersistentNotification({
+                                 type: "error",
+                                 title: "Out of Stock",
+                                 message: `${lubricant.name} is currently out of stock.`,
+                                 category: "stock"
+                               });
+                               return;
                              }
+                             onLubricantSelect(lubricant);
                           }}
-                          disabled={(lubricant.volumes?.[0]?.bottleStates?.closed || 0) <= 0 && (lubricant.totalOpenVolume || 0) <= 0}
                         >
                           {/* Available Stock Icons - Top Right of Card */}
                             {((lubricant.volumes?.[0]?.bottleStates?.closed || 0) > 0 || (lubricant.volumes?.[0]?.bottleStates?.open || 0) > 0) && (
@@ -287,7 +296,20 @@ export function LubricantCategory({
                           key={lubricant.id}
                           variant="outline"
                           className="border-2 rounded-[18px] flex flex-col items-center justify-between p-3 sm:p-4 h-[180px] sm:h-[200px] md:h-[220px] overflow-hidden shadow-sm hover:shadow-md transition-all relative"
-                          onClick={() => onLubricantSelect(lubricant)}
+                          onClick={() => {
+                             const totalClosed = lubricant.volumes?.[0]?.bottleStates?.closed || 0;
+                             const totalOpen = lubricant.totalOpenVolume || 0;
+                             if (totalClosed <= 0 && totalOpen <= 0) {
+                               addPersistentNotification({
+                                 type: "error",
+                                 title: "Out of Stock",
+                                 message: `${lubricant.name} is currently out of stock.`,
+                                 category: "stock"
+                               });
+                               return;
+                             }
+                             onLubricantSelect(lubricant);
+                          }}
                         >
                           {/* Available Stock Icons - Top Right of Card */}
                           {((lubricant.volumes?.[0]?.bottleStates?.closed || 0) > 0 || (lubricant.volumes?.[0]?.bottleStates?.open || 0) > 0) && (
@@ -376,7 +398,20 @@ export function LubricantCategory({
                           key={lubricant.id}
                           variant="outline"
                           className="border-2 rounded-[18px] flex flex-col items-center justify-between p-3 sm:p-4 h-[180px] sm:h-[200px] md:h-[220px] overflow-hidden shadow-sm hover:shadow-md transition-all relative"
-                          onClick={() => onLubricantSelect(lubricant)}
+                          onClick={() => {
+                             const totalClosed = lubricant.volumes?.[0]?.bottleStates?.closed || 0;
+                             const totalOpen = lubricant.totalOpenVolume || 0;
+                             if (totalClosed <= 0 && totalOpen <= 0) {
+                               addPersistentNotification({
+                                 type: "error",
+                                 title: "Out of Stock",
+                                 message: `${lubricant.name} is currently out of stock.`,
+                                 category: "stock"
+                               });
+                               return;
+                             }
+                             onLubricantSelect(lubricant);
+                          }}
                         >
                           {/* Available Stock Icons - Top Right of Card */}
                           {((lubricant.volumes?.[0]?.bottleStates?.closed || 0) > 0 || (lubricant.volumes?.[0]?.bottleStates?.open || 0) > 0) && (

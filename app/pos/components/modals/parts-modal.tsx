@@ -5,6 +5,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ArrowRight, Minus, Plus, ImageIcon } from "lucide-react";
 import React, { useState } from "react";
@@ -16,12 +17,14 @@ import {
   isImageCached,
 } from "@/lib/utils/imageCache";
 import { ImageErrorFallback } from "@/components/ui/image-error-boundary";
+import { useNotification } from "@/app/notification-context";
 
 interface Part {
   id: number;
   name: string;
   price: number;
   quantity: number;
+  availableQuantity?: number;
 }
 
 interface PartsModalProps {
@@ -35,6 +38,7 @@ interface PartsModalProps {
     price: number;
     imageUrl?: string;
     originalId?: string;
+    availableQuantity?: number;
   }>;
   selectedParts: Part[];
   onPartClick: (part: {
@@ -132,6 +136,8 @@ export function PartsModal({
   onAddToCart,
   onNext,
 }: PartsModalProps) {
+  const { addPersistentNotification } = useNotification();
+  
   return (
     <Dialog
       open={isOpen}
@@ -154,32 +160,63 @@ export function PartsModal({
               gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))",
             }}
           >
-            {parts.map((part) => (
-              <button
-                key={part.id}
-                className="flex flex-col items-center justify-center border-2 rounded-[18px] bg-background shadow-sm p-3 sm:p-4 h-[160px] sm:h-[180px] md:h-[200px] transition hover:bg-accent focus:outline-none focus:ring-2 focus:ring-primary/50 w-full"
-                onClick={() => onPartClick(part)}
-                type="button"
-              >
-                <div className="relative w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 mb-2 flex items-center justify-center">
-                  <PartImage
-                    imageUrl={part.imageUrl}
-                    brand={selectedPartBrand || ""}
-                    type={selectedPartType || ""}
-                    partName={part.name}
-                  />
-                </div>
-                <span
-                  className="text-center font-medium text-xs sm:text-sm w-full px-1 whitespace-normal leading-tight hyphens-auto break-words"
-                  style={{ lineHeight: 1.1 }}
+            {parts.map((part) => {
+              const available = part.availableQuantity ?? 0;
+              const isOutOfStock = available <= 0;
+              const isSelected = selectedParts.some(p => p.id === part.id); // Assuming isSelected logic might be needed later, though not directly used in the provided snippet's conditional class
+
+              return (
+                <Button
+                  key={part.id}
+                  variant={isSelected ? "chonky" : "outline"}
+                  disabled={false} // Always clickable to show notification
+                  className={`border-2 rounded-[18px] flex flex-col items-center justify-between p-3 sm:p-4 h-[180px] sm:h-[200px] md:h-[220px] overflow-hidden shadow-sm hover:shadow-md transition-all relative ${
+                    isOutOfStock 
+                    ? "opacity-60 bg-muted/50" 
+                    : isSelected ? "ring-2 ring-primary" : ""
+                  }`}
+                  onClick={() => {
+                     if (isOutOfStock) {
+                        addPersistentNotification({
+                          type: "error",
+                          title: "Out of Stock",
+                          message: `${part.name} is currently out of stock.`,
+                          category: "stock"
+                        });
+                        return;
+                     }
+                     onPartClick(part);
+                  }}
+                  type="button"
                 >
-                  {part.name}
-                </span>
-                <span className="block text-xs sm:text-sm text-primary mt-1">
-                  OMR {part.price.toFixed(3)}
-                </span>
-              </button>
-            ))}
+                  {/* Stock Badge - REMOVED per user request */}
+
+                  <div className="relative w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 mb-2 flex items-center justify-center">
+                    <PartImage
+                      imageUrl={part.imageUrl}
+                      brand={selectedPartBrand || ""}
+                      type={selectedPartType || ""}
+                      partName={part.name}
+                    />
+                    {/* Out of Stock Overlay - Matches Lubricant Style */}
+                    {isOutOfStock && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-[1px] rounded-md z-1">
+                        <Badge variant="destructive" className="text-[10px]">Out of Stock</Badge>
+                      </div>
+                    )}
+                  </div>
+                  <span
+                    className="text-center font-medium text-xs sm:text-sm w-full px-1 whitespace-normal leading-tight hyphens-auto break-words"
+                    style={{ lineHeight: 1.1 }}
+                  >
+                    {part.name}
+                  </span>
+                  <span className="block text-xs sm:text-sm text-primary mt-1">
+                    OMR {part.price.toFixed(3)}
+                  </span>
+                </Button>
+              );
+            })}
           </div>
 
           {/* Selected parts list */}

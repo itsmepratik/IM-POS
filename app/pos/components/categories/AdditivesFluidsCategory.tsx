@@ -3,6 +3,8 @@
 import React, { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { ChevronDown, ChevronUp, Droplet, ImageIcon } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { useNotification } from "@/app/notification-context";
 import Image from "next/image";
 import {
   isValidImageUrl,
@@ -116,6 +118,8 @@ export function AdditivesFluidsCategory({
   products,
   isLoading,
 }: AdditivesFluidsCategoryProps) {
+  const { addPersistentNotification } = useNotification();
+
   // Get unique brands for additives & fluids
   const additiveBrands = useMemo(() => {
     return Array.from(
@@ -168,25 +172,51 @@ export function AdditivesFluidsCategory({
                     p.category === "Additives & Fluids" &&
                     (p.brand || "Other") === brand // Handle null/undefined brands
                 )
-                .map((product) => (
+                .map((product) => {
+                  const available = product.availableQuantity ?? 0;
+                  const isOutOfStock = available <= 0;
+                  
+                  return (
                   <Button
                     key={product.id}
                     variant="outline"
-                    className="border-2 rounded-[18px] flex flex-col items-center justify-between p-4 h-auto min-h-[150px] transition-all hover:shadow-md overflow-hidden"
+                    disabled={false} // Always clickable to show notification
+                    className={`border-2 rounded-[18px] flex flex-col items-center justify-between p-4 h-auto min-h-[150px] transition-all overflow-hidden relative ${
+                        isOutOfStock 
+                        ? "opacity-60 bg-muted/50" 
+                        : "hover:shadow-md"
+                    }`}
                     onClick={() => {
-                      addToCart({
-                        id: product.id,
-                        name: product.name,
-                        price: product.price,
-                      });
+                        if (isOutOfStock) {
+                               addPersistentNotification({
+                                 type: "error",
+                                 title: "Out of Stock",
+                                 message: `${product.name} is currently out of stock.`,
+                                 category: "stock"
+                               });
+                               return;
+                        }
+                        addToCart({
+                          id: product.id,
+                          name: product.name,
+                          price: product.price,
+                        });
                     }}
                   >
+                    {/* Stock Badge - REMOVED per user request */}
+                    
                     {/* Product image with fallback to icon */}
-                    <div className="mb-3">
+                    <div className="mb-3 relative">
                       <AdditiveFluidImage
                         imageUrl={product.imageUrl}
                         productName={product.name}
                       />
+                      {/* Out of Stock Overlay - Matches Lubricant Style */}
+                      {isOutOfStock && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-[1px] rounded-md z-1">
+                            <Badge variant="destructive" className="text-[10px]">Out of Stock</Badge>
+                        </div>
+                       )}
                     </div>
 
                     {/* Product information with proper text handling */}
@@ -206,7 +236,7 @@ export function AdditivesFluidsCategory({
                       </div>
                     </div>
                   </Button>
-                ))}
+                )})}
             </div>
           )}
         </div>

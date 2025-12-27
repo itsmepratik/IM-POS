@@ -1,5 +1,7 @@
 "use client";
 
+import * as React from "react";
+
 import { Button } from "./button";
 import { ChevronLeft, ChevronRight, MoreHorizontal } from "lucide-react";
 
@@ -14,8 +16,29 @@ export function Pagination({
   totalPages,
   onPageChange,
 }: PaginationProps) {
+  const [isMobile, setIsMobile] = React.useState(false);
+
+  React.useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.matchMedia("(max-width: 640px)").matches);
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
   const generatePageNumbers = () => {
     const pages: (number | string)[] = [];
+    
+    // Mobile: Show all pages to allow scrolling
+    if (isMobile) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+      return pages;
+    }
+
+    // Desktop: Use ellipsis logic
     const maxVisiblePages = 7;
 
     if (totalPages <= maxVisiblePages) {
@@ -66,7 +89,8 @@ export function Pagination({
         Page {currentPage} of {totalPages}
       </div>
 
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-1 w-full sm:w-auto">
+        {/* Fixed Previous Button */}
         <Button
           variant="outline"
           size="sm"
@@ -78,7 +102,11 @@ export function Pagination({
           <span className="hidden sm:inline ml-1">Previous</span>
         </Button>
 
-        <div className="flex items-center gap-1 overflow-x-auto max-w-full px-2 py-1">
+        {/* Scrollable Numbers Container */}
+        {/* flex-1 ensures it takes available space between buttons on mobile */}
+        {/* overflow-x-auto enables scrolling for numbers only */}
+        {/* p-4 -my-4 ensures shadows are visible inside the scroll container */}
+        <div className="flex-1 sm:flex-none flex items-center justify-start sm:justify-center gap-1 overflow-x-auto px-2 py-6 -my-4 hide-scrollbar">
           {pageNumbers.map((page, index) => (
             <div key={index} className="flex-shrink-0 my-0.5">
               {page === "..." ? (
@@ -99,6 +127,7 @@ export function Pagination({
           ))}
         </div>
 
+        {/* Fixed Next Button */}
         <Button
           variant="outline"
           size="sm"

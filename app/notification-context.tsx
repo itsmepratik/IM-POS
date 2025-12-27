@@ -552,7 +552,7 @@ function NotificationContainer() {
   const temporaryNotifications = notifications.filter(n => n.isTemporary)
 
   return (
-    <div className="fixed top-4 z-50 left-1/2 transform -translate-x-1/2 w-full max-w-sm px-4 flex flex-col items-center">
+    <div className="fixed top-4 z-[99999] left-1/2 transform -translate-x-1/2 w-full max-w-sm px-4 flex flex-col items-center">
       <AnimatePresence>
         {temporaryNotifications.map((notification, index) => (
           <motion.div

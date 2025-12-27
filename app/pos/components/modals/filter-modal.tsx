@@ -5,6 +5,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ArrowRight, Minus, Plus, ImageIcon } from "lucide-react";
 import React, { useState, useMemo } from "react";
@@ -17,6 +18,7 @@ import {
 } from "@/lib/utils/imageCache";
 import { ImageErrorFallback } from "@/components/ui/image-error-boundary";
 import { useImagePreloader } from "@/lib/hooks/useImagePreloader";
+import { useNotification } from "@/app/notification-context";
 
 interface Filter {
   id: number;
@@ -25,6 +27,7 @@ interface Filter {
   quantity: number;
   imageUrl?: string;
   originalId?: string;
+  availableQuantity?: number;
 }
 
 interface FilterModalProps {
@@ -38,6 +41,7 @@ interface FilterModalProps {
     price: number;
     imageUrl?: string;
     originalId?: string;
+    availableQuantity?: number; // Optional since it might not be in all data initially
   }>;
   selectedFilters: Filter[];
   onFilterClick: (filter: {
@@ -46,6 +50,7 @@ interface FilterModalProps {
     price: number;
     imageUrl?: string;
     originalId?: string;
+    availableQuantity?: number;
   }) => void;
   onQuantityChange: (filterId: number, change: number) => void;
   onAddToCart: () => void;
@@ -135,8 +140,10 @@ export function FilterModal({
   onAddToCart,
   onNext,
 }: FilterModalProps) {
-  // Extract image URLs for preloading
-  const imageUrls = useMemo(() => {
+  const { addPersistentNotification } = useNotification();
+
+  // Create preloader items from filters
+  const preloaderItems = useMemo(() => {
     return filters
       .filter((filter) => filter.imageUrl && isValidImageUrl(filter.imageUrl))
       .map((filter) => filter.imageUrl!);
@@ -144,8 +151,8 @@ export function FilterModal({
 
   // Preload filter images when modal opens
   const { totalImages, isPreloading } = useImagePreloader({
-    urls: imageUrls,
-    enabled: isOpen && imageUrls.length > 0,
+    urls: preloaderItems,
+    enabled: isOpen && preloaderItems.length > 0,
   });
   return (
     <Dialog
@@ -170,32 +177,63 @@ export function FilterModal({
               gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
             }}
           >
-            {filters.map((filter) => (
-              <button
-                key={filter.id}
-                className="flex flex-col items-center justify-center border-2 rounded-[18px] bg-background shadow-sm p-3 sm:p-4 h-[160px] sm:h-[180px] md:h-[200px] transition hover:bg-accent focus:outline-none focus:ring-2 focus:ring-primary/50 w-full"
-                onClick={() => onFilterClick(filter)}
-                type="button"
-              >
-                <div className="relative w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 mb-2 flex items-center justify-center">
-                  <FilterImage
-                    imageUrl={filter.imageUrl}
-                    brand={selectedFilterBrand || ""}
-                    type={selectedFilterType || ""}
-                    filterName={filter.name}
-                  />
-                </div>
-                <span
-                  className="text-center font-medium text-xs sm:text-sm w-full px-1 whitespace-normal leading-tight hyphens-auto break-words"
-                  style={{ lineHeight: 1.1 }}
+            {filters.map((filter) => {
+              const available = filter.availableQuantity ?? 0;
+              const isOutOfStock = available <= 0;
+              const isSelected = selectedFilters.some((sf) => sf.id === filter.id);
+
+              return (
+                <Button
+                  key={filter.id}
+                  variant={isSelected ? "chonky" : "outline"}
+                  disabled={false} // Always clickable to show notification
+                  className={`border-2 rounded-[18px] flex flex-col items-center justify-between p-3 sm:p-4 h-[180px] sm:h-[200px] md:h-[220px] overflow-hidden shadow-sm hover:shadow-md transition-all relative ${
+                    isOutOfStock 
+                    ? "opacity-60 bg-muted/50" 
+                    : isSelected ? "ring-2 ring-primary" : ""
+                  }`}
+                  onClick={() => {
+                    if (isOutOfStock) {
+                       addPersistentNotification({
+                         type: "error",
+                         title: "Out of Stock",
+                         message: `${filter.name} is currently out of stock.`,
+                         category: "stock"
+                       });
+                       return;
+                    }
+                    onFilterClick(filter);
+                  }}
+                  type="button"
                 >
-                  {filter.name}
-                </span>
-                <span className="block text-xs sm:text-sm text-primary mt-1">
-                  OMR {filter.price.toFixed(3)}
-                </span>
-              </button>
-            ))}
+                  {/* Stock Badge - REMOVED per user request */}
+
+                  <div className="relative w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 mb-2 flex items-center justify-center">
+                    <FilterImage
+                      imageUrl={filter.imageUrl}
+                      brand={selectedFilterBrand || ""}
+                      type={selectedFilterType || ""}
+                      filterName={filter.name}
+                    />
+                    {/* Out of Stock Overlay - Matches Lubricant Style */}
+                    {isOutOfStock && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-[1px] rounded-md z-1">
+                         <Badge variant="destructive" className="text-[10px]">Out of Stock</Badge>
+                      </div>
+                    )}
+                  </div>
+                  <span
+                    className="text-center font-medium text-xs sm:text-sm w-full px-1 whitespace-normal leading-tight hyphens-auto break-words"
+                    style={{ lineHeight: 1.1 }}
+                  >
+                    {filter.name}
+                  </span>
+                  <span className="block text-xs sm:text-sm text-primary mt-1">
+                    OMR {filter.price.toFixed(3)}
+                  </span>
+                </Button>
+              );
+            })}
           </div>
 
           {/* Selected filters list - bulletproof against overflow */}

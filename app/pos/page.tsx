@@ -1410,6 +1410,18 @@ function POSPageContent() {
     }, 0);
   };
 
+  // Generic helper to calculate total quantity of any product in cart
+  const calculateCartCount = (productId: string | number): number => {
+    return cart.reduce((total, item) => {
+      const matches = item.id === productId || item.originalId === productId;
+      // Exclude lubricant volume entries which are handled separately
+      if (matches && !item.bottleType && item.source !== "OPEN" && item.source !== "CLOSED") {
+        return total + (item.quantity || 0);
+      }
+      return total;
+    }, 0);
+  };
+
   const handleLubricantSelect = useCallback((lubricant: LubricantProduct) => {
     setSelectedOil(lubricant);
     setSelectedVolumes([]);
@@ -1860,9 +1872,62 @@ function POSPageContent() {
     return Math.max(0, subtotalAfterDiscount - appliedTradeInAmount);
   }, [subtotal, discountAmount, appliedTradeInAmount]);
 
+  const handleSafeAddToCart = (
+    item: { id: number; name: string; price: number },
+    details?: string,
+    quantity = 1,
+    source?: string,
+    bottleType?: string
+  ) => {
+    // Check if adding this quantity exceeds availability
+    // Find the product to check availability
+    // Note: This logic assumes 'products' contains up-to-date availability
+    const product = products.find((p) => p.id === item.id);
+    // If not in generic products, it might be lubricant (handled separately/safe usually) or not found
+    
+    if (product) {
+        const currentInCart = calculateCartCount(item.id);
+        const available = product.availableQuantity;
+        
+        if (currentInCart + quantity > available) {
+             toast({
+              title: "Stock Limit Reached",
+              description: `Only ${available} available. You already have ${currentInCart} in cart.`,
+              variant: "destructive",
+            });
+            return;
+        }
+    }
+    
+    addToCart(item, details, quantity, source, bottleType);
+  };
+
   const handleFilterClick = (filter: Product) => {
+    // Check stock before adding to selection
+    if (filter.availableQuantity <= 0) {
+        toast({
+            title: "Out of Stock",
+            description: "This item is currently out of stock.",
+            variant: "destructive"
+        });
+        return;
+    }
+
     setSelectedFilters((prev) => {
       const existing = prev.find((f) => f.id === filter.id);
+      const currentSelected = existing ? existing.quantity : 0;
+      const inCart = calculateCartCount(filter.id);
+      
+      // Check validation
+      if (currentSelected + inCart + 1 > filter.availableQuantity) {
+        toast({
+            title: "Stock Limit Reached",
+            description: `Only ${filter.availableQuantity} available.`,
+            variant: "destructive"
+        });
+        return prev;
+      }
+
       if (existing) {
         return prev.map((f) =>
           f.id === filter.id ? { ...f, quantity: f.quantity + 1 } : f
@@ -1874,6 +1939,24 @@ function POSPageContent() {
 
   const handleFilterQuantityChange = (filterId: number, change: number) => {
     setSelectedFilters((prev) => {
+      // Find the filter to access availability
+      // We need to look up availability from the source 'products' based on ID
+      const product = products.find(p => p.id === filterId);
+      const limit = product ? product.availableQuantity : 9999;
+      const inCart = calculateCartCount(filterId);
+
+      const existing = prev.find(f => f.id === filterId);
+      const currentQty = existing?.quantity || 0;
+
+      if (change > 0 && (currentQty + inCart + change > limit)) {
+         toast({
+            title: "Stock Limit Reached",
+            description: `Cannot add more. Limit is ${limit}.`,
+            variant: "destructive"
+        });
+        return prev;
+      }
+      
       const updated = prev
         .map((f) =>
           f.id === filterId
@@ -1886,6 +1969,27 @@ function POSPageContent() {
   };
 
   const handleAddSelectedFiltersToCart = () => {
+    // Final check before bulk add
+    let blocked = false;
+    selectedFilters.forEach((filter) => {
+        const product = products.find(p => p.id === filter.id);
+        const limit = product ? product.availableQuantity : 9999;
+        const inCart = calculateCartCount(filter.id);
+        
+        if (inCart + filter.quantity > limit) {
+            blocked = true;
+        }
+    });
+
+    if (blocked) {
+         toast({
+            title: "Stock Validation Failed",
+            description: "Some items exceed available stock. Please adjust quantities.",
+            variant: "destructive"
+        });
+        return;
+    }
+
     selectedFilters.forEach((filter) => {
       addToCart(
         {
@@ -2718,8 +2822,32 @@ function POSPageContent() {
     name: string;
     price: number;
   }) => {
+    // Check initial stock
+    const product = products.find(p => p.id === part.id);
+    if (product && product.availableQuantity <= 0) {
+         toast({
+            title: "Out of Stock",
+            description: "Item is out of stock.",
+            variant: "destructive"
+        });
+        return;
+    }
+
     setSelectedParts((prev) => {
       const existing = prev.find((p) => p.id === part.id);
+      const currentQty = existing ? existing.quantity : 0;
+      const inCart = calculateCartCount(part.id);
+      const limit = product ? product.availableQuantity : 9999;
+
+      if (currentQty + inCart + 1 > limit) {
+         toast({
+            title: "Stock Limit Reached",
+            description: `Only ${limit} available.`,
+            variant: "destructive"
+        });
+        return prev;
+      }
+
       if (existing) {
         return prev.map((p) =>
           p.id === part.id ? { ...p, quantity: p.quantity + 1 } : p
@@ -2731,6 +2859,22 @@ function POSPageContent() {
 
   const handlePartQuantityChange = (partId: number, change: number) => {
     setSelectedParts((prev) => {
+      // Check limits
+      const product = products.find(p => p.id === partId);
+      const limit = product ? product.availableQuantity : 9999;
+      const inCart = calculateCartCount(partId);
+      const existing = prev.find(p => p.id === partId);
+      const currentQty = existing?.quantity || 0;
+
+      if (change > 0 && (currentQty + inCart + change > limit)) {
+         toast({
+            title: "Stock Limit Reached",
+            description: `Cannot add more. Limit is ${limit}.`,
+            variant: "destructive"
+        });
+        return prev;
+      }
+      
       const updated = prev
         .map((p) =>
           p.id === partId
@@ -2743,6 +2887,27 @@ function POSPageContent() {
   };
 
   const handleAddSelectedPartsToCart = () => {
+    // Volume/Bulk check
+    let blocked = false;
+    selectedParts.forEach((part) => {
+        const product = products.find(p => p.id === part.id);
+        const limit = product ? product.availableQuantity : 9999;
+        const inCart = calculateCartCount(part.id);
+        
+        if (inCart + part.quantity > limit) {
+            blocked = true;
+        }
+    });
+
+    if (blocked) {
+         toast({
+            title: "Stock Validation Failed",
+            description: "Some items exceed available stock. Please adjust quantities.",
+            variant: "destructive"
+        });
+        return;
+    }
+
     selectedParts.forEach((part) => {
       addToCart(
         {
@@ -3136,7 +3301,7 @@ function POSPageContent() {
                           searchQuery={searchQuery}
                           expandedBrand={expandedBrand}
                           setExpandedBrand={setExpandedBrand}
-                          addToCart={addToCart}
+                          addToCart={handleSafeAddToCart}
                           products={products}
                           isLoading={isLoading}
                         />
@@ -3147,7 +3312,7 @@ function POSPageContent() {
                             <ProductButton
                               key={product.id}
                               product={product}
-                              addToCart={addToCart}
+                              addToCart={handleSafeAddToCart}
                             />
                           ))}
                         </div>
@@ -3692,14 +3857,7 @@ function POSPageContent() {
           {/* Filter Selection Modal */}
           <FilterModal
             isOpen={isFilterBrandModalOpen}
-            onOpenChange={(open) => {
-              setIsFilterBrandModalOpen(open);
-              if (!open) {
-                setSelectedFilters([]);
-                setSelectedFilterType(null);
-                setFilterImageError(false);
-              }
-            }}
+            onOpenChange={setIsFilterBrandModalOpen}
             selectedFilterBrand={selectedFilterBrand}
             selectedFilterType={selectedFilterType}
             filters={getFiltersByType(selectedFilterType || "")
@@ -3710,6 +3868,7 @@ function POSPageContent() {
                 price,
                 imageUrl,
                 originalId,
+                availableQuantity: (getFiltersByType(selectedFilterType || "").find(f => f.id === id)?.availableQuantity || 0)
               }))}
             selectedFilters={selectedFilters}
             onFilterClick={({ id, name, price, imageUrl, originalId }) => {
