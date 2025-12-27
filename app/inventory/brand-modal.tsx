@@ -432,7 +432,7 @@ export default function BrandModal({ open, onOpenChange }: BrandModalProps) {
                               </div>
                             )}
                           </div>
-                          <div className="flex gap-4 pt-4">
+                          <div className="flex gap-3 pt-4">
                             <Button
                               onClick={handleUpdateBrand}
                               disabled={isUpdating}
@@ -561,8 +561,11 @@ export default function BrandModal({ open, onOpenChange }: BrandModalProps) {
           </Card>
         </div>
 
-        <div className="pt-4 border-t flex justify-end">
-          <Button onClick={() => onOpenChange(false)} variant="outline">
+        <div className="pt-4 mt-2 border-t flex justify-end">
+          <Button 
+            onClick={() => onOpenChange(false)} 
+            variant="outline"
+          >
             Close
           </Button>
         </div>

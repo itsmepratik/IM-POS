@@ -802,7 +802,7 @@ function MobileView() {
 
         {/* Buttons row below search */}
         <div className="flex items-center gap-2 justify-between">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 pl-1">
             <Button onClick={openAddItemModal} size="sm" className="overflow-visible">
               <Plus className="h-4 w-4 mr-1" />
               Add
@@ -1407,7 +1407,7 @@ function DesktopView() {
           </DropdownMenu>
 
           <Button onClick={openAddItemModal}>
-            <Plus className="h-4 w-4 mr-1" />
+            <Plus className="h-4 w-4 mr-1"/>
             Add Item
           </Button>
           <ExportButton items={filteredItems} />

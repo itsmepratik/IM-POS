@@ -283,7 +283,7 @@ export function CategoryModal({ open, onOpenChange }: CategoryModalProps) {
             )}
           </div>
         </div>
-        <DialogFooter>
+        <DialogFooter className="mt-4 gap-3">
           <Button
             variant="secondary"
             onClick={() => onOpenChange(false)}

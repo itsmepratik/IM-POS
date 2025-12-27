@@ -578,7 +578,7 @@ export function TypesModal({ open, onOpenChange }: TypesModalProps) {
           )}
         </div>
 
-        <DialogFooter className="pt-4 border-t">
+        <DialogFooter className="pt-4 border-t gap-3 mt-2">
           <Button
             variant="secondary"
             onClick={() => onOpenChange(false)}

@@ -2003,22 +2003,22 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
                                       </div>
                                     </div>
                                   </div>
-                                  <DialogFooter className="flex-col-reverse sm:flex-row gap-2 sm:gap-0 mt-3">
-                                    <Button
-                                      type="button"
-                                      variant="secondary"
-                                      onClick={() => setIsEditingBatch(false)}
-                                      className="w-full sm:w-auto"
-                                    >
-                                      Cancel
-                                    </Button>
-                                    <Button
-                                      type="submit"
-                                      className="w-full sm:w-auto"
-                                    >
-                                      Save
-                                    </Button>
-                                  </DialogFooter>
+                                   <DialogFooter className="flex-col-reverse sm:flex-row gap-3 sm:gap-2 mt-3">
+                                     <Button
+                                       type="button"
+                                       variant="secondary"
+                                       onClick={() => setIsEditingBatch(false)}
+                                       className="w-full sm:w-auto"
+                                     >
+                                       Cancel
+                                     </Button>
+                                     <Button
+                                       type="submit"
+                                       className="w-full sm:w-auto"
+                                     >
+                                       Save
+                                     </Button>
+                                   </DialogFooter>
                                 </form>
                               </DialogContent>
                             </Dialog>
@@ -2037,8 +2037,11 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
             </div>
           )}
         </div>
-        <DialogFooter className="mt-3">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+        <DialogFooter className="mt-4 gap-3">
+          <Button 
+            variant="outline" 
+            onClick={() => onOpenChange(false)}
+          >
             Cancel
           </Button>
           <Button type="submit" onClick={handleSubmit}>
