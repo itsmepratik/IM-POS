@@ -17,6 +17,9 @@ export interface LubricantProduct {
   pricePerLiter: number;
   type: string;
   stock: number;
+  imageUrl: string | null;
+  brand: string;
+  specification: string | null;
 }
 
 export interface FilterProduct {
@@ -25,6 +28,7 @@ export interface FilterProduct {
   price: number;
   stock: number;
   isAvailable: boolean;
+  imageUrl: string | null;
 }
 
 export const useVehicleData = () => {
@@ -151,6 +155,8 @@ export const useVehicleData = () => {
         id,
         name,
         product_type,
+        image_url,
+        specification,
         inventory (
           total_stock
         ),
@@ -189,7 +195,9 @@ export const useVehicleData = () => {
           brand: p.brands?.name || "Unknown Brand",
           type: p.product_type || "Standard",
           pricePerLiter: pricePerLiter,
-          stock: p.inventory?.[0]?.total_stock || 0
+          stock: p.inventory?.[0]?.total_stock || 0,
+          imageUrl: p.image_url,
+          specification: p.specification,
         };
       });
       setLubricants(mappedLubricants);
@@ -203,6 +211,7 @@ export const useVehicleData = () => {
       .select(`
         id,
         name,
+        image_url,
         inventory (
           selling_price,
           total_stock
@@ -217,7 +226,8 @@ export const useVehicleData = () => {
         name: data.name,
         price: data.inventory?.[0]?.selling_price || 0,
         stock: data.inventory?.[0]?.total_stock || 0,
-        isAvailable: true
+        isAvailable: true,
+        imageUrl: data.image_url
       });
     } else {
       // Product not found in our database
@@ -226,7 +236,8 @@ export const useVehicleData = () => {
         name: partNumber,
         price: 0,
         stock: 0,
-        isAvailable: false
+        isAvailable: false,
+        imageUrl: null
       });
     }
   };
