@@ -90,10 +90,12 @@ function ShopForm({
   shop,
   onSubmit,
   onCancel,
+  isLoading,
 }: {
   shop?: Branch;
   onSubmit: (shop: Partial<Branch>) => void;
   onCancel: () => void;
+  isLoading?: boolean;
 }) {
   // General
   const [name, setName] = useState(shop?.name || "");
@@ -262,12 +264,16 @@ function ShopForm({
       </Tabs>
 
       <DialogFooter className="pt-4 border-t mt-auto">
-        <Button type="button" variant="outline" onClick={onCancel}>
+        <Button type="button" variant="outline" onClick={onCancel} disabled={isLoading}>
           Cancel
         </Button>
-        <Button type="submit">
-          <Save className="w-4 h-4 mr-2" />
-          Save Changes
+        <Button type="submit" disabled={isLoading}>
+          {isLoading ? (
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+          ) : (
+            <Save className="w-4 h-4 mr-2" />
+          )}
+          {isLoading ? "Saving..." : "Save Changes"}
         </Button>
       </DialogFooter>
     </form>
@@ -281,26 +287,31 @@ function ShopCard({ shop }: { shop: any }) {
   
   // Use inventoryService updateShop for updates
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const isMain = shop.id === "main"; // Might need better check
   const isCurrent = currentBranch?.id === shop.id;
 
   const handleUpdate = async (updatedShopData: Partial<Branch>) => {
+    setIsSaving(true);
     try {
       const updated = await updateShop(shop.id, updatedShopData as any);
       if (updated) {
         setIsEditDialogOpen(false);
         toast({
-          title: "Shop updated",
-          description: "Shop information has been updated successfully.",
+          title: "Shop Updated Successfully",
+          description: "All changes have been saved to the database.",
+          className: "bg-green-50 border-green-200 text-green-800",
         });
         // Optionally refresh branches context here if needed
       }
     } catch (error) {
       toast({
-        title: "Error",
-        description: "Failed to update shop.",
+        title: "Update Failed",
+        description: "There was an error saving your changes. Please try again.",
         variant: "destructive",
       });
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -354,6 +365,7 @@ function ShopCard({ shop }: { shop: any }) {
                 shop={shop}
                 onSubmit={handleUpdate}
                 onCancel={() => setIsEditDialogOpen(false)}
+                isLoading={isSaving}
               />
             </DialogContent>
           </Dialog>

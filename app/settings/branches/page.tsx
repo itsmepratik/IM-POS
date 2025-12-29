@@ -33,6 +33,7 @@ import {
   Mail,
   Store,
   Save,
+  Loader2,
 } from "lucide-react";
 import { BranchProvider, useBranch } from "@/lib/contexts/BranchContext";
 import { type Branch, updateShop } from "@/lib/services/inventoryService";
@@ -44,10 +45,12 @@ function ShopForm({
   shop,
   onSubmit,
   onCancel,
+  isLoading,
 }: {
   shop?: Branch;
   onSubmit: (shop: Partial<Branch>) => void;
   onCancel: () => void;
+  isLoading?: boolean;
 }) {
   // General
   const [name, setName] = useState(shop?.name || "");
@@ -216,12 +219,16 @@ function ShopForm({
       </Tabs>
 
       <DialogFooter className="pt-4 border-t mt-auto">
-        <Button type="button" variant="outline" onClick={onCancel}>
+        <Button type="button" variant="outline" onClick={onCancel} disabled={isLoading}>
           Cancel
         </Button>
-        <Button type="submit">
-          <Save className="w-4 h-4 mr-2" />
-          Save Changes
+        <Button type="submit" disabled={isLoading}>
+          {isLoading ? (
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+          ) : (
+            <Save className="w-4 h-4 mr-2" />
+          )}
+          {isLoading ? "Saving..." : "Save Changes"}
         </Button>
       </DialogFooter>
     </form>
@@ -233,18 +240,21 @@ function ShopCard({ shop }: { shop: any }) {
   const { currentBranch, selectBranch } = useBranch();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const isMain = shop.id === "main";
   const isCurrent = currentBranch?.id === shop.id;
 
   const handleUpdate = async (updatedShopData: Partial<Branch>) => {
+    setIsSaving(true);
     try {
       // Use direct update from inventoryService instead of context which might be stub
       const updated = await updateShop(shop.id, updatedShopData as any);
       if (updated) {
         setIsEditDialogOpen(false);
         toast({
-          title: "Shop updated",
-          description: "Shop information has been updated successfully.",
+          title: "Shop Updated Successfully",
+          description: "All changes have been saved to the database.",
+          className: "bg-green-50 border-green-200 text-green-800",
         });
         // We might want to trigger a refresh here, but let's assume page reload or SWR handles it eventually
         // Or if updateBranch context method is implemented, use it.
@@ -252,10 +262,12 @@ function ShopCard({ shop }: { shop: any }) {
       }
     } catch (error) {
        toast({
-        title: "Error",
-        description: "Failed to update shop.",
+        title: "Update Failed",
+        description: "There was an error saving your changes. Please try again.",
         variant: "destructive",
       });
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -320,6 +332,7 @@ function ShopCard({ shop }: { shop: any }) {
                 shop={shop}
                 onSubmit={handleUpdate}
                 onCancel={() => setIsEditDialogOpen(false)}
+                isLoading={isSaving}
               />
             </DialogContent>
           </Dialog>
