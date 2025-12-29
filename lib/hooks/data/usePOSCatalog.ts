@@ -1,8 +1,8 @@
 "use client";
 
 import { useMemo } from "react";
-import { useInventoryMockData } from "@/app/inventory/hooks/useInventoryMockData";
-import { useBranch } from "@/app/branch-context";
+import { useInventoryData as useInventoryMockData } from "@/app/inventory/hooks/useInventoryData";
+import { useBranch } from "@/lib/contexts/BranchContext";
 
 // Local shapes compatible with POS page expectations
 interface LubricantProduct {

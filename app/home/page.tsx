@@ -33,7 +33,7 @@ import { useDashboardData } from "./hooks/useDashboardData";
 import { createClient } from "@/supabase/client";
 import { usePaymentTypes } from "./hooks/usePaymentTypes";
 import { format } from "date-fns";
-import { BranchProvider } from "@/app/branch-context";
+import { BranchProvider } from "@/lib/contexts/BranchContext";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { useUser } from "@/app/user-context";

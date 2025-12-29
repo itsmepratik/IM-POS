@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react"
 import { subDays, startOfMonth, endOfMonth, startOfDay, endOfDay, subMonths, eachDayOfInterval, format } from "date-fns"
-import { useBranch } from "@/app/branch-context"
+import { useBranch } from "@/lib/contexts/BranchContext"
 import { createClient } from "@/supabase/client"
 
 // === TYPES ===

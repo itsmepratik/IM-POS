@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useItems, type Item } from "../items-context";
-import { useBranch, type Branch } from "../../branch-context";
+import { useBranch, type DbBranch as Branch } from "@/lib/contexts/BranchContext";
 
 interface UseInventoryDataReturn {
   // Item data

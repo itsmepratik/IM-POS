@@ -13,7 +13,7 @@ import { toast } from "@/components/ui/use-toast";
 import { useUser } from "@/app/user-context";
 
 // Define branch type since branches table no longer exists
-type DbBranch = {
+export type DbBranch = {
   id: string;
   name: string;
   address: string | null;
@@ -21,7 +21,30 @@ type DbBranch = {
   email: string | null;
   is_active: boolean;
   created_at: string;
+  
+  // Bill Header Details (Added for dynamic bill customization)
+  company_name?: string;
+  company_name_arabic?: string;
+  cr_number?: string;
+  address_line_1?: string;
+  address_line_2?: string;
+  address_line_3?: string;
+  address_line_arabic_1?: string;
+  address_line_arabic_2?: string;
+  contact_number?: string;
+  contact_number_arabic?: string;
+  
+  // Extended Bill Details
+  service_description_en?: string;
+  service_description_ar?: string;
+  thank_you_message?: string;
+  thank_you_message_ar?: string;
+  brand_name?: string;
+  brand_address?: string;
+  brand_phones?: string;
+  brand_whatsapp?: string;
 };
+
 
 interface BranchContextType {
   branches: DbBranch[];
@@ -64,6 +87,14 @@ export function BranchProvider({ children }: { children: ReactNode }) {
 
   // Load branches from database using the fetchBranches service
   const loadBranches = async () => {
+    // Define userProfile here to be accessible in catch block
+    let userProfile: {
+      shop_id: string | null;
+      role: string;
+      is_admin: boolean;
+      shop_location_id?: string | null;
+    } | null = null;
+
     try {
       setIsLoadingBranches(true);
       setBranchLoadError(false);
@@ -73,17 +104,14 @@ export function BranchProvider({ children }: { children: ReactNode }) {
       );
 
       // Fetch current user's profile to check for shop assignment
-      let userProfile: {
-        shop_id: string | null;
-        role: string;
-        is_admin: boolean;
-      } | null = null;
 
+
+      // Fetch current user's profile to check for shop assignment
       if (currentUser) {
         try {
           const { data: profileData, error: profileError } = await supabase
             .from("user_profiles")
-            .select("shop_id, role, is_admin")
+            .select("shop_id, role, is_admin, shop_location_id")
             .eq("id", currentUser.id)
             .single();
 
@@ -116,9 +144,29 @@ export function BranchProvider({ children }: { children: ReactNode }) {
           email: null,
           is_active: shop.isActive,
           created_at: new Date().toISOString(),
+          
+          // Map new extended fields
+          company_name: shop.company_name || undefined,
+          company_name_arabic: shop.company_name_arabic || undefined,
+          cr_number: shop.cr_number || undefined,
+          address_line_1: shop.address_line_1 || undefined,
+          address_line_2: shop.address_line_2 || undefined,
+          address_line_3: shop.address_line_3 || undefined,
+          address_line_arabic_1: shop.address_line_arabic_1 || undefined,
+          address_line_arabic_2: shop.address_line_arabic_2 || undefined,
+          contact_number: shop.contact_number || undefined,
+          contact_number_arabic: shop.contact_number_arabic || undefined,
+          service_description_en: shop.service_description_en || undefined,
+          service_description_ar: shop.service_description_ar || undefined,
+          thank_you_message: shop.thank_you_message || undefined,
+          thank_you_message_ar: shop.thank_you_message_ar || undefined,
+          brand_name: shop.brand_name || undefined,
+          brand_address: shop.brand_address || undefined,
+          brand_phones: shop.brand_phones || undefined,
+          brand_whatsapp: shop.brand_whatsapp || undefined,
         }));
 
-        // Check if user is admin
+        // Check if user is admin - moved up to be accessible in scope
         const userIsAdmin = userProfile?.is_admin || userProfile?.role === "admin" || isAdmin();
 
         // If user is shop and has shop_id, filter and lock branches
@@ -268,9 +316,12 @@ export function BranchProvider({ children }: { children: ReactNode }) {
 
       console.warn("⚠️ Using fallback branch data with valid UUIDs");
       
+      // Check if user is admin again for fallback scope
+      const isUserAdmin = userProfile?.is_admin || userProfile?.role === "admin" || isAdmin();
+
       // Filter out Sanaiya from fallback branches for admin users
       let filteredFallbackBranches = fallbackBranches;
-      if (userIsAdmin) {
+      if (isUserAdmin) {
         filteredFallbackBranches = fallbackBranches.filter((b) => 
           b.name.toLowerCase().trim() !== "sanaiya"
         );
@@ -280,7 +331,7 @@ export function BranchProvider({ children }: { children: ReactNode }) {
 
       // Set Saniya1 as default if none selected (for admin) or shop location (for shop users)
       if (!currentBranch) {
-        if (userIsAdmin) {
+        if (isUserAdmin) {
           const saniya1Fallback = filteredFallbackBranches.find((b) =>
             b.name.toLowerCase().includes("saniya1")
           );
@@ -293,7 +344,7 @@ export function BranchProvider({ children }: { children: ReactNode }) {
         } else if (userProfile?.shop_location_id) {
           // For shop users, use their assigned shop location
           const shopBranch = filteredFallbackBranches.find((b) => 
-            b.id === userProfile.shop_location_id
+            b.id === userProfile?.shop_location_id
           );
           if (shopBranch) {
             setCurrentBranch(shopBranch);

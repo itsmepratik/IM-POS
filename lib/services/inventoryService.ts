@@ -11,6 +11,28 @@ export type Branch = {
   address: string;
   created_at: string;
   updated_at: string;
+  // Bill Header Details
+  // Bill Header Details
+  company_name?: string;
+  company_name_arabic?: string;
+  cr_number?: string;
+  address_line_1?: string;
+  address_line_2?: string;
+  address_line_3?: string;
+  address_line_arabic_1?: string;
+  address_line_arabic_2?: string;
+  contact_number?: string;
+  contact_number_arabic?: string;
+  
+  // Extended Bill Details
+  service_description_en?: string;
+  service_description_ar?: string;
+  thank_you_message?: string;
+  thank_you_message_ar?: string;
+  brand_name?: string;
+  brand_address?: string;
+  brand_phones?: string;
+  brand_whatsapp?: string;
 };
 
 export type Item = {
@@ -89,6 +111,12 @@ export type Supplier = {
   contact?: string;
   email?: string;
   phone?: string;
+};
+
+export type Type = {
+  id: string;
+  name: string;
+  category_id?: string | null;
 };
 
 // Database service functions
@@ -450,7 +478,6 @@ export const createItem = async (
         brand_id: item.brand_id,
         price: item.price,
         stock: item.stock,
-        is_oil: item.isOil,
         is_oil: item.isOil,
         specification: item.specification,
         type_ids: item.types?.map(t => t.id),
@@ -1084,6 +1111,24 @@ export const fetchShops = async (): Promise<Array<{
   locationId: string;
   locationName: string;
   isActive: boolean;
+  company_name: string | null;
+  company_name_arabic: string | null;
+  cr_number: string | null;
+  address_line_1: string | null;
+  address_line_2: string | null;
+  address_line_3: string | null;
+  contact_number: string | null;
+  service_description_en: string | null;
+  service_description_ar: string | null;
+  thank_you_message: string | null;
+  thank_you_message_ar: string | null;
+  contact_number_arabic: string | null;
+  address_line_arabic_1: string | null;
+  address_line_arabic_2: string | null;
+  brand_name: string | null;
+  brand_address: string | null;
+  brand_phones: string | null;
+  brand_whatsapp: string | null;
 }>> => {
   try {
     const { data, error } = await supabase
@@ -1094,6 +1139,25 @@ export const fetchShops = async (): Promise<Array<{
         display_name,
         location_id,
         is_active,
+        company_name,
+        company_name_arabic,
+        cr_number,
+        address_line_1,
+        address_line_2,
+        address_line_3,
+        address_line_arabic_1,
+        address_line_arabic_2,
+        contact_number,
+        contact_number_arabic,
+        service_description_en,
+        service_description_ar,
+        service_description_ar,
+        thank_you_message,
+        thank_you_message_ar,
+        brand_name,
+        brand_address,
+        brand_phones,
+        brand_whatsapp,
         locations!inner (
           id,
           name
@@ -1103,7 +1167,7 @@ export const fetchShops = async (): Promise<Array<{
       .order("name");
 
     if (error) {
-      console.error("Error fetching shops:", error);
+      console.error("Error fetching shops:", JSON.stringify(error, null, 2));
       return [];
     }
 
@@ -1114,6 +1178,24 @@ export const fetchShops = async (): Promise<Array<{
       locationId: shop.location_id,
       locationName: shop.locations?.name || "",
       isActive: shop.is_active,
+      company_name: shop.company_name,
+      company_name_arabic: shop.company_name_arabic,
+      cr_number: shop.cr_number,
+      address_line_1: shop.address_line_1,
+      address_line_2: shop.address_line_2,
+      address_line_3: shop.address_line_3,
+      address_line_arabic_1: shop.address_line_arabic_1,
+      address_line_arabic_2: shop.address_line_arabic_2,
+      contact_number: shop.contact_number,
+      contact_number_arabic: shop.contact_number_arabic,
+      service_description_en: shop.service_description_en,
+      service_description_ar: shop.service_description_ar,
+      thank_you_message: shop.thank_you_message,
+      thank_you_message_ar: shop.thank_you_message_ar,
+      brand_name: shop.brand_name,
+      brand_address: shop.brand_address,
+      brand_phones: shop.brand_phones,
+      brand_whatsapp: shop.brand_whatsapp,
     }));
 
     return shops;
@@ -1136,6 +1218,24 @@ export const fetchBranches = async (): Promise<Branch[]> => {
       address: shop.locationName || "",
       created_at: "", // Not available in shops table
       updated_at: "", // Not available in shops table
+      company_name: shop.company_name || undefined,
+      company_name_arabic: shop.company_name_arabic || undefined,
+      cr_number: shop.cr_number || undefined,
+      address_line_1: shop.address_line_1 || undefined,
+      address_line_2: shop.address_line_2 || undefined,
+      address_line_3: shop.address_line_3 || undefined,
+      address_line_arabic_1: shop.address_line_arabic_1 || undefined,
+      address_line_arabic_2: shop.address_line_arabic_2 || undefined,
+      contact_number: shop.contact_number || undefined,
+      contact_number_arabic: shop.contact_number_arabic || undefined,
+      service_description_en: shop.service_description_en || undefined,
+      service_description_ar: shop.service_description_ar || undefined,
+      thank_you_message: shop.thank_you_message || undefined,
+      thank_you_message_ar: shop.thank_you_message_ar || undefined,
+      brand_name: shop.brand_name || undefined,
+      brand_address: shop.brand_address || undefined,
+      brand_phones: shop.brand_phones || undefined,
+      brand_whatsapp: shop.brand_whatsapp || undefined,
     }));
 
     // Prioritize Saniya1 as the main branch (first in the list)
@@ -1294,6 +1394,52 @@ export const deleteBrandService = async (id: string): Promise<void> => {
     }
   } catch (error) {
     console.error("Error in deleteBrandService:", error);
+    throw error;
+  }
+};
+
+export const updateShop = async (
+  id: string,
+  updates: Partial<{
+    name: string;
+    display_name: string;
+    is_active: boolean;
+    company_name: string;
+    company_name_arabic: string;
+    cr_number: string;
+    address_line_1: string;
+    address_line_2: string;
+    address_line_3: string;
+    address_line_arabic_1: string;
+    address_line_arabic_2: string;
+    contact_number: string;
+    contact_number_arabic: string;
+    service_description_en: string;
+    service_description_ar: string;
+    thank_you_message: string;
+    thank_you_message_ar: string;
+    brand_name: string;
+    brand_address: string;
+    brand_phones: string;
+    brand_whatsapp: string;
+  }>
+): Promise<any> => {
+  try {
+    const { data, error } = await supabase
+      .from("shops")
+      .update(updates)
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Error updating shop:", error);
+      throw new Error("Failed to update shop");
+    }
+
+    return data;
+  } catch (error) {
+    console.error("Error in updateShop:", error);
     throw error;
   }
 };

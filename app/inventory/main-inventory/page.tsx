@@ -69,7 +69,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { BranchProvider } from "../../branch-context";
+import { BranchProvider } from "@/lib/contexts/BranchContext";
 import { useInventoryData } from "../inventory-data";
 import {
   OpenBottleBadge,

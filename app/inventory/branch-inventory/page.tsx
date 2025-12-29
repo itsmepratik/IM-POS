@@ -39,7 +39,7 @@ import { ItemModal } from "../item-modal";
 import { toast } from "@/components/ui/use-toast";
 import { CategoryModal } from "../category-modal";
 import { useUser } from "../../user-context";
-import { BranchProvider } from "../../branch-context";
+import { BranchProvider } from "@/lib/contexts/BranchContext";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent } from "@/components/ui/card";

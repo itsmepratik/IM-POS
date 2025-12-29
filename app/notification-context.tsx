@@ -4,7 +4,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, Rea
 import { AnimatePresence, motion } from "framer-motion"
 import { XIcon, AlertTriangle, CheckCircle, Info } from "lucide-react"
 import { usePathname } from "next/navigation"
-import { useBranch } from "./branch-context"
+import { useBranch } from "@/lib/contexts/BranchContext"
 import { createClient } from "@/supabase/client"
 import {
   createNotification,

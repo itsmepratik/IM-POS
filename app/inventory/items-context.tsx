@@ -37,7 +37,7 @@ import {
   fetchTypes,
   type Type,
 } from "../../lib/services/typesService";
-import { useBranch } from "../branch-context";
+import { useBranch } from "@/lib/contexts/BranchContext";
 import { toast } from "@/components/ui/use-toast";
 import { createClient } from "@/supabase/client";
 

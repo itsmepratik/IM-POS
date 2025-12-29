@@ -2,6 +2,7 @@
 
 import React, { useRef, useCallback, useEffect, useState } from "react";
 import { useCompanyInfo } from "@/lib/hooks/useCompanyInfo";
+import { useBranch } from "@/lib/contexts/BranchContext";
 import { Button } from "@/components/ui/button";
 import { Printer } from "lucide-react";
 import { motion } from "framer-motion";
@@ -31,22 +32,7 @@ interface BillComponentProps {
 }
 
 // Backward-compatible fallback, will be overridden by hook when available
-const fallbackCompanyDetails = {
-  name: "AL-TARATH NATIONAL CO.",
-  arabicName: "شركة الطارث الوطنية",
-  crNumber: "1001886",
-  addressLine1: "W.Saham",
-  addressLine2: "Al-Sanaiya",
-  addressLine3: "Sultanate of Oman",
-  contactNumber: "71170805",
-};
 
-const serviceDescription = {
-  english: "TYRE REPAIRING & OIL CHANGING OF VEHICLES",
-  arabic: "إصلاح الإطارات وتغيير النفط للمركبات",
-};
-
-const thankYouMessage = "Thankyou for shopping with us\nشكراً للتسوق معنا";
 
 export const BillComponent: React.FC<BillComponentProps> = ({
   cart,
@@ -62,20 +48,21 @@ export const BillComponent: React.FC<BillComponentProps> = ({
 }) => {
   const billRef = useRef<HTMLDivElement>(null);
   const [isClient, setIsClient] = useState(false);
-  const { registered } = useCompanyInfo();
+  const { registered, thankYouMessage } = useCompanyInfo();
+  
+  // Filter out Sanaiya from address lines
+  const filteredAddressLines = (registered.addressLines || []).filter(
+    line => !line.toLowerCase().includes("al-sanaiya")
+  );
+
+  // Flatten address lines for compatibility with existing template
   const companyDetails = {
-    name: registered.name || fallbackCompanyDetails.name,
-    arabicName: registered.arabicName || fallbackCompanyDetails.arabicName,
-    crNumber: registered.crNumber || fallbackCompanyDetails.crNumber,
-    addressLine1:
-      registered.addressLines?.[0] || fallbackCompanyDetails.addressLine1,
-    addressLine2:
-      registered.addressLines?.[1] || fallbackCompanyDetails.addressLine2,
-    addressLine3:
-      registered.addressLines?.[2] || fallbackCompanyDetails.addressLine3,
-    contactNumber:
-      registered.contactNumber || fallbackCompanyDetails.contactNumber,
+    ...registered,
+    addressLine1: filteredAddressLines[0] || "",
+    addressLine2: filteredAddressLines[1] || "",
+    addressLine3: filteredAddressLines[2] || "",
   };
+  const serviceDescriptionContent = registered.serviceDescription || { english: "", arabic: "" };
 
   useEffect(() => {
     setIsClient(true);
@@ -169,21 +156,43 @@ export const BillComponent: React.FC<BillComponentProps> = ({
             padding: 0;
           }
           .left-header {
-            width: 30%;
+            width: 50%;
             text-align: left;
-            font-size: 13.5px !important;
-            -webkit-text-size-adjust: none;
-          }
-          .center-header {
-            width: 40%;
-            text-align: center;
+            color: #777 !important;
+            line-height: 1.2 !important;
+            zoom: 0.95; /* Scale down to approx 10.5px and bypass browser minimums */
+            -moz-transform: scale(0.95); /* Firefox fallback if needed */
+            -moz-transform-origin: left top;
           }
           .right-header {
-            width: 30%;
+            width: 50%;
             text-align: right;
-            font-size: 12.5px !important;
-            -webkit-text-size-adjust: none;
+            color: #777 !important;
+            line-height: 1.2 !important;
             direction: rtl;
+            zoom: 0.95;
+            -moz-transform: scale(0.95);
+            -moz-transform-origin: right top;
+          }
+          .cr-number, .cr-number-line {
+            font-weight: bold !important;
+            color: #555 !important; /* Slightly darker for contrast */
+          }
+          /* Enforce small font sizes for printing */
+          @media print {
+            .left-header, .left-header div, .right-header, .right-header div {
+              font-size: 15px !important;
+              color: #666 !important;
+            }
+          }
+          /* Screen preview fallback */
+          .left-header div, .right-header div {
+            font-size: 12px !important; /* Base size that zoom will scale down */
+          }
+          .center-header {
+            width: 100%;
+            text-align: center;
+            margin-bottom: 5px;
           }
           .company-name {
             color: #0000CC;
@@ -370,36 +379,36 @@ export const BillComponent: React.FC<BillComponentProps> = ({
       <body>
         <div class="bill-container">
           <!-- Header with three columns -->
+          <!-- Company Name Top Section -->
+          <div style="text-align: center; margin-bottom: 8px;">
+            <div class="company-name">${companyDetails.name}</div>
+            <div class="company-arabic-name">${companyDetails.arabicName}</div>
+          </div>
+
+          <!-- Header with two columns for details -->
           <table class="header-table">
             <tr>
               <td class="left-header">
-                <div>C.R. No.: ${companyDetails.crNumber}</div>
+                <div class="cr-number-line">C.R. No.: ${companyDetails.crNumber}</div>
                 <div>${companyDetails.addressLine1}</div>
                 <div>${companyDetails.addressLine2}</div>
                 <div>${companyDetails.addressLine3}</div>
-              </td>
-              <td class="center-header">
-                <div class="company-name">${companyDetails.name}</div>
-                <div class="company-arabic-name">${
-                  companyDetails.arabicName
-                }</div>
               </td>
               <td class="right-header">
                 <div class="cr-number">السجل التجاري: ${
                   companyDetails.crNumber
                 }</div>
-                <div>ولاية صحم</div>
-                <div>الصناعية</div>
-                <div>سلطنة عمان</div>
+                <div>${companyDetails.arabicAddressLines?.[0] || ""}</div>
+                <div>${companyDetails.arabicAddressLines?.[1] || ""}</div>
               </td>
             </tr>
           </table>
 
           <!-- Service description -->
           <div class="service-description">
-            ${serviceDescription.english}
+            ${serviceDescriptionContent.english}
             <div class="service-description-arabic">${
-              serviceDescription.arabic
+              serviceDescriptionContent.arabic
             }</div>
           </div>
           
@@ -538,11 +547,11 @@ export const BillComponent: React.FC<BillComponentProps> = ({
             <div class="footer-contact">Contact no.: ${
               companyDetails.contactNumber
             }</div>
-            <div class="footer-phone-numbers" style="direction: rtl;">رقم الاتصال: ٧١١٧٠٨٠٥</div>
+            <div class="footer-phone-numbers" style="direction: rtl;">رقم الاتصال: ${companyDetails.contactNumberArabic || ""}</div>
             <div class="footer-thank-you" style="white-space: pre-line;">${
               isWarrantyClaim
                 ? "Thank you for trusting us with your warranty claim\nشكراً لثقتكم بنا"
-                : thankYouMessage
+                : (thankYouMessage?.english + "\n" + thankYouMessage?.arabic)
             }</div>
           </div>
         </div>
@@ -659,10 +668,10 @@ export const BillComponent: React.FC<BillComponentProps> = ({
           {/* Service description */}
           <div className="border-t border-dashed py-1">
             <p className="text-xs font-bold text-center">
-              {serviceDescription.english}
+              {serviceDescriptionContent.english}
             </p>
             <p className="text-xs font-bold text-center">
-              {serviceDescription.arabic}
+              {serviceDescriptionContent.arabic}
             </p>
           </div>
 
@@ -796,7 +805,7 @@ export const BillComponent: React.FC<BillComponentProps> = ({
             <p className="italic text-xs">
               {isWarrantyClaim
                 ? "Thank you for trusting us with your warranty claim\nشكراً لثقتكم بنا"
-                : thankYouMessage}
+                : (thankYouMessage?.english + (thankYouMessage?.arabic ? "\n" + thankYouMessage.arabic : ""))}
             </p>
             <p className="font-mono mt-2">{billNumber}</p>
           </div>

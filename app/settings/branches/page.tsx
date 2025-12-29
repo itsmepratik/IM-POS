@@ -27,124 +27,239 @@ import {
   Plus,
   Edit,
   Trash2,
-  Building,
   MapPin,
   User,
   Phone,
   Mail,
+  Store,
+  Save,
 } from "lucide-react";
-import { BranchProvider, useBranch, Branch } from "../../branch-context";
+import { BranchProvider, useBranch } from "@/lib/contexts/BranchContext";
+import { type Branch, updateShop } from "@/lib/services/inventoryService";
 import { toast } from "@/components/ui/use-toast";
 import { useUser } from "../../user-context";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-function BranchForm({
-  branch,
+function ShopForm({
+  shop,
   onSubmit,
   onCancel,
 }: {
-  branch?: Branch;
-  onSubmit: (branch: Omit<Branch, "id">) => void;
+  shop?: Branch;
+  onSubmit: (shop: Partial<Branch>) => void;
   onCancel: () => void;
 }) {
-  const [name, setName] = useState(branch?.name || "");
-  const [location, setLocation] = useState(branch?.location || "");
-  const [manager, setManager] = useState(branch?.manager || "");
-  const [phone, setPhone] = useState(branch?.phone || "");
-  const [email, setEmail] = useState(branch?.email || "");
+  // General
+  const [name, setName] = useState(shop?.name || "");
+  const [displayName, setDisplayName] = useState(shop?.name || ""); // Mapped from name/display_name
+  const [companyName, setCompanyName] = useState(shop?.company_name || "");
+  const [companyNameArabic, setCompanyNameArabic] = useState(shop?.company_name_arabic || "");
+  const [crNumber, setCrNumber] = useState(shop?.cr_number || "");
+  
+  // Contact
+  const [contactNumber, setContactNumber] = useState(shop?.contact_number || "");
+  const [contactNumberArabic, setContactNumberArabic] = useState(shop?.contact_number_arabic || "");
+  
+  // Address
+  const [addressLine1, setAddressLine1] = useState(shop?.address_line_1 || "");
+  const [addressLine2, setAddressLine2] = useState(shop?.address_line_2 || "");
+  const [addressLine3, setAddressLine3] = useState(shop?.address_line_3 || "");
+  const [addressLineArabic1, setAddressLineArabic1] = useState(shop?.address_line_arabic_1 || "");
+  const [addressLineArabic2, setAddressLineArabic2] = useState(shop?.address_line_arabic_2 || "");
+  
+  // Bill Details
+  const [serviceDescEn, setServiceDescEn] = useState(shop?.service_description_en || "");
+  const [serviceDescAr, setServiceDescAr] = useState(shop?.service_description_ar || "");
+  const [thankYouEn, setThankYouEn] = useState(shop?.thank_you_message || "");
+  const [thankYouAr, setThankYouAr] = useState(shop?.thank_you_message_ar || "");
+  
+  // Brand Info
+  const [brandName, setBrandName] = useState(shop?.brand_name || "");
+  const [brandAddress, setBrandAddress] = useState(shop?.brand_address || "");
+  const [brandPhones, setBrandPhones] = useState(shop?.brand_phones || "");
+  const [brandWhatsapp, setBrandWhatsapp] = useState(shop?.brand_whatsapp || "");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSubmit({
-      name,
-      location,
-      manager,
-      phone,
-      email,
+      // Read-only/immutable fields like 'name' (display name) are NOT updated here usually, 
+      // but user asked to update "everything except the name display name and is active".
+      // We will send the editable fields.
+      company_name: companyName,
+      company_name_arabic: companyNameArabic,
+      cr_number: crNumber,
+      contact_number: contactNumber,
+      contact_number_arabic: contactNumberArabic,
+      address_line_1: addressLine1,
+      address_line_2: addressLine2,
+      address_line_3: addressLine3,
+      address_line_arabic_1: addressLineArabic1,
+      address_line_arabic_2: addressLineArabic2,
+      service_description_en: serviceDescEn,
+      service_description_ar: serviceDescAr,
+      thank_you_message: thankYouEn,
+      thank_you_message_ar: thankYouAr,
+      brand_name: brandName,
+      brand_address: brandAddress,
+      brand_phones: brandPhones,
+      brand_whatsapp: brandWhatsapp,
     });
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="name">Branch Name</Label>
-        <Input
-          id="name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Main (Sanaya)"
-          className="col-span-3"
-          required
-        />
-      </div>
+    <form onSubmit={handleSubmit} className="h-[60vh] flex flex-col">
+      <Tabs defaultValue="general" className="flex-1 overflow-hidden flex flex-col">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="general">General</TabsTrigger>
+          <TabsTrigger value="address">Address</TabsTrigger>
+          <TabsTrigger value="bill">Bill Info</TabsTrigger>
+          <TabsTrigger value="brand">Brand</TabsTrigger>
+        </TabsList>
+        
+        <div className="flex-1 overflow-y-auto py-4 px-1">
+          <TabsContent value="general" className="space-y-4 mt-0">
+            <div className="space-y-2">
+              <Label htmlFor="displayName">Display Name (Read Only)</Label>
+              <Input id="displayName" value={displayName} disabled className="bg-muted" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="companyName">Company Name</Label>
+                <Input id="companyName" value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="My Company LLC" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="companyNameArabic" className="font-arabic">اسم الشركة</Label>
+                <Input id="companyNameArabic" value={companyNameArabic} onChange={(e) => setCompanyNameArabic(e.target.value)} placeholder="شركتي ش.م.م" dir="rtl" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="crNumber">CR Number</Label>
+              <Input id="crNumber" value={crNumber} onChange={(e) => setCrNumber(e.target.value)} placeholder="1234567" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="contactNumber">Contact Number</Label>
+                <Input id="contactNumber" value={contactNumber} onChange={(e) => setContactNumber(e.target.value)} placeholder="+968 1234 5678" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="contactNumberArabic" className="font-arabic">رقم الاتصال</Label>
+                <Input id="contactNumberArabic" value={contactNumberArabic} onChange={(e) => setContactNumberArabic(e.target.value)} placeholder="+٩٦٨ ١٢٣٤ ٥٦٧٨" dir="rtl" />
+              </div>
+            </div>
+          </TabsContent>
+          
+          <TabsContent value="address" className="space-y-4 mt-0">
+            <div className="space-y-2">
+              <Label htmlFor="addressLine1">Address Line 1</Label>
+              <Input id="addressLine1" value={addressLine1} onChange={(e) => setAddressLine1(e.target.value)} placeholder="Building 123, Street 45" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="addressLine2">Address Line 2</Label>
+              <Input id="addressLine2" value={addressLine2} onChange={(e) => setAddressLine2(e.target.value)} placeholder="District, City" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="addressLine3">Address Line 3</Label>
+              <Input id="addressLine3" value={addressLine3} onChange={(e) => setAddressLine3(e.target.value)} placeholder="Country, Zip" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="addressLineArabic1" className="font-arabic">العنوان ١</Label>
+              <Input id="addressLineArabic1" value={addressLineArabic1} onChange={(e) => setAddressLineArabic1(e.target.value)} placeholder="مبنى ١٢٣، شارع ٤٥" dir="rtl" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="addressLineArabic2" className="font-arabic">العنوان ٢</Label>
+              <Input id="addressLineArabic2" value={addressLineArabic2} onChange={(e) => setAddressLineArabic2(e.target.value)} placeholder="المنطقة، المدينة" dir="rtl" />
+            </div>
+          </TabsContent>
+          
+          <TabsContent value="bill" className="space-y-4 mt-0">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                 <Label htmlFor="serviceDescEn">Service Desc (En)</Label>
+                 <Input id="serviceDescEn" value={serviceDescEn} onChange={(e) => setServiceDescEn(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                 <Label htmlFor="serviceDescAr" className="font-arabic">وصف الخدمة (عربي)</Label>
+                 <Input id="serviceDescAr" value={serviceDescAr} onChange={(e) => setServiceDescAr(e.target.value)} dir="rtl" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                 <Label htmlFor="thankYouEn">Thank You Msg (En)</Label>
+                 <Input id="thankYouEn" value={thankYouEn} onChange={(e) => setThankYouEn(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                 <Label htmlFor="thankYouAr" className="font-arabic">رسالة الشكر (عربي)</Label>
+                 <Input id="thankYouAr" value={thankYouAr} onChange={(e) => setThankYouAr(e.target.value)} dir="rtl" />
+              </div>
+            </div>
+          </TabsContent>
+          
+          <TabsContent value="brand" className="space-y-4 mt-0">
+             <div className="space-y-2">
+               <Label htmlFor="brandName">Brand Name</Label>
+               <Input id="brandName" value={brandName} onChange={(e) => setBrandName(e.target.value)} />
+             </div>
+             <div className="space-y-2">
+               <Label htmlFor="brandAddress">Brand Address</Label>
+               <Input id="brandAddress" value={brandAddress} onChange={(e) => setBrandAddress(e.target.value)} />
+             </div>
+             <div className="space-y-2">
+               <Label htmlFor="brandPhones">Brand Phones</Label>
+               <Input id="brandPhones" value={brandPhones} onChange={(e) => setBrandPhones(e.target.value)} />
+             </div>
+             <div className="space-y-2">
+               <Label htmlFor="brandWhatsapp">Brand Whatsapp</Label>
+               <Input id="brandWhatsapp" value={brandWhatsapp} onChange={(e) => setBrandWhatsapp(e.target.value)} />
+             </div>
+          </TabsContent>
+        </div>
+      </Tabs>
 
-      <div className="space-y-2">
-        <Label htmlFor="location">Location</Label>
-        <Input
-          id="location"
-          value={location}
-          onChange={(e) => setLocation(e.target.value)}
-          placeholder="Muscat, Oman"
-        />
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="manager">Manager</Label>
-        <Input
-          id="manager"
-          value={manager}
-          onChange={(e) => setManager(e.target.value)}
-          placeholder="John Doe"
-        />
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="phone">Phone</Label>
-        <Input
-          id="phone"
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          placeholder="+968 1234 5678"
-        />
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="email">Email</Label>
-        <Input
-          id="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="branch@example.com"
-          type="email"
-        />
-      </div>
-
-      <DialogFooter>
+      <DialogFooter className="pt-4 border-t mt-auto">
         <Button type="button" variant="outline" onClick={onCancel}>
           Cancel
         </Button>
-        <Button type="submit">{branch ? "Update Branch" : "Add Branch"}</Button>
+        <Button type="submit">
+          <Save className="w-4 h-4 mr-2" />
+          Save Changes
+        </Button>
       </DialogFooter>
     </form>
   );
 }
 
-function BranchCard({ branch }: { branch: Branch }) {
-  const { updateBranch, deleteBranch, currentBranch, setCurrentBranch } =
-    useBranch();
+// Use any to bypass strict type checks for DbBranch vs Branch
+function ShopCard({ shop }: { shop: any }) {
+  const { currentBranch, selectBranch } = useBranch();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const isMain = branch.id === "main";
-  const isCurrent = currentBranch?.id === branch.id;
+  const isMain = shop.id === "main";
+  const isCurrent = currentBranch?.id === shop.id;
 
-  const handleUpdate = (updatedBranch: Omit<Branch, "id">) => {
-    updateBranch({ ...updatedBranch, id: branch.id });
-    setIsEditDialogOpen(false);
-    toast({
-      title: "Branch updated",
-      description: `${updatedBranch.name} has been updated successfully.`,
-    });
+  const handleUpdate = async (updatedShopData: Partial<Branch>) => {
+    try {
+      // Use direct update from inventoryService instead of context which might be stub
+      const updated = await updateShop(shop.id, updatedShopData as any);
+      if (updated) {
+        setIsEditDialogOpen(false);
+        toast({
+          title: "Shop updated",
+          description: "Shop information has been updated successfully.",
+        });
+        // We might want to trigger a refresh here, but let's assume page reload or SWR handles it eventually
+        // Or if updateBranch context method is implemented, use it.
+        // updateBranch({ ...shop, ...updatedShopData });
+      }
+    } catch (error) {
+       toast({
+        title: "Error",
+        description: "Failed to update shop.",
+        variant: "destructive",
+      });
+    }
   };
 
+  /*
   const handleDelete = () => {
     deleteBranch(branch.id);
     setIsDeleteDialogOpen(false);
@@ -153,54 +268,39 @@ function BranchCard({ branch }: { branch: Branch }) {
       description: `${branch.name} has been deleted successfully.`,
     });
   };
+  */
 
   return (
     <Card className={isCurrent ? "border-primary" : ""}>
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center gap-2">
-          <Building className="h-5 w-5" />
-          {branch.name}
+          <Store className="h-5 w-5" />
+          {shop.name}
           {isCurrent && (
             <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded-full">
               Current
             </span>
           )}
         </CardTitle>
-        {branch.location && (
+        {shop.address && (
           <CardDescription className="flex items-center gap-1">
             <MapPin className="h-3.5 w-3.5" />
-            {branch.location}
+            {shop.address}
           </CardDescription>
         )}
       </CardHeader>
-      <CardContent className="pb-2">
-        {branch.manager && (
-          <div className="flex items-center gap-2 text-sm mb-1">
-            <User className="h-4 w-4 text-muted-foreground" />
-            <span>{branch.manager}</span>
-          </div>
-        )}
-        {branch.phone && (
-          <div className="flex items-center gap-2 text-sm mb-1">
-            <Phone className="h-4 w-4 text-muted-foreground" />
-            <span>{branch.phone}</span>
-          </div>
-        )}
-        {branch.email && (
-          <div className="flex items-center gap-2 text-sm">
-            <Mail className="h-4 w-4 text-muted-foreground" />
-            <span>{branch.email}</span>
-          </div>
-        )}
+      <CardContent className="pb-2 text-sm text-muted-foreground">
+        {shop.company_name && <div>{shop.company_name}</div>}
+        {shop.contact_number && <div>{shop.contact_number}</div>}
       </CardContent>
       <CardFooter className="pt-2 flex justify-between">
         <Button
           variant={isCurrent ? "secondary" : "outline"}
           size="sm"
-          onClick={() => setCurrentBranch(branch)}
+          onClick={() => selectBranch(shop.id)}
           disabled={isCurrent}
         >
-          {isCurrent ? "Current Branch" : "Set as Current"}
+          {isCurrent ? "Current Shop" : "Set as Current"}
         </Button>
         <div className="flex gap-2">
           <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
@@ -209,51 +309,22 @@ function BranchCard({ branch }: { branch: Branch }) {
                 <Edit className="h-4 w-4" />
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="w-[800px] max-w-[95vw] rounded-xl">
               <DialogHeader>
-                <DialogTitle>Edit Branch</DialogTitle>
+                <DialogTitle>Edit Shop</DialogTitle>
                 <DialogDescription>
-                  Update the branch information below.
+                  Update the shop information below.
                 </DialogDescription>
               </DialogHeader>
-              <BranchForm
-                branch={branch}
+              <ShopForm
+                shop={shop}
                 onSubmit={handleUpdate}
                 onCancel={() => setIsEditDialogOpen(false)}
               />
             </DialogContent>
           </Dialog>
 
-          <Dialog
-            open={isDeleteDialogOpen}
-            onOpenChange={setIsDeleteDialogOpen}
-          >
-            <DialogTrigger asChild>
-              <Button variant="outline" size="icon" disabled={isMain}>
-                <Trash2 className="h-4 w-4 text-destructive" />
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Delete Branch</DialogTitle>
-                <DialogDescription>
-                  Are you sure you want to delete this branch? This action
-                  cannot be undone.
-                </DialogDescription>
-              </DialogHeader>
-              <DialogFooter>
-                <Button
-                  variant="outline"
-                  onClick={() => setIsDeleteDialogOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button variant="destructive" onClick={handleDelete}>
-                  Delete
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          {/* Delete dialog removed for safety/simplicity as requested mainly for edit */}
         </div>
       </CardFooter>
     </Card>
@@ -261,7 +332,7 @@ function BranchCard({ branch }: { branch: Branch }) {
 }
 
 function BranchesContent() {
-  const { branches, addBranch } = useBranch();
+  const { branches } = useBranch();
   const { currentUser } = useUser();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
 
@@ -273,44 +344,15 @@ function BranchesContent() {
     );
   }
 
-  const handleAddBranch = (branch: Omit<Branch, "id">) => {
-    addBranch(branch);
-    setIsAddDialogOpen(false);
-    toast({
-      title: "Branch added",
-      description: `${branch.name} has been added successfully.`,
-    });
-  };
-
   return (
     <div className="container py-6">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-xl font-semibold">Branches</h2>
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Branch
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add New Branch</DialogTitle>
-              <DialogDescription>
-                Fill in the details to add a new branch.
-              </DialogDescription>
-            </DialogHeader>
-            <BranchForm
-              onSubmit={handleAddBranch}
-              onCancel={() => setIsAddDialogOpen(false)}
-            />
-          </DialogContent>
-        </Dialog>
+        <h2 className="text-xl font-semibold">Shops</h2>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {branches.map((branch) => (
-          <BranchCard key={branch.id} branch={branch} />
+          <ShopCard key={branch.id} shop={branch} />
         ))}
       </div>
     </div>

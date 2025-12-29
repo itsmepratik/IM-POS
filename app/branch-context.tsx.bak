@@ -7,7 +7,7 @@ import {
   useEffect,
   ReactNode,
 } from "react";
-import { Branch, MOCK_BRANCHES } from "@/lib/services/inventoryService";
+import { Branch } from "@/lib/services/inventoryService";
 import { toast } from "@/components/ui/use-toast";
 
 // Extend the Branch type to allow for our fallback branches
@@ -109,8 +109,12 @@ export function BranchProvider({ children }: { children: ReactNode }) {
       const otherBranches = fallbackBranches.filter(
         (b) => b.name !== "Sanaiya"
       );
-      setBranches([sanaiyaBranch, ...otherBranches]);
-      setCurrentBranch(sanaiyaBranch);
+      
+      setBranches([sanaiyaBranch, ...otherBranches].filter((b): b is ExtendedBranch => b !== undefined));
+      
+      if (sanaiyaBranch) {
+        setCurrentBranch(sanaiyaBranch);
+      }
       setBranchLoadError(true);
 
       toast({
