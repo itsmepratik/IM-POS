@@ -51,6 +51,7 @@ interface BranchContextType {
   currentBranch: DbBranch | null;
   isLoadingBranches: boolean;
   selectBranch: (branchId: string) => void;
+  refreshBranches: () => Promise<void>;
   retryLoadBranches: () => Promise<void>;
   branchLoadError: boolean;
   inventoryLocationId: string | null; // Location ID to use for inventory queries
@@ -62,6 +63,7 @@ const BranchContext = createContext<BranchContextType>({
   currentBranch: null,
   isLoadingBranches: true,
   selectBranch: () => {},
+  refreshBranches: async () => {},
   retryLoadBranches: async () => {},
   branchLoadError: false,
   inventoryLocationId: null,
@@ -454,6 +456,7 @@ export function BranchProvider({ children }: { children: ReactNode }) {
       isLoadingBranches,
       selectBranch,
       retryLoadBranches,
+      refreshBranches: loadBranches,
       branchLoadError,
       inventoryLocationId,
       isBranchLocked,
@@ -464,6 +467,7 @@ export function BranchProvider({ children }: { children: ReactNode }) {
       isLoadingBranches,
       selectBranch,
       retryLoadBranches,
+      loadBranches,
       branchLoadError,
       inventoryLocationId,
       isBranchLocked,

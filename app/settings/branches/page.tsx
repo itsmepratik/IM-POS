@@ -82,6 +82,32 @@ function ShopForm({
   const [brandPhones, setBrandPhones] = useState(shop?.brand_phones || "");
   const [brandWhatsapp, setBrandWhatsapp] = useState(shop?.brand_whatsapp || "");
 
+  // Update state when shop prop changes (fixes stale data on re-open or context refresh)
+  useEffect(() => {
+    if (shop) {
+      setName(shop.name || "");
+      setDisplayName(shop.name || "");
+      setCompanyName(shop.company_name || "");
+      setCompanyNameArabic(shop.company_name_arabic || "");
+      setCrNumber(shop.cr_number || "");
+      setContactNumber(shop.contact_number || "");
+      setContactNumberArabic(shop.contact_number_arabic || "");
+      setAddressLine1(shop.address_line_1 || "");
+      setAddressLine2(shop.address_line_2 || "");
+      setAddressLine3(shop.address_line_3 || "");
+      setAddressLineArabic1(shop.address_line_arabic_1 || "");
+      setAddressLineArabic2(shop.address_line_arabic_2 || "");
+      setServiceDescEn(shop.service_description_en || "");
+      setServiceDescAr(shop.service_description_ar || "");
+      setThankYouEn(shop.thank_you_message || "");
+      setThankYouAr(shop.thank_you_message_ar || "");
+      setBrandName(shop.brand_name || "");
+      setBrandAddress(shop.brand_address || "");
+      setBrandPhones(shop.brand_phones || "");
+      setBrandWhatsapp(shop.brand_whatsapp || "");
+    }
+  }, [shop]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSubmit({
@@ -237,7 +263,7 @@ function ShopForm({
 
 // Use any to bypass strict type checks for DbBranch vs Branch
 function ShopCard({ shop }: { shop: any }) {
-  const { currentBranch, selectBranch } = useBranch();
+  const { currentBranch, selectBranch, refreshBranches } = useBranch();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -256,9 +282,8 @@ function ShopCard({ shop }: { shop: any }) {
           description: "All changes have been saved to the database.",
           className: "bg-green-50 border-green-200 text-green-800",
         });
-        // We might want to trigger a refresh here, but let's assume page reload or SWR handles it eventually
-        // Or if updateBranch context method is implemented, use it.
-        // updateBranch({ ...shop, ...updatedShopData });
+        // Refresh branches context to update UI immediately
+        await refreshBranches();
       }
     } catch (error) {
        toast({
