@@ -126,6 +126,7 @@ function ShopForm({
   const [brandAddress, setBrandAddress] = useState(shop?.brand_address || "");
   const [brandPhones, setBrandPhones] = useState(shop?.brand_phones || "");
   const [brandWhatsapp, setBrandWhatsapp] = useState(shop?.brand_whatsapp || "");
+  const [posId, setPosId] = useState(shop?.pos_id || "");
 
   // Update state when shop prop changes (fixes stale data on re-open or context refresh)
   useEffect(() => {
@@ -150,6 +151,7 @@ function ShopForm({
       setBrandAddress(shop.brand_address || "");
       setBrandPhones(shop.brand_phones || "");
       setBrandWhatsapp(shop.brand_whatsapp || "");
+      setPosId(shop.pos_id || "");
     }
   }, [shop]);
 
@@ -177,6 +179,7 @@ function ShopForm({
       brand_address: brandAddress,
       brand_phones: brandPhones,
       brand_whatsapp: brandWhatsapp,
+      pos_id: posId,
     });
   };
 
@@ -285,7 +288,11 @@ function ShopForm({
                <Label htmlFor="brandWhatsapp">Brand Whatsapp</Label>
                <Input id="brandWhatsapp" value={brandWhatsapp} onChange={(e) => setBrandWhatsapp(e.target.value)} />
              </div>
-          </TabsContent>
+             <div className="space-y-2">
+               <Label htmlFor="posId">POS ID</Label>
+               <Input id="posId" value={posId} onChange={(e) => setPosId(e.target.value)} placeholder="e.g. A0054" />
+             </div>
+           </TabsContent>
         </div>
       </Tabs>
 

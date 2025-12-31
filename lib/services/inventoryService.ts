@@ -33,6 +33,7 @@ export type Branch = {
   brand_address?: string;
   brand_phones?: string;
   brand_whatsapp?: string;
+  pos_id?: string;
 };
 
 export type Item = {
@@ -1129,6 +1130,7 @@ export const fetchShops = async (): Promise<Array<{
   brand_address: string | null;
   brand_phones: string | null;
   brand_whatsapp: string | null;
+  pos_id: string | null;
 }>> => {
   try {
     const { data, error } = await supabase
@@ -1158,6 +1160,7 @@ export const fetchShops = async (): Promise<Array<{
         brand_address,
         brand_phones,
         brand_whatsapp,
+        pos_id,
         locations!inner (
           id,
           name
@@ -1170,7 +1173,7 @@ export const fetchShops = async (): Promise<Array<{
       console.error("Error fetching shops:", JSON.stringify(error, null, 2));
       return [];
     }
-
+    
     const shops = (data || []).map((shop: any) => ({
       id: shop.id,
       name: shop.name,
@@ -1196,6 +1199,7 @@ export const fetchShops = async (): Promise<Array<{
       brand_address: shop.brand_address,
       brand_phones: shop.brand_phones,
       brand_whatsapp: shop.brand_whatsapp,
+      pos_id: shop.pos_id,
     }));
 
     return shops;
@@ -1210,7 +1214,7 @@ export const fetchBranches = async (): Promise<Branch[]> => {
   try {
     // Use shops instead of locations for better semantics
     const shops = await fetchShops();
-    
+        
     // Transform shops to Branch format for backward compatibility
     const branches: Branch[] = shops.map((shop) => ({
       id: shop.id,
@@ -1236,6 +1240,7 @@ export const fetchBranches = async (): Promise<Branch[]> => {
       brand_address: shop.brand_address || undefined,
       brand_phones: shop.brand_phones || undefined,
       brand_whatsapp: shop.brand_whatsapp || undefined,
+      pos_id: shop.pos_id || undefined,
     }));
 
     // Prioritize Saniya1 as the main branch (first in the list)
@@ -1420,8 +1425,8 @@ export const updateShop = async (
     thank_you_message_ar: string;
     brand_name: string;
     brand_address: string;
-    brand_phones: string;
     brand_whatsapp: string;
+    pos_id: string;
   }>
 ): Promise<any> => {
   try {

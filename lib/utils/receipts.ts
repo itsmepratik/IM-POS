@@ -227,9 +227,7 @@ export function generateThermalReceipt(data: ReceiptData): string {
         </div>
         
         <div class="receipt-info">
-          <p style="display:flex;justify-content:space-between;align-items:center;">
             <span>Invoice: ${referenceNumber}</span>
-            <span>POS ID: ${POS_ID}</span>
           </p>
           <p style="display:flex;justify-content:space-between;align-items:center;">
             <span>Date: ${date}</span>

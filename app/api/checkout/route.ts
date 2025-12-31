@@ -1173,6 +1173,24 @@ export async function POST(req: NextRequest) {
           }
         }
 
+        // Fetch shop details for POS ID
+        let shopPosId = "A0054"; // Default fallback
+        if (shopId) {
+          try {
+            const [shopData] = await tx
+              .select({ posId: shops.posId })
+              .from(shops)
+              .where(eq(shops.id, shopId))
+              .limit(1);
+            
+            if (shopData?.posId) {
+              shopPosId = shopData.posId;
+            }
+          } catch (error) {
+            console.log(`[${requestId}] Could not fetch shop POS ID:`, error);
+          }
+        }
+
         // 5. Generate receipts
         const now = new Date();
         const receiptData: ReceiptData = {
@@ -1208,7 +1226,7 @@ export async function POST(req: NextRequest) {
           time: formatTime(now),
           cashier: cashierName,
           paymentRecipient: paymentMethod?.toUpperCase() === "MOBILE" ? mobilePaymentAccount || undefined : undefined,
-          posId: "A0054", // Default POS ID, can be made configurable later
+          posId: shopPosId,
         };
 
         let receiptHtml = "";

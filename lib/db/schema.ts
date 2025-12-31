@@ -23,6 +23,7 @@ export const shops = pgTable("shops", {
     .notNull()
     .references(() => locations.id, { onDelete: "restrict" }),
   displayName: text("display_name"),
+  posId: text("pos_id"),
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),

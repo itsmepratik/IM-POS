@@ -43,6 +43,7 @@ export type DbBranch = {
   brand_address?: string;
   brand_phones?: string;
   brand_whatsapp?: string;
+  pos_id?: string;
 };
 
 
@@ -166,6 +167,7 @@ export function BranchProvider({ children }: { children: ReactNode }) {
           brand_address: shop.brand_address || undefined,
           brand_phones: shop.brand_phones || undefined,
           brand_whatsapp: shop.brand_whatsapp || undefined,
+          pos_id: shop.pos_id || undefined,
         }));
 
         // Check if user is admin - moved up to be accessible in scope
