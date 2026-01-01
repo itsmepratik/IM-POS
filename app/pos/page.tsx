@@ -1058,6 +1058,9 @@ function POSPageContent() {
   const [showClearCartDialog, setShowClearCartDialog] = useState(false);
   const [expandedBrand, setExpandedBrand] = useState<string | null>(null);
   const [selectedOil, setSelectedOil] = useState<LubricantProduct | null>(null);
+  const [currentBottleVolumeSize, setCurrentBottleVolumeSize] =
+    useState<string | null>(null);
+  const [showBottleTypeDialog, setShowBottleTypeDialog] = useState(false);
   const [filterImageError, setFilterImageError] = useState(false);
   const [lubricantImageError, setLubricantImageError] = useState(false);
   const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
@@ -1098,9 +1101,7 @@ function POSPageContent() {
     currentTime: "",
   });
 
-  // Add a state to track if bottle type dialog is open
-  const [currentBottleVolumeSize, setCurrentBottleVolumeSize] =
-    useState<string | null>(null);
+
 
 
   // Volume modal states
@@ -1430,29 +1431,30 @@ function POSPageContent() {
 
   // Function to handle volume selection with bottle type prompt for smaller volumes
   const handleVolumeClick = (volume: { size: string; price: number }) => {
-    if (!selectedOil || !selectedOil.volumes) {
-      return;
-    }
+    if (!selectedOil) return;
 
-    // Dynamically determine the highest volume
-    const highestVolume = findHighestVolumeFromVolumes(selectedOil.volumes);
+    // Logic for determining if bottle type selection is needed
+    // Assuming larger volumes don't need selection (or based on business rule)
+    // Here we check if the selected oil has open bottles capability and if the volume warrants a choice
+    // For simplicity, let's assume we logic based on size string or data
+    // The previous logic used specific checks.
     
-    // For highest volume, add directly without bottle type (always closed bottle)
-    if (highestVolume && volume.size === highestVolume) {
-      setSelectedVolumes((prev) => {
-        const existing = prev.find((v) => v.size === volume.size);
-        if (existing) {
-          return prev.map((v) =>
-            v.size === volume.size ? { ...v, quantity: v.quantity + 1 } : v
-          );
-        }
-        return [...prev, { ...volume, quantity: 1, bottleType: "closed" }]; // Highest volume is always closed
-      });
-      return;
+    // Check if we need to show bottle type dialog
+    // We show it if the oil supports open bottles AND specific conditions (e.g. not a 4L/5L jug which is always closed)
+    // Using a simple heuristic: if `hasOpenBottles` is true, we ask.
+    // UNLESS it's a large volume which we know is only closed.
+    // Let's assume volumes < 4 are "small" and might be open.
+    const sizeNum = parseVolumeString(volume.size);
+    const isSmallVolume = sizeNum < 4; 
+    
+    if (selectedOil.hasOpenBottles && isSmallVolume) {
+      setCurrentBottleVolumeSize(volume.size);
+      setIsVolumeModalOpen(false); // Close parent
+      setShowBottleTypeDialog(true); // Open child
+    } else {
+      // Directly add as closed
+      addVolumeWithBottleType(volume.size, "closed");
     }
-
-    // For other volumes, show the bottle type selection within the modal
-    setCurrentBottleVolumeSize(volume.size);
   };
 
   // Helper function to calculate total open volume selected
@@ -1474,190 +1476,71 @@ function POSPageContent() {
     size: string,
     bottleType: "open" | "closed"
   ) => {
-    // Validate open bottle availability
-    if (bottleType === "open" && !selectedOil?.hasOpenBottles) {
-      toast({
-        title: "No Open Bottles Available",
-        description:
-          "There are no open bottles available for this product. Please select a closed bottle.",
-        variant: "destructive",
-      });
-      return;
-    }
+    if (!selectedOil) return;
 
-    // Check if cart already has maximum open bottle volume
-    if (bottleType === "open" && selectedOil?.totalOpenVolume !== undefined) {
+    // Validate Open Bottle Stock
+    if (bottleType === "open" && selectedOil.totalOpenVolume !== undefined) {
+      // Calculate total open volume currently in cart/selected for this oil
       const cartOpenVolume = calculateCartOpenVolume(selectedOil.id);
       
-      // If cart already has max or more than available, show error
-      if (cartOpenVolume >= selectedOil.totalOpenVolume) {
-        const availableVolume = selectedOil.totalOpenVolume;
-        const formattedAvailable = availableVolume.toFixed(1).replace(/\.0$/, "");
-        
-        // Show toast for immediate feedback
-        toast({
-          title: "Maximum Open Bottle Volume Reached",
-          description: `You have already added the maximum available open bottle volume (${formattedAvailable}L) to your cart. Cannot add more open bottle volume.`,
+      const currentModalOpenVolume = calculateTotalOpenVolumeSelected(selectedVolumes);
+      
+      const volumeAmount = parseVolumeString(size);
+      
+      // Calculate new total
+      const newTotal = cartOpenVolume + currentModalOpenVolume + volumeAmount;
+
+      if (newTotal > selectedOil.totalOpenVolume) {
+         toast({
+          title: "Insufficient Open Bottle Stock",
+          description: `Only ${selectedOil.totalOpenVolume.toFixed(2)}L available.`,
           variant: "destructive",
         });
-        
-        // Create persistent notification
-        if (selectedOil?.id && selectedOil?.name) {
-          const notificationKey = `${selectedOil.id}-max-volume-reached-${Date.now()}`;
-          const now = Date.now();
-          const lastNotification = lastNotificationRef.current;
-          
-          // Prevent duplicate notifications within 2 seconds
-          if (lastNotification && lastNotification.key.startsWith(`${selectedOil.id}-max-volume-reached`) && (now - lastNotification.timestamp) < 2000) {
-            console.log("[POS] Duplicate notification prevented:", notificationKey);
-            return;
-          }
-          
-          lastNotificationRef.current = { key: notificationKey, timestamp: now };
-          
-          const alertParams = createLubricantVolumeAlert({
-            productId: selectedOil.id,
-            productName: selectedOil.name,
-            availableVolume: availableVolume,
-            attemptedVolume: cartOpenVolume,
-            size: size,
-            bottleType: "open",
-          });
-          addPersistentNotification(alertParams).catch((error) => {
-            console.error("Error creating persistent notification:", error);
-          });
-        }
-        
         return;
       }
     }
 
-    const volumeDetails = selectedOil?.volumes.find((v) => v.size === size);
-    if (!volumeDetails) {
-      return;
+    const volumeDetails = selectedOil.volumes.find((v) => v.size === size);
+    if (!volumeDetails) return;
+    
+    // Check stock for closed bottles if needed
+    if (bottleType === "closed") {
+         const availableClosed = selectedOil?.volumes?.[0]?.bottleStates?.closed || 0;
+         const cartClosedCount = calculateCartClosedCount(selectedOil.id);
+         const modalClosedCount = selectedVolumes
+              .filter(v => !v.bottleType || v.bottleType === "closed")
+              .reduce((sum, v) => sum + v.quantity, 0);
+
+         if ((cartClosedCount + modalClosedCount + 1) > availableClosed) {
+             toast({
+                title: "Insufficient Closed Bottle Stock",
+                description: `Only ${availableClosed} closed bottles available.`,
+                variant: "destructive",
+             });
+             return;
+         }
     }
 
-      setSelectedVolumes((prev) => {
-      console.log("🔍 addVolumeWithBottleType - prev state:", JSON.stringify(prev, null, 2));
-      console.log("🔍 Looking for:", { size, bottleType });
-      
+    // Add to selectedVolumes
+    setSelectedVolumes((prev) => {
         const existing = prev.find(
           (v) => v.size === size && v.bottleType === bottleType
         );
-      
-      console.log("🔍 Found existing:", existing);
-      
-      // Validate open bottle volume limits - do this inside setState to use fresh state
-      console.log("🔍 selectedOil?.totalOpenVolume:", selectedOil?.totalOpenVolume);
-      console.log("🔍 selectedOil?.hasOpenBottles:", selectedOil?.hasOpenBottles);
-      
-      if (bottleType === "open" && selectedOil?.totalOpenVolume !== undefined) {
-        // Calculate current total excluding this specific volume (if it exists)
-        const currentTotalOpenVolume = prev
-          .filter((v) => !(v.size === size && v.bottleType === bottleType))
-          .filter((v) => v.bottleType === "open")
-          .reduce((total, v) => {
-            const volumeAmount = parseVolumeString(v.size);
-            return total + volumeAmount * v.quantity;
-          }, 0);
-        
-        // Calculate volume already in cart for this product
-        const cartOpenVolume = calculateCartOpenVolume(selectedOil.id);
-        
-        // Calculate what the new total would be (modal volumes + cart volumes)
-        const volumeAmount = parseVolumeString(size);
-        const newQuantity = existing ? existing.quantity + 1 : 1;
-        const newModalTotal = currentTotalOpenVolume + (volumeAmount * newQuantity);
-        const newTotal = newModalTotal + cartOpenVolume;
-        
-        console.log("🔍 Volume calculation breakdown:", {
-          "prev volumes (open only)": prev.filter(v => v.bottleType === "open"),
-          "excluded volume": prev.find(v => v.size === size && v.bottleType === bottleType),
-          "currentTotalOpenVolume (excluding this)": currentTotalOpenVolume,
-          "cartOpenVolume": cartOpenVolume,
-          "volumeAmount": volumeAmount,
-          "newQuantity": newQuantity,
-          "newModalTotal": newModalTotal,
-          "newTotal (modal + cart)": newTotal,
-        });
 
-        // Debug logging - log each value separately to avoid truncation
-        console.log("🔍 VALIDATION DETAILS:");
-        console.log("  - size:", size);
-        console.log("  - bottleType:", bottleType);
-        console.log("  - existingQuantity:", existing?.quantity || 0);
-        console.log("  - newQuantity:", newQuantity);
-        console.log("  - currentTotalOpenVolume (modal):", currentTotalOpenVolume);
-        console.log("  - cartOpenVolume:", cartOpenVolume);
-        console.log("  - volumeAmount:", volumeAmount);
-        console.log("  - newModalTotal:", newModalTotal);
-        console.log("  - newTotal (modal + cart):", newTotal);
-        console.log("  - totalOpenVolume (available):", selectedOil.totalOpenVolume);
-        console.log("  - comparison:", `${newTotal} > ${selectedOil.totalOpenVolume} = ${newTotal > selectedOil.totalOpenVolume}`);
-        console.log("  - willExceed:", newTotal > selectedOil.totalOpenVolume);
-
-        // Check if adding this volume would exceed available open bottle volume
-        // Use > (not >=) to allow exactly the available volume (e.g., 3L when 3L available)
-        // Include both modal volumes and cart volumes in the check
-        if (newTotal > selectedOil.totalOpenVolume) {
-          console.log("❌ BLOCKED: Would exceed available volume");
-          const availableVolume = selectedOil.totalOpenVolume;
-          const formattedAvailable = availableVolume.toFixed(1).replace(/\.0$/, "");
-          const formattedAttempted = newTotal.toFixed(1).replace(/\.0$/, "");
-          
-          // Show toast for immediate feedback
-          toast({
-            title: "Insufficient Open Bottle Volume",
-            description: `Only ${formattedAvailable}L available in open bottles. Cannot select ${formattedAttempted}L.`,
-            variant: "destructive",
-          });
-          
-          // Create persistent notification (with duplicate prevention)
-          if (selectedOil?.id && selectedOil?.name) {
-            const notificationKey = `${selectedOil.id}-${size}-${bottleType}-${formattedAttempted}`;
-            const now = Date.now();
-            const lastNotification = lastNotificationRef.current;
-            
-            // Prevent duplicate notifications within 2 seconds
-            if (lastNotification && lastNotification.key === notificationKey && (now - lastNotification.timestamp) < 2000) {
-              console.log("[POS] Duplicate notification prevented:", notificationKey);
-              return prev;
-            }
-            
-            lastNotificationRef.current = { key: notificationKey, timestamp: now };
-            
-            const alertParams = createLubricantVolumeAlert({
-              productId: selectedOil.id,
-              productName: selectedOil.name,
-              availableVolume: availableVolume,
-              attemptedVolume: newTotal,
-              size: size,
-              bottleType: bottleType,
-            });
-            addPersistentNotification(alertParams).catch((error) => {
-              console.error("Error creating persistent notification:", error);
-            });
-          }
-          
-          return prev; // Don't update if validation fails
-        }
-        console.log("✅ ALLOWED: Within available volume limit");
-      }
-      
         if (existing) {
-        console.log("🔍 Incrementing existing volume from", existing.quantity, "to", existing.quantity + 1);
-        // Increment existing volume quantity
           return prev.map((v) =>
             v.size === size && v.bottleType === bottleType
               ? { ...v, quantity: v.quantity + 1 }
               : v
           );
         }
-      console.log("🔍 Adding new volume");
-      // Add new volume
         return [...prev, { ...volumeDetails, quantity: 1, bottleType }];
-      });
+    });
+    
+    // Reset and Swap Back
+    setShowBottleTypeDialog(false);
     setCurrentBottleVolumeSize(null);
+    setIsVolumeModalOpen(true); // Re-open parent
   };
 
   const handleQuantityChange = (
@@ -3607,85 +3490,7 @@ function POSPageContent() {
           <Dialog open={isVolumeModalOpen} onOpenChange={setIsVolumeModalOpen}>
             <DialogContent className="w-[90%] max-w-[500px] p-4 sm:p-6 rounded-lg">
               
-              {/* Conditional Rendering: Bottle Type Selection OR Volume List */}
-              {currentBottleVolumeSize ? (
-                 // --- BOTTLE TYPE SELECTION VIEW ---
-                 <div className="flex flex-col h-full">
-                    <DialogHeader className="pb-3 sm:pb-4">
-                      <DialogTitle className="text-center text-xl">
-                        Select Bottle Type
-                      </DialogTitle>
-                      <div className="text-center text-sm text-muted-foreground mt-1">
-                         {selectedOil?.brand} - {selectedOil?.name} ({currentBottleVolumeSize})
-                      </div>
-                      <DialogDescription className="sr-only">
-                        Choose whether to sell from a closed or open bottle
-                      </DialogDescription>
-                    </DialogHeader>
-
-                     <div className="flex flex-col gap-4 py-4">
-                        <Button
-                          variant="outline"
-                          disabled={
-                            selectedOil?.volumes?.find(v => v.size === currentBottleVolumeSize)?.bottleStates?.closed === 0
-                          }
-                          className={`h-40 flex flex-col items-center justify-center gap-2 text-lg font-medium border-2 hover:bg-accent hover:border-primary transition-all ${
-                             selectedOil?.volumes?.find(v => v.size === currentBottleVolumeSize)?.bottleStates?.closed === 0 ? "opacity-50 cursor-not-allowed" : ""
-                          }`}
-                          onClick={() => {
-                            addVolumeWithBottleType(currentBottleVolumeSize, "closed");
-                            // No need to close dialog here, addVolumeWithBottleType handles state reset/cart add
-                          }}
-                        >
-                          <ClosedBottleIcon className="w-12 h-12 mb-2" />
-                          <div>Closed Bottle</div>
-                          <div className="text-sm font-normal text-muted-foreground">
-                             Stock: {selectedOil?.volumes?.find(v => v.size === currentBottleVolumeSize)?.bottleStates?.closed || 0}
-                          </div>
-                        </Button>
-
-                        <Button
-                          variant="outline"
-                          disabled={
-                            !selectedOil?.hasOpenBottles ||
-                            (selectedOil?.totalOpenVolume !== undefined &&
-                              calculateCartOpenVolume(selectedOil.id) >= selectedOil.totalOpenVolume)
-                          }
-                          className={`h-40 flex flex-col items-center justify-center gap-2 text-lg font-medium border-2 hover:bg-accent hover:border-primary transition-all ${
-                            selectedOil?.hasOpenBottles &&
-                            !(selectedOil?.totalOpenVolume !== undefined &&
-                              calculateCartOpenVolume(selectedOil.id) >= selectedOil.totalOpenVolume)
-                              ? ""
-                              : "opacity-50 cursor-not-allowed"
-                          }`}
-                          onClick={() => {
-                             addVolumeWithBottleType(currentBottleVolumeSize, "open");
-                          }}
-                        >
-                          <OpenBottleIcon className="w-12 h-12 mb-2" />
-                          <div>Open Bottle</div>
-                          {selectedOil?.hasOpenBottles ? (
-                            <div className="text-sm font-normal text-green-600">
-                               Available
-                            </div>
-                          ) : (
-                             <div className="text-sm font-normal text-destructive">
-                               Not Available
-                             </div>
-                          )}
-                        </Button>
-                     </div>
-
-                     <Button
-                        variant="ghost"
-                        className="mt-2"
-                        onClick={() => setCurrentBottleVolumeSize(null)}
-                      >
-                        Back to Volumes
-                      </Button>
-                 </div>
-              ) : (
-                // --- STANDARD VOLUME SELECTION VIEW ---
+                {/* --- STANDARD VOLUME SELECTION VIEW --- */}
                 <>
                   <DialogHeader className="pb-3 sm:pb-4">
                     <DialogTitle className="text-base sm:text-l font-semibold">
@@ -3814,6 +3619,9 @@ function POSPageContent() {
                                             // Total available closed bottles
                                             const availableClosed = selectedOil?.volumes?.[0]?.bottleStates?.closed || 0;
                                             
+                                            // Calculate cart closed count
+                                            const cartClosedCount = calculateCartClosedCount(selectedOil.id);
+                                            
                                             // Sum of ALL closed bottles currently in modal for this product
                                             const modalClosedCount = selectedVolumes
                                               .filter(v => !v.bottleType || v.bottleType === "closed")
@@ -3921,9 +3729,26 @@ function POSPageContent() {
                     </div>
                   </div>
                 </>
-              )}
             </DialogContent>
           </Dialog>
+
+          {/* Bottle Type Selection Dialog */}
+          <BottleTypeDialog
+            isOpen={showBottleTypeDialog}
+            onOpenChange={(open) => {
+              if (!open) {
+                setShowBottleTypeDialog(false);
+                setCurrentBottleVolumeSize(null);
+                setIsVolumeModalOpen(true);
+              }
+            }}
+            volumeSize={currentBottleVolumeSize}
+            onSelect={(type) => {
+              if (currentBottleVolumeSize) {
+                addVolumeWithBottleType(currentBottleVolumeSize, type);
+              }
+            }}
+          />
 
           {/* Filter Selection Modal */}
           <FilterModal
@@ -6464,6 +6289,67 @@ const ReceiptComponent = ({
     </motion.div>
   );
 };
+
+function BottleTypeDialog({
+  isOpen,
+  onOpenChange,
+  volumeSize,
+  onSelect,
+}: {
+  isOpen: boolean;
+  onOpenChange: (open: boolean) => void;
+  volumeSize: string | null;
+  onSelect: (type: "open" | "closed") => void;
+}) {
+  if (!isOpen) return null;
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+      <DialogContent className="w-[90%] max-w-[400px] p-6 rounded-lg" aria-describedby={undefined}>
+        <DialogHeader className="pb-4">
+          <DialogTitle className="text-xl font-semibold text-center">
+            Select Bottle Type
+          </DialogTitle>
+          <DialogDescription className="sr-only">
+             Select bottle type for {volumeSize}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="grid grid-cols-2 gap-4 mt-2">
+          <Button
+            variant="outline"
+            className="h-32 flex flex-col items-center justify-center gap-3 hover:border-primary hover:bg-primary/5 transition-colors"
+            onClick={() => onSelect("open")}
+          >
+            <div className="p-3 bg-primary/10 rounded-full">
+              <OpenBottleIcon className="w-8 h-8 text-primary" />
+            </div>
+            <span className="font-medium">Open Bottle</span>
+          </Button>
+
+          <Button
+            variant="outline"
+            className="h-32 flex flex-col items-center justify-center gap-3 hover:border-primary hover:bg-primary/5 transition-colors"
+            onClick={() => onSelect("closed")}
+          >
+            <div className="p-3 bg-primary/10 rounded-full">
+              <ClosedBottleIcon className="w-8 h-8 text-primary" />
+            </div>
+            <span className="font-medium">Closed Bottle</span>
+          </Button>
+        </div>
+
+        <Button
+          variant="ghost"
+          className="w-full mt-4"
+          onClick={() => onOpenChange(false)}
+        >
+          Cancel
+        </Button>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 // Main POS Page with Context Providers
 export default function POSPage() {
