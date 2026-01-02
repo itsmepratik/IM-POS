@@ -34,7 +34,7 @@ export interface IntegratedPOSData {
 
   // Additional integrated features
   lastSyncTime: Date | null;
-  syncProducts: () => void;
+  syncProducts: (showToast?: boolean, isBackgroundSync?: boolean) => void;
   processSale: (
     productId: string,
     quantity: number,

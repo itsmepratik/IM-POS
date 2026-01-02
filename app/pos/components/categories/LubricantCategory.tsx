@@ -37,6 +37,7 @@ interface LubricantProduct {
   }[];
   hasOpenBottles?: boolean;
   totalOpenVolume?: number;
+  isAvailable?: boolean;
 }
 
 interface LubricantCategoryProps {
@@ -202,14 +203,12 @@ export function LubricantCategory({
                           key={lubricant.id}
                           variant="outline"
                           className={`border-2 rounded-[18px] flex flex-col items-center justify-between p-3 sm:p-4 h-[180px] sm:h-[200px] md:h-[220px] overflow-hidden shadow-sm hover:shadow-md transition-all relative ${
-                            (lubricant.volumes?.[0]?.bottleStates?.closed || 0) <= 0 && (lubricant.totalOpenVolume || 0) <= 0
+                            !lubricant.isAvailable
                               ? "opacity-60 cursor-not-allowed bg-muted" 
                               : ""
                           }`}
                           onClick={() => {
-                             const totalClosed = lubricant.volumes?.[0]?.bottleStates?.closed || 0;
-                             const totalOpen = lubricant.totalOpenVolume || 0;
-                             if (totalClosed <= 0 && totalOpen <= 0) {
+                             if (!lubricant.isAvailable) {
                                addPersistentNotification({
                                  type: "error",
                                  title: "Out of Stock",
@@ -222,12 +221,12 @@ export function LubricantCategory({
                           }}
                         >
                           {/* Available Stock Icons - Top Right of Card */}
-                            {((lubricant.volumes?.[0]?.bottleStates?.closed || 0) > 0 || (lubricant.volumes?.[0]?.bottleStates?.open || 0) > 0) && (
+                            {((lubricant.volumes?.reduce((s, v) => s + (v.bottleStates?.closed || v.availableQuantity || 0), 0) || 0) > 0 || (lubricant.volumes?.[0]?.bottleStates?.open || 0) > 0) && (
                               <div className="absolute top-2 right-2 flex flex-col gap-1 items-end z-10">
-                                {(lubricant.volumes?.[0]?.bottleStates?.closed || 0) > 0 && (
-                                  <div className="bg-green-100 px-1.5 py-1 rounded-md border border-green-200 shadow-sm flex items-center gap-1" title={`${lubricant.volumes?.[0]?.bottleStates?.closed} Closed Bottles`}>
+                                {(lubricant.volumes?.reduce((s, v) => s + (v.bottleStates?.closed || v.availableQuantity || 0), 0) || 0) > 0 && (
+                                  <div className="bg-green-100 px-1.5 py-1 rounded-md border border-green-200 shadow-sm flex items-center gap-1" title={`${lubricant.volumes?.reduce((s, v) => s + (v.bottleStates?.closed || v.availableQuantity || 0), 0)} Closed Bottles`}>
                                     <ClosedBottleIcon className="w-3 h-3 text-green-700" />
-                                    <span className="text-[10px] font-bold text-green-700 leading-none">{lubricant.volumes?.[0]?.bottleStates?.closed}</span>
+                                    <span className="text-[10px] font-bold text-green-700 leading-none">{lubricant.volumes?.reduce((s, v) => s + (v.bottleStates?.closed || v.availableQuantity || 0), 0)}</span>
                                   </div>
                                 )}
                                 {(lubricant.volumes?.[0]?.bottleStates?.open || 0) > 0 && (
@@ -252,7 +251,7 @@ export function LubricantCategory({
                             )}
                             
                             {/* Out of Stock Overlay */}
-                            {(lubricant.volumes?.[0]?.bottleStates?.closed || 0) <= 0 && (lubricant.totalOpenVolume || 0) <= 0 && (
+                            {!lubricant.isAvailable && (
                               <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-[1px] rounded-md z-10">
                                 <Badge variant="destructive" className="text-[10px]">Out of Stock</Badge>
                               </div>
@@ -297,9 +296,7 @@ export function LubricantCategory({
                           variant="outline"
                           className="border-2 rounded-[18px] flex flex-col items-center justify-between p-3 sm:p-4 h-[180px] sm:h-[200px] md:h-[220px] overflow-hidden shadow-sm hover:shadow-md transition-all relative"
                           onClick={() => {
-                             const totalClosed = lubricant.volumes?.[0]?.bottleStates?.closed || 0;
-                             const totalOpen = lubricant.totalOpenVolume || 0;
-                             if (totalClosed <= 0 && totalOpen <= 0) {
+                             if (!lubricant.isAvailable) {
                                addPersistentNotification({
                                  type: "error",
                                  title: "Out of Stock",
@@ -312,12 +309,12 @@ export function LubricantCategory({
                           }}
                         >
                           {/* Available Stock Icons - Top Right of Card */}
-                          {((lubricant.volumes?.[0]?.bottleStates?.closed || 0) > 0 || (lubricant.volumes?.[0]?.bottleStates?.open || 0) > 0) && (
+                          {((lubricant.volumes?.reduce((s, v) => s + (v.bottleStates?.closed || v.availableQuantity || 0), 0) || 0) > 0 || (lubricant.volumes?.[0]?.bottleStates?.open || 0) > 0) && (
                             <div className="absolute top-2 right-2 flex flex-col gap-1 items-end z-10">
-                              {(lubricant.volumes?.[0]?.bottleStates?.closed || 0) > 0 && (
-                                <div className="bg-green-100 px-1.5 py-1 rounded-md border border-green-200 shadow-sm flex items-center gap-1" title={`${lubricant.volumes?.[0]?.bottleStates?.closed} Closed Bottles`}>
+                              {(lubricant.volumes?.reduce((s, v) => s + (v.bottleStates?.closed || v.availableQuantity || 0), 0) || 0) > 0 && (
+                                <div className="bg-green-100 px-1.5 py-1 rounded-md border border-green-200 shadow-sm flex items-center gap-1" title={`${lubricant.volumes?.reduce((s, v) => s + (v.bottleStates?.closed || v.availableQuantity || 0), 0)} Closed Bottles`}>
                                   <ClosedBottleIcon className="w-3 h-3 text-green-700" />
-                                  <span className="text-[10px] font-bold text-green-700 leading-none">{lubricant.volumes?.[0]?.bottleStates?.closed}</span>
+                                  <span className="text-[10px] font-bold text-green-700 leading-none">{lubricant.volumes?.reduce((s, v) => s + (v.bottleStates?.closed || v.availableQuantity || 0), 0)}</span>
                                 </div>
                               )}
                               {(lubricant.volumes?.[0]?.bottleStates?.open || 0) > 0 && (
@@ -342,7 +339,7 @@ export function LubricantCategory({
                             )}
 
                             {/* Out of Stock Overlay */}
-                            {(lubricant.volumes?.[0]?.bottleStates?.closed || 0) <= 0 && (lubricant.totalOpenVolume || 0) <= 0 && (
+                            {!lubricant.isAvailable && (
                               <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-[1px] rounded-md z-10">
                                 <Badge variant="destructive" className="text-[10px]">Out of Stock</Badge>
                               </div>
@@ -399,9 +396,7 @@ export function LubricantCategory({
                           variant="outline"
                           className="border-2 rounded-[18px] flex flex-col items-center justify-between p-3 sm:p-4 h-[180px] sm:h-[200px] md:h-[220px] overflow-hidden shadow-sm hover:shadow-md transition-all relative"
                           onClick={() => {
-                             const totalClosed = lubricant.volumes?.[0]?.bottleStates?.closed || 0;
-                             const totalOpen = lubricant.totalOpenVolume || 0;
-                             if (totalClosed <= 0 && totalOpen <= 0) {
+                             if (!lubricant.isAvailable) {
                                addPersistentNotification({
                                  type: "error",
                                  title: "Out of Stock",
@@ -414,12 +409,12 @@ export function LubricantCategory({
                           }}
                         >
                           {/* Available Stock Icons - Top Right of Card */}
-                          {((lubricant.volumes?.[0]?.bottleStates?.closed || 0) > 0 || (lubricant.volumes?.[0]?.bottleStates?.open || 0) > 0) && (
+                          {((lubricant.volumes?.reduce((s, v) => s + (v.bottleStates?.closed || v.availableQuantity || 0), 0) || 0) > 0 || (lubricant.volumes?.[0]?.bottleStates?.open || 0) > 0) && (
                             <div className="absolute top-2 right-2 flex flex-col gap-1 items-end z-10">
-                              {(lubricant.volumes?.[0]?.bottleStates?.closed || 0) > 0 && (
-                                <div className="bg-green-100 px-1.5 py-1 rounded-md border border-green-200 shadow-sm flex items-center gap-1" title={`${lubricant.volumes?.[0]?.bottleStates?.closed} Closed Bottles`}>
+                              {(lubricant.volumes?.reduce((s, v) => s + (v.bottleStates?.closed || v.availableQuantity || 0), 0) || 0) > 0 && (
+                                <div className="bg-green-100 px-1.5 py-1 rounded-md border border-green-200 shadow-sm flex items-center gap-1" title={`${lubricant.volumes?.reduce((s, v) => s + (v.bottleStates?.closed || v.availableQuantity || 0), 0)} Closed Bottles`}>
                                   <ClosedBottleIcon className="w-3 h-3 text-green-700" />
-                                  <span className="text-[10px] font-bold text-green-700 leading-none">{lubricant.volumes?.[0]?.bottleStates?.closed}</span>
+                                  <span className="text-[10px] font-bold text-green-700 leading-none">{lubricant.volumes?.reduce((s, v) => s + (v.bottleStates?.closed || v.availableQuantity || 0), 0)}</span>
                                 </div>
                               )}
                               {(lubricant.volumes?.[0]?.bottleStates?.open || 0) > 0 && (
@@ -444,7 +439,7 @@ export function LubricantCategory({
                             )}
 
                             {/* Out of Stock Overlay */}
-                            {(lubricant.volumes?.[0]?.bottleStates?.closed || 0) <= 0 && (lubricant.totalOpenVolume || 0) <= 0 && (
+                            {!lubricant.isAvailable && (
                               <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-[1px] rounded-md z-10">
                                 <Badge variant="destructive" className="text-[10px]">Out of Stock</Badge>
                               </div>

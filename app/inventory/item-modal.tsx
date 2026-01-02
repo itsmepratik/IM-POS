@@ -499,7 +499,6 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
       type_name: updatedFormData.type_name || null,
       image_url: updatedFormData.imageUrl || null, // Map to backend field name
       description: updatedFormData.notes || null, // Use notes for description
-      is_oil: updatedFormData.isOil, // Map to backend field name
       costPrice: typeof updatedFormData.costPrice === 'string' ? Number(updatedFormData.costPrice) || 0 : (updatedFormData.costPrice || 0),
       manufacturingDate: updatedFormData.manufacturingDate || null,
       // Battery fields
@@ -526,9 +525,9 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
       created_at: updatedFormData.created_at || null,
       updated_at: updatedFormData.updated_at || null,
       notes: updatedFormData.notes || null, // Make sure notes is explicitly included
-      notes: updatedFormData.notes || null, // Make sure notes is explicitly included
       specification: updatedFormData.specification || null,
       types: updatedFormData.selectedTypeIds?.map(id => ({ id } as any)) || [], 
+      isOil: updatedFormData.isOil, 
     };
 
     console.log("Saving item data:", JSON.stringify(itemToSave, null, 2));
@@ -538,7 +537,7 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
         // When updating, explicitly log key oil-related fields to help debug
         console.log("Updating existing item:", {
           id: item.id,
-          isOil: itemToSave.is_oil,
+          isOil: itemToSave.isOil,
           bottleStates: itemToSave.bottleStates,
           stock: itemToSave.stock,
           description: itemToSave.description,

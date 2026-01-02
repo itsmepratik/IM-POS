@@ -234,7 +234,7 @@ export function BranchProvider({ children }: { children: ReactNode }) {
           // For admin: Set default to Saniya1 (first shop)
           if (userIsAdmin) {
             const saniya1Branch = dbBranches.find((b) =>
-              b.name.toLowerCase().includes("saniya1")
+              b.name.toLowerCase().includes("saniya1") || b.name.toLowerCase().includes("sanaiya1")
             );
             const defaultBranch = saniya1Branch || dbBranches[0];
             setCurrentBranch(defaultBranch);

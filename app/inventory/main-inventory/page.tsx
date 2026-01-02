@@ -1818,7 +1818,7 @@ function ItemsPageContent() {
 export default function MainInventoryPage() {
   return (
     <BranchProvider>
-      <ItemsProvider>
+      <ItemsProvider overrideLocationId="sanaiya">
         <ClientOnly>
           <ItemsPageContent />
         </ClientOnly>

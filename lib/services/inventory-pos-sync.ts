@@ -75,6 +75,7 @@ export function useInventoryPOSSync(
   const [syncEvents, setSyncEvents] = useState<SyncEvent[]>([]);
 
   const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
   const retryCountRef = useRef(0);
   const isInitialLoadRef = useRef(true);
 
@@ -105,6 +106,12 @@ export function useInventoryPOSSync(
         return;
       }
 
+      // Cancel previous in-flight request
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      abortControllerRef.current = new AbortController();
+
       try {
         // For background syncs, use background loading state
         // For initial load or manual refresh, use main loading state
@@ -124,6 +131,13 @@ export function useInventoryPOSSync(
         );
 
         const inventoryItems = await fetchItems(locationId);
+
+        // Check if aborted
+        if (abortControllerRef.current?.signal.aborted) {
+          console.log("🛑 Sync aborted, ignoring results");
+          return;
+        }
+
         const unifiedProducts = itemsToUnifiedProducts(
           inventoryItems,
           locationId
@@ -442,7 +456,10 @@ export function useInventoryPOSSync(
     syncEvents,
 
     // Actions
-    syncProducts: () => syncProducts(true, false), // Manual sync shows loading UI
+    // Actions
+    syncProducts, // Expose raw function for custom control
+    refresh: () => syncProducts(true, false), // Alias for manual refresh
+    backgroundSync: () => syncProducts(false, true), // Alias for background sync
     updateStock,
     processSale,
 

@@ -2457,7 +2457,7 @@ function POSPageContent() {
 
       // Refresh products to update inventory counts (especially open bottle volumes)
       try {
-        await syncProducts();
+        await syncProducts(false, true);
         console.log("✅ Products refreshed after checkout");
       } catch (error) {
         console.error("Failed to refresh products after checkout:", error);

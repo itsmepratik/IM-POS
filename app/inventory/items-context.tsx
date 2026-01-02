@@ -146,7 +146,13 @@ export const useItems = () => {
 
 export { type Item, type Batch, type Volume, type BottleStates };
 
-export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
+export const ItemsProvider = ({ 
+  children, 
+  overrideLocationId 
+}: { 
+  children: React.ReactNode;
+  overrideLocationId?: string;
+}) => {
   // Using actual Supabase data
   const [items, setItems] = useState<Item[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
@@ -176,23 +182,21 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
 
   // Load data from Supabase on mount and when branch changes
   useEffect(() => {
-    // Use inventoryLocationId if available (for shops sharing inventory), otherwise use currentBranch.id
-    // But since currentBranch.id is now a shop_id, we need to use inventoryLocationId
-    const locationIdForInventory = inventoryLocationId || currentBranch?.id;
+    // Use overrideLocationId if provided, otherwise inventoryLocationId, otherwise currentBranch?.id
+    const locationIdForInventory = overrideLocationId || inventoryLocationId || currentBranch?.id;
     if (locationIdForInventory) {
       loadData();
     }
-  }, [currentBranch?.id, inventoryLocationId]);
+  }, [currentBranch?.id, inventoryLocationId, overrideLocationId]);
 
   const loadData = async () => {
     try {
       setIsLoading(true);
 
-      // Use inventoryLocationId if available (for shops sharing inventory)
-      // Otherwise, derive location from shop if currentBranch is a shop
-      let locationIdForInventory = inventoryLocationId;
+      // Use overrideLocationId if provided
+      let locationIdForInventory = overrideLocationId || inventoryLocationId;
 
-      if (!locationIdForInventory && currentBranch?.id) {
+      if (!locationIdForInventory && !overrideLocationId && currentBranch?.id) {
         // Try to derive location from shop
         try {
           const { fetchShops } = await import("@/lib/services/inventoryService");
@@ -214,6 +218,8 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
         setItems([]);
         return;
       }
+
+      console.log(`Using location ID for inventory: ${locationIdForInventory}`);
 
       // Load items for the location
       const itemsData = await fetchItems(locationIdForInventory);
@@ -249,9 +255,11 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
       const suppliersData = await fetchSuppliers();
       setSuppliers(suppliersData);
 
-      console.log(
-        `Loaded ${itemsData.length} items for branch ${currentBranch.name}`
-      );
+      if (currentBranch) {
+        console.log(
+          `Loaded ${itemsData.length} items for branch ${currentBranch.name}`
+        );
+      }
     } catch (error) {
       console.error("Error loading data:", error);
       toast({
@@ -279,9 +287,9 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
 
     // Get the current location ID (use the same logic as loadData)
     const setupSubscription = async () => {
-      let locationIdForInventory = inventoryLocationId;
+      let locationIdForInventory = overrideLocationId || inventoryLocationId;
 
-      if (!locationIdForInventory && currentBranch?.id) {
+      if (!locationIdForInventory && !overrideLocationId && currentBranch?.id) {
         // Try to derive location from shop
         try {
           const { fetchShops } = await import("@/lib/services/inventoryService");
@@ -366,10 +374,10 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
 
   const addItem = async (item: Omit<Item, "id">): Promise<Item | null> => {
     try {
-      // Use inventoryLocationId if available, otherwise derive from shop
-      let locationIdForInventory = inventoryLocationId;
+      // Use overrideLocationId if provided, otherwise inventoryLocationId
+      let locationIdForInventory = overrideLocationId || inventoryLocationId;
 
-      if (!locationIdForInventory && currentBranch?.id) {
+      if (!locationIdForInventory && !overrideLocationId && currentBranch?.id) {
         try {
           const { fetchShops } = await import("@/lib/services/inventoryService");
           const shops = await fetchShops();
@@ -396,7 +404,13 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
         location_id: locationIdForInventory,
       });
       if (newItem) {
-        setItems((prev) => [...prev, newItem]);
+        setItems((prev) => {
+          // Check if item already exists (from real-time update)
+          if (prev.some((item) => item.id === newItem.id)) {
+            return prev;
+          }
+          return [...prev, newItem];
+        });
         toast({
           title: "Item added",
           description: `${newItem.name} has been added successfully.`,
@@ -496,10 +510,10 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
 
   const duplicateItem = async (id: string): Promise<Item | null> => {
     try {
-      // Use inventoryLocationId if available, otherwise derive from shop
-      let locationIdForInventory = inventoryLocationId;
+      // Use overrideLocationId if provided, otherwise inventoryLocationId
+      let locationIdForInventory = overrideLocationId || inventoryLocationId;
 
-      if (!locationIdForInventory && currentBranch?.id) {
+      if (!locationIdForInventory && !overrideLocationId && currentBranch?.id) {
         try {
           const { fetchShops } = await import("@/lib/services/inventoryService");
           const shops = await fetchShops();
@@ -541,7 +555,13 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
 
       const duplicatedItem = await createItem(duplicateData);
       if (duplicatedItem) {
-        setItems((prev) => [...prev, duplicatedItem]);
+        setItems((prev) => {
+          // Check if item already exists (from real-time update)
+          if (prev.some((item) => item.id === duplicatedItem.id)) {
+            return prev;
+          }
+          return [...prev, duplicatedItem];
+        });
         toast({
           title: "Item duplicated",
           description: `${duplicatedItem.name} has been duplicated.`,
