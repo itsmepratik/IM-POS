@@ -26,6 +26,8 @@ export interface ReceiptData {
   cashier?: string;
   paymentRecipient?: string;
   posId?: string;
+  carPlateNumber?: string;
+  whatsapp?: string;
 }
 
 // Default company info (matches useCompanyInfo default)
@@ -34,7 +36,7 @@ const DEFAULT_COMPANY_INFO = {
     name: "H Automotives Service Center",
     addressLines: ["Saham, Sultanate of Oman"],
     phones: ["92510750", "26856848"],
-    whatsapp: "72702537",
+    whatsapp: "",
     posId: "A0054",
   },
 };
@@ -59,7 +61,7 @@ export function generateThermalReceipt(data: ReceiptData): string {
   const brandName = DEFAULT_COMPANY_INFO.brand.name;
   const addressLines = DEFAULT_COMPANY_INFO.brand.addressLines;
   const phones = DEFAULT_COMPANY_INFO.brand.phones;
-  const whatsapp = DEFAULT_COMPANY_INFO.brand.whatsapp || "72702537";
+  const whatsapp = data.whatsapp || DEFAULT_COMPANY_INFO.brand.whatsapp || "";
   const POS_ID = posId || DEFAULT_COMPANY_INFO.brand.posId || "A0054";
 
   // Calculate subtotal from items if not provided
@@ -87,15 +89,34 @@ export function generateThermalReceipt(data: ReceiptData): string {
       <title>Receipt</title>
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <style>
+        @font-face {
+          font-family: 'Formula1';
+          src: url('/fonts/Formula1-Bold-4.ttf') format('truetype');
+          font-weight: bold;
+          font-style: normal;
+        }
+        @font-face {
+          font-family: 'Formula1';
+          src: url('/fonts/Formula1-Regular-1.ttf') format('truetype');
+          font-weight: normal;
+          font-style: normal;
+        }
+        @font-face {
+          font-family: 'Formula1';
+          src: url('/fonts/Formula1-Black.ttf') format('truetype');
+          font-weight: 900;
+          font-style: normal;
+        }
+
         body {
-          font-family: sans-serif !important;
+          font-family: 'Formula1', sans-serif !important;
           padding: 0;
           margin: 0;
           width: 80mm;
           font-size: 12px;
         }
         * {
-          font-family: sans-serif !important;
+          font-family: 'Formula1', sans-serif !important;
         }
         .receipt-container {
           padding: 2mm 1mm 2mm 1mm;
@@ -338,6 +359,7 @@ export function generateBatteryBill(data: ReceiptData): string {
     subtotalBeforeDiscount,
     date,
     time,
+    carPlateNumber,
   } = data;
   
   // Calculate subtotal from items if not provided
@@ -353,12 +375,34 @@ export function generateBatteryBill(data: ReceiptData): string {
       <meta charset="UTF-8">
       <title>Battery Bill</title>
       <style>
+        @font-face {
+          font-family: 'Formula1';
+          src: url('/fonts/Formula1-Bold-4.ttf') format('truetype');
+          font-weight: bold;
+          font-style: normal;
+        }
+        @font-face {
+          font-family: 'Formula1';
+          src: url('/fonts/Formula1-Regular-1.ttf') format('truetype');
+          font-weight: normal;
+          font-style: normal;
+        }
+        @font-face {
+          font-family: 'Formula1';
+          src: url('/fonts/Formula1-Black.ttf') format('truetype');
+          font-weight: 900;
+          font-style: normal;
+        }
+
         body { 
-          font-family: Arial, sans-serif; 
+          font-family: 'Formula1', Arial, sans-serif !important; 
           font-size: 14px; 
           margin: 0; 
           padding: 20px; 
           max-width: 500px;
+        }
+        * {
+          font-family: 'Formula1', Arial, sans-serif !important;
         }
         .header { 
           text-align: center; 
@@ -431,6 +475,7 @@ export function generateBatteryBill(data: ReceiptData): string {
         <h1>BATTERY PURCHASE RECEIPT</h1>
         <p><strong>Reference:</strong> ${referenceNumber}</p>
         <p><strong>Date:</strong> ${date} <strong>Time:</strong> ${time}</p>
+        ${carPlateNumber ? `<p><strong>Car Plate:</strong> ${carPlateNumber}</p>` : ""}
       </div>
       
       <div class="items">

@@ -127,10 +127,10 @@ export function TradeInDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="w-[95%] max-w-[600px] p-4 sm:p-5 md:p-6 rounded-xl max-h-[98vh] sm:max-h-[90dvh] flex flex-col overflow-hidden"
+        className="w-[95%] max-w-[600px] rounded-xl max-h-[85vh] flex flex-col overflow-hidden"
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
-        <DialogHeader className="flex-shrink-0">
+        <DialogHeader className="flex-shrink-0 pb-6">
           <DialogTitle className="text-center text-lg sm:text-xl">
             Battery Trade-In Details
           </DialogTitle>
@@ -139,7 +139,7 @@ export function TradeInDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex-1 min-h-0 flex flex-col gap-3 sm:gap-4">
+        <div className="flex-1 min-h-0 flex flex-col gap-3 sm:gap-4 overflow-y-auto py-1 px-0">
           <div className="flex-shrink-0 space-y-3 border rounded-lg p-3 sm:p-4 bg-muted/30 shadow-sm">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div className="space-y-1.5">
@@ -290,7 +290,7 @@ export function TradeInDialog({
                                         </span>
                                       </div>
                                     </div>
-                                    <div className="mt-1 text-sm sm:text-base font-semibold text-primary">
+                                    <div className="mt-1 text-sm sm:text-base font-semibold text-foreground">
                                       OMR {b.amount.toFixed(3)}
                                     </div>
                                   </div>
@@ -299,7 +299,7 @@ export function TradeInDialog({
                                       variant="outline"
                                       size="sm"
                                       onClick={() => onStartEdit(b.id)}
-                                      className="h-7 w-7 sm:h-8 sm:w-8 p-0 rounded-md hover:bg-orange-50 hover:border-orange-200"
+                                      className="h-7 w-7 sm:h-8 sm:w-8 p-0 rounded-md hover:bg-primary/10 hover:border-primary/20"
                                     >
                                       <Edit2 className="h-3 w-3" />
                                     </Button>
@@ -340,7 +340,7 @@ export function TradeInDialog({
                 <span className="text-sm sm:text-base font-medium text-foreground">
                   Total Trade-In Amount:
                 </span>
-                <span className="text-lg sm:text-xl font-bold text-primary">
+                <span className="text-lg sm:text-xl font-bold text-foreground">
                   OMR {total.toFixed(3)}
                 </span>
               </div>
@@ -348,10 +348,10 @@ export function TradeInDialog({
           )}
         </div>
 
-        <DialogFooter className="flex-shrink-0 flex flex-col sm:flex-row gap-2 sm:gap-3 mt-3 sm:mt-4">
+        <DialogFooter className="flex-shrink-0 flex flex-row gap-3 mt-4 pt-6 justify-between">
           <Button
             variant="chonky-secondary"
-            className="sm:flex-1 h-10 sm:h-11"
+            className="px-6"
             onClick={() => {
               onOpenChange(false);
             }}
@@ -359,7 +359,7 @@ export function TradeInDialog({
             Cancel
           </Button>
           <Button
-            className="sm:flex-1 h-10 sm:h-11"
+            className="px-6"
             variant="chonky"
             disabled={batteries.length === 0}
             onClick={() => {

@@ -58,12 +58,12 @@ function AdditiveFluidImage({
   }, [imageUrl]);
 
   const handleError = React.useCallback(
-    (e?: React.SyntheticEvent<HTMLImageElement, Event>) => {
+    (e?: React.SyntheticEvent<HTMLImageElement, Event> | Error) => {
       setHasError(true);
       if (imageUrl) {
         cacheImageInvalid(imageUrl);
       }
-      if (e) {
+      if (e && 'currentTarget' in e) {
         e.currentTarget.onerror = null;
       }
     },
@@ -230,7 +230,7 @@ export function AdditivesFluidsCategory({
 
                       {/* Price with consistent formatting */}
                       <div className="mt-auto">
-                        <span className="text-sm text-primary font-medium">
+                        <span className="font-medium text-[clamp(0.75rem,1.5vw,0.85rem)] text-foreground">
                           OMR {product.price.toFixed(3)}
                         </span>
                       </div>

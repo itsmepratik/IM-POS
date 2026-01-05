@@ -29,6 +29,8 @@ interface BillComponentProps {
   appliedTradeInAmount?: number;
   hideButton?: boolean;
   isWarrantyClaim?: boolean;
+  carPlateNumber?: string;
+  onClose?: () => void;
 }
 
 // Backward-compatible fallback, will be overridden by hook when available
@@ -45,6 +47,8 @@ export const BillComponent: React.FC<BillComponentProps> = ({
   appliedTradeInAmount,
   hideButton = false,
   isWarrantyClaim = false,
+  carPlateNumber,
+  onClose,
 }) => {
   const billRef = useRef<HTMLDivElement>(null);
   const [isClient, setIsClient] = useState(false);
@@ -119,21 +123,40 @@ export const BillComponent: React.FC<BillComponentProps> = ({
             margin-top: 0.35cm;
             margin-bottom: 0.40cm;
           }
+          @font-face {
+            font-family: 'Formula1';
+            src: url('/fonts/Formula1-Bold-4.ttf') format('truetype');
+            font-weight: bold;
+            font-style: normal;
+          }
+          @font-face {
+            font-family: 'Formula1';
+            src: url('/fonts/Formula1-Regular-1.ttf') format('truetype');
+            font-weight: normal;
+            font-style: normal;
+          }
+          @font-face {
+            font-family: 'Formula1';
+            src: url('/fonts/Formula1-Black.ttf') format('truetype');
+            font-weight: 900;
+            font-style: normal;
+          }
+
           html, body {
             height: 100%; /* Ensure html and body take full height */
             margin: 0;
             padding: 0;
-            font-family: sans-serif !important;
+            font-family: 'Formula1', sans-serif;
           }
           body {
-            font-family: sans-serif !important;
+            font-family: 'Formula1', sans-serif;
             font-size: 10pt;
             line-height: 1.3;
             width: 100%;
             color: #000;
           }
           * {
-            font-family: sans-serif !important;
+            font-family: 'Formula1', sans-serif !important;
           }
           .bill-container {
             width: calc(100% - 4mm); 
@@ -160,8 +183,6 @@ export const BillComponent: React.FC<BillComponentProps> = ({
             text-align: left;
             color: #777 !important;
             line-height: 1.2 !important;
-            zoom: 0.95; /* Scale down to approx 10.5px and bypass browser minimums */
-            -moz-transform: scale(0.95); /* Firefox fallback if needed */
             -moz-transform-origin: left top;
           }
           .right-header {
@@ -170,8 +191,6 @@ export const BillComponent: React.FC<BillComponentProps> = ({
             color: #777 !important;
             line-height: 1.2 !important;
             direction: rtl;
-            zoom: 0.95;
-            -moz-transform: scale(0.95);
             -moz-transform-origin: right top;
           }
           .cr-number, .cr-number-line {
@@ -440,7 +459,7 @@ export const BillComponent: React.FC<BillComponentProps> = ({
               <td class="car-plate">${
                 isWarrantyClaim
                   ? "Warranty Type: Battery"
-                  : `Car Plate: <span class="plate-number">1456 B</span>`
+                  : `Car Plate: <span class="plate-number">${carPlateNumber || "N/A"}</span>`
               }</td>
             </tr>
           </table>
@@ -549,9 +568,7 @@ export const BillComponent: React.FC<BillComponentProps> = ({
             }</div>
             <div class="footer-phone-numbers" style="direction: rtl;">رقم الاتصال: ${companyDetails.contactNumberArabic || ""}</div>
             <div class="footer-thank-you" style="white-space: pre-line;">${
-              isWarrantyClaim
-                ? "Thank you for trusting us with your warranty claim\nشكراً لثقتكم بنا"
-                : (thankYouMessage?.english + "\n" + thankYouMessage?.arabic)
+              thankYouMessage?.english + "\n" + thankYouMessage?.arabic
             }</div>
           </div>
         </div>
@@ -639,17 +656,17 @@ export const BillComponent: React.FC<BillComponentProps> = ({
         <div
           ref={billRef}
           data-bill-ref
-          className="bg-white border rounded-lg p-4 w-full max-w-[400px] mx-auto"
+          className="bg-white border rounded-lg p-4 w-full max-w-[400px] mx-auto font-formula1"
         >
           {/* Header - three column layout */}
           <div className="text-center mb-2">
-            <h3 className="font-bold text-lg text-orange-800">
+            <h3 className="font-bold text-lg text-black">
               {companyDetails.name}
             </h3>
-            <p className="font-bold text-orange-800 text-sm">
+            <p className="font-bold text-black text-sm">
               {companyDetails.arabicName}
             </p>
-            <div className="flex text-xs text-gray-500 justify-between mt-1">
+            <div className="grid grid-cols-2 gap-4 text-xs text-gray-500 mt-1">
               <div className="text-left">
                 <div>C.R. No.: {companyDetails.crNumber}</div>
                 <div>{companyDetails.addressLine1}</div>
@@ -705,7 +722,7 @@ export const BillComponent: React.FC<BillComponentProps> = ({
           <div className="flex justify-between text-xs mb-3">
             <span className="font-medium">To, Mr./Mrs.: {customerName}</span>
             <span className="font-medium">
-              {isWarrantyClaim ? "Warranty Type: Battery" : "Car Plate: 1456 B"}
+              {isWarrantyClaim ? "Warranty Type: Battery" : `Car Plate: ${carPlateNumber || "N/A"}`}
             </span>
           </div>
 
@@ -779,7 +796,7 @@ export const BillComponent: React.FC<BillComponentProps> = ({
 
             <div className="border-t border-gray-800 my-1"></div>
 
-            <div className="flex justify-between text-xs font-bold text-orange-800">
+            <div className="flex justify-between text-xs font-bold text-black">
               <span>
                 {isWarrantyClaim ? "WARRANTY AMOUNT:" : "TOTAL AMOUNT:"}
               </span>
@@ -801,11 +818,9 @@ export const BillComponent: React.FC<BillComponentProps> = ({
             <p className="font-medium">
               Contact no.: {companyDetails.contactNumber}
             </p>
-            <p className="rtl">رقم الاتصال: ٧١١٧٠٨٠٥</p>
-            <p className="italic text-xs">
-              {isWarrantyClaim
-                ? "Thank you for trusting us with your warranty claim\nشكراً لثقتكم بنا"
-                : (thankYouMessage?.english + (thankYouMessage?.arabic ? "\n" + thankYouMessage.arabic : ""))}
+            <p className="rtl">رقم الاتصال: {companyDetails.contactNumberArabic}</p>
+            <p className="italic text-xs" style={{ whiteSpace: "pre-line" }}>
+              {thankYouMessage?.english + (thankYouMessage?.arabic ? "\n" + thankYouMessage.arabic : "")}
             </p>
             <p className="font-mono mt-2">{billNumber}</p>
           </div>
@@ -813,13 +828,27 @@ export const BillComponent: React.FC<BillComponentProps> = ({
       </div>
 
       {!hideButton && (
-        <Button
-          onClick={handlePrint}
-          className="w-full flex items-center justify-center gap-2"
-          data-warranty-print-button
-        >
-          <Printer className="h-4 w-4" /> Print Bill
-        </Button>
+        <div className="flex flex-row gap-4 mt-4">
+          {onClose && (
+            <Button
+              variant="chonky-secondary"
+              onClick={onClose}
+              className="flex-1"
+            >
+              Close
+            </Button>
+          )}
+          <Button
+            onClick={handlePrint}
+            variant="chonky"
+            className={`flex items-center justify-center gap-2 ${
+              onClose ? "flex-1" : "w-full"
+            }`}
+            data-warranty-print-button
+          >
+            <Printer className="h-4 w-4" /> Print Bill
+          </Button>
+        </div>
       )}
     </motion.div>
   );

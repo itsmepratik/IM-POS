@@ -29,6 +29,7 @@ interface ReceiptComponentProps {
   receiptNumber: string;
   currentDate: string;
   currentTime: string;
+  onClose?: () => void;
 }
 
 export const ReceiptComponent = ({
@@ -40,9 +41,10 @@ export const ReceiptComponent = ({
   receiptNumber,
   currentDate,
   currentTime,
+  onClose,
 }: ReceiptComponentProps) => {
   const { brand } = useCompanyInfo();
-  const POS_ID = brand.posId || "POS-01";
+  const POS_ID = brand.posId || "";
 
   const [localDiscount, setLocalDiscount] = useState(discount);
   const receiptRef = useRef<HTMLDivElement>(null);
@@ -263,9 +265,27 @@ export const ReceiptComponent = ({
                     (item, _index) => `
                   <tr class="row-top">
                     <td class="sno">${_index + 1}</td>
-                    <td class="description" colspan="4">${item.name}${
-                      item.details ? ` (${item.details})` : ""
-                    }</td>
+                    <td class="description" colspan="4">${(() => {
+                      // Clean up name by removing bottle info if present
+                      let cleanName = item.name
+                        .replace(/\s*\(?(\d+(\.\d+)?[Ll])\s+(open|closed)\s+bottle\)?/i, "") // Remove "(1L closed bottle)" or similar
+                        .replace(/\s*\(?(open|closed)\s+bottle\)?/i, "") // Remove "(open bottle)" etc
+                        .trim();
+                      
+                      // Clean up details similarly
+                      let cleanDetails = item.details 
+                        ? item.details
+                            .replace(/\s*\(?(\d+(\.\d+)?[Ll])\s+(open|closed)\s+bottle\)?/i, "$1") // Keep size e.g. "1L"
+                            .replace(/\s*\(?(open|closed)\s+bottle\)?/i, "")
+                            .trim()
+                        : "";
+                      
+                      // Combine carefully
+                      if (cleanDetails && !cleanName.includes(cleanDetails)) {
+                         return `${cleanName} (${cleanDetails})`;
+                      }
+                      return cleanName;
+                    })()}</td>
                     <td class="price" style="display:none;"></td>
                     <td class="qty" style="display:none;"></td>
                     <td class="amount" style="display:none;"></td>
@@ -336,7 +356,7 @@ export const ReceiptComponent = ({
             </div>
             
             <div class="whatsapp">
-              WhatsApp ${brand.whatsapp || "72702537"} for latest offers
+              WhatsApp ${brand.whatsapp || ""} for latest offers
             </div>
           </div>
         </body>
@@ -436,15 +456,11 @@ export const ReceiptComponent = ({
             <p className="text-[11px] sm:text-xs text-gray-500 leading-tight">
               Ph: {brand.phones.join(" | ")}
             </p>
-            <p className="text-[11px] sm:text-xs text-gray-500 leading-tight">
-              POS ID: {POS_ID}
-            </p>
           </div>
 
           <div className="border-t border-b border-dashed py-1.5 mb-2 sm:mb-3">
             <div className="flex justify-between text-[11px] sm:text-xs">
               <span className="font-medium">Invoice: {receiptNumber}</span>
-              <span className="font-medium">POS ID: {POS_ID}</span>
             </div>
             <div className="flex justify-between text-[11px] sm:text-xs">
               <span>Date: {currentDate}</span>
@@ -456,23 +472,42 @@ export const ReceiptComponent = ({
             <div className="grid grid-cols-12 gap-1 font-medium mb-1">
               <span className="col-span-1">#</span>
               <span className="col-span-2">Qty</span>
-              <span className="col-span-7">Description</span>
-              <span className="col-span-1 text-right">Price</span>
-              <span className="col-span-1 text-right">Amount</span>
+              <span className="col-span-5">Description</span>
+              <span className="col-span-2 text-right">Price</span>
+              <span className="col-span-2 text-right">Amount</span>
             </div>
 
             {cart.map((item, index) => (
-              <div key={item.uniqueId} className="grid grid-cols-12 gap-1 mb-1">
+              <div key={item.uniqueId} className="grid grid-cols-12 gap-1 mb-1 text-foreground">
                 <span className="col-span-1">{index + 1}</span>
                 <span className="col-span-2">(x{item.quantity})</span>
-                <span className="col-span-7 break-words">
-                  {item.name}
-                  {item.details ? ` (${item.details})` : ""}
+                <span className="col-span-5 break-words">
+                  {(() => {
+                      // Clean up name by removing bottle info if present
+                      let cleanName = item.name
+                        .replace(/\s*\(?(\d+(\.\d+)?[Ll])\s+(open|closed)\s+bottle\)?/i, "") // Remove "(1L closed bottle)" or similar
+                        .replace(/\s*\(?(open|closed)\s+bottle\)?/i, "") // Remove "(open bottle)" etc
+                        .trim();
+                      
+                      // Clean up details similarly
+                      let cleanDetails = item.details 
+                        ? item.details
+                            .replace(/\s*\(?(\d+(\.\d+)?[Ll])\s+(open|closed)\s+bottle\)?/i, "$1") // Keep size e.g. "1L"
+                            .replace(/\s*\(?(open|closed)\s+bottle\)?/i, "")
+                            .trim()
+                        : "";
+                      
+                      // Combine carefully
+                      if (cleanDetails && !cleanName.includes(cleanDetails)) {
+                         return `${cleanName} (${cleanDetails})`;
+                      }
+                      return cleanName;
+                  })()}
                 </span>
-                <span className="col-span-1 text-right">
+                <span className="col-span-2 text-right">
                   {item.price.toFixed(3)}
                 </span>
-                <span className="col-span-1 text-right">
+                <span className="col-span-2 text-right">
                   {(item.price * item.quantity).toFixed(3)}
                 </span>
               </div>
@@ -521,19 +556,31 @@ export const ReceiptComponent = ({
               شكراً للتسوق معنا
             </p>
             <p className="font-medium mt-2">
-              WhatsApp {brand.whatsapp || "72702537"} for latest offers
+              WhatsApp {brand.whatsapp || ""} for latest offers
             </p>
           </div>
         </div>
       </div>
 
-      <Button
-        onClick={handlePrint}
-        className="w-full flex items-center justify-center gap-2 mt-2"
-      >
-        <Printer className="h-4 w-4" />
-        Print Receipt
-      </Button>
+      <div className="flex flex-row gap-4 mt-4">
+        {onClose && (
+          <Button
+            variant="chonky-secondary"
+            onClick={onClose}
+            className="flex-1"
+          >
+            Close
+          </Button>
+        )}
+        <Button
+          variant="chonky"
+          onClick={handlePrint}
+          className="flex-1 flex items-center justify-center gap-2"
+        >
+          <Printer className="h-4 w-4" />
+          Print Receipt
+        </Button>
+      </div>
     </motion.div>
   );
 };

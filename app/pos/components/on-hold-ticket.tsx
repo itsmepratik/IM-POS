@@ -106,12 +106,12 @@ Thank you for choosing ${companyInfo.brand.name}
             className="bg-white rounded-lg p-4 w-full max-w-[400px] mx-auto shadow-lg"
           >
             {/* Ticket Header */}
-            <div className="text-center mb-4 border-b-2 border-orange-400 pb-3">
-              <div className="bg-orange-100 rounded-lg p-3 mb-3">
-                <h2 className="text-2xl font-bold text-orange-800 mb-1">
+            <div className="text-center mb-4 border-b-2 border-primary/50 pb-3">
+              <div className="bg-primary/20 rounded-lg p-3 mb-3">
+                <h2 className="text-2xl font-bold text-black mb-1">
                   ON HOLD TICKET
                 </h2>
-                <p className="text-lg font-semibold text-orange-700">
+                <p className="text-lg font-semibold text-black/80">
                   #{ticketNumber}
                 </p>
               </div>
@@ -149,7 +149,7 @@ Thank you for choosing ${companyInfo.brand.name}
                 <span className="font-medium text-gray-700">
                   Vehicle Plate:
                 </span>
-                <p className="text-xl font-bold text-orange-800 bg-orange-50 rounded px-2 py-1 mt-1 text-center">
+                <p className="text-xl font-bold text-black bg-primary/20 rounded px-2 py-1 mt-1 text-center">
                   {carPlateNumber}
                 </p>
               </div>
@@ -212,13 +212,23 @@ Thank you for choosing ${companyInfo.brand.name}
         </div>
 
         {/* Action Buttons - Matching receipt button layout */}
-        <Button
-          onClick={onPrint}
-          className="w-full flex items-center justify-center gap-2 mt-2"
-        >
-          <Printer className="h-4 w-4" />
-          Print Ticket
-        </Button>
+        <div className="flex flex-row gap-4 mt-4">
+          <Button
+            variant="chonky-secondary"
+            onClick={onClose}
+            className="flex-1"
+          >
+            Close
+          </Button>
+          <Button
+            onClick={onPrint}
+            variant="chonky"
+            className="flex-1 flex items-center justify-center gap-2"
+          >
+            <Printer className="h-4 w-4" />
+            Print Ticket
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );

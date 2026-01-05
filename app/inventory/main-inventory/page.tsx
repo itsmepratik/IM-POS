@@ -505,7 +505,7 @@ const TableRow = memo(
             <div className="flex gap-2">
               <Badge
                 variant="outline"
-                className="bg-orange-50 text-orange-700 border-orange-200 gap-1"
+                  className="bg-[#d5f365]/20 text-[#4a5200] border-[#d5f365]/50 gap-1"
               >
                 <Box className="h-3.5 w-3.5" />
                 Batches: {batchCount}
@@ -791,9 +791,9 @@ function MobileView() {
             />
           </div>
           <Button
-            variant="outline"
+            variant="ghost"
             size="sm"
-            className="p-2"
+            className="p-2 rounded-[12px] bg-white border-none"
             onClick={() => setFiltersOpen(true)}
           >
             <Filter className="h-4 w-4" />
@@ -803,13 +803,13 @@ function MobileView() {
         {/* Buttons row below search */}
         <div className="flex items-center gap-2 justify-between">
           <div className="flex items-center gap-2 pl-1">
-            <Button onClick={openAddItemModal} size="sm" className="overflow-visible">
+            <Button onClick={openAddItemModal} variant="chonky" size="sm" className="overflow-visible">
               <Plus className="h-4 w-4 mr-1" />
               Add
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="shrink-0">
+                <Button variant="outline" size="sm" className="shrink-0 rounded-[12px] pl-6">
                   More Options
                   <ChevronDown className="h-4 w-4 ml-1" />
                 </Button>
@@ -843,7 +843,7 @@ function MobileView() {
               variant="ghost"
               size="sm"
               onClick={handleClearAllFilters}
-              className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground"
+              className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground rounded-[12px]"
             >
               <X className="h-3 w-3 mr-1" />
               Clear All
@@ -852,8 +852,8 @@ function MobileView() {
           <div className="py-4 space-y-6">
             {/* Price Range Filter */}
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                <span className="text-green-600">💰</span>
+              <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                <span className="text-slate-500">💰</span>
                 Price Range
               </label>
               <div className="flex items-center gap-2">
@@ -862,28 +862,28 @@ function MobileView() {
                   placeholder="Min"
                   value={minPrice}
                   onChange={handleMinPriceChange}
-                  className="flex-1"
+                  className="flex-1 rounded-[12px] border-slate-200"
                 />
-                <span className="text-gray-400">-</span>
+                <span className="text-slate-400">-</span>
                 <Input
                   type="number"
                   placeholder="Max"
                   value={maxPrice}
                   onChange={handleMaxPriceChange}
-                  className="flex-1"
+                  className="flex-1 rounded-[12px] border-slate-200"
                 />
               </div>
             </div>
 
             {/* Stock Status Filter */}
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                <span className="text-orange-600">📦</span>
+              <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                <span className="text-slate-500">📦</span>
                 Stock Status
               </label>
               <ClientOnly>
                 <Select value={stockStatus} onValueChange={setStockStatus}>
-                  <SelectTrigger className="w-full">
+                  <SelectTrigger className="w-full rounded-[12px] border-slate-200">
                     <SelectValue placeholder="All Stock" />
                   </SelectTrigger>
                   <SelectContent>
@@ -903,7 +903,7 @@ function MobileView() {
                   value={selectedCategory}
                   onValueChange={handleCategoryChange}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="rounded-[12px] border-slate-200">
                     <SelectValue placeholder="All Categories" />
                   </SelectTrigger>
                   <SelectContent>
@@ -923,7 +923,7 @@ function MobileView() {
               <h3 className="text-sm font-medium">Brands</h3>
               <ClientOnly>
                 <Select value={selectedBrand} onValueChange={handleBrandChange}>
-                  <SelectTrigger>
+                  <SelectTrigger className="rounded-[12px] border-slate-200">
                     <SelectValue placeholder="All Brands" />
                   </SelectTrigger>
                   <SelectContent>
@@ -1372,9 +1372,9 @@ function DesktopView() {
 
         <div className="flex-shrink-0 space-x-2">
           <Button
-            variant="outline"
+            variant="ghost"
             onClick={() => setShowFilters(!showFilters)}
-            className="rounded-[2.0625rem] p-2"
+            className="rounded-[12px] p-2 bg-white border-none"
             size="sm"
           >
             <Filter className="h-4 w-4" />
@@ -1383,7 +1383,7 @@ function DesktopView() {
             <DropdownMenuTrigger asChild>
               <Button
                 variant="outline"
-                className="rounded-[2.0625rem]"
+                className="rounded-[12px] pl-6"
                 size="sm"
               >
                 More Options
@@ -1406,7 +1406,7 @@ function DesktopView() {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <Button onClick={openAddItemModal}>
+          <Button onClick={openAddItemModal} variant="chonky">
             <Plus className="h-4 w-4 mr-1"/>
             Add Item
           </Button>
@@ -1466,11 +1466,11 @@ function DesktopView() {
 
       {/* Awesome Filter Section - Desktop Only */}
       {showFilters && (
-        <div className="bg-gradient-to-r from-orange-50/50 via-white to-purple-50/50 backdrop-blur-sm border border-orange-200/50 rounded-[1.125rem] p-6 shadow-lg">
+        <div className="bg-slate-50/50 backdrop-blur-sm border border-slate-200 rounded-[12px] p-6 shadow-sm">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-orange-100 rounded-full">
-                <Filter className="h-5 w-5 text-orange-600" />
+              <div className="p-2 bg-slate-200 rounded-full">
+                <Filter className="h-5 w-5 text-slate-600" />
               </div>
               <div>
                 <h3 className="text-lg font-semibold text-gray-900">
@@ -1485,7 +1485,7 @@ function DesktopView() {
               variant="ghost"
               size="sm"
               onClick={handleClearAllFilters}
-              className="rounded-[2.0625rem] text-gray-600 hover:bg-gray-100"
+              className="rounded-[12px] text-slate-600 hover:bg-slate-100"
             >
               <X className="h-4 w-4 mr-1" />
               Clear All
@@ -1495,8 +1495,8 @@ function DesktopView() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {/* Price Range Filter */}
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                <span className="text-green-600">💰</span>
+              <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                <span className="text-slate-500">💰</span>
                 Price Range
               </label>
               <div className="flex items-center gap-2">
@@ -1505,27 +1505,27 @@ function DesktopView() {
                   placeholder="Min"
                   value={minPrice}
                   onChange={handleMinPriceChange}
-                  className="flex-1 rounded-[2.0625rem] border-gray-300 focus:border-orange-500 focus:ring-orange-500"
+                  className="flex-1 rounded-[12px] border-slate-200 focus:border-slate-400 focus:ring-slate-400/20"
                 />
-                <span className="text-gray-400">-</span>
+                <span className="text-slate-400">-</span>
                 <Input
                   type="number"
                   placeholder="Max"
                   value={maxPrice}
                   onChange={handleMaxPriceChange}
-                  className="flex-1 rounded-[2.0625rem] border-gray-300 focus:border-orange-500 focus:ring-orange-500"
+                  className="flex-1 rounded-[12px] border-slate-200 focus:border-slate-400 focus:ring-slate-400/20"
                 />
               </div>
             </div>
 
             {/* Stock Status Filter */}
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                <span className="text-orange-600">📦</span>
+              <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                <span className="text-slate-500">📦</span>
                 Stock Status
               </label>
               <Select value={stockStatus} onValueChange={setStockStatus}>
-                <SelectTrigger className="w-full rounded-[2.0625rem] border-gray-300 focus:border-orange-500 focus:ring-orange-500">
+                <SelectTrigger className="w-full rounded-[12px] border-slate-200 focus:border-slate-400 focus:ring-slate-400/20">
                   <SelectValue placeholder="All Stock" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1539,15 +1539,15 @@ function DesktopView() {
 
             {/* Category Filter */}
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                <span className="text-orange-600">📂</span>
+              <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                <span className="text-slate-500">📂</span>
                 Category
               </label>
               <Select
                 value={selectedCategory}
                 onValueChange={handleCategoryChange}
               >
-                <SelectTrigger className="w-full rounded-[2.0625rem] border-gray-300 focus:border-orange-500 focus:ring-orange-500">
+                <SelectTrigger className="w-full rounded-[12px] border-slate-200 focus:border-slate-400 focus:ring-slate-400/20">
                   <SelectValue placeholder="All Categories" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1563,12 +1563,12 @@ function DesktopView() {
 
             {/* Brand Filter */}
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                <span className="text-purple-600">🏷️</span>
+              <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                <span className="text-slate-500">🏷️</span>
                 Brand
               </label>
               <Select value={selectedBrand} onValueChange={handleBrandChange}>
-                <SelectTrigger className="w-full rounded-[2.0625rem] border-gray-300 focus:border-orange-500 focus:ring-orange-500">
+                <SelectTrigger className="w-full rounded-[12px] border-slate-200 focus:border-slate-400 focus:ring-slate-400/20">
                   <SelectValue placeholder="All Brands" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1586,8 +1586,8 @@ function DesktopView() {
 
             {/* Stock Options Filter */}
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                <span className="text-green-600">📊</span>
+              <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                <span className="text-slate-500">📊</span>
                 Stock Options
               </label>
               <div className="space-y-2">

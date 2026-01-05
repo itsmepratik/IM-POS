@@ -28,6 +28,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Search, ArrowLeft, Check, AlertCircle, Printer, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Loader } from "@/src/components/ui/shadcn-io/ai/loader";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui/use-toast";
 import { BillComponent } from "./bill-component";
@@ -1660,18 +1661,10 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
                 disabled={isProcessingRefund || !enteredCashierId.trim()}
               >
                 {isProcessingRefund ? (
-                  <>
-                    <motion.div
-                      animate={{ rotate: 360 }}
-                      transition={{
-                        duration: 1,
-                        repeat: Infinity,
-                        ease: "linear",
-                      }}
-                      className="h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2"
-                    />
+                  <div className="flex items-center justify-center w-full">
+                    <Loader size={16} className="text-white mr-2" />
                     Processing...
-                  </>
+                  </div>
                 ) : (
                   "Authorize"
                 )}
@@ -1687,7 +1680,7 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
 export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
   const { toast } = useToast();
   const { staffMembers } = useStaffIDs();
-  const { brand, registered } = useCompanyInfo();
+  const { brand, registered, thankYouMessage } = useCompanyInfo();
   const { currentBranch, inventoryLocationId } = useBranch();
   const [receiptNumber, setReceiptNumber] = useState("");
   const [currentReceipt, setCurrentReceipt] = useState<Receipt | null>(null);
@@ -2128,6 +2121,7 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
       return;
     }
 
+
     // Use the A5 format HTML for battery warranty claims
     const htmlContent = `
       <!DOCTYPE html>
@@ -2141,17 +2135,40 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
             size: A5;
             margin: 0;
           }
+          @font-face {
+            font-family: 'Formula1';
+            src: url('/fonts/Formula1-Bold-4.ttf') format('truetype');
+            font-weight: bold;
+            font-style: normal;
+          }
+          @font-face {
+            font-family: 'Formula1';
+            src: url('/fonts/Formula1-Regular-1.ttf') format('truetype');
+            font-weight: normal;
+            font-style: normal;
+          }
+          @font-face {
+            font-family: 'Formula1';
+            src: url('/fonts/Formula1-Black.ttf') format('truetype');
+            font-weight: 900;
+            font-style: normal;
+          }
+
           html, body {
             height: 100%;
             margin: 0;
             padding: 0;
+            font-family: 'Formula1', sans-serif;
           }
           body {
-            font-family: sans-serif;
+            font-family: 'Formula1', sans-serif !important;
             font-size: 10pt;
             line-height: 1.3;
             width: 100%;
             color: #000;
+          }
+          * {
+            font-family: 'Formula1', sans-serif !important;
           }
           .bill-container {
             width: calc(100% - 4mm); 
@@ -2163,6 +2180,20 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
             flex-direction: column;
             justify-content: space-between;
           }
+          /* Exact Styles from BillComponent */
+          .company-name {
+            color: #0000CC;
+            font-size: 16.5px;
+            font-weight: bold;
+            text-transform: uppercase;
+            white-space: nowrap;
+          }
+          .company-arabic-name {
+            color: #0000CC;
+            font-size: 15.5px;
+            font-weight: bold;
+            margin-top: 2px;
+          }
           .header-table {
             width: 100%;
             border-collapse: collapse;
@@ -2173,59 +2204,51 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
             padding: 0;
           }
           .left-header {
-            width: 30%;
+            width: 50%;
             text-align: left;
-            font-size: 8px !important;
+            color: #777 !important;
+            line-height: 1.2 !important;
+            zoom: 0.95; 
             -webkit-text-size-adjust: none;
-            transform-origin: left top;
-            transform: scale(0.8);
-          }
-          .center-header {
-            width: 40%;
-            text-align: center;
           }
           .right-header {
-            width: 30%;
+            width: 50%;
             text-align: right;
-            font-size: 8px !important;
-            -webkit-text-size-adjust: none;
-            transform-origin: right top;
-            transform: scale(0.8);
+            color: #777 !important;
+            line-height: 1.2 !important;
             direction: rtl;
+            zoom: 0.95;
+            -webkit-text-size-adjust: none;
           }
-          .company-name {
-            color: #0000CC;
-            font-size: 9pt;
-            font-weight: bold;
-            text-transform: uppercase;
-            white-space: nowrap;
+          .cr-number, .cr-number-line {
+            font-weight: bold !important;
+            color: #555 !important;
           }
-          .company-arabic-name {
-            color: #0000CC;
-            font-size: 8pt;
-            font-weight: bold;
-            margin-top: 2px;
+          @media print {
+            .left-header, .left-header div, .right-header, .right-header div {
+              font-size: 15px !important;
+              color: #666 !important;
+            }
           }
-          .cr-number {
-            font-weight: normal;
+          .left-header div, .right-header div {
+            font-size: 12px !important; 
           }
+          
           .service-description {
             text-align: center;
             font-weight: bold;
-            font-size: 9px;
+            font-size: 13.5px;
             margin: 15px 0;
-            border-top: 1px solid #ccc;
-            border-bottom: 1px solid #ccc;
             padding: 6px 0;
           }
           .service-description-arabic {
-            font-size: 8px;
+            font-size: 12.5px;
             margin-top: 2px;
           }
           .warranty-claim-text {
             text-align: center;
             font-weight: bold;
-            font-size: 9px;
+            font-size: 11px;
             margin-top: 5px;
             color: #D9534F;
             display: block;
@@ -2240,28 +2263,28 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
           }
           .bill-number {
             text-align: left;
-            font-size: 9px;
+            font-size: 13.5px;
           }
           .print-date {
             text-align: right;
-            font-size: 9px;
+            font-size: 13.5px;
           }
           .customer-info {
             text-align: left;
-            font-size: 9px;
+            font-size: 13.5px;
             font-weight: bold;
             margin-bottom: 8px;
           }
           .car-plate {
             text-align: right;
-            font-size: 9px;
+            font-size: 13.5px;
             font-weight: bold;
           }
           .items-table {
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 20px;
-            font-size: 9px;
+            font-size: 13.5px;
           }
           .items-table th, .items-table td {
             padding: 6px 5px;
@@ -2284,7 +2307,7 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
           .summary-table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 9px;
+            font-size: 13.5px;
           }
           .summary-table td {
             padding: 3px 0;
@@ -2300,12 +2323,9 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
             border-top: 1px solid #000;
             margin: 6px 0;
           }
-          .trade-in {
-            color: #D9534F;
-          }
           .total-row {
             font-weight: bold;
-            font-size: 10px;
+            font-size: 15.5px;
             color: #0000CC;
           }
           .cashier-section {
@@ -2313,12 +2333,11 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
             justify-content: space-between;
             margin-top: 5px;
             margin-bottom: 0;
-            font-size: 8px !important;
+            font-size: 12.5px !important;
             -webkit-text-size-adjust: none;
           }
           .cashier-info {
             text-align: left;
-            transform-origin: left center;
           }
           .signature-line {
             text-align: right;
@@ -2329,26 +2348,17 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
             width: 150px;
             text-align: center;
             padding-top: 3px;
-            font-size: 8px !important;
+            font-size: 12.5px !important;
             -webkit-text-size-adjust: none;
-            transform-origin: right center;
-            transform: scale(0.8);
             color: #777;
           }
           .footer {
             text-align: center;
-            font-size: 8px !important;
+            font-size: 12.5px !important;
             -webkit-text-size-adjust: none;
-            transform-origin: center top;
-            transform: scale(0.8);
             color: #333;
             width: 100%;
-            padding-top: 0;
-            margin-top: 0;
-            margin-bottom: 0;
-            position: relative;
-            left: 0;
-            right: 0;
+            margin-top: 5px;
           }
           .footer-contact {
             font-weight: bold;
@@ -2356,24 +2366,36 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
           }
           .footer-phone-numbers {
             margin-bottom: 1px;
+            direction: rtl;
           }
           .footer-thank-you {
             font-style: italic;
-            font-size: 7px !important;
+            font-size: 12.5px !important;
             -webkit-text-size-adjust: none;
             line-height: 1.2;
+            white-space: pre-line;
           }
         </style>
       </head>
       <body>
         <div class="bill-container">
-          <!-- Header with three columns -->
+          
+          <!-- Header Structure Matching BillComponent -->
+          <div style="text-align: center; margin-bottom: 8px;">
+            <div class="company-name">${registered.name || ""}</div>
+            ${
+              registered.arabicName
+                ? `<div class="company-arabic-name">${registered.arabicName}</div>`
+                : ""
+            }
+          </div>
+
           <table class="header-table">
             <tr>
               <td class="left-header">
                 ${
                   registered.crNumber
-                    ? `<div>C.R. No.: ${registered.crNumber}</div>`
+                    ? `<div class="cr-number-line">C.R. No.: ${registered.crNumber}</div>`
                     : ""
                 }
                 ${
@@ -2395,14 +2417,6 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
                     : ""
                 }
               </td>
-              <td class="center-header">
-                <div class="company-name">${registered.name || ""}</div>
-                ${
-                  registered.arabicName
-                    ? `<div class="company-arabic-name">${registered.arabicName}</div>`
-                    : ""
-                }
-              </td>
               <td class="right-header">
                 ${
                   registered.crNumber
@@ -2410,21 +2424,16 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
                     : ""
                 }
                 ${
-                  Array.isArray(registered.addressLines) &&
-                  registered.addressLines[0]
-                    ? `<div>ولاية ${registered.addressLines[0]}</div>`
+                  // Use ARABIC address lines for the right column
+                  Array.isArray(registered.arabicAddressLines) &&
+                  registered.arabicAddressLines[0]
+                    ? `<div>${registered.arabicAddressLines[0]}</div>`
                     : ""
                 }
                 ${
-                  Array.isArray(registered.addressLines) &&
-                  registered.addressLines[1]
-                    ? `<div>${registered.addressLines[1]}</div>`
-                    : ""
-                }
-                ${
-                  Array.isArray(registered.addressLines) &&
-                  registered.addressLines[2]
-                    ? `<div>${registered.addressLines[2]}</div>`
+                  Array.isArray(registered.arabicAddressLines) &&
+                  registered.arabicAddressLines[1]
+                    ? `<div>${registered.arabicAddressLines[1]}</div>`
                     : ""
                 }
               </td>
@@ -2433,14 +2442,14 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
 
           <!-- Service description -->
           <div class="service-description">
-            TYRE REPAIRING & LUBRICANT CHANGING OF VEHICLES
-                          <div class="service-description-arabic">إصلاح الإطارات وتغيير مواد التشحيم للمركبات</div>
+            ${registered.serviceDescription?.english || "TYRE REPAIRING & LUBRICANT CHANGING OF VEHICLES"}
+                          <div class="service-description-arabic">${registered.serviceDescription?.arabic || "إصلاح الإطارات وتغيير مواد التشحيم للمركبات"}</div>
           </div>
           
           <!-- Warranty claim text -->
-          <div style="text-align: center; font-weight: bold; font-size: 9px; margin: 8px 0; color: #D9534F; border-bottom: 1px solid #ccc; padding-bottom: 6px;">
+          <div style="text-align: center; font-weight: bold; font-size: 13.5px; margin: 8px 0; color: #D9534F; border-bottom: 1px solid #ccc; padding-bottom: 6px;">
             <span style="border: 1px solid #D9534F; padding: 2px 8px; display: inline-block;">WARRANTY CLAIM CERTIFICATE</span>
-            <div style="font-size: 9px; margin-top: 4px; color: #D9534F;">شهادة ضمان</div>
+            <div style="font-size: 13.5px; margin-top: 4px; color: #D9534F;">شهادة ضمان</div>
           </div>
 
           <!-- Bill info with two columns -->
@@ -2458,8 +2467,8 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
           <!-- Customer info with two columns -->
           <table class="bill-info-table">
             <tr>
-              <td class="customer-info">To, Mr./Mrs.: ${customerName || ""}</td>
-              <td class="car-plate">Warranty Type: Battery</td>
+              <td class="customer-info">To, Mr./Mrs.: <span class="customer-name">${customerName || ""}</span></td>
+              <td class="car-plate">Warranty Type: <span class="plate-number">Battery</span></td>
             </tr>
           </table>
 
@@ -2514,12 +2523,9 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
 
           <hr style="width: 100%; border: none; border-top: 1px solid #ccc; margin: 5px 0 2px 0;" />
           <div class="footer" style="border-top: none;">
-            ${
-              registered.contactNumber
-                ? `<div class="footer-contact">Contact no.: ${registered.contactNumber}</div>`
-                : ""
-            }
-            <div class="footer-thank-you" style="white-space: pre-line;">Thank you for trusting us with your warranty claim\nشكراً لثقتكم بنا</div>
+            <div class="footer-contact">Contact no.: ${registered.contactNumber}</div>
+            <div class="footer-phone-numbers" style="direction: rtl;">رقم الاتصال: ${registered.contactNumberArabic || ""}</div>
+            <div class="footer-thank-you" style="white-space: pre-line;">${thankYouMessage?.english + "\n" + thankYouMessage?.arabic}</div>
           </div>
         </div>
       </body>
@@ -2567,9 +2573,9 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="w-[95%] max-w-[600px] h-auto max-h-[80vh] rounded-lg overflow-auto flex flex-col p-3 sm:p-4">
-          <DialogHeader className="px-3 pt-2 pb-2">
-            <DialogTitle className="text-xl flex items-center gap-2">
+      <DialogContent className="w-[95%] max-w-[600px] h-auto max-h-[85vh] rounded-lg flex flex-col overflow-hidden text-sm sm:text-base">
+          <DialogHeader className="p-0 bg-background shrink-0 pb-6">
+            <DialogTitle className="text-lg sm:text-xl flex items-center gap-2">
               {step !== "search" && step !== "processing" && (
                 <Button
                   variant="ghost"
@@ -2587,8 +2593,8 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
               {step === "complete" && "Claim Complete"}
             </DialogTitle>
           </DialogHeader>
-          <div className="flex-1 overflow-y-auto">
-            <div className="px-3 pb-3 space-y-3">
+          <div className="flex-1 overflow-y-auto py-1 px-0">
+            <div className="space-y-3">
               <AnimatePresence mode="wait">
                 {step === "search" && (
                   <motion.div
@@ -2975,7 +2981,7 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
               </AnimatePresence>
             </div>
           </div>
-          <DialogFooter className="px-3 py-3 border-t flex-wrap gap-y-2">
+          <DialogFooter className="p-0 bg-background shrink-0 flex-wrap gap-y-2 pt-6">
             {step === "search" && (
               <div className="flex gap-2 sm:gap-3 w-full justify-end flex-wrap">
                 <Button variant="chonky-secondary" onClick={handleCloseDialog}>
@@ -3027,29 +3033,29 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
                 {!showRefundReceipt && (
                   <Button
                     onClick={() => setShowRefundReceipt(true)}
-                    className="gap-2"
-                    variant="chonky"
+                    className="flex-1 gap-2"
+                    variant="chonky-secondary"
                   >
                     <Printer className="h-4 w-4" /> View Warranty Bill
                   </Button>
                 )}
                 {showRefundReceipt && (
-                  <div className="flex gap-2 sm:gap-3 w-full justify-end flex-wrap">
+                  <div className="flex flex-row gap-4 w-full">
                     <Button
                       variant="chonky-secondary"
                       onClick={() => setShowRefundReceipt(false)}
-                      className="gap-2"
+                      className="flex-1 gap-2"
                     >
                       Back
                     </Button>
-                    <Button onClick={handlePrint} className="gap-2" variant="chonky">
+                    <Button onClick={handlePrint} className="flex-1 gap-2" variant="chonky-secondary">
                       <Printer className="h-4 w-4" /> Print Warranty Bill
                     </Button>
-                    <Button onClick={handleCloseDialog} variant="chonky">Done</Button>
+                    <Button onClick={handleCloseDialog} variant="chonky" className="flex-1">Done</Button>
                   </div>
                 )}
                 {!showRefundReceipt && (
-                  <Button onClick={handleCloseDialog} variant="chonky">Done</Button>
+                  <Button onClick={handleCloseDialog} variant="chonky" className="flex-1">Done</Button>
                 )}
               </div>
             )}
@@ -3156,18 +3162,10 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
                 className={cn(buttonVariants({ variant: "chonky" }))}
               >
                 {isProcessingRefund ? (
-                  <>
-                    <motion.div
-                      animate={{ rotate: 360 }}
-                      transition={{
-                        duration: 1,
-                        repeat: Infinity,
-                        ease: "linear",
-                      }}
-                      className="h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2"
-                    />
+                  <div className="flex items-center justify-center w-full">
+                    <Loader size={16} className="text-white mr-2" />
                     Processing...
-                  </>
+                  </div>
                 ) : (
                   "Authorize"
                 )}

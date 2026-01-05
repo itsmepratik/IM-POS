@@ -45,9 +45,9 @@ export function ImportDialog({ isOpen, onClose, onImport }: ImportDialogProps) {
           </p>
         </div>
         
-        <DialogFooter className="mt-4">
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleImport}>Import</Button>
+        <DialogFooter className="mt-4 gap-2 sm:gap-0">
+          <Button variant="chonky-secondary" onClick={onClose}>Cancel</Button>
+          <Button variant="chonky" onClick={handleImport}>Import</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

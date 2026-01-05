@@ -95,13 +95,8 @@ import {
   AccordionTrigger,
   AccordionContent,
 } from "@/components/ui/accordion";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Loader } from "@/src/components/ui/shadcn-io/ai/loader";
 
 // Import the RefundDialog component
 import { RefundDialog, WarrantyDialog } from "./components/refund-dialog";
@@ -293,7 +288,7 @@ const ProductButton = memo(
         >
           {product.name}
         </span>
-        <span className="block text-sm text-primary mt-2">
+        <span className="block text-sm font-medium text-foreground mt-2">
           OMR {product.price.toFixed(3)}
         </span>
       </div>
@@ -439,7 +434,10 @@ function POSCustomerForm({
       );
       if (response.ok) {
         const data = await response.json();
-        setExistingCustomers(data.customers || []);
+        const sortedCustomers = (data.customers || []).sort((a: any, b: any) => 
+          (a.displayText || "").localeCompare(b.displayText || "")
+        );
+        setExistingCustomers(sortedCustomers);
       }
     } catch (error) {
       console.error("Error fetching customers:", error);
@@ -637,8 +635,8 @@ function POSCustomerForm({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-[90%] max-w-[600px] max-h-[90vh] rounded-lg overflow-hidden flex flex-col pb-20 sm:pb-4">
-        <DialogHeader className="px-6 pt-6 pb-2 shrink-0">
+      <DialogContent className="w-[90%] max-w-[600px] max-h-[85vh] rounded-lg flex flex-col overflow-hidden">
+        <DialogHeader className="p-0 shrink-0 pb-6">
           <div className="flex items-center gap-4">
             <DialogTitle>
               {selectedCustomerId ? "Selected Customer" : "Add New Customer"}
@@ -672,321 +670,313 @@ function POSCustomerForm({
             </Button>
           </div>
         </DialogHeader>
-        <div className="flex-1 overflow-hidden">
-          <ScrollArea
-            className="h-full overflow-auto pr-2"
-            style={{ maxHeight: "calc(85vh - 12rem)" }}
+        
+        <div className="flex-1 overflow-y-auto py-1 px-0 min-h-0">
+          <form
+            id="customer-form"
+            onSubmit={handleSubmit}
+            className="space-y-6 pb-2"
           >
-            <div className="px-6 pb-6">
-              <form
-                id="customer-form"
-                onSubmit={handleSubmit}
-                className="space-y-6"
-              >
-                <div className="space-y-4">
-                  {/* Customer Selector Dropdown */}
-                  <div className="space-y-2">
-                    <Label htmlFor="customer-select">
-                      Select Existing Customer
-                    </Label>
-                    <Select
-                      value={selectedCustomerId}
-                      onValueChange={handleCustomerSelect}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Choose an existing customer or create new..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <div className="p-2">
-                          <Input
-                            placeholder="Search customers..."
-                            value={customerSearchTerm}
-                            onChange={(e) =>
-                              setCustomerSearchTerm(e.target.value)
-                            }
-                            className="mb-2"
-                          />
-                        </div>
-                        {isLoadingCustomers ? (
-                          <SelectItem value="loading" disabled>
-                            Loading customers...
-                          </SelectItem>
-                        ) : existingCustomers.length > 0 ? (
-                          <>
-                            <SelectItem value="new-customer">
-                              Create New Customer
-                            </SelectItem>
-                            {existingCustomers.map((customer) => (
-                              <SelectItem key={customer.id} value={customer.id}>
-                                {customer.displayText}
-                              </SelectItem>
-                            ))}
-                          </>
-                        ) : (
-                          <SelectItem value="no-customers" disabled>
-                            {customerSearchTerm
-                              ? "No customers found"
-                              : "No customers available"}
-                          </SelectItem>
-                        )}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <Label htmlFor="name">Full Name</Label>
-                      {selectedCustomerId && (
-                        <Badge variant="secondary" className="text-xs">
-                          From existing customer
-                        </Badge>
-                      )}
-                    </div>
-                    <Input
-                      id="name"
-                      value={formData.name}
-                      onChange={(e) =>
-                        setFormData({ ...formData, name: e.target.value })
-                      }
-                      placeholder="Customer full name"
-                      required
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="email">Email</Label>
+            <div className="space-y-4">
+              {/* Customer Selector Dropdown */}
+              <div className="space-y-2">
+                <Label htmlFor="customer-select">
+                  Select Existing Customer
+                </Label>
+                <Select
+                  value={selectedCustomerId}
+                  onValueChange={handleCustomerSelect}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Choose an existing customer or create new..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <div className="p-2">
                       <Input
-                        id="email"
-                        value={formData.email}
+                        placeholder="Search customers..."
+                        value={customerSearchTerm}
                         onChange={(e) =>
-                          setFormData({ ...formData, email: e.target.value })
+                          setCustomerSearchTerm(e.target.value)
                         }
-                        placeholder="customer@example.com"
-                        type="email"
+                        className="mb-2"
                       />
                     </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="phone">Phone</Label>
-                      <Input
-                        id="phone"
-                        value={formData.phone}
-                        onChange={(e) =>
-                          setFormData({ ...formData, phone: e.target.value })
-                        }
-                        placeholder="(555) 123-4567"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="address">Address</Label>
-                    <Textarea
-                      id="address"
-                      value={formData.address}
-                      onChange={(e) =>
-                        setFormData({ ...formData, address: e.target.value })
-                      }
-                      placeholder="Customer address"
-                      className="h-20"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="notes">Notes</Label>
-                    <Textarea
-                      id="notes"
-                      value={formData.notes}
-                      onChange={(e) =>
-                        setFormData({ ...formData, notes: e.target.value })
-                      }
-                      placeholder="Additional notes about the customer"
-                      className="h-20"
-                    />
-                  </div>
-
-                  <div className="space-y-3 pt-2">
-                    <div className="flex items-center justify-between">
-                      <Label>Vehicles ({formData.vehicles.length})</Label>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={addVehicle}
-                      >
-                        <Plus className="h-4 w-4 mr-1" /> Add Vehicle
-                      </Button>
-                    </div>
-
-                    {formData.vehicles.length > 0 ? (
-                      <Accordion type="multiple" className="w-full">
-                        {formData.vehicles.map((vehicle, idx) => (
-                          <AccordionItem
-                            key={vehicle.id}
-                            value={vehicle.id}
-                            className="border rounded-md px-3 my-2"
-                          >
-                            <div className="flex items-center">
-                              <Car className="h-4 w-4 mr-2 text-muted-foreground" />
-                              <AccordionTrigger className="flex-1 hover:no-underline py-2">
-                                <span className="text-sm">
-                                  {vehicle.make && vehicle.model
-                                    ? `${vehicle.make} ${vehicle.model} ${vehicle.year}`
-                                    : `Vehicle ${idx + 1}`}
-                                </span>
-                              </AccordionTrigger>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  removeVehicle(vehicle.id);
-                                }}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                            <AccordionContent className="pb-3 pt-1">
-                              <div className="grid grid-cols-2 gap-3">
-                                <div className="space-y-2">
-                                  <Label htmlFor={`make-${vehicle.id}`}>
-                                    Make
-                                  </Label>
-                                  <Input
-                                    id={`make-${vehicle.id}`}
-                                    value={vehicle.make}
-                                    onChange={(e) =>
-                                      updateVehicle(
-                                        vehicle.id,
-                                        "make",
-                                        e.target.value
-                                      )
-                                    }
-                                    placeholder="Toyota"
-                                  />
-                                </div>
-                                <div className="space-y-2">
-                                  <Label htmlFor={`model-${vehicle.id}`}>
-                                    Model
-                                  </Label>
-                                  <Input
-                                    id={`model-${vehicle.id}`}
-                                    value={vehicle.model}
-                                    onChange={(e) =>
-                                      updateVehicle(
-                                        vehicle.id,
-                                        "model",
-                                        e.target.value
-                                      )
-                                    }
-                                    placeholder="Camry"
-                                  />
-                                </div>
-                                <div className="space-y-2">
-                                  <Label htmlFor={`year-${vehicle.id}`}>
-                                    Year
-                                  </Label>
-                                  <Input
-                                    id={`year-${vehicle.id}`}
-                                    value={vehicle.year}
-                                    onChange={(e) =>
-                                      updateVehicle(
-                                        vehicle.id,
-                                        "year",
-                                        e.target.value
-                                      )
-                                    }
-                                    placeholder="2023"
-                                  />
-                                </div>
-                                <div className="space-y-2">
-                                  <Label htmlFor={`license-${vehicle.id}`}>
-                                    License Plate
-                                  </Label>
-                                  <Input
-                                    id={`license-${vehicle.id}`}
-                                    value={vehicle.licensePlate}
-                                    onChange={(e) =>
-                                      updateVehicle(
-                                        vehicle.id,
-                                        "licensePlate",
-                                        e.target.value
-                                      )
-                                    }
-                                    placeholder="ABC-1234"
-                                  />
-                                </div>
-                                <div className="space-y-2 col-span-2">
-                                  <Label htmlFor={`vin-${vehicle.id}`}>
-                                    VIN (Optional)
-                                  </Label>
-                                  <Input
-                                    id={`vin-${vehicle.id}`}
-                                    value={vehicle.vin || ""}
-                                    onChange={(e) =>
-                                      updateVehicle(
-                                        vehicle.id,
-                                        "vin",
-                                        e.target.value
-                                      )
-                                    }
-                                    placeholder="Vehicle Identification Number"
-                                  />
-                                </div>
-                                <div className="space-y-2 col-span-2">
-                                  <Label htmlFor={`notes-${vehicle.id}`}>
-                                    Vehicle Notes
-                                  </Label>
-                                  <Textarea
-                                    id={`notes-${vehicle.id}`}
-                                    value={vehicle.notes || ""}
-                                    onChange={(e) =>
-                                      updateVehicle(
-                                        vehicle.id,
-                                        "notes",
-                                        e.target.value
-                                      )
-                                    }
-                                    placeholder="Additional information about the vehicle"
-                                    className="h-16"
-                                  />
-                                </div>
-                              </div>
-                            </AccordionContent>
-                          </AccordionItem>
+                    {isLoadingCustomers ? (
+                      <SelectItem value="loading" disabled>
+                        Loading customers...
+                      </SelectItem>
+                    ) : existingCustomers.length > 0 ? (
+                      <>
+                        <SelectItem value="new-customer">
+                          Create New Customer
+                        </SelectItem>
+                        {existingCustomers.map((customer) => (
+                          <SelectItem key={customer.id} value={customer.id}>
+                            {customer.displayText}
+                          </SelectItem>
                         ))}
-                      </Accordion>
+                      </>
                     ) : (
-                      <div className="text-center py-6 border border-dashed rounded-md">
-                        <Car className="h-10 w-10 text-muted-foreground mx-auto mb-2" />
-                        <p className="text-sm text-muted-foreground">
-                          No vehicles added yet
-                        </p>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="mt-2"
-                          onClick={addVehicle}
-                        >
-                          <Plus className="h-4 w-4 mr-1" /> Add Vehicle
-                        </Button>
-                      </div>
+                      <SelectItem value="no-customers" disabled>
+                        {customerSearchTerm
+                          ? "No customers found"
+                          : "No customers available"}
+                      </SelectItem>
                     )}
-                  </div>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="name">Full Name</Label>
+                  {selectedCustomerId && (
+                    <Badge variant="secondary" className="text-xs">
+                      From existing customer
+                    </Badge>
+                  )}
+                </div>
+                <Input
+                  id="name"
+                  value={formData.name}
+                  onChange={(e) =>
+                    setFormData({ ...formData, name: e.target.value })
+                  }
+                  placeholder="Customer full name"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    value={formData.email}
+                    onChange={(e) =>
+                      setFormData({ ...formData, email: e.target.value })
+                    }
+                    placeholder="customer@example.com"
+                    type="email"
+                  />
                 </div>
 
-                {/* Add extra padding at the bottom to ensure content is fully scrollable */}
-                <div className="pb-20 sm:pb-10"></div>
-              </form>
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Phone</Label>
+                  <Input
+                    id="phone"
+                    value={formData.phone}
+                    onChange={(e) =>
+                      setFormData({ ...formData, phone: e.target.value })
+                    }
+                    placeholder="(555) 123-4567"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="address">Address</Label>
+                <Textarea
+                  id="address"
+                  value={formData.address}
+                  onChange={(e) =>
+                    setFormData({ ...formData, address: e.target.value })
+                  }
+                  placeholder="Customer address"
+                  className="h-20"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="notes">Notes</Label>
+                <Textarea
+                  id="notes"
+                  value={formData.notes}
+                  onChange={(e) =>
+                    setFormData({ ...formData, notes: e.target.value })
+                  }
+                  placeholder="Additional notes about the customer"
+                  className="h-20"
+                />
+              </div>
+
+              <div className="space-y-3 pt-2">
+                <div className="flex items-center justify-between">
+                  <Label>Vehicles ({formData.vehicles.length})</Label>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={addVehicle}
+                  >
+                    <Plus className="h-4 w-4 mr-1" /> Add Vehicle
+                  </Button>
+                </div>
+
+                {formData.vehicles.length > 0 ? (
+                  <Accordion type="multiple" className="w-full">
+                    {formData.vehicles.map((vehicle, idx) => (
+                      <AccordionItem
+                        key={vehicle.id}
+                        value={vehicle.id}
+                        className="border rounded-md px-3 my-2"
+                      >
+                        <div className="flex items-center">
+                          <Car className="h-4 w-4 mr-2 text-muted-foreground" />
+                          <AccordionTrigger className="flex-1 hover:no-underline py-2">
+                            <span className="text-sm">
+                              {vehicle.make && vehicle.model
+                                ? `${vehicle.make} ${vehicle.model} ${vehicle.year}`
+                                : `Vehicle ${idx + 1}`}
+                            </span>
+                          </AccordionTrigger>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              removeVehicle(vehicle.id);
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        <AccordionContent className="pb-3 pt-1">
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-2">
+                              <Label htmlFor={`make-${vehicle.id}`}>
+                                Make
+                              </Label>
+                              <Input
+                                id={`make-${vehicle.id}`}
+                                value={vehicle.make}
+                                onChange={(e) =>
+                                  updateVehicle(
+                                    vehicle.id,
+                                    "make",
+                                    e.target.value
+                                  )
+                                }
+                                placeholder="Toyota"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor={`model-${vehicle.id}`}>
+                                Model
+                              </Label>
+                              <Input
+                                id={`model-${vehicle.id}`}
+                                value={vehicle.model}
+                                onChange={(e) =>
+                                  updateVehicle(
+                                    vehicle.id,
+                                    "model",
+                                    e.target.value
+                                  )
+                                }
+                                placeholder="Camry"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor={`year-${vehicle.id}`}>
+                                Year
+                              </Label>
+                              <Input
+                                id={`year-${vehicle.id}`}
+                                value={vehicle.year}
+                                onChange={(e) =>
+                                  updateVehicle(
+                                    vehicle.id,
+                                    "year",
+                                    e.target.value
+                                  )
+                                }
+                                placeholder="2023"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor={`license-${vehicle.id}`}>
+                                License Plate
+                              </Label>
+                              <Input
+                                id={`license-${vehicle.id}`}
+                                value={vehicle.licensePlate}
+                                onChange={(e) =>
+                                  updateVehicle(
+                                    vehicle.id,
+                                    "licensePlate",
+                                    e.target.value
+                                  )
+                                }
+                                placeholder="ABC-1234"
+                              />
+                            </div>
+                            <div className="space-y-2 col-span-2">
+                              <Label htmlFor={`vin-${vehicle.id}`}>
+                                VIN (Optional)
+                              </Label>
+                              <Input
+                                id={`vin-${vehicle.id}`}
+                                value={vehicle.vin || ""}
+                                onChange={(e) =>
+                                  updateVehicle(
+                                    vehicle.id,
+                                    "vin",
+                                    e.target.value
+                                  )
+                                }
+                                placeholder="Vehicle Identification Number"
+                              />
+                            </div>
+                            <div className="space-y-2 col-span-2">
+                              <Label htmlFor={`notes-${vehicle.id}`}>
+                                Vehicle Notes
+                              </Label>
+                              <Textarea
+                                id={`notes-${vehicle.id}`}
+                                value={vehicle.notes || ""}
+                                onChange={(e) =>
+                                  updateVehicle(
+                                    vehicle.id,
+                                    "notes",
+                                    e.target.value
+                                  )
+                                }
+                                placeholder="Additional information about the vehicle"
+                                className="h-16"
+                              />
+                            </div>
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
+                    ))}
+                  </Accordion>
+                ) : (
+                  <div className="text-center py-6 border border-dashed rounded-md">
+                    <Car className="h-10 w-10 text-muted-foreground mx-auto mb-2" />
+                    <p className="text-sm text-muted-foreground">
+                      No vehicles added yet
+                    </p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="mt-2"
+                      onClick={addVehicle}
+                    >
+                      <Plus className="h-4 w-4 mr-1" /> Add Vehicle
+                    </Button>
+                  </div>
+                )}
+              </div>
             </div>
-          </ScrollArea>
+          </form>
         </div>
-        <DialogFooter className="px-6 py-4 border-t shrink-0 flex flex-col sm:flex-row gap-3 sm:gap-2 fixed bottom-0 left-0 right-0 bg-background sm:relative">
+
+        <DialogFooter className="p-0 bg-background shrink-0 flex flex-col sm:flex-row gap-3 sm:gap-2 pt-6">
           <Button
             type="button"
             variant="chonky-secondary"
@@ -2051,9 +2041,7 @@ function POSPageContent() {
       setIsCustomerFormOpen(true);
 
       // Generate transaction data for later use
-      const newReceiptNumber = `A${Math.floor(Math.random() * 10000)
-        .toString()
-        .padStart(4, "0")}`;
+
       const newCurrentDate = new Date().toLocaleDateString("en-GB");
       const newCurrentTime = new Date().toLocaleTimeString("en-GB", {
         hour: "2-digit",
@@ -2062,13 +2050,13 @@ function POSPageContent() {
       });
 
       console.log("📋 Transaction data generated:", {
-        receiptNumber: newReceiptNumber,
+        receiptNumber: "PENDING",
         currentDate: newCurrentDate,
         currentTime: newCurrentTime,
       });
 
       setTransactionData({
-        receiptNumber: newReceiptNumber,
+        receiptNumber: "",
         currentDate: newCurrentDate,
         currentTime: newCurrentTime,
       });
@@ -2089,8 +2077,8 @@ function POSPageContent() {
   };
 
   const handlePaymentComplete = () => {
-    // For on-hold mode, validate car plate number first, then proceed to cashier selection
-    if (isOnHoldMode) {
+    // For on-hold mode or battery sales, validate car plate number first, then proceed to cashier selection
+    if (isOnHoldMode || cartContainsAnyBatteries(cart)) {
       if (!carPlateNumber.trim()) {
         toast({
           title: "Missing Information",
@@ -2220,8 +2208,8 @@ function POSPageContent() {
           paymentMethod: "ON_HOLD", // Use ON_HOLD as the payment method
           cashierId: selectedCashier?.id || "on-hold-system", // Use the selected cashier ID
           cart: cartForAPI,
-          carPlateNumber: carPlateNumber.trim(), // Include the car plate number
-          customerId: currentCustomer?.id, // Include customer ID if available
+          carPlateNumber: carPlateNumber.trim() || undefined, // Normalize empty string to undefined
+          customerId: currentCustomer?.id || undefined, // Normalize null/empty to undefined
           ...(tradeInsForAPI ? { tradeIns: tradeInsForAPI } : {}),
           ...(appliedDiscount ? { discount: appliedDiscount } : {}),
         });
@@ -2256,6 +2244,15 @@ function POSPageContent() {
           });
         }
 
+        // Update transaction data with real reference number from server
+        const serverReferenceNumber = result.data?.transaction?.referenceNumber || result.data?.referenceNumber;
+        if (serverReferenceNumber) {
+          setTransactionData((prev) => ({
+            ...prev,
+            receiptNumber: serverReferenceNumber,
+          }));
+        }
+
         // Generate and show ticket for On Hold after successful API call
         setShowOnHoldTicket(true);
         setIsProcessingCheckout(false);
@@ -2282,11 +2279,8 @@ function POSPageContent() {
       return;
     }
 
-    // Ensure transaction data is generated if not already done
+    // Ensure transaction data is initialized (but wait for real ID)
     if (!transactionData.receiptNumber) {
-      const newReceiptNumber = `A${Math.floor(Math.random() * 10000)
-        .toString()
-        .padStart(4, "0")}`;
       const newCurrentDate = new Date().toLocaleDateString("en-GB");
       const newCurrentTime = new Date().toLocaleTimeString("en-GB", {
         hour: "2-digit",
@@ -2294,7 +2288,7 @@ function POSPageContent() {
         second: "2-digit",
       });
       setTransactionData({
-        receiptNumber: newReceiptNumber,
+        receiptNumber: "", // Wait for server reference
         currentDate: newCurrentDate,
         currentTime: newCurrentTime,
       });
@@ -2407,7 +2401,8 @@ function POSPageContent() {
         paymentMethod: selectedPaymentMethod.toUpperCase(),
         cashierId: selectedCashier?.id || "default-cashier",
         cart: cartForAPI,
-        customerId: currentCustomer?.id, // Include customer ID if available
+        carPlateNumber: carPlateNumber.trim() || undefined, // Normalize empty string to undefined
+        customerId: currentCustomer?.id || undefined, // Normalize null/empty to undefined
         ...(tradeInsForAPI ? { tradeIns: tradeInsForAPI } : {}),
         ...(appliedDiscount ? { discount: appliedDiscount } : {}),
         ...(selectedPaymentMethod === "mobile" && paymentRecipient
@@ -2432,6 +2427,16 @@ function POSPageContent() {
 
       // Store the transaction result for receipt display
       console.log("✅ Transaction completed:", result.data);
+
+      // Update transaction data with real reference number from server
+      // Update transaction data with real reference number from server
+      const serverReferenceNumber = result.data?.transaction?.referenceNumber || result.data?.referenceNumber;
+      if (serverReferenceNumber) {
+        setTransactionData((prev) => ({
+          ...prev,
+          receiptNumber: serverReferenceNumber,
+        }));
+      }
 
       if (result.data?.offline) {
         console.log("📱 Transaction completed offline - will sync when online");
@@ -2998,9 +3003,8 @@ function POSPageContent() {
     return (
       <Layout>
         <div className="h-[calc(100vh-4rem)] flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
-            <p className="text-lg">Loading inventory data...</p>
+          <div className="flex flex-col items-center gap-4">
+            <Loader size={32} className="text-muted-foreground" />
           </div>
         </div>
       </Layout>
@@ -3126,7 +3130,7 @@ function POSPageContent() {
                     {/* Labor Pill Button */}
                     <Button
                       variant="outline"
-                      className="w-full rounded-[12px] border-2 border-orange-300 bg-orange-50 hover:bg-orange-100 text-orange-700 px-4 py-[9px] font-medium hover:border-orange-400 transition-colors shadow-sm mt-2 mb-2"
+                      className="w-full rounded-[12px] border-2 border-muted-foreground/30 bg-muted-foreground/5 hover:bg-muted-foreground/10 text-foreground px-4 py-[9px] font-medium transition-colors shadow-sm mt-2 mb-2"
                       onClick={() => setIsLaborDialogOpen(true)}
                     >
                       <Wrench className="h-4 w-4 mr-2" />
@@ -3301,7 +3305,7 @@ function POSPageContent() {
                       {cartContainsAnyBatteries(cart) && (
                         <Button
                           variant="chonky-secondary"
-                          className="h-auto py-[9px] rounded-[12px] flex-1 flex items-center justify-center gap-2 bg-orange-100 hover:bg-orange-200 text-orange-800 border-orange-300"
+                          className="h-auto py-[9px] rounded-[12px] flex-1 flex items-center justify-center gap-2 bg-secondary hover:bg-accent text-foreground border-input border"
                           onClick={() => {
                             // Pre-populate with existing trade-in data if available
                             if (appliedTradeInAmount > 0) {
@@ -3329,7 +3333,14 @@ function POSPageContent() {
                       disabled={cart.length === 0 || isCheckoutLoading}
                       onClick={handleCheckout}
                     >
-                      {isCheckoutLoading ? "Processing..." : "Checkout"}
+                      {isCheckoutLoading ? (
+                        <div className="flex items-center justify-center w-full">
+                          <Loader size={16} className="text-black mr-2" />
+                          Processing...
+                        </div>
+                      ) : (
+                        "Checkout"
+                      )}
                     </Button>
                   </div>
                 </div>
@@ -3369,7 +3380,7 @@ function POSPageContent() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-9 w-9 bg-orange-100/70 hover:bg-orange-200/80 text-orange-700 border border-orange-200 shadow-sm rounded-[12px] transition-colors"
+                      className="h-9 w-9 bg-muted hover:bg-muted/80 text-foreground border border-input shadow-sm rounded-[12px] transition-colors"
                       onClick={() => setShowCart(false)}
                     >
                       <X className="h-4 w-4" />
@@ -3406,22 +3417,22 @@ function POSPageContent() {
                               {appliedDiscount.type === "percentage"
                                 ? `(${appliedDiscount.value}%)`
                                 : "(Amount)"}
-                            </span>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-6 w-6 rounded-full"
-                              onClick={removeDiscount}
-                            >
-                              <X className="h-3 w-3" />
-                            </Button>
-                          </div>
-                          <span>- OMR {discountAmount.toFixed(3)}</span>
+                          </span>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-6 w-6 rounded-full"
+                            onClick={removeDiscount}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
                         </div>
-                      )}
+                        <span>- OMR {discountAmount.toFixed(3)}</span>
+                      </div>
+                    )}
 
-                      {appliedTradeInAmount > 0 && (
-                        <div className="flex justify-between text-[clamp(0.875rem,2vw,1rem)] text-green-600">
+                    {appliedTradeInAmount > 0 && (
+                      <div className="flex justify-between text-[clamp(0.875rem,2vw,1rem)] text-green-600">
                           <span>Trade-In Amount</span>
                           <span>- OMR {appliedTradeInAmount.toFixed(3)}</span>
                         </div>
@@ -3450,7 +3461,7 @@ function POSPageContent() {
                         {cartContainsAnyBatteries(cart) && (
                           <Button
                             variant="chonky-secondary"
-                            className="h-auto py-[9px] rounded-[12px] flex-1 flex items-center justify-center gap-2 bg-orange-100 hover:bg-orange-200 text-orange-800 border-orange-300"
+                            className="h-auto py-[9px] rounded-[12px] flex-1 flex items-center justify-center gap-2 bg-secondary hover:bg-accent text-foreground border-input border"
                             onClick={() => {
                               // Pre-populate with existing trade-in data if available
                               if (appliedTradeInAmount > 0) {
@@ -3473,11 +3484,19 @@ function POSPageContent() {
                       </div>
 
                       <Button
-                        className="w-full h-auto py-[9px]"
+                        variant="chonky"
+                        className="w-full h-auto py-[9px] rounded-[12px]"
                         disabled={cart.length === 0 || isCheckoutLoading}
                         onClick={handleCheckout}
                       >
-                        {isCheckoutLoading ? "Processing..." : "Checkout"}
+                        {isCheckoutLoading ? (
+                          <div className="flex items-center justify-center w-full">
+                            <Loader size={16} className="text-black mr-2" />
+                            Processing...
+                          </div>
+                        ) : (
+                          "Checkout"
+                        )}
                       </Button>
                     </div>
                   </div>
@@ -3488,11 +3507,11 @@ function POSPageContent() {
 
           {/* Volume Selection Modal */}
           <Dialog open={isVolumeModalOpen} onOpenChange={setIsVolumeModalOpen}>
-            <DialogContent className="w-[90%] max-w-[500px] p-4 sm:p-6 rounded-lg">
+              <DialogContent className="w-[90%] max-w-[500px] rounded-lg max-h-[85vh] flex flex-col overflow-hidden gap-0">
               
                 {/* --- STANDARD VOLUME SELECTION VIEW --- */}
                 <>
-                  <DialogHeader className="pb-3 sm:pb-4">
+                  <DialogHeader className="p-0 shrink-0 pb-6">
                     <DialogTitle className="text-base sm:text-l font-semibold">
                       {selectedOil?.brand} - {selectedOil?.name}
                     </DialogTitle>
@@ -3504,198 +3523,202 @@ function POSPageContent() {
                     </DialogDescription>
                   </DialogHeader>
 
-                  <div className="flex justify-center mb-4 sm:mb-6">
-                    <div className="relative w-[120px] h-[120px] sm:w-[160px] sm:h-[160px] border-2 border-border rounded-lg overflow-hidden bg-muted">
-                      {selectedOil?.image ? (
-                        <Image
-                          src={selectedOil.image}
-                          alt={`${selectedOil.brand} ${selectedOil.type}`}
-                          className="object-contain p-2"
-                          fill
-                          sizes="(max-width: 768px) 120px, 160px"
-                          onError={(e) => {
-                            // Prevent the default error behavior
-                            e.currentTarget.onerror = null;
-                          }}
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <ImageIcon className="w-12 h-12 text-muted-foreground" />
+                  <div className="flex-1 overflow-y-auto py-1 px-0 min-h-0">
+                    <div className="flex justify-center mb-4 sm:mb-6">
+                      <div className="relative w-[120px] h-[120px] sm:w-[160px] sm:h-[160px] border-2 border-border rounded-lg overflow-hidden bg-muted">
+                        {selectedOil?.image ? (
+                          <Image
+                            src={selectedOil.image}
+                            alt={`${selectedOil.brand} ${selectedOil.type}`}
+                            className="object-contain p-2"
+                            fill
+                            sizes="(max-width: 768px) 120px, 160px"
+                            onError={(e) => {
+                              // Prevent the default error behavior
+                              e.currentTarget.onerror = null;
+                            }}
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <ImageIcon className="w-12 h-12 text-muted-foreground" />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="space-y-4 sm:space-y-6">
+                      {/* Volume buttons grid */}
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
+                        {selectedOil?.volumes.map((volume) => (
+                          <Button
+                            key={`volume-button-${volume.size}`}
+                            variant="outline"
+                            className="h-auto py-2 sm:py-3 px-2 sm:px-4 flex flex-col items-center gap-1"
+                            onClick={() => handleVolumeClick(volume)}
+                          >
+                            <div className="text-sm sm:text-base font-bold">
+                              {volume.size}
+                            </div>
+                             <div className="text-xs sm:text-sm text-foreground">
+                               OMR {volume.price.toFixed(3)}
+                             </div>
+                          </Button>
+                        ))}
+                      </div>
+
+                      {/* Selected volumes list */}
+                      {selectedVolumes.length > 0 && (
+                        <div className="border rounded-lg">
+                          <div className="h-[180px] sm:h-[220px] overflow-y-auto scrollbar-none">
+                            <div className="px-2 sm:px-3 py-2">
+                              {selectedVolumes.map((volume, index) => (
+                                <div
+                                  key={`${volume.size}-${
+                                    volume.bottleType || "default"
+                                  }`}
+                                  className={cn(
+                                    "flex flex-col py-1.5",
+                                    index === selectedVolumes.length - 1 &&
+                                      "mb-2 sm:mb-4"
+                                  )}
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-1">
+                                      <Button
+                                        variant="outline"
+                                        size="icon"
+                                        className="h-7 w-7 shrink-0"
+                                        onClick={() =>
+                                          handleQuantityChange(
+                                            volume.size,
+                                            -1,
+                                            volume.bottleType
+                                          )
+                                        }
+                                      >
+                                        <Minus className="h-3 w-3" />
+                                      </Button>
+                                      <span className="w-5 text-center text-sm">
+                                        {volume.quantity}
+                                      </span>
+                                      <Button
+                                        variant="outline"
+                                        size="icon"
+                                        className="h-7 w-7 shrink-0"
+                                        disabled={
+                                          (() => {
+                                            // 1. OPEN BOTTLE VALIDATION
+                                            if (volume.bottleType === "open" && selectedOil?.totalOpenVolume !== undefined) {
+                                              // Calculate current total excluding this specific volume
+                                              const currentTotalOpenVolume = selectedVolumes
+                                                .filter((v) => !(v.size === volume.size && v.bottleType === volume.bottleType))
+                                                .filter((v) => v.bottleType === "open")
+                                                .reduce((total, v) => {
+                                                  const volumeAmount = parseVolumeString(v.size);
+                                                  return total + volumeAmount * v.quantity;
+                                                }, 0);
+                                              
+                                              // Calculate volume already in cart for this product
+                                              const cartOpenVolume = calculateCartOpenVolume(selectedOil.id);
+                                              
+                                              // Add this volume with incremented quantity
+                                              const volumeAmount = parseVolumeString(volume.size);
+                                              const newQuantity = volume.quantity + 1;
+                                              const newModalTotal = currentTotalOpenVolume + (volumeAmount * newQuantity);
+                                              const newTotal = newModalTotal + cartOpenVolume;
+                                              
+                                              return newTotal > selectedOil.totalOpenVolume;
+                                            }
+                                            
+                                            // 2. CLOSED BOTTLE VALIDATION
+                                            // Default to closed if no bottleType or explicitly closed
+                                            if (!volume.bottleType || volume.bottleType === "closed") {
+                                              // Ensure we have available quantity data, otherwise fallback to existing behavior
+                                              if (volume.availableQuantity === undefined && !selectedOil?.volumes?.[0]?.bottleStates?.closed) return false;
+                                              
+                                              // Total available closed bottles
+                                              const availableClosed = selectedOil?.volumes?.[0]?.bottleStates?.closed || 0;
+                                              
+                                              // Calculate cart closed count
+                                              const cartClosedCount = calculateCartClosedCount(selectedOil.id);
+                                              
+                                              // Sum of ALL closed bottles currently in modal for this product
+                                              const modalClosedCount = selectedVolumes
+                                                .filter(v => !v.bottleType || v.bottleType === "closed")
+                                                .reduce((sum, v) => sum + v.quantity, 0);
+                                                
+                                              // Check if adding 1 more exceeds available
+                                              return (cartClosedCount + modalClosedCount + 1) > availableClosed;
+                                            }
+                                            
+                                            return false;
+                                          })()
+                                        }
+                                        onClick={() =>
+                                          handleQuantityChange(
+                                            volume.size,
+                                            1,
+                                            volume.bottleType
+                                          )
+                                        }
+                                        title={
+                                          volume.bottleType === "open" &&
+                                          selectedOil?.totalOpenVolume !== undefined
+                                            ? (() => {
+                                                const currentTotalOpenVolume =
+                                                  calculateTotalOpenVolumeSelected(
+                                                    selectedVolumes
+                                                  );
+                                                // Calculate volume already in cart for this product
+                                                const cartOpenVolume = calculateCartOpenVolume(selectedOil.id);
+                                                const volumeAmount = parseVolumeString(
+                                                  volume.size
+                                                );
+                                                const newTotal =
+                                                  currentTotalOpenVolume + volumeAmount + cartOpenVolume;
+                                                if (newTotal > selectedOil.totalOpenVolume) {
+                                                  return `Only ${selectedOil.totalOpenVolume.toFixed(1).replace(/\.0$/, "")}L available in open bottles`;
+                                                }
+                                                return undefined;
+                                              })()
+                                            : undefined
+                                        }
+                                      >
+                                        <Plus className="h-3 w-3" />
+                                      </Button>
+                                    </div>
+
+                                    <div className="grid grid-cols-[60px_24px_1fr] items-center min-w-0 flex-1">
+                                      <span className="font-bold text-sm">
+                                        {volume.size}
+                                      </span>
+
+                                      <div className="flex items-center justify-center">
+                                        {volume.bottleType &&
+                                          (volume.bottleType === "closed" ? (
+                                            <ClosedBottleIcon className="h-4 w-4 text-primary flex-shrink-0" />
+                                          ) : (
+                                            <OpenBottleIcon className="h-4 w-4 text-primary flex-shrink-0" />
+                                          ))}
+                                      </div>
+
+                                       <span className="font-bold text-sm text-right w-full text-foreground">
+                                         OMR{" "}
+                                         {(volume.price * volume.quantity).toFixed(3)}
+                                       </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
                         </div>
                       )}
                     </div>
                   </div>
 
-                  <div className="space-y-4 sm:space-y-6">
-                    {/* Volume buttons grid */}
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
-                      {selectedOil?.volumes.map((volume) => (
-                        <Button
-                          key={`volume-button-${volume.size}`}
-                          variant="outline"
-                          className="h-auto py-2 sm:py-3 px-2 sm:px-4 flex flex-col items-center gap-1"
-                          onClick={() => handleVolumeClick(volume)}
-                        >
-                          <div className="text-sm sm:text-base font-medium">
-                            {volume.size}
-                          </div>
-                          <div className="text-xs sm:text-sm text-muted-foreground">
-                            OMR {volume.price.toFixed(3)}
-                          </div>
-                        </Button>
-                      ))}
-                    </div>
-
-                    {/* Selected volumes list */}
-                    {selectedVolumes.length > 0 && (
-                      <div className="border rounded-lg">
-                        <div className="h-[180px] sm:h-[220px] overflow-y-auto scrollbar-none">
-                          <div className="px-2 sm:px-3 py-2">
-                            {selectedVolumes.map((volume, index) => (
-                              <div
-                                key={`${volume.size}-${
-                                  volume.bottleType || "default"
-                                }`}
-                                className={cn(
-                                  "flex flex-col py-1.5",
-                                  index === selectedVolumes.length - 1 &&
-                                    "mb-2 sm:mb-4"
-                                )}
-                              >
-                                <div className="flex items-center gap-2">
-                                  <div className="flex items-center gap-1">
-                                    <Button
-                                      variant="outline"
-                                      size="icon"
-                                      className="h-7 w-7 shrink-0"
-                                      onClick={() =>
-                                        handleQuantityChange(
-                                          volume.size,
-                                          -1,
-                                          volume.bottleType
-                                        )
-                                      }
-                                    >
-                                      <Minus className="h-3 w-3" />
-                                    </Button>
-                                    <span className="w-5 text-center text-sm">
-                                      {volume.quantity}
-                                    </span>
-                                    <Button
-                                      variant="outline"
-                                      size="icon"
-                                      className="h-7 w-7 shrink-0"
-                                      disabled={
-                                        (() => {
-                                          // 1. OPEN BOTTLE VALIDATION
-                                          if (volume.bottleType === "open" && selectedOil?.totalOpenVolume !== undefined) {
-                                            // Calculate current total excluding this specific volume
-                                            const currentTotalOpenVolume = selectedVolumes
-                                              .filter((v) => !(v.size === volume.size && v.bottleType === volume.bottleType))
-                                              .filter((v) => v.bottleType === "open")
-                                              .reduce((total, v) => {
-                                                const volumeAmount = parseVolumeString(v.size);
-                                                return total + volumeAmount * v.quantity;
-                                              }, 0);
-                                            
-                                            // Calculate volume already in cart for this product
-                                            const cartOpenVolume = calculateCartOpenVolume(selectedOil.id);
-                                            
-                                            // Add this volume with incremented quantity
-                                            const volumeAmount = parseVolumeString(volume.size);
-                                            const newQuantity = volume.quantity + 1;
-                                            const newModalTotal = currentTotalOpenVolume + (volumeAmount * newQuantity);
-                                            const newTotal = newModalTotal + cartOpenVolume;
-                                            
-                                            return newTotal > selectedOil.totalOpenVolume;
-                                          }
-                                          
-                                          // 2. CLOSED BOTTLE VALIDATION
-                                          // Default to closed if no bottleType or explicitly closed
-                                          if (!volume.bottleType || volume.bottleType === "closed") {
-                                            // Ensure we have available quantity data, otherwise fallback to existing behavior
-                                            if (volume.availableQuantity === undefined && !selectedOil?.volumes?.[0]?.bottleStates?.closed) return false;
-                                            
-                                            // Total available closed bottles
-                                            const availableClosed = selectedOil?.volumes?.[0]?.bottleStates?.closed || 0;
-                                            
-                                            // Calculate cart closed count
-                                            const cartClosedCount = calculateCartClosedCount(selectedOil.id);
-                                            
-                                            // Sum of ALL closed bottles currently in modal for this product
-                                            const modalClosedCount = selectedVolumes
-                                              .filter(v => !v.bottleType || v.bottleType === "closed")
-                                              .reduce((sum, v) => sum + v.quantity, 0);
-                                              
-                                            // Check if adding 1 more exceeds available
-                                            return (cartClosedCount + modalClosedCount + 1) > availableClosed;
-                                          }
-                                          
-                                          return false;
-                                        })()
-                                      }
-                                      onClick={() =>
-                                        handleQuantityChange(
-                                          volume.size,
-                                          1,
-                                          volume.bottleType
-                                        )
-                                      }
-                                      title={
-                                        volume.bottleType === "open" &&
-                                        selectedOil?.totalOpenVolume !== undefined
-                                          ? (() => {
-                                              const currentTotalOpenVolume =
-                                                calculateTotalOpenVolumeSelected(
-                                                  selectedVolumes
-                                                );
-                                              // Calculate volume already in cart for this product
-                                              const cartOpenVolume = calculateCartOpenVolume(selectedOil.id);
-                                              const volumeAmount = parseVolumeString(
-                                                volume.size
-                                              );
-                                              const newTotal =
-                                                currentTotalOpenVolume + volumeAmount + cartOpenVolume;
-                                              if (newTotal > selectedOil.totalOpenVolume) {
-                                                return `Only ${selectedOil.totalOpenVolume.toFixed(1).replace(/\.0$/, "")}L available in open bottles`;
-                                              }
-                                              return undefined;
-                                            })()
-                                          : undefined
-                                      }
-                                    >
-                                      <Plus className="h-3 w-3" />
-                                    </Button>
-                                  </div>
-
-                                  <div className="grid grid-cols-[60px_24px_1fr] items-center min-w-0 flex-1">
-                                    <span className="font-medium text-sm">
-                                      {volume.size}
-                                    </span>
-
-                                    <div className="flex items-center justify-center">
-                                      {volume.bottleType &&
-                                        (volume.bottleType === "closed" ? (
-                                          <ClosedBottleIcon className="h-4 w-4 text-primary flex-shrink-0" />
-                                        ) : (
-                                          <OpenBottleIcon className="h-4 w-4 text-primary flex-shrink-0" />
-                                        ))}
-                                    </div>
-
-                                    <span className="font-medium text-sm text-right w-full">
-                                      OMR{" "}
-                                      {(volume.price * volume.quantity).toFixed(3)}
-                                    </span>
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="flex justify-between gap-2 sm:gap-3 pt-2">
+                  <div className="p-0 bg-background shrink-0 pt-6">
+                    <div className="flex justify-between gap-2 sm:gap-3">
                       <Button
                         variant="outline"
                         className="px-2 sm:px-6 text-sm sm:text-base"
@@ -3969,8 +3992,8 @@ function POSPageContent() {
                 )}
 
                 <div className="border-t pt-6">
-                  {/* Car plate input - only show for on-hold payments */}
-                  {isOnHoldMode && (
+                  {/* Car plate input - show for on-hold payments OR battery sales */}
+                  {(isOnHoldMode || cartContainsAnyBatteries(cart)) && (
                     <div className="w-full mb-4">
                       <div className="text-sm font-medium text-gray-600 mb-2">
                         Car Plate Number
@@ -4035,7 +4058,7 @@ function POSPageContent() {
                       !selectedPaymentMethod ||
                       (selectedPaymentMethod === "mobile" &&
                         !paymentRecipient) ||
-                      (isOnHoldMode && !carPlateNumber.trim())
+                      ((isOnHoldMode || cartContainsAnyBatteries(cart)) && !carPlateNumber.trim())
                     }
                     onClick={handlePaymentComplete}
                   >
@@ -4486,18 +4509,9 @@ function POSPageContent() {
                   }
                 >
                   {isProcessingCheckout ? (
-                    <>
-                      <motion.div
-                        animate={{ rotate: 360 }}
-                        transition={{
-                          duration: 1,
-                          repeat: Infinity,
-                          ease: "linear",
-                        }}
-                        className="h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2"
-                      />
-                      Processing...
-                    </>
+                    <div className="flex items-center justify-center w-full">
+                      <Loader size={20} className="text-black" />
+                    </div>
                   ) : (
                     "Confirm Payment"
                   )}
@@ -4558,17 +4572,17 @@ function POSPageContent() {
               >
                 {cartContainsOnlyBatteries(cart)
                   ? "Bill Ready for Printing"
-                  : "Payment Successful!"}
+                  : "Order Successfully Processed!"}
               </motion.p>
 
-              <div className="w-full flex flex-col gap-2">
+              <div className="w-full flex flex-row gap-4 mt-4">
                 <Button
                   onClick={() => {
                     setShowSuccess(false);
                     setShowReceiptDialog(true);
                   }}
-                  className="w-full"
-                  variant="chonky"
+                  className="flex-1"
+                  variant="chonky-secondary"
                 >
                   View Receipt
                 </Button>
@@ -4578,7 +4592,7 @@ function POSPageContent() {
                     setShowSuccess(false);
                     resetPOSState();
                   }}
-                  className="w-full"
+                  className="flex-1"
                 >
                   Close
                 </Button>
@@ -4614,10 +4628,7 @@ function POSPageContent() {
                   key={`bill-${transactionData.receiptNumber || "fallback"}`}
                   cart={cart}
                   billNumber={
-                    transactionData.receiptNumber ||
-                    `A${Math.floor(Math.random() * 10000)
-                      .toString()
-                      .padStart(4, "0")}`
+                    transactionData.receiptNumber || "PENDING"
                   }
                   currentDate={
                     transactionData.currentDate ||
@@ -4635,6 +4646,8 @@ function POSPageContent() {
                   appliedDiscount={appliedDiscount}
                   appliedTradeInAmount={appliedTradeInAmount}
                   customerName={currentCustomer?.name || ""}
+                  carPlateNumber={carPlateNumber}
+                  onClose={() => setShowReceiptDialog(false)}
                 />
               ) : (
                 <ReceiptComponent
@@ -4649,10 +4662,7 @@ function POSPageContent() {
                       : undefined
                   }
                   receiptNumber={
-                    transactionData.receiptNumber ||
-                    `A${Math.floor(Math.random() * 10000)
-                      .toString()
-                      .padStart(4, "0")}`
+                    transactionData.receiptNumber || "PENDING"
                   }
                   currentDate={
                     transactionData.currentDate ||
@@ -4666,21 +4676,10 @@ function POSPageContent() {
                       second: "2-digit",
                     })
                   }
+                  onClose={() => setShowReceiptDialog(false)}
                 />
               )}
             </div>
-
-            <DialogFooter className="mt-4">
-              <Button
-                variant="chonky-secondary"
-                onClick={() => {
-                  setShowReceiptDialog(false);
-                }}
-                className="w-full"
-              >
-                Close
-              </Button>
-            </DialogFooter>
           </DialogContent>
         </Dialog>
       )}
@@ -4876,7 +4875,7 @@ function POSPageContent() {
                 setIsMiscellaneousDialogOpen(true);
               }}
             >
-              <MoreHorizontal className="h-6 w-6 text-orange-600" />
+              <MoreHorizontal className="h-6 w-6 text-primary" />
               <span className="font-medium text-sm">Misc</span>
             </Button>
           </div>
@@ -4995,9 +4994,9 @@ function POSPageContent() {
             >
               Cancel
             </Button>
-            <Button
-              className="flex-1 h-12 text-base bg-orange-500 hover:bg-orange-600"
-              variant="chonky"
+              <Button
+                className="flex-1 h-12 text-base"
+                variant="chonky"
               onClick={() => {
                 if (laborAmount > 0) {
                   // Add labor charge to cart
@@ -5297,9 +5296,14 @@ function POSPageContent() {
                     }}
                     disabled={isProcessingSettlement}
                   >
-                    {isProcessingSettlement
-                      ? "Processing..."
-                      : "Confirm Settlement"}
+                    {isProcessingSettlement ? (
+                      <div className="flex items-center justify-center w-full">
+                        <Loader size={16} className="text-black mr-2" />
+                        Processing...
+                      </div>
+                    ) : (
+                      "Confirm Settlement"
+                    )}
                   </Button>
                 </div>
               </div>
@@ -5440,7 +5444,7 @@ function POSPageContent() {
                   Cancel
                 </Button>
                 <Button
-                  className="flex-1 h-12 text-base bg-orange-500 hover:bg-orange-600"
+                  className="flex-1 h-12 text-base bg-primary hover:bg-primary/90 text-black"
                   onClick={() => {
                     if (miscellaneousAmount > 0) {
                       setMiscellaneousStep("id");
@@ -5661,9 +5665,14 @@ function POSPageContent() {
                     }}
                     disabled={isProcessingMiscellaneous}
                   >
-                    {isProcessingMiscellaneous
-                      ? "Processing..."
-                      : "Confirm Deduction"}
+                    {isProcessingMiscellaneous ? (
+                      <div className="flex items-center justify-center w-full">
+                        <Loader size={16} className="text-black mr-2" />
+                        Processing...
+                      </div>
+                    ) : (
+                      "Confirm Deduction"
+                    )}
                   </Button>
                 </div>
               </div>
@@ -6006,9 +6015,27 @@ const ReceiptComponent = ({
                     (item, _index) => `
                   <tr class="row-top">
                     <td class="sno">${_index + 1}</td>
-                    <td class="description" colspan="4">${item.name}${
-                      item.details ? ` (${item.details})` : ""
-                    }</td>
+                    <td class="description" colspan="4">${(() => {
+                      // Clean up name by removing bottle info if present
+                      let cleanName = item.name
+                        .replace(/\s*\(?(\d+(\.\d+)?[Ll])\s+(open|closed)\s+bottle\)?/i, "")
+                        .replace(/\s*\(?(open|closed)\s+bottle\)?/i, "")
+                        .trim();
+                      
+                      // Clean up details similarly
+                      let cleanDetails = item.details 
+                        ? item.details
+                            .replace(/\s*\(?(\d+(\.\d+)?[Ll])\s+(open|closed)\s+bottle\)?/i, "$1")
+                            .replace(/\s*\(?(open|closed)\s+bottle\)?/i, "")
+                            .trim()
+                        : "";
+                      
+                      // Combine carefully
+                      if (cleanDetails && !cleanName.includes(cleanDetails)) {
+                         return `${cleanName} (${cleanDetails})`;
+                      }
+                      return cleanName;
+                    })()}</td>
                     <td class="price" style="display:none;"></td>
                     <td class="qty" style="display:none;"></td>
                     <td class="amount" style="display:none;"></td>
@@ -6083,7 +6110,7 @@ const ReceiptComponent = ({
             </div>
             
             <div class="whatsapp">
-              WhatsApp 72702537 for latest offers
+              WhatsApp ${brand.whatsapp || ""} for latest offers
             </div>
             
             <!-- Removed duplicate receipt number from footer -->
@@ -6187,9 +6214,7 @@ const ReceiptComponent = ({
             <p className="text-[11px] sm:text-xs text-gray-500 leading-tight">
               Ph: {brand.phones.join(" | ")}
             </p>
-            <p className="text-[11px] sm:text-xs text-gray-500 leading-tight">
-              POS ID: {POS_ID}
-            </p>
+
           </div>
 
           <div className="border-t border-b border-dashed py-1.5 mb-2 sm:mb-3">
@@ -6217,11 +6242,30 @@ const ReceiptComponent = ({
                 <span className="col-span-1">{index + 1}</span>
                 <span className="col-span-2">(x{item.quantity})</span>
                 <span className="col-span-7 break-words">
-                  {item.name}
-                  {item.details ? ` (${item.details})` : ""}
+                  {(() => {
+                    // Clean up name by removing bottle info if present
+                    let cleanName = item.name
+                      .replace(/\s*\(?(\d+(\.\d+)?[Ll])\s+(open|closed)\s+bottle\)?/i, "")
+                      .replace(/\s*\(?(open|closed)\s+bottle\)?/i, "")
+                      .trim();
+                    
+                    // Clean up details similarly
+                    let cleanDetails = item.details 
+                      ? item.details
+                          .replace(/\s*\(?(\d+(\.\d+)?[Ll])\s+(open|closed)\s+bottle\)?/i, "$1")
+                          .replace(/\s*\(?(open|closed)\s+bottle\)?/i, "")
+                          .trim()
+                      : "";
+                    
+                    // Combine carefully
+                    if (cleanDetails && !cleanName.includes(cleanDetails)) {
+                       return `${cleanName} (${cleanDetails})`;
+                    }
+                    return cleanName;
+                  })()}
                 </span>
-                <span className="col-span-1 text-right">
-                  {item.price.toFixed(3)}
+                <span className="font-medium text-foreground">
+                  OMR {item.price.toFixed(3)}
                 </span>
                 <span className="col-span-1 text-right">
                   {(item.price * item.quantity).toFixed(3)}
@@ -6272,7 +6316,7 @@ const ReceiptComponent = ({
               شكراً للتسوق معنا
             </p>
             <p className="font-medium mt-2">
-              WhatsApp 72702537 for latest offers
+              WhatsApp {brand.whatsapp || ""} for latest offers
             </p>
             {/* Removed bottom receipt number to avoid duplication */}
           </div>
@@ -6318,22 +6362,22 @@ function BottleTypeDialog({
         <div className="grid grid-cols-2 gap-4 mt-2">
           <Button
             variant="outline"
-            className="h-32 flex flex-col items-center justify-center gap-3 hover:border-primary hover:bg-primary/5 transition-colors"
+            className="h-32 flex flex-col items-center justify-center gap-3 hover:border-foreground/30 hover:bg-muted/50 transition-colors"
             onClick={() => onSelect("open")}
           >
-            <div className="p-3 bg-primary/10 rounded-full">
-              <OpenBottleIcon className="w-8 h-8 text-primary" />
+            <div className="p-3 bg-muted rounded-full">
+              <OpenBottleIcon className="w-8 h-8 text-foreground" />
             </div>
             <span className="font-medium">Open Bottle</span>
           </Button>
 
           <Button
             variant="outline"
-            className="h-32 flex flex-col items-center justify-center gap-3 hover:border-primary hover:bg-primary/5 transition-colors"
+            className="h-32 flex flex-col items-center justify-center gap-3 hover:border-foreground/30 hover:bg-muted/50 transition-colors"
             onClick={() => onSelect("closed")}
           >
-            <div className="p-3 bg-primary/10 rounded-full">
-              <ClosedBottleIcon className="w-8 h-8 text-primary" />
+            <div className="p-3 bg-muted rounded-full">
+              <ClosedBottleIcon className="w-8 h-8 text-foreground" />
             </div>
             <span className="font-medium">Closed Bottle</span>
           </Button>

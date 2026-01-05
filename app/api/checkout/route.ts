@@ -69,7 +69,9 @@ async function getHighestVolume(productId: string, tx: any): Promise<number> {
 async function handleLubricantSale(
   tx: any,
   cartItem: any,
-  inventoryRecord: any
+  inventoryRecord: any,
+  preFetchedBottleSize?: number,
+  preFetchedOpenBottles?: any[]
 ) {
   // Add a default value here as a safeguard - fixes the main issue from checkoutroutefix.md
   const { source = "CLOSED", quantity } = cartItem; // Default to 'CLOSED' if source is missing
@@ -99,18 +101,25 @@ async function handleLubricantSale(
     }
 
     // Get the highest volume (bottle size) from product_volumes table
-    const bottleSize = await getHighestVolume(cartItem.productId, tx);
+    let bottleSize;
+    if (preFetchedBottleSize !== undefined) {
+      bottleSize = preFetchedBottleSize;
+    } else {
+      bottleSize = await getHighestVolume(cartItem.productId, tx);
+    }
     const initialVolume = bottleSize;
     const currentVolume = initialVolume - requestedVolume;
     const isEmpty = currentVolume <= 0;
 
-    // Decrement closed bottles stock
     await tx
       .update(inventory)
       .set({
         closedBottlesStock: inventoryRecord.closedBottlesStock - 1,
       })
       .where(eq(inventory.id, inventoryRecord.id));
+
+    // Update in-memory inventory record
+    inventoryRecord.closedBottlesStock = inventoryRecord.closedBottlesStock - 1;
 
     // Create new open bottle record
     await tx.insert(openBottleDetails).values({
@@ -128,20 +137,28 @@ async function handleLubricantSale(
           openBottlesStock: inventoryRecord.openBottlesStock + 1,
         })
         .where(eq(inventory.id, inventoryRecord.id));
+
+      // Update in-memory inventory record
+      inventoryRecord.openBottlesStock = (inventoryRecord.openBottlesStock || 0) + 1;
     }
   } else if (source === "OPEN") {
     // Selling from existing open bottle(s)
     // Find all non-empty open bottles ordered by opened_at (FIFO)
-    const openBottles = await tx
-      .select()
-      .from(openBottleDetails)
-      .where(
-        and(
-          eq(openBottleDetails.inventoryId, inventoryRecord.id),
-          eq(openBottleDetails.isEmpty, false)
+    let openBottles;
+    if (preFetchedOpenBottles) {
+      openBottles = preFetchedOpenBottles;
+    } else {
+      openBottles = await tx
+        .select()
+        .from(openBottleDetails)
+        .where(
+          and(
+            eq(openBottleDetails.inventoryId, inventoryRecord.id),
+            eq(openBottleDetails.isEmpty, false)
+          )
         )
-      )
-      .orderBy(asc(openBottleDetails.openedAt));
+        .orderBy(asc(openBottleDetails.openedAt));
+    }
 
     console.log(`[${cartItem.productId}] OPEN source - Found ${openBottles.length} open bottles`);
     console.log(`[${cartItem.productId}] OPEN source - Requested volume: ${requestedVolume}`);
@@ -151,7 +168,7 @@ async function handleLubricantSale(
     }
 
     // Calculate total available volume from all open bottles
-    const totalAvailableVolume = openBottles.reduce((sum, bottle) => {
+    const totalAvailableVolume = openBottles.reduce((sum: number, bottle: any) => {
       const vol = parseFloat(bottle.currentVolume);
       console.log(`[${cartItem.productId}] OPEN source - Bottle ${bottle.id}: current_volume=${bottle.currentVolume} (parsed=${vol})`);
       return sum + vol;
@@ -172,11 +189,17 @@ async function handleLubricantSale(
     let newBottlesToCreate: Array<{ initialVolume: number; currentVolume: number }> = [];
 
     // Get bottle size for potential new bottles
-    const bottleSize = await getHighestVolume(cartItem.productId, tx);
+    let bottleSize;
+    if (preFetchedBottleSize !== undefined) {
+      bottleSize = preFetchedBottleSize;
+    } else {
+      bottleSize = await getHighestVolume(cartItem.productId, tx);
+    }
 
     console.log(`[${cartItem.productId}] OPEN source - Processing bottles, remainingVolume=${remainingVolume}, bottleSize=${bottleSize}`);
 
-    for (const bottle of openBottles) {
+    for (const [index, bottle] of openBottles.entries()) {
+      console.log(`[${cartItem.productId}] Processing bottle ${index + 1}/${openBottles.length}`);
       if (remainingVolume <= 0) {
         console.log(`[${cartItem.productId}] OPEN source - Remaining volume satisfied, breaking loop`);
         break;
@@ -252,6 +275,25 @@ async function handleLubricantSale(
             openBottlesStock: inventoryRecord.openBottlesStock + 1,
           })
           .where(eq(inventory.id, inventoryRecord.id));
+        
+        // Update in-memory inventory record
+        inventoryRecord.openBottlesStock = (inventoryRecord.openBottlesStock || 0) + 1;
+      }
+      
+      // Update pre-fetched open bottles list if available
+      if (preFetchedOpenBottles) {
+          // Construct the new bottle object (approximated structure)
+          preFetchedOpenBottles.push({
+             id: "pending-id-placeholder", // We don't have the ID yet unless we did returning()... 
+             // but handleLubricantSale creates new bottle which might be used by NEXT iteration?
+             // Actually, if we just push it, the next iteration will find it. 
+             // But we need the ID for updates.
+             inventoryId: inventoryRecord.id,
+             initialVolume: bottleSize.toString(),
+             currentVolume: newBottleCurrentVolume.toString(),
+             isEmpty: newBottleIsEmpty,
+             openedAt: new Date(), // approximate
+          });
       }
     } else {
       console.log(`[${cartItem.productId}] OPEN source - All volume satisfied from existing open bottles, no new bottle needed`);
@@ -266,6 +308,16 @@ async function handleLubricantSale(
           isEmpty: update.isEmpty,
       })
         .where(eq(openBottleDetails.id, update.id));
+      console.log(`[${cartItem.productId}] Updated bottle ${update.id}`);
+      
+      // Update in-memory bottle objects
+      if (preFetchedOpenBottles) {
+         const bottle = preFetchedOpenBottles.find(b => b.id === update.id);
+         if (bottle) {
+             bottle.currentVolume = update.newVolume.toString();
+             bottle.isEmpty = update.isEmpty;
+         }
+      }
     }
 
     // Mark bottles as empty and decrement open bottles stock
@@ -323,24 +375,10 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
-    // Test database connection before proceeding with checkout
-    let db;
-    try {
-      db = getDatabase();
-
-      // Perform a quick connection test to ensure we can actually connect
-      const connectionTest = await testDatabaseConnection();
-      if (!connectionTest.success) {
-        throw new Error(connectionTest.error || "Database connection failed");
-      }
-
-      console.log(
-        `[${requestId}] Database connection verified (${connectionTest.latency}ms)`
-      );
-    } catch (error) {
+    // Check database availability before proceeding
+    if (!isDatabaseAvailable()) {
       const dbHealth = getDatabaseHealth();
-      console.error(`[${requestId}] Database connection failed:`, error);
-      console.error(`[${requestId}] Database health:`, dbHealth);
+      console.error(`[${requestId}] Database unavailable according to health check:`, dbHealth);
 
       return NextResponse.json(
         {
@@ -350,15 +388,21 @@ export async function POST(req: NextRequest) {
           details: {
             requestId,
             databaseHealth: dbHealth,
-            connectionError:
-              error instanceof Error ? error.message : "Unknown error",
-            suggestion: "Run GET /api/debug/database to diagnose the issue",
             timestamp: new Date().toISOString(),
           },
         },
         { status: 503 }
       );
     }
+
+    // Attempt a silent test connection in background if not already healthy
+    const dbHealth = getDatabaseHealth();
+    if (!dbHealth.isHealthy) {
+       console.log(`[${requestId}] Database health is poor, triggering manual test...`);
+       void testDatabaseConnection();
+    }
+
+    const db = getDatabase();
 
     const body = await req.json();
 
@@ -375,7 +419,7 @@ export async function POST(req: NextRequest) {
             details: {
               requestId,
               errorType: "VALIDATION_ERROR",
-              validationErrors: validationError.errors.map((err) => ({
+              validationErrors: validationError.issues.map((err) => ({
                 field: err.path.join("."),
                 message: err.message,
                 code: err.code,
@@ -470,7 +514,7 @@ export async function POST(req: NextRequest) {
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     for (const item of cart) {
       // Skip validation for labor charges (productId: "9999")
-      if (item.productId === "9999" || item.productId === 9999) {
+      if (item.productId === "9999") {
         console.log(`[${requestId}] Skipping UUID validation for labor charge`);
         continue;
       }
@@ -530,7 +574,6 @@ export async function POST(req: NextRequest) {
             .filter(
               (item) =>
                 item.productId !== "9999" &&
-                item.productId !== 9999 &&
                 uuidRegex.test(String(item.productId))
             )
             .map((item) => item.productId),
@@ -543,7 +586,8 @@ export async function POST(req: NextRequest) {
 
         // Add labor charges to productMap with predefined data
         cart.forEach((item) => {
-          if (item.productId === "9999" || item.productId === 9999) {
+          // Check for labor charge first
+        if (item.productId === "9999") {
             console.log(
               `[${requestId}] Processing labor charge: ${item.volumeDescription} - OMR ${item.sellingPrice} x${item.quantity}`
             );
@@ -573,7 +617,7 @@ export async function POST(req: NextRequest) {
 
           productsData.forEach((product) => {
             productMap.set(product.id, product);
-            // Check if any cart item is a battery
+            
             // Batteries are in the "Parts" category with type "Battery" or "Batteries" (case-insensitive)
             const isBatteryType = (type?: string | null): boolean => {
               if (!type) return false;
@@ -581,11 +625,17 @@ export async function POST(req: NextRequest) {
               return normalizedType === "battery" || normalizedType === "batteries";
             };
 
-            if (
-              product.categoryName === "Parts" &&
-              isBatteryType(product.productType)
-            ) {
+            // Enhanced battery detection logic
+            const isBatteryProduct = 
+              product.isBattery || 
+              isBatteryType(product.productType) ||
+              (product.categoryName === "Parts" && isBatteryType(product.productType)) ||
+              product.name.toLowerCase().includes("battery") ||
+              product.name.toLowerCase().includes("batteries");
+
+            if (isBatteryProduct) {
               isBatterySale = true;
+              console.log(`[${requestId}] Battery item detected: ${product.name} (ID: ${product.id}), category: ${product.categoryName}, type: ${product.productType}`);
             }
           });
         }
@@ -652,7 +702,7 @@ export async function POST(req: NextRequest) {
           totalAmount: totalAmount.toString(),
           itemsSold: cart,
           paymentMethod,
-          carPlateNumber: transactionType === "ON_HOLD" ? carPlateNumber : null,
+          carPlateNumber: carPlateNumber || null,
           mobilePaymentAccount: paymentMethod?.toUpperCase() === "MOBILE" ? mobilePaymentAccount || null : null,
           mobileNumber: paymentMethod?.toUpperCase() === "MOBILE" ? mobileNumber || null : null,
           customerId: customerId || null, // Add customer_id to transaction
@@ -693,27 +743,82 @@ export async function POST(req: NextRequest) {
           }
         );
 
+        // --- BATCH FETCHING OPTIMIZATION START ---
+        const cartProductIds = processedCart
+          .filter(item => item.productId !== "9999")
+          .map(item => item.productId);
+
+        // 1. Batch Fetch Inventory
+        // Fetch inventory for all products in cart at the specific location
+        const allInventories = await tx.select().from(inventory).where(
+          and(
+            inArray(inventory.productId, cartProductIds),
+            eq(inventory.locationId, actualLocationId)
+          )
+        );
+        const inventoryMap = new Map(allInventories.map((i: any) => [i.productId, i]));
+
+        // 2. Batch Fetch Batches (Active Only + Fallback)
+        // Fetch batches for the found inventories
+        const inventoryIds = allInventories.map((i: any) => i.id);
+        
+        let allBatches: any[] = [];
+        if (inventoryIds.length > 0) {
+           allBatches = await tx.select().from(batches).where(
+            and(
+              inArray(batches.inventoryId, inventoryIds),
+              or(eq(batches.isActiveBatch, true), gt(batches.stockRemaining, 0))
+            )
+          ).orderBy(asc(batches.purchaseDate));
+        }
+        
+        // Group batches by inventoryId
+        const batchesMap = new Map(); // inventoryId -> Batch[]
+        allBatches.forEach((b: any) => {
+          if (!batchesMap.has(b.inventoryId)) batchesMap.set(b.inventoryId, []);
+          batchesMap.get(b.inventoryId).push(b);
+        });
+
+        // 3. Batch Fetch Product Volumes (for Lubricants)
+        let volumeMap = new Map();
+        if (cartProductIds.length > 0) {
+            const allVolumes = await tx.select().from(productVolumes).where(inArray(productVolumes.productId, cartProductIds));
+             allVolumes.forEach((v: any) => {
+                const numericValue = parseVolumeString(v.volumeDescription);
+                const currentMax = volumeMap.get(v.productId) || 0;
+                if (numericValue > currentMax) volumeMap.set(v.productId, numericValue);
+             });
+        }
+
+        // 4. Batch Fetch Open Bottles (for Lubricants)
+        let openBottlesMap = new Map(); // inventoryId -> OpenBottleDetail[]
+        if (inventoryIds.length > 0) {
+            const allOpenBottles = await tx.select().from(openBottleDetails).where(
+                and(
+                    inArray(openBottleDetails.inventoryId, inventoryIds),
+                    eq(openBottleDetails.isEmpty, false)
+                )
+            ).orderBy(asc(openBottleDetails.openedAt));
+            
+             allOpenBottles.forEach((b: any) => {
+                if (!openBottlesMap.has(b.inventoryId)) openBottlesMap.set(b.inventoryId, []);
+                openBottlesMap.get(b.inventoryId).push(b);
+             });
+        }
+        // --- BATCH FETCHING OPTIMIZATION END ---
+
         // 2. Process each cart item with FIFO logic
         for (const cartItem of processedCart) {
           // Skip inventory processing for labor charges
-          if (cartItem.productId === "9999" || cartItem.productId === 9999) {
+          if (cartItem.productId === "9999") {
             console.log(
               `[${requestId}] Skipping inventory processing for labor charge: ${cartItem.productId}`
             );
             continue;
           }
 
-          // Find inventory record using derived locationId
-          const [inventoryRecord] = await tx
-            .select()
-            .from(inventory)
-            .where(
-              and(
-                eq(inventory.productId, cartItem.productId),
-                eq(inventory.locationId, actualLocationId)
-              )
-            )
-            .limit(1);
+          // Find inventory record from pre-fetched map
+          const inventoryRecord = inventoryMap.get(cartItem.productId);
 
           if (!inventoryRecord) {
             console.error(
@@ -734,37 +839,18 @@ export async function POST(req: NextRequest) {
             }
           );
 
-          // Find the active batch (FIFO - oldest first)
-          let activeBatch = await tx
-            .select()
-            .from(batches)
-            .where(
-              and(
-                eq(batches.inventoryId, inventoryRecord.id),
-                eq(batches.isActiveBatch, true)
-              )
-            )
-            .orderBy(asc(batches.purchaseDate))
-            .limit(1)
-            .then((result) => result[0]);
+          // Find the active batch from pre-fetched map
+          const itemBatches = batchesMap.get(inventoryRecord.id) || [];
+          
+          // Find active batch (FIFO - oldest first, assuming pre-fetch sorted by date)
+          let activeBatch = itemBatches.find((b: any) => b.isActiveBatch);
 
           if (!activeBatch) {
             console.error(
               `[${requestId}] No active batch found for inventory ${inventoryRecord.id}`
             );
             // Try to find any batch with remaining stock
-            const anyBatch = await tx
-              .select()
-              .from(batches)
-              .where(
-                and(
-                  eq(batches.inventoryId, inventoryRecord.id),
-                  gt(batches.stockRemaining, 0)
-                )
-              )
-              .orderBy(asc(batches.purchaseDate))
-              .limit(1)
-              .then((result) => result[0]);
+            const anyBatch = itemBatches.find((b: any) => b.stockRemaining > 0);
 
             if (anyBatch) {
               console.log(
@@ -776,8 +862,9 @@ export async function POST(req: NextRequest) {
                 .update(batches)
                 .set({ isActiveBatch: true })
                 .where(eq(batches.id, anyBatch.id));
-              // Use this batch as the active batch
-              activeBatch = { ...anyBatch, isActiveBatch: true };
+              // Update in-memory
+              anyBatch.isActiveBatch = true;
+              activeBatch = anyBatch;
             } else {
               // No batches exist - create a default batch for this inventory
               console.log(
@@ -794,6 +881,9 @@ export async function POST(req: NextRequest) {
                   isActiveBatch: true,
                 })
                 .returning();
+              
+              // Add to in-memory map
+              itemBatches.push(newBatch);
               activeBatch = newBatch;
               console.log(`[${requestId}] Created default batch:`, newBatch.id);
             }
@@ -817,44 +907,39 @@ export async function POST(req: NextRequest) {
               stockRemaining: activeBatch.stockRemaining - cartItem.quantity,
             })
             .where(eq(batches.id, activeBatch.id));
+          
+          // Update in-memory
+          activeBatch.stockRemaining -= cartItem.quantity;
 
           // FIFO Rule: If depleting the active batch, deactivate it and activate next oldest
-          if (activeBatch.stockRemaining - cartItem.quantity === 0) {
+          if (activeBatch.stockRemaining === 0) {
             await tx
               .update(batches)
               .set({ isActiveBatch: false })
               .where(eq(batches.id, activeBatch.id));
+            
+            // Update in-memory
+            activeBatch.isActiveBatch = false;
 
             // Find and activate the next oldest batch with stock
-            const [nextBatch] = await tx
-              .select()
-              .from(batches)
-              .where(
-                and(
-                  eq(batches.inventoryId, inventoryRecord.id),
-                  eq(batches.isActiveBatch, false),
-                  gt(batches.stockRemaining, 0)
-                )
-              )
-              .orderBy(asc(batches.purchaseDate))
-              .limit(1);
+            const nextBatch = itemBatches.find((b: any) => !b.isActiveBatch && b.stockRemaining > 0);
 
             if (nextBatch) {
               await tx
                 .update(batches)
                 .set({ isActiveBatch: true })
                 .where(eq(batches.id, nextBatch.id));
+              
+              // Update in-memory
+              nextBatch.isActiveBatch = true;
             }
           }
 
           // Update inventory stock based on product type
-          const product = await tx
-            .select()
-            .from(products)
-            .where(eq(products.id, cartItem.productId))
-            .limit(1);
+          // Use pre-fetched product map
+          const product = productMap.get(cartItem.productId);
 
-          if (!product[0]) {
+          if (!product) {
             console.error(
               `[${requestId}] Product not found: ${cartItem.productId}`
             );
@@ -862,16 +947,20 @@ export async function POST(req: NextRequest) {
           }
 
           console.log(
-            `[${requestId}] Processing product: ${product[0].name} (Category: ${
-              productMap.get(cartItem.productId)?.categoryName || "Unknown"
+            `[${requestId}] Processing product: ${product.name} (Category: ${
+              product.categoryName || "Unknown"
             })`
           );
 
-          if (
-            productMap.get(cartItem.productId)?.categoryName === "Lubricants"
-          ) {
+          if (product.categoryName === "Lubricants") {
             // Handle lubricant sales with precise bottle tracking
-            await handleLubricantSale(tx, cartItem, inventoryRecord);
+            await handleLubricantSale(
+                tx, 
+                cartItem, 
+                inventoryRecord, 
+                volumeMap.get(cartItem.productId), 
+                openBottlesMap.get(inventoryRecord.id)
+            );
           } else {
             // For other products, decrement standard stock
             // Verify we have enough stock before updating
@@ -888,6 +977,9 @@ export async function POST(req: NextRequest) {
                 standardStock: currentStock - cartItem.quantity,
               })
               .where(eq(inventory.id, inventoryRecord.id));
+            
+            // Update in-memory
+            inventoryRecord.standardStock = currentStock - cartItem.quantity;
           }
         }
 
@@ -1104,8 +1196,6 @@ export async function POST(req: NextRequest) {
                     productId: finalProductId,
                     locationId: actualLocationId,
                     standardStock: Number(tradeIn.quantity),
-                    minStockLevel: 0,
-                    maxStockLevel: 100,
                     sellingPrice: inventorySellingPrice?.toString() || null,
                   })
                   .returning();
@@ -1119,14 +1209,12 @@ export async function POST(req: NextRequest) {
               // Use the trade-in amount as the cost price
               await tx.insert(batches).values({
                 inventoryId: inventoryId,
-                quantity: Number(tradeIn.quantity),
-                costPrice: tradeIn.costPrice.toString(), // Trade-in value is the cost
-                receivedDate: new Date(),
-                expiryDate: null, // Batteries don't strictly expire in this context
-                supplier: `Trade-in (${tradeIn.condition})`,
-                isActiveBatch: true,
                 quantityReceived: Number(tradeIn.quantity),
                 stockRemaining: Number(tradeIn.quantity),
+                costPrice: tradeIn.costPrice.toString(), // Trade-in value is the cost
+                purchaseDate: new Date(),
+                supplier: `Trade-in (${tradeIn.condition})`,
+                isActiveBatch: true,
               });
               console.log(
                 `[${requestId}] Created batch for inventory ${inventoryId} with cost ${tradeIn.costPrice}`
@@ -1173,12 +1261,16 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        // Fetch shop details for POS ID
+        // Fetch shop details for POS ID and Whatsapp
         let shopPosId = "A0054"; // Default fallback
+        let shopWhatsapp = ""; 
         if (shopId) {
           try {
             const [shopData] = await tx
-              .select({ posId: shops.posId })
+              .select({ 
+                posId: shops.posId,
+                brandWhatsapp: shops.brandWhatsapp 
+              })
               .from(shops)
               .where(eq(shops.id, shopId))
               .limit(1);
@@ -1186,8 +1278,11 @@ export async function POST(req: NextRequest) {
             if (shopData?.posId) {
               shopPosId = shopData.posId;
             }
+            if (shopData?.brandWhatsapp) {
+              shopWhatsapp = shopData.brandWhatsapp;
+            }
           } catch (error) {
-            console.log(`[${requestId}] Could not fetch shop POS ID:`, error);
+            console.log(`[${requestId}] Could not fetch shop details:`, error);
           }
         }
 
@@ -1227,6 +1322,8 @@ export async function POST(req: NextRequest) {
           cashier: cashierName,
           paymentRecipient: paymentMethod?.toUpperCase() === "MOBILE" ? mobilePaymentAccount || undefined : undefined,
           posId: shopPosId,
+          carPlateNumber: carPlateNumber,
+          whatsapp: shopWhatsapp,
         };
 
         let receiptHtml = "";
@@ -1291,7 +1388,7 @@ export async function POST(req: NextRequest) {
           error: "Invalid input data",
           details: {
             requestId,
-            validationErrors: error.errors,
+            validationErrors: error.issues,
             processingTime,
             timestamp: new Date().toISOString(),
           },

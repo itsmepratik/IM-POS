@@ -247,7 +247,7 @@ export function Sidebar({
                     className={cn(
                       "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground whitespace-nowrap",
                       pathname === item.href &&
-                        "bg-accent text-accent-foreground",
+                        "bg-accent text-accent-foreground shadow-sm ring-1 ring-muted-foreground/30",
                       isCollapsed && "justify-center px-2"
                     )}
                     title={isCollapsed ? item.title : undefined}
@@ -289,7 +289,7 @@ export function Sidebar({
                             className={cn(
                               "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground whitespace-nowrap",
                               pathname === item.href &&
-                                "bg-accent text-accent-foreground"
+                                "bg-accent text-accent-foreground shadow-sm ring-1 ring-muted-foreground/30"
                             )}
                           >
                             <span className="flex-shrink-0">{item.icon}</span>
@@ -560,7 +560,6 @@ function ProfileMenu({ isCollapsed }: { isCollapsed: boolean }) {
       <DropdownMenuContent
         className="w-[15.5rem] max-w-full sm:w-[13.3rem] sm:ml-[2px] rounded-xl border-2 p-2 z-[999]"
         align="end"
-        forceMount
       >
         <DropdownMenuItem className="rounded-lg py-2">
           <User className="mr-2 h-5 w-5 stroke-[1.5]" />

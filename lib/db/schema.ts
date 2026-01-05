@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   boolean,
+  index,
   integer,
   jsonb,
   numeric,
@@ -24,6 +25,7 @@ export const shops = pgTable("shops", {
     .references(() => locations.id, { onDelete: "restrict" }),
   displayName: text("display_name"),
   posId: text("pos_id"),
+  brandWhatsapp: text("brand_whatsapp"), // Whatsapp number for the shop/brand
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
@@ -86,7 +88,9 @@ export const products = pgTable("products", {
   manufacturingDate: timestamp("manufacturing_date", { withTimezone: true }),
   isBattery: boolean("is_battery").default(false),
   batteryState: text("battery_state"), // 'new', 'scrap', 'resellable'
-});
+}, (table) => ({
+  categoryIdIdx: index("products_category_idx").on(table.categoryId),
+}));
 
 export const productVolumes = pgTable("product_volumes", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -95,7 +99,9 @@ export const productVolumes = pgTable("product_volumes", {
     .references(() => products.id, { onDelete: "cascade" }),
   volumeDescription: text("volume_description").notNull(),
   sellingPrice: numeric("selling_price").notNull(),
-});
+}, (table) => ({
+  productIdIdx: index("product_volumes_product_idx").on(table.productId),
+}));
 
 export const inventory = pgTable("inventory", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -118,7 +124,9 @@ export const inventory = pgTable("inventory", {
   totalStock: integer("total_stock").generatedAlwaysAs(
     sql`COALESCE("standard_stock", 0) + COALESCE("open_bottles_stock", 0) + COALESCE("closed_bottles_stock", 0)`
   ),
-});
+}, (table) => ({
+  productLocationIdx: index("inventory_product_location_idx").on(table.productId, table.locationId),
+}));
 
 export const batches = pgTable("batches", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -131,7 +139,9 @@ export const batches = pgTable("batches", {
   supplier: text("supplier"),
   purchaseDate: timestamp("purchase_date", { withTimezone: true }).defaultNow(),
   isActiveBatch: boolean("is_active_batch").default(false),
-});
+}, (table) => ({
+  inventoryActiveIdx: index("batches_inventory_active_idx").on(table.inventoryId, table.isActiveBatch),
+}));
 
 export const transactions = pgTable("transactions", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -164,7 +174,9 @@ export const transactions = pgTable("transactions", {
   discountAmount: numeric("discount_amount"), // Calculated discount amount in OMR
   subtotalBeforeDiscount: numeric("subtotal_before_discount"), // Original subtotal before discount
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
-});
+}, (table) => ({
+  referenceNumberIdx: index("transactions_ref_idx").on(table.referenceNumber),
+}));
 
 export const tradeInPrices = pgTable(
   "trade_in_prices",
@@ -229,7 +241,9 @@ export const openBottleDetails = pgTable("open_bottle_details", {
   currentVolume: numeric("current_volume").notNull(),
   openedAt: timestamp("opened_at", { withTimezone: true }).defaultNow(),
   isEmpty: boolean("is_empty").default(false),
-});
+}, (table) => ({
+  inventoryEmptyIdx: index("open_bottle_details_inventory_empty_idx").on(table.inventoryId, table.isEmpty),
+}));
 
 export const referenceNumberCounters = pgTable("reference_number_counters", {
   prefix: text("prefix").primaryKey(),

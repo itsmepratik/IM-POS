@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useMemo, useCallback, memo } from "react";
 import { Layout } from "@/components/layout";
+import { useCompanyInfo } from "@/lib/hooks/useCompanyInfo";
+
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -171,7 +173,7 @@ const TransactionCard = memo(
                       : transaction.type === "expense"
                       ? "text-purple-600"
                       : transaction.type === "credit"
-                      ? "text-orange-600"
+                      ? "text-blue-600"
                       : transaction.type === "on-hold"
                       ? "text-yellow-600"
                       : transaction.type === "stock-transfer"
@@ -330,7 +332,7 @@ const TransactionCard = memo(
                 <Button
                   variant="outline"
                   size="sm"
-                  className="flex items-center gap-1.5 text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+                  className="flex items-center gap-1.5 text-black hover:bg-primary/50"
                   onClick={() => onViewReceipt(transaction)}
                 >
                   <FileText className="h-4 w-4 sm:h-5 sm:w-5" />
@@ -362,7 +364,7 @@ function FixedSalesCard({
             : transaction.type === "expense"
             ? "bg-purple-600"
             : transaction.type === "credit"
-            ? "bg-orange-600"
+            ? "bg-blue-600"
             : transaction.type === "on-hold"
             ? "bg-yellow-600"
             : transaction.type === "stock-transfer"
@@ -696,7 +698,7 @@ function Receipt({ transaction }: { transaction: TransactionDisplay | null }) {
               </div>
               
               <div class="whatsapp">
-                WhatsApp 93396309 for latest offers
+                WhatsApp ${brand?.whatsapp || ""} for latest offers
               </div>
               
               <div class="barcode">
@@ -824,7 +826,7 @@ function Receipt({ transaction }: { transaction: TransactionDisplay | null }) {
               <p dir="rtl">شكراً للتسوق معنا</p>
             </div>
             <div className="text-center pt-2 mt-2 border-t border-dashed">
-              <p className="font-medium">WhatsApp 72702537 for latest offers</p>
+              <p className="font-medium">WhatsApp {brand?.whatsapp || ""} for latest offers</p>
               <p className="font-mono mt-1">{receiptNumber}</p>
             </div>
           </div>
@@ -854,6 +856,7 @@ export default function TransactionsPage() {
   const [isLoadingStores, setIsLoadingStores] = useState(true);
 
   const { branches } = useBranch();
+  const { brand } = useCompanyInfo();
 
   // Fetch stores from database
   useEffect(() => {
@@ -1844,19 +1847,10 @@ export default function TransactionsPage() {
                 receiptNumber={receiptTransactionData.receiptNumber}
                 currentDate={receiptTransactionData.currentDate}
                 currentTime={receiptTransactionData.currentTime}
+                onClose={() => setIsReceiptPreviewOpen(false)}
               />
             )}
           </div>
-
-          <DialogFooter className="mt-4">
-            <Button
-              variant="outline"
-              onClick={() => setIsReceiptPreviewOpen(false)}
-              className="w-full"
-            >
-              Close
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
 
@@ -1882,19 +1876,10 @@ export default function TransactionsPage() {
                 appliedTradeInAmount={billTransactionData.appliedTradeInAmount}
                 hideButton={false}
                 isWarrantyClaim={billTransactionData.isWarrantyClaim}
+                onClose={() => setIsBillPreviewOpen(false)}
               />
             )}
           </div>
-
-          <DialogFooter className="mt-4">
-            <Button
-              variant="outline"
-              onClick={() => setIsBillPreviewOpen(false)}
-              className="w-full"
-            >
-              Close
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
     </Layout>

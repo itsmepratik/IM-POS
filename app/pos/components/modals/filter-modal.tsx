@@ -78,12 +78,12 @@ function FilterImage({
   }, [imageUrl]);
 
   const handleError = React.useCallback(
-    (e?: React.SyntheticEvent<HTMLImageElement, Event>) => {
+    (e?: React.SyntheticEvent<HTMLImageElement, Event> | Error) => {
       setHasError(true);
       if (imageUrl) {
         cacheImageInvalid(imageUrl);
       }
-      if (e) {
+      if (e && 'currentTarget' in e) {
         e.currentTarget.onerror = null;
       }
     },
@@ -161,131 +161,135 @@ export function FilterModal({
         onOpenChange(open);
       }}
     >
-      <DialogContent className="w-[95%] max-w-[700px] p-6 rounded-lg max-h-[90vh] overflow-y-auto flex flex-col">
-        <DialogHeader className="pb-4">
+      <DialogContent className="w-[95%] max-w-[700px] rounded-lg max-h-[85vh] flex flex-col overflow-hidden gap-0">
+        <DialogHeader className="p-0 shrink-0 pb-6">
           <DialogTitle className="text-[clamp(1.125rem,3vw,1.25rem)] font-semibold">
             {selectedFilterBrand} - {selectedFilterType}
 
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6 w-full flex flex-col max-w-full">
-          {/* Filter options grid */}
-          <div
-            className="grid gap-4 w-full"
-            style={{
-              gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
-            }}
-          >
-            {filters.map((filter) => {
-              const available = filter.availableQuantity ?? 0;
-              const isOutOfStock = available <= 0;
-              const isSelected = selectedFilters.some((sf) => sf.id === filter.id);
+        <div className="flex-1 overflow-y-auto min-h-0 py-1 px-0">
+          <div className="space-y-6 w-full flex flex-col max-w-full">
+            {/* Filter options grid */}
+            <div
+              className="grid gap-4 w-full"
+              style={{
+                gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+              }}
+            >
+              {[...filters].sort((a, b) => a.name.localeCompare(b.name)).map((filter) => {
+                const available = filter.availableQuantity ?? 0;
+                const isOutOfStock = available <= 0;
+                const isSelected = selectedFilters.some((sf) => sf.id === filter.id);
 
-              return (
-                <Button
-                  key={filter.id}
-                  variant={isSelected ? "chonky" : "outline"}
-                  disabled={false} // Always clickable to show notification
-                  className={`border-2 rounded-[18px] flex flex-col items-center justify-between p-3 sm:p-4 h-[180px] sm:h-[200px] md:h-[220px] overflow-hidden shadow-sm hover:shadow-md transition-all relative ${
-                    isOutOfStock 
-                    ? "opacity-60 bg-muted/50" 
-                    : isSelected ? "ring-2 ring-primary" : ""
-                  }`}
-                  onClick={() => {
-                    if (isOutOfStock) {
-                       addPersistentNotification({
-                         type: "error",
-                         title: "Out of Stock",
-                         message: `${filter.name} is currently out of stock.`,
-                         category: "stock"
-                       });
-                       return;
-                    }
-                    onFilterClick(filter);
-                  }}
-                  type="button"
-                >
-                  {/* Stock Badge - REMOVED per user request */}
-
-                  <div className="relative w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 mb-2 flex items-center justify-center">
-                    <FilterImage
-                      imageUrl={filter.imageUrl}
-                      brand={selectedFilterBrand || ""}
-                      type={selectedFilterType || ""}
-                      filterName={filter.name}
-                    />
-                    {/* Out of Stock Overlay - Matches Lubricant Style */}
-                    {isOutOfStock && (
-                      <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-[1px] rounded-md z-1">
-                         <Badge variant="destructive" className="text-[10px]">Out of Stock</Badge>
-                      </div>
-                    )}
-                  </div>
-                  <span
-                    className="text-center font-medium text-xs sm:text-sm w-full px-1 whitespace-normal leading-tight hyphens-auto break-words"
-                    style={{ lineHeight: 1.1 }}
+                return (
+                  <Button
+                    key={filter.id}
+                    variant={isSelected ? "chonky" : "outline"}
+                    disabled={false} // Always clickable to show notification
+                    className={`border-2 rounded-[18px] flex flex-col items-center justify-between p-3 sm:p-4 h-[180px] sm:h-[200px] md:h-[220px] overflow-hidden shadow-sm hover:shadow-md transition-all relative ${
+                      isOutOfStock 
+                      ? "opacity-60 bg-muted/50" 
+                      : isSelected ? "ring-2 ring-primary" : ""
+                    }`}
+                    onClick={() => {
+                      if (isOutOfStock) {
+                         addPersistentNotification({
+                           type: "error",
+                           title: "Out of Stock",
+                           message: `${filter.name} is currently out of stock.`,
+                           category: "stock"
+                         });
+                         return;
+                      }
+                      onFilterClick(filter);
+                    }}
+                    type="button"
                   >
-                    {filter.name}
-                  </span>
-                  <span className="block text-xs sm:text-sm text-primary mt-1">
-                    OMR {filter.price.toFixed(3)}
-                  </span>
-                </Button>
-              );
-            })}
-          </div>
+                    {/* Stock Badge - REMOVED per user request */}
 
-          {/* Selected filters list - bulletproof against overflow */}
-          {selectedFilters.length > 0 && (
-            <div className="border rounded-lg bg-muted/50 w-full max-w-full">
-              <ScrollArea className="h-[140px] sm:h-[160px] px-1 py-2 w-full max-w-full">
-                <div className="space-y-5 w-full max-w-full">
-                  {selectedFilters.map((filter) => (
-                    <div
-                      key={filter.id}
-                      className="w-full flex items-center gap-2 min-w-0 px-2 max-w-full"
-                    >
-                      <div className="flex items-center gap-1 flex-shrink-0">
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="h-5 w-5"
-                          onClick={() => onQuantityChange(filter.id, -1)}
-                        >
-                          <Minus className="h-2.5 w-2.5" />
-                        </Button>
-                        <span className="w-4 text-center text-[clamp(0.875rem,2vw,1rem)]">
-                          {filter.quantity}
-                        </span>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="h-5 w-5"
-                          onClick={() => onQuantityChange(filter.id, 1)}
-                        >
-                          <Plus className="h-2.5 w-2.5" />
-                        </Button>
-                      </div>
-                      <span
-                        className="font-medium text-[clamp(0.875rem,2vw,1rem)] whitespace-normal break-words line-clamp-2 flex-1 min-w-0"
-                        style={{ lineHeight: 1 }}
-                      >
-                        {filter.name}
-                      </span>
-                      <span className="font-medium text-[clamp(0.875rem,2vw,1rem)] whitespace-nowrap pl-2 flex-shrink-0">
-                        OMR {(filter.price * filter.quantity).toFixed(3)}
-                      </span>
+                    <div className="relative w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 mb-2 flex items-center justify-center">
+                      <FilterImage
+                        imageUrl={filter.imageUrl}
+                        brand={selectedFilterBrand || ""}
+                        type={selectedFilterType || ""}
+                        filterName={filter.name}
+                      />
+                      {/* Out of Stock Overlay - Matches Lubricant Style */}
+                      {isOutOfStock && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-[1px] rounded-md z-1">
+                           <Badge variant="destructive" className="text-[10px]">Out of Stock</Badge>
+                        </div>
+                      )}
                     </div>
-                  ))}
-                </div>
-              </ScrollArea>
+                    <span
+                      className="text-center font-medium text-xs sm:text-sm w-full px-1 whitespace-normal leading-tight hyphens-auto break-words"
+                      style={{ lineHeight: 1.1 }}
+                    >
+                      {filter.name}
+                    </span>
+                    <span className="block text-xs sm:text-sm text-foreground mt-1">
+                      OMR {filter.price.toFixed(3)}
+                    </span>
+                  </Button>
+                );
+              })}
             </div>
-          )}
 
-          <div className="flex justify-between gap-3 pt-2 w-full">
+            {/* Selected filters list - bulletproof against overflow */}
+            {selectedFilters.length > 0 && (
+              <div className="border rounded-lg bg-muted/50 w-full max-w-full">
+                <ScrollArea className="h-[140px] sm:h-[160px] px-1 py-2 w-full max-w-full">
+                  <div className="space-y-5 w-full max-w-full">
+                    {selectedFilters.map((filter) => (
+                      <div
+                        key={filter.id}
+                        className="w-full flex items-center gap-2 min-w-0 px-2 max-w-full"
+                      >
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-5 w-5"
+                            onClick={() => onQuantityChange(filter.id, -1)}
+                          >
+                            <Minus className="h-2.5 w-2.5" />
+                          </Button>
+                          <span className="w-4 text-center text-[clamp(0.875rem,2vw,1rem)]">
+                            {filter.quantity}
+                          </span>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-5 w-5"
+                            onClick={() => onQuantityChange(filter.id, 1)}
+                          >
+                            <Plus className="h-2.5 w-2.5" />
+                          </Button>
+                        </div>
+                        <span
+                          className="font-medium text-[clamp(0.875rem,2vw,1rem)] whitespace-normal break-words line-clamp-2 flex-1 min-w-0"
+                          style={{ lineHeight: 1 }}
+                        >
+                          {filter.name}
+                        </span>
+                        <span className="font-medium text-[clamp(0.875rem,2vw,1rem)] whitespace-nowrap pl-2 flex-shrink-0 text-foreground">
+                          OMR {(filter.price * filter.quantity).toFixed(3)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="p-0 bg-background shrink-0 pt-6">
+          <div className="flex justify-between gap-3 w-full">
             <Button
-              variant="outline"
+              variant="chonky-secondary"
               className="px-4 sm:px-6 text-[clamp(0.875rem,2vw,1rem)]"
               onClick={() => onOpenChange(false)}
             >

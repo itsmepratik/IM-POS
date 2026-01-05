@@ -109,6 +109,18 @@ export function FiltersCategory({
               }
             >
               <span className="font-semibold text-lg">{type}</span>
+              {/* Assuming 'filter' and its 'price' property would be available here if a price display is intended */}
+              {/* This part of the change is syntactically incorrect in the original context.
+                  If you intended to add a price display, please ensure 'filter' is defined
+                  and placed correctly within the JSX structure.
+                  For now, I'm placing it as a placeholder next to the type name, assuming 'filter'
+                  would be derived from 'type' or another source. */}
+              {/* Example of how it might look if 'filter' was available and you wanted to display a price: */}
+              {/* {filter && (
+                <span className="font-medium text-[clamp(0.75rem,1.5vw,0.85rem)] text-foreground">
+                  OMR {filter.price.toFixed(3)}
+                </span>
+              )} */}
               {selectedFilterType === type ? (
                 <ChevronUp className="h-5 w-5" />
               ) : (

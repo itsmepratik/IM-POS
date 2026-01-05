@@ -17,14 +17,18 @@ const buttonVariants = cva(
         secondary:
           "bg-secondary text-secondary-foreground hover:bg-secondary/80 rounded-[12px]",
         chonky:
-          "bg-primary text-primary-foreground relative transition-all duration-200 ease-in-out active:transition-none rounded-[12px] " +
-          "shadow-chonky-primary hover:translate-y-[-2px] hover:shadow-chonky-primary-hover active:translate-y-[3px] active:shadow-chonky-primary-active",
+          "px-[33px] py-4 rounded-xl bg-[#d5f365] border-2 border-[#8e9478] " +
+          "font-formula1 font-medium text-[0.85rem] text-center cursor-pointer text-black " +
+          "transition-all duration-300 hover:shadow-[7px_5px_56px_-14px_#c3d900] " +
+          "active:scale-[0.97] active:shadow-[7px_5px_56px_-10px_#c3d900]",
         "chonky-destructive":
           "bg-destructive text-destructive-foreground relative transition-all duration-200 ease-in-out active:transition-none rounded-[12px] " +
           "shadow-chonky-destructive hover:translate-y-[-2px] hover:shadow-chonky-destructive-hover active:translate-y-[3px] active:shadow-chonky-destructive-active",
         "chonky-secondary":
-          "bg-secondary text-secondary-foreground relative transition-all duration-200 ease-in-out active:transition-none rounded-[12px] " +
-          "shadow-chonky-secondary hover:translate-y-[-2px] hover:shadow-chonky-secondary-hover active:translate-y-[3px] active:shadow-chonky-secondary-active",
+          "px-[33px] py-4 rounded-xl bg-white border-2 border-input " +
+          "font-formula1 font-medium text-[0.85rem] text-center cursor-pointer text-foreground " +
+          "transition-all duration-300 hover:bg-accent " +
+          "active:scale-[0.97]",
         ghost: "hover:bg-accent hover:text-accent-foreground transition-colors rounded-[12px]",
         link: "text-primary underline-offset-4 hover:underline transition-colors rounded-[12px]",
       },

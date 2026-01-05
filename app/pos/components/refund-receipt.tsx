@@ -27,6 +27,7 @@ interface RefundReceiptProps {
   cashier?: string;
   refundAmount: number;
   hidePrintButton?: boolean;
+  onClose?: () => void;
 }
 
 const companyDetails = {
@@ -57,6 +58,7 @@ export const RefundReceipt: React.FC<RefundReceiptProps> = ({
   cashier,
   refundAmount,
   hidePrintButton = false,
+  onClose,
 }) => {
   const receiptRef = useRef<HTMLDivElement>(null);
   const [isClient, setIsClient] = useState(false);
@@ -252,7 +254,7 @@ export const RefundReceipt: React.FC<RefundReceiptProps> = ({
             ${cashier ? `<p>Cashier: ${cashier}</p>` : ""}
             <p>Thank you for shopping with us.</p>
             <p class="arabic">شكراً للتسوق معنا</p>
-            <p style="font-weight:bold; margin-top:6px;">WhatsApp 72702537 for latest offers</p>
+            <p style="font-weight:bold; margin-top:6px;">WhatsApp ${brand.whatsapp || ""} for latest offers</p>
           </div>
         </div>
       </body>
@@ -406,18 +408,32 @@ export const RefundReceipt: React.FC<RefundReceiptProps> = ({
           <p>Thank you for shopping with us.</p>
           <p className="text-xs text-right text-gray-600">شكراً للتسوق معنا</p>
           <p className="font-medium mt-2">
-            WhatsApp 93396309 for latest offers
+            WhatsApp {brand.whatsapp || ""} for latest offers
           </p>
         </div>
       </div>
 
       {!hidePrintButton && (
-        <Button
-          onClick={handlePrint}
-          className="w-full mt-4 flex items-center justify-center gap-2"
-        >
-          <Printer className="h-4 w-4" /> Print Receipt
-        </Button>
+        <div className="flex flex-row gap-4 mt-4">
+          {onClose && (
+            <Button
+              variant="chonky-secondary"
+              onClick={onClose}
+              className="flex-1"
+            >
+              Close
+            </Button>
+          )}
+          <Button
+            onClick={handlePrint}
+            variant="chonky"
+            className={`flex items-center justify-center gap-2 ${
+              onClose ? "flex-1" : "w-full"
+            }`}
+          >
+            <Printer className="h-4 w-4" /> Print Receipt
+          </Button>
+        </div>
       )}
     </motion.div>
   );

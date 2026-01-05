@@ -4,7 +4,7 @@ import * as schema from "./schema";
 import { dbConfig } from "../config";
 
 // Connection pool configuration
-const CONNECTION_POOL_SIZE = 3; // Increased pool size for better concurrency
+const CONNECTION_POOL_SIZE = 10; // Increased pool size for better concurrency
 const CONNECTION_TIMEOUT = 15; // 15 seconds connection timeout
 const IDLE_TIMEOUT = 60; // 60 seconds idle timeout
 const MAX_LIFETIME = 60 * 60; // 1 hour max connection lifetime
@@ -31,7 +31,7 @@ try {
       connection: {
         application_name: "pos-system",
         connect_timeout: CONNECTION_TIMEOUT * 1000, // Convert to milliseconds
-        statement_timeout: 30000, // 30 second query timeout
+        statement_timeout: 90000, // Increased to 90 seconds to match enhanced checkout timeout
         idle_in_transaction_session_timeout: 60000, // 1 minute idle transaction timeout
       },
       // Enhanced timeout and retry logic

@@ -259,14 +259,14 @@ export function ProductModal({
         <div className="flex justify-between gap-3 pt-2">
           <Button
             variant="chonky-secondary"
-            className="w-1/3 px-4 text-[clamp(0.875rem,2vw,1rem)]"
+            className="px-4 text-[clamp(0.875rem,2vw,1rem)]"
             onClick={() => onOpenChange(false)}
           >
             Cancel
           </Button>
           <Button
             variant="chonky"
-            className="w-2/3 px-4 text-[clamp(0.875rem,2vw,1rem)]"
+            className="px-4 text-[clamp(0.875rem,2vw,1rem)]"
             onClick={handleAddToCart}
             disabled={
               selectedVariants.length === 0 ||

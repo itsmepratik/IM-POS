@@ -6,6 +6,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -541,17 +542,17 @@ export default function BrandModal({ open, onOpenChange }: BrandModalProps) {
           </div>
 
           {/* Default "None" Option Info */}
-          <Card className="border-orange-200 bg-orange-50">
+          <Card className="border-primary/20 bg-primary/5">
             <CardContent className="p-4">
               <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0">
-                  <ImageIcon className="h-5 w-5 text-orange-600" />
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                  <ImageIcon className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <h4 className="font-medium text-orange-900">
+                  <h4 className="font-medium text-foreground">
                     Default Option
                   </h4>
-                  <p className="text-sm text-orange-700 mt-1">
+                  <p className="text-sm text-muted-foreground mt-1">
                     Items without a specific brand will be listed under "None
                     (No brand)". This is a default option and cannot be deleted.
                   </p>
@@ -561,14 +562,15 @@ export default function BrandModal({ open, onOpenChange }: BrandModalProps) {
           </Card>
         </div>
 
-        <div className="pt-4 mt-2 border-t flex justify-end">
+        <DialogFooter className="mt-4 flex flex-row gap-4 w-full">
           <Button 
             onClick={() => onOpenChange(false)} 
-            variant="outline"
+            variant="chonky-secondary"
+            className="flex-1"
           >
             Close
           </Button>
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

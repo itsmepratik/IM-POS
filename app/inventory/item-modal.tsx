@@ -51,6 +51,7 @@ import {
   formatDateForInput,
   getDateValidationInfo,
 } from "@/lib/utils/dateUtils";
+import { type Type } from "@/lib/services/inventoryService";
 import {
   Card,
   CardContent,
@@ -65,7 +66,7 @@ import { toast } from "@/components/ui/use-toast";
 import { MultiSelect, Option } from "@/components/ui/multi-select";
 
 // Extended Item interface to include additional properties needed in the modal
-interface ExtendedItem extends Omit<Item, "is_oil" | "image_url" | "price" | "stock" | "costPrice" | "lowStockAlert"> {
+interface ExtendedItem extends Omit<Item, "image_url" | "price" | "stock" | "costPrice" | "lowStockAlert"> {
   price: number | string;
   stock: number | string;
   isOil: boolean; // UI version of is_oil
@@ -78,7 +79,6 @@ interface ExtendedItem extends Omit<Item, "is_oil" | "image_url" | "price" | "st
   manufacturingDate?: string; // UI version of manufacturing_date
   batches: Batch[]; // Make batches always required and non-optional
   isBattery?: boolean; // UI version of is_battery
-  batteryState?: "new" | "scrap" | "resellable"; // Battery state for categorization
   batteryState?: "new" | "scrap" | "resellable"; // Battery state for categorization
   specification?: string; // New field for "For" dropdown (OEM, First Copy, Second Copy / Petrol, Diesel)
   types?: Type[]; // Array of types
@@ -135,8 +135,8 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
     brand_id: item?.brand_id || null,
     created_at: item?.created_at || null,
     updated_at: item?.updated_at || null,
-    lowStockAlert: item?.low_stock_threshold || 10,
-    isOil: item?.is_oil || false,
+    lowStockAlert: item?.lowStockAlert || 10,
+    isOil: item?.isOil || false,
     bottleStates: item?.bottleStates || { open: 0, closed: 0 },
     volumes: item?.volumes || [],
     batches: item?.batches || [],
@@ -224,20 +224,20 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
         type: item.type || "",
         imageUrl: item.image_url || item.imageUrl || "",
         imageBlob: "",
-        notes: item.description || item.notes || "",
+        notes: item.description || "",
         lowStockAlert: item.lowStockAlert || 5, // Use value from item or default to 5
-        isOil: item.is_oil || item.isOil || false,
+        isOil: item.isOil || false,
         bottleStates: item.bottleStates || { open: 0, closed: 0 },
         volumes: item.volumes || [],
         batches: sortedBatches || [],
         category_id: item.category_id || null,
         brand_id: item.brand_id || null,
         type_id: item.type_id || null,
+        type_name: item.type_name || null,
         created_at: item.created_at || null,
         updated_at: item.updated_at || null,
-        description: item.description || item.notes || null,
+        description: item.description || null,
         image_url: item.image_url || item.imageUrl || null,
-        is_oil: item.is_oil || item.isOil || false,
         isBattery: item.isBattery || isBatteryType || false,
         batteryState: item.batteryState || "new",
         specification: item.specification || "",
@@ -248,7 +248,6 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
       console.log("Transformed form data:", {
         ...formDataObj,
         isOil: formDataObj.isOil,
-        is_oil: formDataObj.is_oil,
         bottleStates: formDataObj.bottleStates,
         stock: formDataObj.stock,
         manufacturingDate: formDataObj.manufacturingDate,
@@ -292,14 +291,14 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
         batches: [],
         category_id: null,
         brand_id: null,
-        type_id: null,
-        created_at: null,
-        updated_at: null,
-        description: null,
         image_url: null,
-        is_oil: false,
         isBattery: false,
         batteryState: "new",
+        description: null,
+        created_at: null,
+        updated_at: null,
+        type_id: null,
+        type_name: null,
       } as ExtendedItem);
     }
     setActiveTab("general");
@@ -415,14 +414,14 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
       return 0;
 
     const totalQuantity = formData.batches.reduce(
-      (sum, batch) => sum + batch.quantity,
+      (sum, batch) => sum + (batch.current_quantity || 0),
       0
     );
     if (totalQuantity === 0) return 0;
 
     const weightedCostPrice =
       formData.batches.reduce(
-        (sum, batch) => sum + batch.costPrice * batch.quantity,
+        (sum, batch) => sum + (batch.cost_price || 0) * (batch.current_quantity || 0),
         0
       ) / totalQuantity;
 
@@ -622,7 +621,7 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
         setFormData((prev) => ({
           ...prev,
           batches: updatedBatches,
-          stock: updatedBatches.reduce((sum, batch) => sum + batch.quantity, 0),
+          stock: updatedBatches.reduce((sum, batch) => sum + (batch.current_quantity || 0), 0),
         }));
 
         // Reset the form after successful addition
@@ -664,13 +663,13 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
     // Re-sort batches by purchase date to maintain FIFO order
     const sortedBatches = updatedBatches.sort(
       (a, b) =>
-        new Date(a.purchaseDate).getTime() - new Date(b.purchaseDate).getTime()
+        new Date(a.purchase_date).getTime() - new Date(b.purchase_date).getTime()
     );
 
     setFormData((prev) => ({
       ...prev,
       batches: sortedBatches,
-      stock: sortedBatches.reduce((sum, batch) => sum + batch.quantity, 0),
+      stock: sortedBatches.reduce((sum, batch) => sum + (batch.current_quantity || 0), 0),
     }));
 
     setEditingBatchId(null);
@@ -712,7 +711,7 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
           ...prev,
           batches: remainingBatches,
           stock: remainingBatches.reduce(
-            (sum, batch) => sum + batch.quantity,
+            (sum, batch) => sum + (batch.current_quantity || 0),
             0
           ),
         }));
@@ -733,7 +732,7 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
     setNewBatch({
       purchaseDate: batch.purchaseDate,
       costPrice: batch.costPrice,
-      quantity: batch.quantity,
+      quantity: (batch.current_quantity || 0),
     });
   };
 
@@ -909,7 +908,7 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
                                         ? formData.volumes &&
                                           formData.volumes.length > 0
                                           ? formData.volumes
-                                          : [{ size: "", price: "" }]
+                                          : ([] as Volume[])
                                         : [],
                                       bottleStates: isLubricants
                                         ? formData.bottleStates || {
@@ -1414,7 +1413,6 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
                                     id="openBottles"
                                     type="number"
                                     min="0"
-                                    min="0"
                                     value={
                                       formData.bottleStates?.open === 0 ||
                                       formData.bottleStates?.open === undefined
@@ -1465,7 +1463,6 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
                                   <Input
                                     id="closedBottles"
                                     type="number"
-                                    min="0"
                                     min="0"
                                     value={
                                       formData.bottleStates?.closed === 0 ||
@@ -1569,10 +1566,6 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
                                           Price
                                         </Label>
                                         <Input
-                                          id={`price-${index}`}
-                                          type="number"
-                                          min="0"
-                                          step="0.01"
                                           id={`price-${index}`}
                                           type="number"
                                           min="0"
@@ -1692,7 +1685,7 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
                                 <CardDescription>
                                   Total Stock:{" "}
                                   {formData.batches.reduce(
-                                    (sum, batch) => sum + batch.quantity,
+                                    (sum, batch) => sum + (batch.current_quantity || 0),
                                     0
                                   )}{" "}
                                   units
@@ -1759,7 +1752,7 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
                                             Quantity
                                           </div>
                                           <div className="text-sm">
-                                            {batch.quantity} units
+                                            {(batch.current_quantity || 0)} units
                                           </div>
                                         </div>
                                         <div className="hidden sm:block">
@@ -1846,8 +1839,8 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
                                         {
                                           purchaseDate:
                                             editingBatch.purchaseDate,
-                                          costPrice: editingBatch.costPrice,
-                                          quantity: editingBatch.quantity,
+                                          cost_price: editingBatch.cost_price,
+                                          current_quantity: editingBatch.current_quantity,
                                         }
                                       );
 
@@ -1861,7 +1854,7 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
                                                   editingBatch.purchaseDate,
                                                 costPrice:
                                                   editingBatch.costPrice,
-                                                quantity: editingBatch.quantity,
+                                                current_quantity: editingBatch.current_quantity,
                                               }
                                             : batch
                                         );
@@ -1869,24 +1862,27 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
                                       // Re-sort batches by purchase date to maintain FIFO order
                                       const sortedBatches = updatedBatches.sort(
                                         (a, b) =>
-                                          new Date(a.purchaseDate).getTime() -
-                                          new Date(b.purchaseDate).getTime()
+                                          new Date(a.purchase_date).getTime() -
+                                          new Date(b.purchase_date).getTime()
                                       );
 
                                       setFormData((prev) => ({
                                         ...prev,
                                         batches: sortedBatches,
                                         stock: sortedBatches.reduce(
-                                          (sum, batch) => sum + batch.quantity,
+                                          (sum, batch) => sum + (batch.current_quantity || 0),
                                           0
                                         ),
                                       }));
                                     } else {
                                       // Add new batch to context
                                       addBatch(formData.id, {
-                                        purchaseDate: editingBatch.purchaseDate,
-                                        costPrice: editingBatch.costPrice,
-                                        quantity: editingBatch.quantity,
+                                        purchase_date: editingBatch.purchase_date,
+                                        cost_price: editingBatch.cost_price,
+                                        initial_quantity: editingBatch.current_quantity,
+                                        current_quantity: editingBatch.current_quantity,
+                                        supplier_id: null,
+                                        expiration_date: null,
                                       });
 
                                       // Update local formData
@@ -1894,12 +1890,12 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
                                         id: getClientOnlyId(), // Use stable ID generation function
                                         item_id: formData.id,
                                         purchase_date:
-                                          editingBatch.purchaseDate,
+                                          editingBatch.purchase_date,
                                         expiration_date: null,
                                         supplier_id: null,
-                                        cost_price: editingBatch.costPrice,
-                                        initial_quantity: editingBatch.quantity,
-                                        current_quantity: editingBatch.quantity,
+                                        cost_price: editingBatch.cost_price,
+                                        initial_quantity: editingBatch.current_quantity,
+                                        current_quantity: editingBatch.current_quantity,
                                         created_at: new Date().toISOString(),
                                         updated_at: new Date().toISOString(),
                                       };
@@ -1942,7 +1938,7 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
                                       <Input
                                         id="purchaseDate"
                                         type="date"
-                                        value={editingBatch.purchaseDate}
+                                        value={editingBatch.purchase_date || ""}
                                         onChange={(e) =>
                                           setEditingBatch({
                                             ...editingBatch,
@@ -1964,7 +1960,7 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
                                         id="costPrice"
                                         type="number"
                                         step="0.01"
-                                        value={editingBatch.costPrice}
+                                        value={editingBatch.cost_price || ""}
                                         onChange={(e) =>
                                           setEditingBatch({
                                             ...editingBatch,
@@ -1988,7 +1984,7 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
                                         <Input
                                           id="quantity"
                                           type="number"
-                                          value={editingBatch.quantity}
+                                          value={editingBatch.current_quantity || ""}
                                           onChange={(e) =>
                                             setEditingBatch({
                                               ...editingBatch,
@@ -2002,18 +1998,18 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
                                       </div>
                                     </div>
                                   </div>
-                                   <DialogFooter className="flex-col-reverse sm:flex-row gap-3 sm:gap-2 mt-3">
+                                   <DialogFooter className="flex flex-row gap-4 mt-4 w-full">
                                      <Button
                                        type="button"
-                                       variant="secondary"
+                                       variant="chonky-secondary"
                                        onClick={() => setIsEditingBatch(false)}
-                                       className="w-full sm:w-auto"
+                                       className="flex-1"
                                      >
                                        Cancel
                                      </Button>
                                      <Button
                                        type="submit"
-                                       className="w-full sm:w-auto"
+                                       className="flex-1"
                                      >
                                        Save
                                      </Button>
@@ -2036,14 +2032,15 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
             </div>
           )}
         </div>
-        <DialogFooter className="mt-4 gap-3">
+        <DialogFooter className="mt-4 flex flex-row gap-4 w-full">
           <Button 
-            variant="outline" 
+            variant="chonky-secondary" 
             onClick={() => onOpenChange(false)}
+            className="flex-1"
           >
             Cancel
           </Button>
-          <Button type="submit" onClick={handleSubmit}>
+          <Button type="submit" onClick={handleSubmit} variant="chonky" className="flex-1">
             {item ? "Update Item" : "Add Item"}
           </Button>
         </DialogFooter>

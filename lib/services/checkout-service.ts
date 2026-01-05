@@ -67,11 +67,11 @@ enum CircuitState {
 }
 
 // Configuration
-const RETRY_ATTEMPTS = 3;
-const RETRY_DELAY_BASE = 1000; // 1 second base delay
-const CIRCUIT_FAILURE_THRESHOLD = 5; // Number of failures before opening circuit
-const CIRCUIT_RECOVERY_TIMEOUT = 30000; // 30 seconds before trying API again
-const REQUEST_TIMEOUT = 15000; // 15 second timeout for API calls
+const RETRY_ATTEMPTS = 5; // Maximum resilience for critical transactions
+const RETRY_DELAY_BASE = 1000;
+const CIRCUIT_FAILURE_THRESHOLD = 5;
+const CIRCUIT_RECOVERY_TIMEOUT = 30000;
+const REQUEST_TIMEOUT = 90000; // 90 seconds per attempt
 
 class CheckoutService {
   private circuitState: CircuitState = CircuitState.CLOSED;
@@ -124,7 +124,10 @@ class CheckoutService {
   ): Promise<CheckoutResponse> {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
+      const timeoutId = setTimeout(() => {
+        console.warn(`[${new Date().toISOString()}] ⏲️ CheckoutService: Request timeout of ${REQUEST_TIMEOUT}ms reached for attempt ${attempt}`);
+        controller.abort(new Error(`Timeout of ${REQUEST_TIMEOUT/1000}s reached`));
+      }, REQUEST_TIMEOUT);
 
       //Log the request being sent (especially discount and trade-ins)
       console.log("📤 CheckoutService: Sending request to API:", {
@@ -277,11 +280,19 @@ class CheckoutService {
       "network",
       "ECONNRESET",
       "ENOTFOUND",
+      "abort",
+      "signal",
     ];
 
     const errorMessage = error?.message?.toLowerCase() || "";
-    return retryableErrors.some((retryable) =>
-      errorMessage.includes(retryable.toLowerCase())
+    const errorName = error?.name || "";
+    
+    return (
+      errorName === "AbortError" ||
+      errorName === "TimeoutError" ||
+      retryableErrors.some((retryable) =>
+        errorMessage.includes(retryable.toLowerCase())
+      )
     );
   }
 

@@ -29,7 +29,7 @@ import {
   ChevronUp,
   Database,
   ShoppingCart,
-  Sync,
+  RefreshCw,
   Clock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -75,10 +75,10 @@ export function IntegrationStatus({ className }: IntegrationStatusProps) {
         status: "loading" as const,
         message: "Syncing Data",
         description: "Fetching latest inventory data...",
-        color: "text-orange-600",
-        bgColor: "bg-orange-50",
-        borderColor: "border-orange-200",
-        icon: <Sync className="h-5 w-5 text-orange-600 animate-spin" />,
+        color: "text-black",
+        bgColor: "bg-muted",
+        borderColor: "border-border",
+        icon: <RefreshCw className="h-5 w-5 text-muted-foreground animate-spin" />,
       };
     }
 
@@ -150,7 +150,7 @@ export function IntegrationStatus({ className }: IntegrationStatusProps) {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
               {/* Product Stats */}
               <div className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30">
-                <Database className="h-8 w-8 text-orange-600" />
+                <Database className="h-8 w-8 text-primary" />
                 <div>
                   <p className="font-medium">Total Products</p>
                   <p className="text-2xl font-bold">{totalProducts}</p>
@@ -236,7 +236,7 @@ export function IntegrationStatus({ className }: IntegrationStatusProps) {
                 disabled={isLoading}
                 className="flex items-center gap-2"
               >
-                <Sync className={cn("h-4 w-4", isLoading && "animate-spin")} />
+                <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} />
                 Force Sync
               </Button>
 

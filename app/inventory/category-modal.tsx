@@ -283,11 +283,12 @@ export function CategoryModal({ open, onOpenChange }: CategoryModalProps) {
             )}
           </div>
         </div>
-        <DialogFooter className="mt-4 gap-3">
+        <DialogFooter className="mt-4 flex flex-row gap-4 w-full">
           <Button
-            variant="secondary"
+            variant="chonky-secondary"
             onClick={() => onOpenChange(false)}
             disabled={isLoading}
+            className="flex-1"
           >
             Close
           </Button>

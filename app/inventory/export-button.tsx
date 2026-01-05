@@ -44,7 +44,7 @@ export default function ExportButton({ items }: ExportButtonProps) {
         item.brand || "",
         item.category,
         item.type || "",
-        item.stock.toString(),
+        (item.stock ?? 0).toString(),
         item.price.toString(),
         item.description || "",
       ]);
@@ -54,10 +54,11 @@ export default function ExportButton({ items }: ExportButtonProps) {
         headers.join(","),
         ...rows.map((row) =>
           row
-            .map((cell) =>
+            .map((cell) => {
+              const cellStr = cell?.toString() || "";
               // Handle commas and quotes in cell content
-              cell.includes(",") ? `"${cell.replace(/"/g, '""')}"` : cell
-            )
+              return cellStr.includes(",") ? `"${cellStr.replace(/"/g, '""')}"` : cellStr;
+            })
             .join(",")
         ),
       ].join("\n");
@@ -98,7 +99,7 @@ export default function ExportButton({ items }: ExportButtonProps) {
       variant="outline"
       onClick={exportToCSV}
       disabled={isExporting}
-      className="rounded-[2.0625rem]"
+      className="rounded-[12px]"
     >
       <Download className="mr-2 h-4 w-4" />
       Export

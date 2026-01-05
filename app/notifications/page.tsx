@@ -174,7 +174,7 @@ export default function NotificationsPage() {
                         }
                         ${
                           notification.type === "info"
-                            ? "border-orange-500"
+                            ? "border-blue-500"
                             : ""
                         }
                       `}
@@ -199,7 +199,7 @@ export default function NotificationsPage() {
                                   <div className="h-3 w-3 rounded-full bg-amber-500" />
                                 )}
                                 {notification.type === "info" && (
-                                  <div className="h-3 w-3 rounded-full bg-orange-500" />
+                                  <div className="h-3 w-3 rounded-full bg-blue-500" />
                                 )}
                               </>
                             )}

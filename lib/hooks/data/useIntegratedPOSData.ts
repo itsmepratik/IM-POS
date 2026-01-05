@@ -36,11 +36,11 @@ export interface IntegratedPOSData {
   lastSyncTime: Date | null;
   syncProducts: (showToast?: boolean, isBackgroundSync?: boolean) => void;
   processSale: (
-    productId: string,
+    productId: number,
     quantity: number,
     transactionId?: string
   ) => Promise<{ success: boolean; error?: string }>;
-  getProductAvailability: (id: string) => {
+  getProductAvailability: (id: number) => {
     canSell: boolean;
     availableQuantity: number;
     errorMessage?: string;
@@ -98,15 +98,19 @@ export function useIntegratedPOSData(overrideLocationId?: string | null): Integr
     getProductAvailability,
   } = useInventoryPOSSync(locationIdForInventory);
 
-  // Transform the POS data to match the expected interface
-  const lubricantProducts = posData.lubricantProducts;
-  const products = posData.regularProducts;
+  // Transform the POS data to match the expected interface and SORT alphabetically
+  const lubricantProducts = [...posData.lubricantProducts].sort((a, b) => 
+    a.name.localeCompare(b.name)
+  );
+  const products = [...posData.regularProducts].sort((a, b) => 
+    a.name.localeCompare(b.name)
+  );
 
   // Derive organized data arrays (same logic as the original usePOSData)
   const derivedData = useMemo(() => {
     const lubricantBrands = Array.from(
       new Set(lubricantProducts.map((oil) => oil.brand))
-    );
+    ).sort((a, b) => a.localeCompare(b));
 
     const filterBrands = Array.from(
       new Set(
@@ -114,7 +118,7 @@ export function useIntegratedPOSData(overrideLocationId?: string | null): Integr
           .filter((p) => p.category === "Filters" && p.brand)
           .map((p) => p.brand!)
       )
-    );
+    ).sort((a, b) => a.localeCompare(b));
 
     const filterTypes = Array.from(
       new Set(
@@ -122,7 +126,7 @@ export function useIntegratedPOSData(overrideLocationId?: string | null): Integr
           .filter((p) => p.category === "Filters" && p.type)
           .map((p) => p.type!)
       )
-    );
+    ).sort((a, b) => a.localeCompare(b));
 
     const partBrands = Array.from(
       new Set(
@@ -130,7 +134,7 @@ export function useIntegratedPOSData(overrideLocationId?: string | null): Integr
           .filter((p) => p.category === "Parts" && p.brand)
           .map((p) => p.brand!)
       )
-    );
+    ).sort((a, b) => a.localeCompare(b));
 
     const partTypes = Array.from(
       new Set(
@@ -138,7 +142,7 @@ export function useIntegratedPOSData(overrideLocationId?: string | null): Integr
           .filter((p) => p.category === "Parts" && p.type)
           .map((p) => p.type!)
       )
-    );
+    ).sort((a, b) => a.localeCompare(b));
 
     return {
       lubricantBrands,
@@ -177,7 +181,7 @@ export function useIntegratedPOSData(overrideLocationId?: string | null): Integr
       const generatedId = generateNumericId(p.id);
       return generatedId === numericId;
     });
-
+    
     if (!unifiedProduct) {
       return { success: false, error: "Product not found" };
     }
@@ -214,4 +218,5 @@ function generateNumericId(uuid: string): number {
 }
 
 // Re-export types for convenience
-export type { LubricantProduct, Product };
+// Re-export types for convenience
+// export type { LubricantProduct, Product };

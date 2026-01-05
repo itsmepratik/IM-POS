@@ -101,6 +101,7 @@ export function useCompanyInfo(): CompanyInfo {
         ? currentBranch.brand_phones.split(",").map((p: string) => p.trim()) 
         : context.brand.phones,
       whatsapp: currentBranch.brand_whatsapp || context.brand.whatsapp,
+      posId: currentBranch.pos_id || context.brand.posId,
     };
 
     // Override registered info

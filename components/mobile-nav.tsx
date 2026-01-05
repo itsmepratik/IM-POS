@@ -208,7 +208,7 @@ export function MobileNav({ className }: { className?: string }) {
                   className={cn(
                     "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
                     mounted && pathname === item.href
-                      ? "bg-accent text-accent-foreground"
+                      ? "bg-accent text-accent-foreground shadow-sm ring-1 ring-muted-foreground/30"
                       : "transparent"
                   )}
                 >
@@ -248,7 +248,7 @@ export function MobileNav({ className }: { className?: string }) {
                         className={cn(
                           "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
                           mounted && pathname === "/inventory/main-inventory"
-                            ? "bg-accent text-accent-foreground"
+                            ? "bg-accent text-accent-foreground shadow-sm ring-1 ring-muted-foreground/30"
                             : "transparent"
                         )}
                       >
@@ -261,7 +261,7 @@ export function MobileNav({ className }: { className?: string }) {
                         className={cn(
                           "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
                           mounted && pathname === "/inventory/branch-inventory"
-                            ? "bg-accent text-accent-foreground"
+                            ? "bg-accent text-accent-foreground shadow-sm ring-1 ring-muted-foreground/30"
                             : "transparent"
                         )}
                       >

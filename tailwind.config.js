@@ -26,7 +26,8 @@ const config = {
     },
     extend: {
       fontFamily: {
-        sans: ["var(--font-formula1)"],
+        sans: ["var(--font-formula1)", "var(--font-sans)"],
+        formula1: ["var(--font-formula1)"],
         mono: ["var(--font-geist-mono)"],
       },
       colors: {
@@ -41,9 +42,10 @@ const config = {
           foreground: "hsl(var(--popover-foreground))",
         },
         primary: {
-          DEFAULT: "hsl(var(--primary))",
-          foreground: "hsl(var(--primary-foreground))",
+          DEFAULT: "#d5f365",
+          foreground: "#000000",
         },
+        "brand-lime": "#d5f365",
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
           foreground: "hsl(var(--secondary-foreground))",

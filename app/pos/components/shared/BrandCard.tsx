@@ -16,7 +16,7 @@ export function BrandCard({
 }: BrandCardProps) {
   return (
     <button
-      className="flex flex-col items-center justify-center border-2 rounded-[18px] bg-background shadow-sm p-3 sm:p-4 h-[120px] sm:h-[140px] md:h-[160px] transition hover:bg-accent focus:outline-none focus:ring-2 focus:ring-primary/50"
+      className="flex flex-col items-center justify-center border-2 rounded-[18px] bg-background shadow-sm p-3 sm:p-4 h-[120px] sm:h-[140px] md:h-[160px] transition hover:bg-accent focus:outline-none focus:ring-2 focus:ring-muted-foreground/30"
       onClick={onClick}
       type="button"
     >
@@ -24,7 +24,7 @@ export function BrandCard({
         <BrandLogo brand={brand} brands={brands} />
       </div>
       <span
-        className="text-center font-medium text-xs sm:text-sm w-full px-1 whitespace-normal break-words line-clamp-2"
+        className="text-[clamp(0.7rem,1.5vw,0.85rem)] font-medium text-center line-clamp-2 leading-tight px-1 whitespace-normal break-words"
         style={{ lineHeight: 1 }}
       >
         {brand}
