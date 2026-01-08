@@ -214,61 +214,59 @@ export function BranchProvider({ children }: { children: ReactNode }) {
         );
         setBranches(dbBranches);
 
-        // Set first branch as default if none selected or saved branch doesn't exist (only for admin)
-        if (!userIsAdmin && userProfile?.shop_location_id) {
-          // Already handled above for shop users
-          setBranchLoadError(false);
-          return;
-        }
-
-        const savedBranchId = localStorage.getItem("selectedBranchId");
-        const savedBranch = savedBranchId ? dbBranches.find((b) => b.id === savedBranchId) : null;
-
-        // Clear localStorage if saved branch doesn't exist
-        if (savedBranchId && !savedBranch) {
-          localStorage.removeItem("selectedBranchId");
-          console.log("🧹 Cleared invalid saved branch ID from localStorage");
-        }
-
-        if (!currentBranch || !savedBranch) {
-          // For admin: Set default to Saniya1 (first shop)
-          if (userIsAdmin) {
+        // FOR ADMINS: Always default to Sanaiya1, ignore localStorage
+        if (userIsAdmin) {
             const saniya1Branch = dbBranches.find((b) =>
               b.name.toLowerCase().includes("saniya1") || b.name.toLowerCase().includes("sanaiya1")
             );
             const defaultBranch = saniya1Branch || dbBranches[0];
-            setCurrentBranch(defaultBranch);
-            localStorage.setItem("selectedBranchId", defaultBranch.id);
+            
+            // Validate that we are actually switching or setting
+            if (!currentBranch || currentBranch.id !== defaultBranch.id) {
+                 setCurrentBranch(defaultBranch);
+                 // We DON'T load from localStorage for admins to ensure strict default
+                 // But we DO update localStorage so if they reload, it's consistent until they leave? 
+                 // Wait, requirement is "always on sanaiya1 by default".
+                 // So we should OVERWRITE localStorage with Sanaiya1 ID.
+                 localStorage.setItem("selectedBranchId", defaultBranch.id);
+            }
             
             // Set inventory location from shop's location_id
             const defaultShop = shops.find((s) => s.id === defaultBranch.id);
             if (defaultShop) {
               setInventoryLocationId(defaultShop.locationId);
               console.log(
-                `📦 Admin defaulted to ${defaultBranch.name}: Set inventory location to ${defaultShop.locationName} (${defaultShop.locationId})`
+                `📦 Admin enforced default to ${defaultBranch.name}: Set inventory location to ${defaultShop.locationName} (${defaultShop.locationId})`
               );
             }
             
             console.log(
-              `🏢 Set default branch to: ${defaultBranch.name} (${defaultBranch.id})`
+              `🏢 Enforced default branch for Admin to: ${defaultBranch.name} (${defaultBranch.id})`
             );
-          } else {
-            // This shouldn't happen for shop users, but handle it just in case
-            const defaultBranch = dbBranches[0];
-            if (defaultBranch) {
-              setCurrentBranch(defaultBranch);
-              localStorage.setItem("selectedBranchId", defaultBranch.id);
-            }
-          }
-        } else if (userIsAdmin && savedBranch) {
-          // If admin has a saved branch, ensure inventory location is set correctly
+            setBranchLoadError(false);
+            return;
+        }
+
+        // FOR NON-ADMINS (who are not shop locked? Should not happen based on logic, but fallback)
+        const savedBranchId = localStorage.getItem("selectedBranchId");
+        const savedBranch = savedBranchId ? dbBranches.find((b) => b.id === savedBranchId) : null;
+        
+        if (savedBranch) {
+           setCurrentBranch(savedBranch);
+             // Ensure inventory location is set correctly
           const savedShop = shops.find((s) => s.id === savedBranch.id);
           if (savedShop) {
             setInventoryLocationId(savedShop.locationId);
-            console.log(
-              `📦 Admin restored ${savedBranch.name}: Set inventory location to ${savedShop.locationName} (${savedShop.locationId})`
-            );
           }
+        } else {
+             // Default to first
+            const defaultBranch = dbBranches[0];
+            setCurrentBranch(defaultBranch);
+            localStorage.setItem("selectedBranchId", defaultBranch.id);
+             const defaultShop = shops.find((s) => s.id === defaultBranch.id);
+            if (defaultShop) {
+              setInventoryLocationId(defaultShop.locationId);
+            }
         }
 
         setBranchLoadError(false);
@@ -382,11 +380,26 @@ export function BranchProvider({ children }: { children: ReactNode }) {
 
   // Restore selected branch when branches are loaded
   useEffect(() => {
-    const savedBranchId = localStorage.getItem("selectedBranchId");
-    if (savedBranchId && branches.length > 0 && !currentBranch) {
-      selectBranch(savedBranchId);
+    // Only restore for non-admin users who aren't shop users (edge case)? 
+    // Actually, logic inside loadBranches handles the enforcement for Admins.
+    // So we just need to make sure this effect doesn't override it.
+    
+    // We can rely on 'currentBranch' being set by loadBranches for admins.
+    // If currentBranch is already set, we don't need to do anything.
+    if (!currentBranch && branches.length > 0) {
+        const savedBranchId = localStorage.getItem("selectedBranchId");
+        if (savedBranchId) {
+             const userIsAdmin = currentUser?.role === "admin" || isAdmin();
+             // If Admin, loadBranches should have already handled it. If we are here, something is odd, 
+             // but let's respect the loadBranches logic which doesn't rely on this effect for the enforcement.
+             // Actually, if we are strictly enforcing Sanaiya1 for admins, we should NOT restore from local storage here if admin.
+             
+             if (!userIsAdmin) {
+                  selectBranch(savedBranchId);
+             }
+        }
     }
-  }, [branches]); // Run when branches are loaded
+  }, [branches, currentBranch, currentUser, isAdmin]); // Run when branches are loaded
 
   const selectBranch = (branchId: string) => {
     // Prevent non-admin users from changing branch if locked

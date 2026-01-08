@@ -29,6 +29,8 @@ export interface FilterProduct {
   stock: number;
   isAvailable: boolean;
   imageUrl: string | null;
+  specification: string | null;
+  brand: string | null;
 }
 
 export const useVehicleData = () => {
@@ -39,7 +41,8 @@ export const useVehicleData = () => {
   const [vehicle, setVehicle] = useState<VehicleData | null>(null);
   
   const [lubricants, setLubricants] = useState<LubricantProduct[]>([]);
-  const [filterProduct, setFilterProduct] = useState<FilterProduct | null>(null);
+  const [filterProducts, setFilterProducts] = useState<FilterProduct[]>([]);
+  const [filterLoading, setFilterLoading] = useState(false);
   
   const [loading, setLoading] = useState(false);
 
@@ -131,9 +134,9 @@ export const useVehicleData = () => {
     if (data) {
       setVehicle(data);
       if (data.oil_filter_part_number) {
-        fetchFilterProduct(data.oil_filter_part_number);
+        fetchFilterProducts(data.oil_filter_part_number);
       } else {
-        setFilterProduct(null);
+        setFilterProducts([]);
       }
     }
     setLoading(false);
@@ -204,42 +207,65 @@ export const useVehicleData = () => {
     }
   };
 
-  const fetchFilterProduct = async (partNumber: string) => {
-    // Determine if we have this part in our products table
+  const fetchFilterProducts = async (partNumber: string) => {
+    setFilterLoading(true);
+    
+    // 1. Standard cleaning
+    const stripped = partNumber.replace(/[^a-zA-Z0-9]/g, "");
+    
+    // 2. Format Variants
+    const variants = [
+      partNumber, // Original (e.g. 90915-YZZN1)
+      stripped,   // Stripped (e.g. 90915YZZN1)
+      partNumber.replace(/-/g, " "), // Hyphens to spaces (e.g. 90915 YZZN1)
+    ];
+
+    // 3. Add 4-4-2 Pattern (e.g. 6845 4858 B1 from 68454858B1)
+    if (stripped.length === 10) {
+        variants.push(`${stripped.substring(0, 4)} ${stripped.substring(4, 8)} ${stripped.substring(8)}`);
+    }
+
+    // 4. Add 5-5 Pattern (e.g. 90915 YZZN1 from 90915YZZN1) if not covered
+    if (stripped.length === 10) {
+       variants.push(`${stripped.substring(0, 5)} ${stripped.substring(5)}`);
+    }
+
+    // Remove duplicates
+    const uniqueVariants = Array.from(new Set(variants));
+
     const { data, error } = await supabase
       .from("products")
       .select(`
         id,
         name,
         image_url,
+        specification,
+        brands (
+          name
+        ),
         inventory (
           selling_price,
           total_stock
         )
       `)
-      .eq("name", partNumber)
-      .maybeSingle(); // Use maybeSingle to handle 'not found' without error
+      .in("name", uniqueVariants);
 
-    if (data) {
-      setFilterProduct({
-        id: data.id,
-        name: data.name,
-        price: data.inventory?.[0]?.selling_price || 0,
-        stock: data.inventory?.[0]?.total_stock || 0,
+    if (data && data.length > 0) {
+      const products: FilterProduct[] = data.map((p: any) => ({
+        id: p.id,
+        name: p.name,
+        price: p.inventory?.[0]?.selling_price || 0,
+        stock: p.inventory?.[0]?.total_stock || 0,
         isAvailable: true,
-        imageUrl: data.image_url
-      });
+        imageUrl: p.image_url,
+        specification: p.specification,
+        brand: p.brands?.name || null
+      }));
+      setFilterProducts(products);
     } else {
-      // Product not found in our database
-      setFilterProduct({
-        id: "",
-        name: partNumber,
-        price: 0,
-        stock: 0,
-        isAvailable: false,
-        imageUrl: null
-      });
+      setFilterProducts([]);
     }
+    setFilterLoading(false);
   };
 
   return {
@@ -249,7 +275,8 @@ export const useVehicleData = () => {
     engines,
     vehicle,
     lubricants,
-    filterProduct,
+    filterProducts,
+    filterLoading,
     loading,
     fetchModels,
     fetchYears,

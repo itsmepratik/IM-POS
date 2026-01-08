@@ -213,7 +213,7 @@ export function PartsModal({
                     >
                       {part.name}
                     </span>
-                    <span className="block text-xs sm:text-sm text-foreground mt-1">
+                    <span className="block text-xs sm:text-sm text-[#6d6d6d] mt-1">
                       OMR {part.price.toFixed(3)}
                     </span>
                   </Button>
@@ -258,7 +258,7 @@ export function PartsModal({
                         >
                           {part.name}
                         </span>
-                        <span className="font-medium text-[clamp(0.875rem,2vw,1rem)] whitespace-nowrap pl-2 flex-shrink-0 text-foreground">
+                        <span className="font-medium text-[clamp(0.875rem,2vw,1rem)] whitespace-nowrap pl-2 flex-shrink-0 text-[#6d6d6d]">
                           OMR {(part.price * part.quantity).toFixed(3)}
                         </span>
                       </div>

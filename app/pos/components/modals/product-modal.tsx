@@ -186,7 +186,7 @@ export function ProductModal({
                 <div className="text-[clamp(0.875rem,2vw,1rem)] font-medium text-center line-clamp-2">
                   {variant.name}
                 </div>
-                <div className="text-[clamp(0.75rem,1.5vw,0.875rem)] text-muted-foreground">
+                <div className="text-[clamp(0.75rem,1.5vw,0.875rem)] text-[#6d6d6d]">
                   OMR {variant.price.toFixed(3)}
                 </div>
               </Button>
@@ -244,7 +244,7 @@ export function ProductModal({
 
                       {/* Right: price */}
                       <div className="text-right">
-                        <span className="font-medium text-[clamp(0.875rem,2vw,1rem)] whitespace-nowrap">
+                        <span className="font-medium text-[clamp(0.875rem,2vw,1rem)] whitespace-nowrap text-[#6d6d6d]">
                           OMR {(variant.price * variant.quantity).toFixed(3)}
                         </span>
                       </div>

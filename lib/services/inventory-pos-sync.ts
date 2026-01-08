@@ -48,6 +48,9 @@ const DEFAULT_SYNC_CONFIG: SyncConfig = {
   retryDelay: 1000, // 1 second
 };
 
+// Maximum number of retries when receiving empty data while having existing data
+const MAX_EMPTY_DATA_RETRIES = 3;
+
 // Stock update interface
 export interface StockUpdate {
   productId: string;
@@ -77,6 +80,7 @@ export function useInventoryPOSSync(
   const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const retryCountRef = useRef(0);
+  const emptyDataRetryCountRef = useRef(0);
   const isInitialLoadRef = useRef(true);
 
   // Add sync event
@@ -100,7 +104,7 @@ export function useInventoryPOSSync(
 
   // Fetch and sync products from inventory
   const syncProducts = useCallback(
-    async (showToast = false, isBackgroundSync = false) => {
+    async (showToast = false, isBackgroundSync = false, forceUpdate = false) => {
       if (!locationId) {
         setError("No location selected");
         return;
@@ -142,6 +146,45 @@ export function useInventoryPOSSync(
           inventoryItems,
           locationId
         );
+
+        // ZERO-DATA SAFETY GUARD:
+        // If we get 0 items, but we previously had items, this might be a sync error.
+        // Don't wipe the state immediately unless forced or retries exhausted.
+        if (
+          !forceUpdate &&
+          unifiedProducts.length === 0 &&
+          products.length > 0 &&
+          emptyDataRetryCountRef.current < MAX_EMPTY_DATA_RETRIES
+        ) {
+          emptyDataRetryCountRef.current++;
+          console.warn(
+            `⚠️ Suspected incomplete sync (0 items vs ${products.length} existing). Retrying (${emptyDataRetryCountRef.current}/${MAX_EMPTY_DATA_RETRIES})...`
+          );
+
+          if (!isBackgroundSync) {
+            toast({
+              title: "Sync Warning",
+              description: "Received incomplete data, retrying...",
+              variant: "default", // not destructive yet
+            });
+          }
+
+          // Retry sooner than normal error
+          setTimeout(() => {
+            syncProducts(false, isBackgroundSync);
+          }, 1500);
+          return;
+        }
+
+        // If we made it here, either:
+        // 1. We have data
+        // 2. We legitimately have 0 data (and confirmed via retries or initial state)
+        // 3. Forced update
+
+        // Reset empty retry counter on successful (non-empty) or accepted empty load
+        if (unifiedProducts.length > 0) {
+          emptyDataRetryCountRef.current = 0;
+        }
 
         setProducts(unifiedProducts);
         setLastSyncTime(new Date());
@@ -203,7 +246,7 @@ export function useInventoryPOSSync(
         }
       }
     },
-    [locationId, finalConfig.maxRetries, finalConfig.retryDelay, addSyncEvent]
+    [locationId, finalConfig.maxRetries, finalConfig.retryDelay, addSyncEvent, products.length]
   );
 
   // Update stock levels
@@ -458,7 +501,7 @@ export function useInventoryPOSSync(
     // Actions
     // Actions
     syncProducts, // Expose raw function for custom control
-    refresh: () => syncProducts(true, false), // Alias for manual refresh
+    refresh: () => syncProducts(true, false, true), // Manual refresh forces update
     backgroundSync: () => syncProducts(false, true), // Alias for background sync
     updateStock,
     processSale,

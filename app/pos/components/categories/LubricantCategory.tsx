@@ -258,16 +258,16 @@ export function LubricantCategory({
                             )}
 
                           </div>
-                          <div className="text-center flex-1 flex flex-col justify-between w-full">
+                          <div className="text-center flex-1 flex flex-col justify-end w-full gap-1">
                             <div className="flex flex-col w-full">
                               <span
-                                className="text-center font-semibold text-xs sm:text-sm w-full px-1 word-wrap whitespace-normal leading-tight hyphens-auto line-clamp-2"
+                                className="text-center font-semibold text-[10px] sm:text-xs w-full px-1 word-wrap whitespace-normal leading-tight hyphens-auto line-clamp-2"
                                 style={{ lineHeight: 1.1 }}
                               >
                                 {lubricant.name}
                               </span>
                             </div>
-                            <span className="block text-sm font-bold text-foreground mt-1">
+                            <span className="block text-sm font-bold text-[#6d6d6d] mt-0">
                               OMR {lubricant.basePrice.toFixed(3)}
                             </span>
                           </div>
@@ -346,15 +346,15 @@ export function LubricantCategory({
                             )}
 
                           </div>
-                          <div className="text-center flex-1 flex flex-col justify-between w-full">
+                          <div className="text-center flex-1 flex flex-col justify-end w-full gap-1">
                             <div className="flex flex-col w-full">
-                              <span className="text-center font-semibold text-xs sm:text-sm w-full px-1 word-wrap whitespace-normal leading-tight hyphens-auto line-clamp-2"
+                              <span className="text-center font-semibold text-[10px] sm:text-xs w-full px-1 word-wrap whitespace-normal leading-tight hyphens-auto line-clamp-2"
                                 style={{ lineHeight: 1.1 }}
                               >
                                 {lubricant.name}
                               </span>
                             </div>
-                            <span className="block text-sm font-bold text-foreground mt-1">
+                            <span className="block text-sm font-bold text-[#6d6d6d] mt-0">
                               OMR {lubricant.basePrice.toFixed(3)}
                             </span>
                           </div>
@@ -446,16 +446,16 @@ export function LubricantCategory({
                             )}
 
                           </div>
-                          <div className="text-center flex-1 flex flex-col justify-between w-full">
+                          <div className="text-center flex-1 flex flex-col justify-end w-full gap-1">
                             <div className="flex flex-col w-full">
                               <span
-                                className="text-center font-semibold text-xs sm:text-sm w-full px-1 word-wrap whitespace-normal leading-tight hyphens-auto line-clamp-2"
+                                className="text-center font-semibold text-[10px] sm:text-xs w-full px-1 word-wrap whitespace-normal leading-tight hyphens-auto line-clamp-2"
                                 style={{ lineHeight: 1.1 }}
                               >
                                 {lubricant.name}
                               </span>
                             </div>
-                            <span className="block text-sm font-bold text-foreground mt-1">
+                            <span className="block text-sm font-bold text-[#6d6d6d] mt-0">
                               OMR {lubricant.basePrice.toFixed(3)}
                             </span>
                           </div>

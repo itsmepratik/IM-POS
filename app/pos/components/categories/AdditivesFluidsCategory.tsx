@@ -230,7 +230,7 @@ export function AdditivesFluidsCategory({
 
                       {/* Price with consistent formatting */}
                       <div className="mt-auto">
-                        <span className="font-medium text-[clamp(0.75rem,1.5vw,0.85rem)] text-foreground">
+                        <span className="font-medium text-[clamp(0.75rem,1.5vw,0.85rem)] text-[#6d6d6d]">
                           OMR {product.price.toFixed(3)}
                         </span>
                       </div>

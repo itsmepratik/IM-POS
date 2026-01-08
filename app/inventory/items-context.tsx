@@ -148,10 +148,12 @@ export { type Item, type Batch, type Volume, type BottleStates };
 
 export const ItemsProvider = ({ 
   children, 
-  overrideLocationId 
+  overrideLocationId,
+  skipFetchingItems = false,
 }: { 
   children: React.ReactNode;
   overrideLocationId?: string;
+  skipFetchingItems?: boolean;
 }) => {
   // Using actual Supabase data
   const [items, setItems] = useState<Item[]>([]);
@@ -222,8 +224,13 @@ export const ItemsProvider = ({
       console.log(`Using location ID for inventory: ${locationIdForInventory}`);
 
       // Load items for the location
-      const itemsData = await fetchItems(locationIdForInventory);
-      setItems(itemsData);
+      let itemsData: Item[] = [];
+      if (!skipFetchingItems) {
+        itemsData = await fetchItems(locationIdForInventory);
+        setItems(itemsData);
+      } else {
+        setItems([]);
+      }
 
       // Load categories
       const categoriesData = await fetchCategories();

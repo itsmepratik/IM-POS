@@ -35,6 +35,7 @@ export interface IntegratedPOSData {
   // Additional integrated features
   lastSyncTime: Date | null;
   syncProducts: (showToast?: boolean, isBackgroundSync?: boolean) => void;
+  refresh: () => void;
   processSale: (
     productId: number,
     quantity: number,
@@ -85,7 +86,7 @@ export function useIntegratedPOSData(overrideLocationId?: string | null): Integr
     loadBrands();
   }, []);
 
-  // Use the inventory-POS sync service
+
   const {
     products: unifiedProducts,
     posData,
@@ -96,6 +97,7 @@ export function useIntegratedPOSData(overrideLocationId?: string | null): Integr
     syncProducts,
     processSale,
     getProductAvailability,
+    refresh,
   } = useInventoryPOSSync(locationIdForInventory);
 
   // Transform the POS data to match the expected interface and SORT alphabetically
@@ -199,6 +201,7 @@ export function useIntegratedPOSData(overrideLocationId?: string | null): Integr
     error: error || brandsError,
     lastSyncTime,
     syncProducts,
+    refresh,
     processSale: processSaleByNumericId,
     getProductAvailability: getAvailabilityByNumericId,
   };

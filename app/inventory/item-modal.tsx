@@ -89,6 +89,7 @@ interface ItemModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   item?: Item;
+  onItemUpdated?: (item: Item) => void;
 }
 
 // Define a type for the tab values
@@ -96,7 +97,7 @@ type TabType = "general" | "volumes" | "batches";
 
 // Types are now fetched from database via context
 
-export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
+export function ItemModal({ open, onOpenChange, item, onItemUpdated }: ItemModalProps) {
   const {
     addItem,
     updateItem,
@@ -114,6 +115,7 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>("general");
   const [imageTab, setImageTab] = useState<"url" | "upload">("upload");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState<ExtendedItem>({
     id: item?.id || "",
     name: item?.name || "",
@@ -430,7 +432,7 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
     return Math.round(marginPercentage * 100) / 100; // Round to 2 decimals
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     // Log the current form data to help with debugging
@@ -531,11 +533,15 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
 
     console.log("Saving item data:", JSON.stringify(itemToSave, null, 2));
 
+    setIsSubmitting(true);
     try {
+      let result: Item | null = null;
       if (item) {
         // When updating, explicitly log key oil-related fields to help debug
         console.log("Updating existing item:", {
-          id: item.id,
+          id: item.product_id || item.id,
+          original_id: item.id,
+          product_id: item.product_id,
           isOil: itemToSave.isOil,
           bottleStates: itemToSave.bottleStates,
           stock: itemToSave.stock,
@@ -543,13 +549,20 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
           category_id: itemToSave.category_id,
           brand_id: itemToSave.brand_id,
         });
-        updateItem(item.id, itemToSave);
+        result = await updateItem(item.product_id || item.id, itemToSave);
       } else {
-        addItem(itemToSave);
+        result = await addItem(itemToSave);
       }
+      
+      if (result && onItemUpdated) {
+        onItemUpdated(result);
+      }
+      
       onOpenChange(false);
     } catch (error) {
       console.error("Error saving item:", error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -768,6 +781,8 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
     if (batchIndex === totalBatches - 1) return "Last to use";
     return `Position ${batchIndex + 1} of ${totalBatches}`;
   };
+
+
 
   // Use isMounted to prevent hydration mismatch in JSX
   return (
@@ -2040,8 +2055,17 @@ export function ItemModal({ open, onOpenChange, item }: ItemModalProps) {
           >
             Cancel
           </Button>
-          <Button type="submit" onClick={handleSubmit} variant="chonky" className="flex-1">
-            {item ? "Update Item" : "Add Item"}
+          <Button 
+            type="submit" 
+            onClick={handleSubmit} 
+            variant="chonky" 
+            className="flex-1"
+            disabled={isSubmitting}
+          >
+            {item 
+              ? (isSubmitting ? "Updating..." : "Update Item") 
+              : (isSubmitting ? "Adding..." : "Add Item")
+            }
           </Button>
         </DialogFooter>
       </DialogContent>

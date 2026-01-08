@@ -44,8 +44,10 @@ import {
   ChevronRight,
   ChevronDown,
   Loader2,
+  ArrowUpDown,
 } from "lucide-react";
 import { ItemsProvider, useItems, type Item } from "../items-context";
+import { useServerInventory } from "../hooks/useServerInventory";
 import { ItemModal } from "../item-modal";
 import { CategoryModal } from "../category-modal";
 import {
@@ -111,8 +113,7 @@ const getBatchFifoPosition = (batchIndex: number, totalBatches: number) => {
 };
 
 // Memoize the mobile item card component
-const MobileItemCard = memo(
-  ({
+const MobileItemCard = ({
     item,
     onEdit,
     onDelete,
@@ -218,7 +219,14 @@ const MobileItemCard = memo(
               </div>
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <Badge variant="secondary">{item.category}</Badge>
-                {item.type && <Badge variant="outline">{item.type}</Badge>}
+                {item.specification && (
+                  <Badge
+                    variant="outline"
+                    className="border-blue-200 bg-blue-50 text-blue-700"
+                  >
+                    {item.specification}
+                  </Badge>
+                )}
               </div>
             </div>
           </div>
@@ -229,7 +237,7 @@ const MobileItemCard = memo(
                 <span className="text-sm text-muted-foreground">Stock:</span>
                 <span className="font-medium">{item.stock ?? 0}</span>
               </div>
-              <div className="text-base font-medium text-primary">
+              <div className="text-base font-bold text-[#6d6d6d]">
                 OMR {item.price.toFixed(2)}
               </div>
             </div>
@@ -331,6 +339,24 @@ const MobileItemCard = memo(
                       </div>
                     )}
 
+                    {/* Types */}
+                    {((item.types && item.types.length > 0) || item.type) && (
+                      <div className="mt-2 text-left">
+                        <div className="text-muted-foreground mb-1">
+                          Types:
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {item.types && item.types.length > 0 ? (
+                            item.types.map((t) => (
+                              <Badge key={t.id} variant="outline">{t.name}</Badge>
+                            ))
+                          ) : (
+                             item.type && <Badge variant="outline">{item.type}</Badge>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
                     {item.isOil && item.bottleStates && (
                       <div className="mt-2">
                         <div className="text-muted-foreground mb-1">
@@ -377,9 +403,59 @@ const MobileItemCard = memo(
         </CardContent>
       </Card>
     );
+  };
+MobileItemCard.displayName = "MobileItemCard";
+
+
+
+const DeleteConfirmDialog = memo(
+  ({
+    open,
+    onOpenChange,
+    onConfirm,
+    isDeleting,
+  }: {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    onConfirm: () => void;
+    isDeleting: boolean;
+  }) => {
+    return (
+      <AlertDialog open={open} onOpenChange={onOpenChange}>
+        <AlertDialogContent className="w-[calc(100%-16px)] rounded-[9px] sm:w-full">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the item
+              from the inventory.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                onConfirm();
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={isDeleting}
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    );
   }
 );
-MobileItemCard.displayName = "MobileItemCard";
+DeleteConfirmDialog.displayName = "DeleteConfirmDialog";
 
 // Memoize the table row component
 const TableRow = memo(
@@ -560,66 +636,106 @@ const TableRow = memo(
 );
 TableRow.displayName = "TableRow";
 
-function MobileView() {
+function MobileView({
+  filteredItems,
+  categories,
+  brands,
+  isLoading,
+  searchQuery,
+  setSearchQuery,
+  selectedCategory,
+  setSelectedCategory,
+  selectedBrand,
+  setSelectedBrand,
+  showInStock,
+  setShowInStock,
+  showLowStockOnly,
+  setShowLowStockOnly,
+  showOutOfStockOnly,
+  setShowOutOfStockOnly,
+  showBatteries,
+  setShowBatteries,
+  batteryState,
+  setBatteryState,
+  minPrice,
+  setMinPrice,
+  maxPrice,
+  setMaxPrice,
+  stockStatus,
+  setStockStatus,
+  resetFilters,
+  
+  // Pagination
+  currentPage,
+  setCurrentPage,
+  itemsPerPage,
+  totalCount,
+
+  // Actions
+  handleDelete,
+  handleDuplicate,
+  refresh,
+  updateLocalItem,
+}: {
+  filteredItems: Item[];
+  categories: string[];
+  brands: string[];
+  isLoading: boolean;
+  searchQuery: string;
+  setSearchQuery: (s: string) => void;
+  selectedCategory: string;
+  setSelectedCategory: (s: string) => void;
+  selectedBrand: string;
+  setSelectedBrand: (s: string) => void;
+  showInStock: boolean;
+  setShowInStock: (b: boolean) => void;
+  showLowStockOnly: boolean;
+  setShowLowStockOnly: (b: boolean) => void;
+  showOutOfStockOnly: boolean;
+  setShowOutOfStockOnly: (b: boolean) => void;
+  showBatteries: boolean;
+  setShowBatteries: (b: boolean) => void;
+  batteryState: any;
+  setBatteryState: (s: any) => void;
+  minPrice: any;
+  setMinPrice: (s: any) => void;
+  maxPrice: any;
+  setMaxPrice: (s: any) => void;
+  stockStatus: any;
+  setStockStatus: (s: any) => void;
+  resetFilters: () => void;
+  currentPage: number;
+  setCurrentPage: (p: number) => void;
+  itemsPerPage: number;
+  totalCount: number;
+  handleDelete: (id: string) => void;
+  handleDuplicate: (id: string) => void;
+  refresh: (silent?: boolean) => void;
+  updateLocalItem: (item: Item) => void;
+}) {
   const [isPending, startTransition] = useTransition();
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
 
-  const {
-    filteredItems,
-    categories,
-    brands,
-    isLoading,
+  const [editingItem, setEditingItem] = useState<Item | undefined>(undefined);
+  
+  // Local state for counts (approximate or 0 for now as server doesn't return them without specific query)
+  const outOfStockCount = 0;
+  const lowStockCount = 0;
+  
+  const [itemToDelete, setItemToDelete] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
-    searchQuery,
-    setSearchQuery,
-    selectedCategory,
-    setSelectedCategory,
-    selectedBrand,
-    setSelectedBrand,
-    showInStock,
-    setShowInStock,
+  const handleConfirmDelete = async () => {
+    if (itemToDelete) {
+      setIsDeleting(true);
+      await handleDelete(itemToDelete);
+      setIsDeleting(false);
+      setItemToDelete(null);
+    }
+  };
 
-    // Stock threshold states
-    showLowStockOnly,
-    setShowLowStockOnly,
-    showOutOfStockOnly,
-    setShowOutOfStockOnly,
-
-    // Battery filter states
-    showBatteries,
-    setShowBatteries,
-    batteryState,
-    setBatteryState,
-
-    editingItem,
-    setEditingItem,
-
-    // Unused here; actions triggered via local handlers
-    // handleEdit,
-    // handleAddItem,
-    handleDelete,
-    handleDuplicate,
-
-    // Counts
-    outOfStockCount,
-    lowStockCount,
-
-    // Advanced filters
-    minPrice,
-    setMinPrice,
-    maxPrice,
-    setMaxPrice,
-    stockStatus,
-    setStockStatus,
-    resetFilters,
-
-    // Delete dialog
-    itemToDelete,
-    handleConfirmDelete,
-    handleCancelDelete,
-    isDeleting,
-  } = useInventoryData();
+  const handleCancelDelete = () => {
+    setItemToDelete(null);
+  };
 
   const [itemModalOpen, setItemModalOpen] = useState(false);
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
@@ -656,8 +772,9 @@ function MobileView() {
 
   // Handle low stock click
   const handleLowStockClick = useCallback(() => {
-    setShowLowStockOnly((prev) => !prev);
-    if (!showLowStockOnly) {
+    const newValue = !showLowStockOnly;
+    setShowLowStockOnly(newValue);
+    if (newValue) {
       setShowOutOfStockOnly(false);
       setShowInStock(false);
     } else {
@@ -672,8 +789,9 @@ function MobileView() {
 
   // Handle out of stock click
   const handleOutOfStockClick = useCallback(() => {
-    setShowOutOfStockOnly((prev) => !prev);
-    if (!showOutOfStockOnly) {
+    const newValue = !showOutOfStockOnly;
+    setShowOutOfStockOnly(newValue);
+    if (newValue) {
       setShowLowStockOnly(false);
       setShowInStock(false);
     } else {
@@ -756,7 +874,8 @@ function MobileView() {
   // Handle min price change
   const handleMinPriceChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      setMinPrice(e.target.value);
+      const val = parseFloat(e.target.value);
+      setMinPrice(isNaN(val) ? undefined : val);
     },
     [setMinPrice]
   );
@@ -764,7 +883,8 @@ function MobileView() {
   // Handle max price change
   const handleMaxPriceChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      setMaxPrice(e.target.value);
+      const val = parseFloat(e.target.value);
+      setMaxPrice(isNaN(val) ? undefined : val);
     },
     [setMaxPrice]
   );
@@ -1048,23 +1168,15 @@ function MobileView() {
 
       <div className="space-y-2">
         {!isLoading &&
-          (() => {
-            const indexOfLastItem = currentPage * itemsPerPage;
-            const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-            const currentItems = filteredItems.slice(
-              indexOfFirstItem,
-              indexOfLastItem
-            );
-            return currentItems.map((item) => (
+          filteredItems.map((item) => (
               <MobileItemCard
                 key={item.id}
                 item={item}
                 onEdit={openEditItemModal}
-                onDelete={handleDelete}
+                onDelete={(id) => setItemToDelete(id)}
                 onDuplicate={handleDuplicate}
               />
-            ));
-          })()}
+            ))}
         {isLoading && (
           <div className="text-center py-8">
             <div className="flex flex-col items-center justify-center gap-3">
@@ -1094,7 +1206,7 @@ function MobileView() {
         <div className="w-full overflow-x-auto overflow-y-visible py-6 my-2">
           <Pagination
             currentPage={currentPage}
-            totalPages={Math.ceil(filteredItems.length / itemsPerPage)}
+            totalPages={Math.ceil(totalCount / itemsPerPage)}
             onPageChange={setCurrentPage}
           />
         </div>
@@ -1104,6 +1216,11 @@ function MobileView() {
         open={itemModalOpen}
         onOpenChange={handleItemModalOpenChange}
         item={editingItem}
+        onItemUpdated={(item) => {
+            console.log("Mobile Item updated, refreshing list...");
+            updateLocalItem(item);
+            refresh(true); // Silent refresh
+        }}
       />
       <CategoryModal
         open={categoryModalOpen}
@@ -1115,77 +1232,144 @@ function MobileView() {
         isOpen={tradeInsModalOpen}
         onClose={handleTradeInsModalClose}
       />
+      <DeleteConfirmDialog
+        open={!!itemToDelete}
+        onOpenChange={(open) => !open && handleCancelDelete()}
+        onConfirm={handleConfirmDelete}
+        isDeleting={isDeleting}
+      />
     </div>
   );
 }
 
-function DesktopView() {
+interface DesktopViewProps {
+  filteredItems: Item[];
+  categories: string[];
+  brands: string[];
+  isLoading: boolean;
+  searchQuery: string;
+  setSearchQuery: (s: string) => void;
+  selectedCategory: string;
+  setSelectedCategory: (s: string) => void;
+  selectedBrand: string;
+  setSelectedBrand: (s: string) => void;
+  showInStock: boolean;
+  setShowInStock: (b: boolean) => void;
+  showLowStockOnly: boolean;
+  setShowLowStockOnly: (b: boolean) => void;
+  showOutOfStockOnly: boolean;
+  setShowOutOfStockOnly: (b: boolean) => void;
+  showBatteries: boolean;
+  setShowBatteries: (b: boolean) => void;
+  batteryState: any;
+  setBatteryState: (s: any) => void;
+  minPrice: any;
+  setMinPrice: (s: any) => void;
+  maxPrice: any;
+  setMaxPrice: (s: any) => void;
+  stockStatus: any;
+  setStockStatus: (s: any) => void;
+  resetFilters: () => void;
+  
+  // Pagination
+  currentPage: number;
+  setCurrentPage: (p: number) => void;
+  itemsPerPage: number;
+  totalCount: number;
+
+  // Actions
+  handleDelete: (id: string) => void;
+  handleDuplicate: (id: string) => void;
+  sortBy: "name" | "price" | undefined;
+  setSortBy: (s: "name" | "price" | undefined) => void;
+  sortOrder: "asc" | "desc";
+  setSortOrder: (s: "asc" | "desc") => void;
+  refresh: (silent?: boolean) => void;
+  updateLocalItem: (item: Item) => void;
+}
+
+function DesktopView({
+  filteredItems,
+  categories,
+  brands,
+  isLoading,
+  searchQuery,
+  setSearchQuery,
+  selectedCategory,
+  setSelectedCategory,
+  selectedBrand,
+  setSelectedBrand,
+  showInStock,
+  setShowInStock,
+  showLowStockOnly,
+  setShowLowStockOnly,
+  showOutOfStockOnly,
+  setShowOutOfStockOnly,
+  showBatteries,
+  setShowBatteries,
+  batteryState,
+  setBatteryState,
+  minPrice,
+  setMinPrice,
+  maxPrice,
+  setMaxPrice,
+  stockStatus,
+  setStockStatus,
+  resetFilters,
+  
+  // Pagination
+  currentPage,
+  setCurrentPage,
+  itemsPerPage,
+  totalCount,
+
+  // Actions
+  handleDelete,
+  handleDuplicate,
+  sortBy,
+  setSortBy,
+  sortOrder,
+  setSortOrder,
+  refresh,
+  updateLocalItem
+}: DesktopViewProps) {
   const [isPending, startTransition] = useTransition();
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const [selectedItems, setSelectedItems] = useState<string[]>([]);
+  const [editingItem, setEditingItem] = useState<Item | undefined>(undefined);
+  
+  // Counts (approximate)
+  const outOfStockCount = 0;
+  const lowStockCount = 0;
 
-  const {
-    filteredItems,
-    categories,
-    brands,
-    isLoading,
+  const [itemToDelete, setItemToDelete] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
 
-    searchQuery,
-    setSearchQuery,
-    selectedCategory,
-    setSelectedCategory,
-    selectedBrand,
-    setSelectedBrand,
-    showInStock,
-    setShowInStock,
+  const handleConfirmDelete = async () => {
+    if (itemToDelete) {
+      setIsDeleting(true);
+      await handleDelete(itemToDelete);
+      setIsDeleting(false);
+      setItemToDelete(null);
+    }
+  };
 
-    // Stock threshold states
-    showLowStockOnly,
-    setShowLowStockOnly,
-    showOutOfStockOnly,
-    setShowOutOfStockOnly,
+  const handleCancelDelete = () => {
+    setItemToDelete(null);
+  };
+  
+  const toggleItemSelection = useCallback((id: string) => {
+    setSelectedItems(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+  }, []);
 
-    // Battery filter states
-    showBatteries,
-    setShowBatteries,
-    batteryState,
-    setBatteryState,
-
-    // Local filter states
-    showFilters,
-    setShowFilters,
-    minPrice,
-    setMinPrice,
-    maxPrice,
-    setMaxPrice,
-    stockStatus,
-    setStockStatus,
-
-    selectedItems,
-    toggleItemSelection,
-    toggleAllSelection,
-
-    editingItem,
-    setEditingItem,
-
-    // handleEdit,
-    // handleAddItem,
-    handleDelete,
-    handleDuplicate,
-
-    // Reset filters function
-    resetFilters,
-
-    // Counts
-    outOfStockCount,
-    lowStockCount,
-
-    // Delete dialog
-    itemToDelete,
-    handleConfirmDelete,
-    handleCancelDelete,
-    isDeleting,
-  } = useInventoryData();
+  const toggleAllSelection = useCallback(() => {
+     if (filteredItems.length === 0) return;
+     if (selectedItems.length === filteredItems.length) {
+       setSelectedItems([]);
+     } else {
+       setSelectedItems(filteredItems.map(i => i.id));
+     }
+  }, [filteredItems, selectedItems]);
 
   const [itemModalOpen, setItemModalOpen] = useState(false);
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
@@ -1221,8 +1405,9 @@ function DesktopView() {
 
   // Handle low stock click
   const handleLowStockClick = useCallback(() => {
-    setShowLowStockOnly((prev) => !prev);
-    if (!showLowStockOnly) {
+    const newValue = !showLowStockOnly;
+    setShowLowStockOnly(newValue);
+    if (newValue) {
       setShowOutOfStockOnly(false);
       setShowInStock(false);
     } else {
@@ -1237,8 +1422,9 @@ function DesktopView() {
 
   // Handle out of stock click
   const handleOutOfStockClick = useCallback(() => {
-    setShowOutOfStockOnly((prev) => !prev);
-    if (!showOutOfStockOnly) {
+    const newValue = !showOutOfStockOnly;
+    setShowOutOfStockOnly(newValue);
+    if (newValue) {
       setShowLowStockOnly(false);
       setShowInStock(false);
     } else {
@@ -1300,7 +1486,8 @@ function DesktopView() {
   // Handle min price change
   const handleMinPriceChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      setMinPrice(e.target.value);
+      const val = parseFloat(e.target.value);
+      setMinPrice(isNaN(val) ? undefined : val);
     },
     [setMinPrice]
   );
@@ -1308,7 +1495,8 @@ function DesktopView() {
   // Handle max price change
   const handleMaxPriceChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      setMaxPrice(e.target.value);
+      const val = parseFloat(e.target.value);
+      setMaxPrice(isNaN(val) ? undefined : val);
     },
     [setMaxPrice]
   );
@@ -1461,6 +1649,32 @@ function DesktopView() {
               />
             </div>
           )}
+        </div>
+        
+        <div className="flex items-center gap-2 ml-auto">
+             <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="h-8 gap-1 rounded-[12px]">
+                  <ArrowUpDown className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Sort</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={() => { setSortBy('name'); setSortOrder('asc'); }}>
+                  Name (A-Z)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => { setSortBy('name'); setSortOrder('desc'); }}>
+                  Name (Z-A)
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => { setSortBy('price'); setSortOrder('asc'); }}>
+                  Price (Low-High)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => { setSortBy('price'); setSortOrder('desc'); }}>
+                  Price (High-Low)
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
         </div>
       </div>
 
@@ -1697,22 +1911,18 @@ function DesktopView() {
                 </tr>
               ) : (
                 <>
-                  {filteredItems
-                    .slice(
-                      (currentPage - 1) * itemsPerPage,
-                      currentPage * itemsPerPage
-                    )
-                    .map((item) => (
+                  {filteredItems.map((item) => (
                       <TableRow
                         key={item.id}
                         item={item}
                         isSelected={selectedItems.includes(item.id)}
                         onToggle={toggleItemSelection}
                         onEdit={openEditItemModal}
-                        onDelete={handleDelete}
+                        onDelete={(id) => setItemToDelete(id)}
                         onDuplicate={handleDuplicate}
                       />
                     ))}
+
                   {filteredItems.length === 0 && (
                     <tr>
                       <td
@@ -1741,7 +1951,7 @@ function DesktopView() {
         <div className="w-full overflow-x-auto overflow-y-visible py-6 my-2">
           <Pagination
             currentPage={currentPage}
-            totalPages={Math.ceil(filteredItems.length / itemsPerPage)}
+            totalPages={Math.ceil(totalCount / itemsPerPage)}
             onPageChange={setCurrentPage}
           />
         </div>
@@ -1751,6 +1961,11 @@ function DesktopView() {
         open={itemModalOpen}
         onOpenChange={handleItemModalOpenChange}
         item={editingItem}
+        onItemUpdated={(item) => {
+            console.log("Desktop Item updated, refreshing list...");
+            updateLocalItem(item);
+            refresh(true); // Silent refresh
+        }}
       />
       <CategoryModal
         open={categoryModalOpen}
@@ -1763,53 +1978,87 @@ function DesktopView() {
         onClose={handleTradeInsModalClose}
       />
 
-      <AlertDialog open={!!itemToDelete} onOpenChange={(open) => !open && handleCancelDelete()}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the item
-              from the inventory.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={handleCancelDelete} disabled={isDeleting}>
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(e) => {
-                e.preventDefault();
-                handleConfirmDelete();
-              }}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              disabled={isDeleting}
-            >
-              {isDeleting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Deleting...
-                </>
-              ) : (
-                "Delete"
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <DeleteConfirmDialog
+        open={!!itemToDelete}
+        onOpenChange={(open) => !open && handleCancelDelete()}
+        onConfirm={handleConfirmDelete}
+        isDeleting={isDeleting}
+      />
     </div>
   );
 }
 
 function ItemsPageContent() {
   const { currentUser } = useUser();
+  
+  // Use server-side inventory hook
+  const serverInventory = useServerInventory({
+      initialLimit: 10
+  });
+  
+  // Use global items context for categories, etc.
+  const { categories, brands, deleteItem, duplicateItem } = useItems();
+  
+  const commonProps = {
+    filteredItems: serverInventory.items,
+    categories,
+    brands,
+    isLoading: serverInventory.loading,
+    searchQuery: serverInventory.search,
+    setSearchQuery: serverInventory.setSearch,
+    selectedCategory: serverInventory.categoryId,
+    setSelectedCategory: serverInventory.setCategoryId,
+    selectedBrand: serverInventory.brandId,
+    setSelectedBrand: serverInventory.setBrandId,
+    // Map advanced filters
+    minPrice: serverInventory.minPrice,
+    setMinPrice: serverInventory.setMinPrice,
+    maxPrice: serverInventory.maxPrice,
+    setMaxPrice: serverInventory.setMaxPrice,
+    stockStatus: serverInventory.stockStatus,
+    setStockStatus: serverInventory.setStockStatus,
+    showLowStockOnly: serverInventory.showLowStockOnly,
+    setShowLowStockOnly: serverInventory.setShowLowStockOnly,
+    showOutOfStockOnly: serverInventory.showOutOfStockOnly,
+    setShowOutOfStockOnly: serverInventory.setShowOutOfStockOnly,
+    showInStock: serverInventory.showInStock,
+    setShowInStock: serverInventory.setShowInStock,
+    showBatteries: serverInventory.showBatteries,
+    setShowBatteries: serverInventory.setShowBatteries,
+    batteryState: serverInventory.batteryState,
+    setBatteryState: serverInventory.setBatteryState,
+    resetFilters: serverInventory.resetFilters,
+    
+    // Pagination
+    currentPage: serverInventory.page,
+    setCurrentPage: serverInventory.setPage,
+    itemsPerPage: serverInventory.limit,
+    totalCount: serverInventory.totalCount,
+    
+    // Actions wrapper
+    handleDelete: async (id: string) => {
+        await deleteItem(id);
+        serverInventory.refresh();
+    },
+    handleDuplicate: async (id: string) => {
+        await duplicateItem(id);
+        serverInventory.refresh();
+    },
+    refresh: serverInventory.refresh,
+    updateLocalItem: serverInventory.updateLocalItem,
+    sortBy: serverInventory.sortBy,
+    setSortBy: serverInventory.setSortBy,
+    sortOrder: serverInventory.sortOrder,
+    setSortOrder: serverInventory.setSortOrder,
+  };
 
   return (
     <div className="w-full h-full">
       <div className="hidden md:block h-full">
-        <DesktopView />
+        <DesktopView {...commonProps} />
       </div>
       <div className="block md:hidden h-full">
-        <MobileView />
+        <MobileView {...commonProps} />
       </div>
     </div>
   );
@@ -1818,7 +2067,7 @@ function ItemsPageContent() {
 export default function MainInventoryPage() {
   return (
     <BranchProvider>
-      <ItemsProvider overrideLocationId="sanaiya">
+      <ItemsProvider overrideLocationId="sanaiya" skipFetchingItems={true}>
         <ClientOnly>
           <ItemsPageContent />
         </ClientOnly>
