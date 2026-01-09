@@ -476,14 +476,25 @@ export const ItemsProvider = ({
 
   const deleteItem = async (id: string): Promise<boolean> => {
     try {
-      const itemToDelete = items.find((item) => item.id === id);
+      let itemToDelete = items.find((item) => item.id === id);
+      
+      // If not in local state (e.g. when using server-side pagination), fetch it
       if (!itemToDelete) {
-        toast({
-          title: "Error",
-          description: "Item not found.",
-          variant: "destructive",
-        });
-        return false;
+         try {
+           const fetched = await fetchItem(id);
+           if (fetched) itemToDelete = fetched;
+         } catch (e) {
+           console.warn("Could not fetch item for deletion details", e);
+         }
+      }
+
+      // Proceed even if we can't get details, just use ID
+      if (!itemToDelete) {
+        // Fallback if we really can't find it - arguably we could just try to delete anyway
+        // But the user pattern seems to enforce existence check.
+        // Let's assume if fetchItem failed, it might not exist.
+        // However, we can also just proceed to try deleting.
+        console.log("Item not found locally or remotely, attempting delete by ID anyway");
       }
 
       const success = await deleteItemService(id);
@@ -491,7 +502,7 @@ export const ItemsProvider = ({
         setItems((prevItems) => prevItems.filter((item) => item.id !== id));
         toast({
           title: "Item deleted",
-          description: `${itemToDelete.name} has been removed.`,
+          description: `${itemToDelete?.name || "Item"} has been removed.`,
         });
         return true;
       } else {

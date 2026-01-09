@@ -9,13 +9,7 @@ import {
   isBatteryDispute,
 } from "@/lib/types/dispute";
 import { generateReferenceNumber } from "@/lib/utils/reference-numbers";
-import {
-  generateThermalReceipt,
-  generateBatteryBill,
-  formatDate,
-  formatTime,
-  ReceiptData,
-} from "@/lib/utils/receipts";
+
 import type { DisputeInput } from "@/lib/types/dispute";
 
 export async function POST(req: NextRequest) {
@@ -168,54 +162,11 @@ export async function POST(req: NextRequest) {
       }
       // Note: For WARRANTY_CLAIM, no inventory changes are made
 
-      // 6. Generate receipts
-      const now = new Date();
-      const receiptData: ReceiptData = {
-        referenceNumber: disputeTransaction.referenceNumber,
-        totalAmount: Math.abs(
-          parseFloat(disputeTransaction.totalAmount)
-        ).toString(), // Use absolute value for display
-        paymentMethod: disputeType === "REFUND" ? "REFUND" : "WARRANTY_CLAIM",
-        items: disputedItems.map((item) => {
-          const product = productMap.get(item.productId);
-          return {
-            name: product?.name || `Product ${item.productId}`,
-            quantity: item.quantity,
-            sellingPrice: item.sellingPrice,
-            volumeDescription: item.volumeDescription,
-          };
-        }),
-        date: formatDate(now),
-        time: formatTime(now),
-      };
-
-      let receiptHtml = "";
-      let batteryBillHtml = "";
-
-      if (isBattery) {
-        batteryBillHtml = generateBatteryBill(receiptData);
-      } else {
-        receiptHtml = generateThermalReceipt(receiptData);
-      }
-
-      // 7. Update dispute transaction with receipt HTML
-      await tx
-        .update(transactions)
-        .set({
-          receiptHtml: receiptHtml || null,
-          batteryBillHtml: batteryBillHtml || null,
-        })
-        .where(eq(transactions.id, disputeTransaction.id));
-
       return {
         disputeTransaction: {
           ...disputeTransaction,
-          receiptHtml,
-          batteryBillHtml,
         },
         originalTransaction,
-        receiptHtml,
-        batteryBillHtml,
         isBattery,
       };
     });

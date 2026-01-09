@@ -208,7 +208,7 @@ export const fetchInventoryItems = async (
           category_id,
           brand_id,
           categories!inner ( id, name ),
-          brands!inner ( id, name ),
+          brands ( id, name ),
           types ( id, name ),
           product_types (
             types ( id, name, category_id )
@@ -332,10 +332,10 @@ export const fetchInventoryItems = async (
         }
 
         return {
-          id: inv.id,
+          id: inv.product_id || product?.id,
           product_id: inv.product_id || product?.id,
           name: product?.name || "Unknown Product",
-          price: inv.selling_price,
+          price: inv.selling_price || 0,
           stock: inv.standard_stock,
           category: product?.categories?.name || "Uncategorized",
           brand: product?.brands?.name || "Unknown Brand",

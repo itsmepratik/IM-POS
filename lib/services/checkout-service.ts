@@ -51,9 +51,6 @@ export interface CheckoutResponse {
   success: boolean;
   data?: {
     transaction: any;
-    receiptHtml?: string;
-    batteryBillHtml?: string;
-    isBattery?: boolean;
   };
   error?: string;
   details?: any;
