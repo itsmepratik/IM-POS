@@ -514,7 +514,12 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated }: ItemModal
             }
           : undefined,
       volumes: updatedFormData.isOil
-        ? updatedFormData.volumes?.filter((v) => v.size && v.size.trim() !== "")
+        ? updatedFormData.volumes
+            ?.filter((v) => v.size && v.size.trim() !== "")
+            .map((v) => ({
+              ...v,
+              price: v.price === "" ? 0 : Number(v.price),
+            }))
         : [],
       batches: updatedFormData.batches,
       // Add other fields that might be needed by the backend

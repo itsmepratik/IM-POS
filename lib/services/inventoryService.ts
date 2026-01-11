@@ -323,12 +323,32 @@ export const fetchInventoryItems = async (
         const batches: Batch[] = []; 
         let volumes: Volume[] = [];
         // Safety check for product and categories
-        if (product && product.categories && (product.categories.name === "Lubricants" || product.categories.name === "Additives")) {
+        const categoryName = Array.isArray(product.categories)
+          ? product.categories[0]?.name
+          : product.categories?.name;
+          
+        const isOilProduct =
+          product?.product_type?.toLowerCase() === "oil" ||
+          product?.product_type?.toLowerCase() === "synthetic" ||
+          product?.product_type?.toLowerCase() === "semi-synthetic" ||
+          categoryName === "Lubricants" ||
+          categoryName === "Additives";
+
+        if (isOilProduct) {
            const { data: volData } = await supabase
              .from("product_volumes")
              .select("*")
-             .eq("item_id", inv.id);
-             if (volData) volumes = volData;
+             // FIX: Use product_id, not item_id (which doesn't exist and refers to inventory)
+             .eq("product_id", inv.product_id);
+             
+             if (volData) {
+               volumes = volData.map(v => ({
+                 ...v,
+                 item_id: inv.product_id, // Map back to product ID for consistency
+                 size: v.volume_description, // Map DB column to frontend property
+                 price: parseFloat(v.selling_price)
+               }));
+             }
         }
 
         return {
@@ -346,7 +366,7 @@ export const fetchInventoryItems = async (
           type_name: product?.types?.name,
           types: product?.product_types?.map((pt: any) => pt.types).filter(Boolean) || [],
           description: product?.description,
-          isOil: product?.categories?.name === "Lubricants",
+          isOil: isOilProduct,
           imageUrl: imageUrl,
           image_url: product?.image_url,
           volumes: volumes,
@@ -527,30 +547,36 @@ export const fetchItems = async (
     const items: Item[] = await Promise.all(
       (inventoryData || []).map(async (inv: any) => {
         const product = inv.products;
+        
+        const categoryName = Array.isArray(product.categories)
+          ? product.categories[0]?.name
+          : product.categories?.name;
 
         // Determine if this is an oil product based on product_type and category
         const isOilProduct =
-          product?.product_type === "Oil" ||
-          product?.product_type === "Synthetic" ||
-          product?.product_type === "Semi-Synthetic" ||
-          (product?.categories && product.categories.name === "Lubricants");
+          product?.product_type?.toLowerCase() === "oil" ||
+          product?.product_type?.toLowerCase() === "synthetic" ||
+          product?.product_type?.toLowerCase() === "semi-synthetic" ||
+          categoryName === "Lubricants" ||
+          categoryName === "Additives";
 
         // Fetch volumes for oil products
         let volumes: Volume[] = [];
         if (isOilProduct) {
-          const { data: volumeData } = await supabase
-            .from("product_volumes")
-            .select("*")
-            .eq("product_id", inv.product_id);
-
-          volumes = (volumeData || []).map((vol: any) => ({
-            id: vol.id,
-            item_id: product.id,
-            size: vol.volume_description,
-            price: parseFloat(vol.selling_price),
-            created_at: vol.created_at,
-            updated_at: vol.updated_at,
-          }));
+           const { data: volData } = await supabase
+             .from("product_volumes")
+             .select("*")
+             // FIX: Use product_id, not item_id
+             .eq("product_id", inv.product_id);
+             
+             if (volData) {
+               volumes = volData.map(v => ({
+                 ...v,
+                 item_id: inv.product_id, // Map back to product ID
+                 size: v.volume_description,
+                 price: parseFloat(v.selling_price)
+               }));
+             }
         }
 
         // Fetch batches using the correct product_id from inventory
@@ -910,7 +936,6 @@ export const createItem = async (
           console.error("Error inserting fallback product type:", typeError);
        }
     }
-
     return await fetchItem(productData.id, locationId);
   } catch (error) {
     console.error("Error in createItem:", error);
@@ -924,6 +949,7 @@ export const updateItem = async (
   updates: Partial<Item>,
   locationId: string = "sanaiya"
 ): Promise<Item | null> => {
+  console.log("Called updateItem with id:", id, "updates:", updates, "locationId:", locationId);
   try {
     // Get location ID
     let actualLocationId = locationId;

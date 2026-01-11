@@ -56,8 +56,9 @@ trigger: always_on
 
 ---
 
-## 🗣 Proactive Communication
+## 🗣 Strict Defining Rules
 - You are encouraged to criticize any code or design that feels "v1" or "MVP". 
-- You are to always use mcps like supabase mcp for all database operations and other respectfully availaible mcps for other respectfull operations to improve efficiency.
+- Youa are to only do exactly what has been asked and not a single thing more.
+- You are to always use mcps like supabase mcp for all database operations and ref mcp for any context and other mcps to improve efficiency.
 - Always propose the Senior/Production-level path unless explicitly told otherwise.
 - If you spot a potential security flaw or a "foot-gun" in a proposed change, block the task until clarified.

@@ -360,7 +360,6 @@ const InternalToolPage = () => {
                           {/* Controls */}
                           <div className="flex flex-col sm:flex-row gap-4 justify-between bg-card p-4 rounded-lg border shadow-sm">
                              <div className="flex items-center gap-2">
-                                <span className="text-sm font-medium">Fuel:</span>
                                 <div className="flex p-1 bg-muted rounded-md">
                                   {["all", "petrol", "diesel"].map((type) => (
                                     <button
@@ -376,7 +375,6 @@ const InternalToolPage = () => {
                                 </div>
                              </div>
                              <div className="flex items-center gap-2">
-                                <span className="text-sm font-medium">Sort:</span>
                                 <Select value={sortBy} onValueChange={(val: any) => setSortBy(val)}>
                                    <SelectTrigger className="w-[140px] h-8 text-xs">
                                       <SelectValue />
@@ -455,20 +453,7 @@ const InternalToolPage = () => {
                      <Separator className="bg-primary/20" />
 
                      <div className="space-y-3">
-                        <div className="flex justify-between text-sm">
-                           <span className="text-muted-foreground">Vehicle</span>
-                           <span className="font-semibold text-right">{vehicle.make} {vehicle.model}</span>
-                        </div>
-                        <div className="flex justify-between text-sm">
-                           <span className="text-muted-foreground">Engine</span>
-                           <span className="font-semibold">{vehicle.engine} ({vehicle.year})</span>
-                        </div>
-                        <div className="flex justify-between text-sm">
-                           <span className="text-muted-foreground">Filter Ref</span>
-                           <span className="font-mono text-xs bg-background border px-1.5 py-0.5 rounded ml-2">
-                             {vehicle.oil_filter_part_number || "N/A"}
-                           </span>
-                        </div>
+                        {/* Details removed as requested */}
                      </div>
                   </div>
                </div>

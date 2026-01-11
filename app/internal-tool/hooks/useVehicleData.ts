@@ -143,7 +143,7 @@ export const useVehicleData = () => {
   };
 
   const parseVolume = (volStr: string): number => {
-    const clean = volStr.toLowerCase().replace(/\s/g, "");
+    const clean = volStr.toLowerCase().trim();
     if (clean.includes("ml")) {
       return parseFloat(clean) / 1000;
     }
@@ -182,7 +182,8 @@ export const useVehicleData = () => {
         if (p.product_volumes && p.product_volumes.length > 0) {
           p.product_volumes.forEach((v: any) => {
             const vol = parseVolume(v.volume_description);
-            if (vol > maxVol) {
+            // Ignore volumes > 20L (drums/bulk) and invalid 0s
+            if (vol > 0 && vol <= 20 && vol > maxVol) {
               maxVol = vol;
               priceForMaxVol = v.selling_price;
             }
