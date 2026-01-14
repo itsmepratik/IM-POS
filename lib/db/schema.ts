@@ -139,6 +139,7 @@ export const batches = pgTable("batches", {
   supplier: text("supplier"),
   purchaseDate: timestamp("purchase_date", { withTimezone: true }).defaultNow(),
   isActiveBatch: boolean("is_active_batch").default(false),
+  batchNumber: integer("batch_number").default(1),
 }, (table) => ({
   inventoryActiveIdx: index("batches_inventory_active_idx").on(table.inventoryId, table.isActiveBatch),
 }));

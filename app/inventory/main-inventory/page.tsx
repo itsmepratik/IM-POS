@@ -475,30 +475,22 @@ const TableRow = memo(
     onDuplicate: (id: string) => void;
   }) => {
     const [imageError, setImageError] = useState(false);
-    const { calculateAverageCost } = useItems();
-
-    // Memoize expensive calculations
-    const avgCost = useMemo(
-      () => calculateAverageCost(item.id),
-      [item.id, calculateAverageCost]
-    );
+    // Get active batch cost price
+    const activeBatchCost = useMemo(() => {
+      if (!item.batches || item.batches.length === 0) return 0;
+      // Find the active batch, or fallback to the first one available
+      const activeBatch = item.batches.find(b => b.is_active_batch) || item.batches[0];
+      return activeBatch?.cost_price || 0;
+    }, [item.batches]);
     const batchCount = useMemo(() => item.batches?.length || 0, [item.batches]);
 
     // Calculate profit margin
-    const margin = useMemo(() => {
-      if (!item.batches || item.batches.length === 0 || item.price <= 0)
-        return null;
 
-      if (avgCost <= 0) return null;
-
-      const marginPercentage = ((item.price - avgCost) / item.price) * 100;
-      return Math.round(marginPercentage * 100) / 100; // Round to 2 decimals
-    }, [item.batches, item.price, avgCost]);
 
     return (
       <tr
         className={cn(
-          "border-b hover:bg-muted/30 transition-colors",
+          "border-b hover:bg-muted/30 transition-colors text-sm",
           isSelected && "bg-muted/50"
         )}
       >
@@ -551,25 +543,26 @@ const TableRow = memo(
           )}
         </td>
         <td className="h-16 px-4 text-left align-middle">
-          OMR {item.price.toFixed(2)}
+          {activeBatchCost > 0 ? (
+            <span className="font-medium text-muted-foreground">OMR {activeBatchCost.toFixed(3)}</span>
+          ) : (
+            <span className="text-muted-foreground">N/A</span>
+          )}
+        </td>
+        <td className="h-16 px-4 text-left align-middle">
+          <span className="font-medium text-emerald-600">OMR {item.price.toFixed(3)}</span>
         </td>
         <td className="h-16 px-4 text-left align-middle">
           {item.isOil && item.bottleStates ? (
-            <div className="flex gap-2">
-              <Badge
-                variant="outline"
-                className="bg-red-50 text-red-700 border-red-200 gap-1"
-              >
-                <div className="w-2 h-2 rounded-full bg-red-500"></div>
-                Open: {item.bottleStates.open}
-              </Badge>
-              <Badge
-                variant="outline"
-                className="bg-green-50 text-green-700 border-green-200 gap-1"
-              >
-                <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                Closed: {item.bottleStates.closed}
-              </Badge>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-1.5 text-muted-foreground" title="Open Bottles">
+                <OpenBottleIcon className="h-4 w-4 text-orange-500" />
+                <span className="font-medium text-foreground">{item.bottleStates.open}</span>
+              </div>
+              <div className="flex items-center gap-1.5 text-muted-foreground" title="Sealed Bottles">
+                <ClosedBottleIcon className="h-4 w-4 text-primary" />
+                <span className="font-medium text-foreground">{item.bottleStates.closed}</span>
+              </div>
             </div>
           ) : (
             <span className="text-muted-foreground">N/A</span>
@@ -586,24 +579,9 @@ const TableRow = memo(
                 <Box className="h-3.5 w-3.5" />
                 Batches: {batchCount}
               </Badge>
-              {margin !== null && (
-                <Badge
-                  variant="outline"
-                  className={`gap-1 ${
-                    margin < 15
-                      ? "bg-red-50 text-red-700 border-red-200"
-                      : margin < 25
-                      ? "bg-yellow-50 text-yellow-700 border-yellow-200"
-                      : "bg-green-50 text-green-700 border-green-200"
-                  }`}
-                >
-                  <Percent className="h-3.5 w-3.5" />
-                  {margin}%
-                </Badge>
-              )}
             </div>
           ) : (
-            <span className="text-muted-foreground">N/A</span>
+            <span className="text-muted-foreground text-xs italic">No batches</span>
           )}
         </td>
         <td className="h-12 px-4 text-right align-middle">
@@ -1864,7 +1842,7 @@ function DesktopView({
         <div className="overflow-x-auto pb-2">
           <table className="w-full min-w-[800px]">
             <thead>
-              <tr className="border-b bg-muted/50">
+              <tr className="border-b bg-muted/50 text-sm">
                 <th className="h-14 px-4 text-left align-middle font-medium w-12">
                   <ClientOnly>
                     <Checkbox
@@ -1883,7 +1861,10 @@ function DesktopView({
                   Stock
                 </th>
                 <th className="h-14 px-4 text-left align-middle font-medium min-w-[100px]">
-                  Price
+                  Cost Price
+                </th>
+                <th className="h-14 px-4 text-left align-middle font-medium min-w-[100px]">
+                  Selling Price
                 </th>
                 <th className="h-14 px-4 text-left align-middle font-medium min-w-[160px]">
                   Bottle Status

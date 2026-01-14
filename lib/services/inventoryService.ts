@@ -80,12 +80,14 @@ export type Volume = {
 export type Batch = {
   id: string;
   item_id: string;
+  batch_number?: number; // Batch ordering (1, 2, 3, ...)
   purchase_date: string | null;
   expiration_date: string | null;
   supplier_id: string | null;
   cost_price: number | null;
   initial_quantity: number | null;
   current_quantity: number | null;
+  is_active_batch?: boolean; // NEW
   created_at: string | null;
   updated_at: string | null;
 };
@@ -163,8 +165,8 @@ export const fetchInventoryItems = async (
   page: number = 1,
   limit: number = 50,
   search: string = "",
-  categoryId: string = "ALL",
-  brandId: string = "ALL",
+  categoryId: string = "all",
+  brandId: string = "all",
   locationId: string = "sanaiya",
   filters: {
     minPrice?: number;
@@ -181,6 +183,12 @@ export const fetchInventoryItems = async (
 ): Promise<{ data: Item[]; count: number }> => {
   try {
     const actualLocationId = await resolveLocationId(locationId);
+
+    // Determine join type based on filters to ensure data is returned correctly
+    // When filtering by a child resource, we must use !inner to filter the parent
+    // AND to ensure the child data is returned.
+    const categoryJoin = (categoryId && categoryId !== "ALL" && categoryId !== "all") ? "categories!inner" : "categories";
+    const brandJoin = (brandId && brandId !== "ALL" && brandId !== "all" && brandId !== "none") ? "brands!inner" : "brands";
     
     let query = supabase
       .from("inventory")
@@ -192,6 +200,7 @@ export const fetchInventoryItems = async (
         selling_price,
         open_bottles_stock,
         closed_bottles_stock,
+        total_stock,
         products!inner (
           id,
           name,
@@ -207,8 +216,8 @@ export const fetchInventoryItems = async (
           specification,
           category_id,
           brand_id,
-          categories!inner ( id, name ),
-          brands ( id, name ),
+          ${categoryJoin} ( id, name ),
+          ${brandJoin} ( id, name ),
           types ( id, name ),
           product_types (
             types ( id, name, category_id )
@@ -227,7 +236,7 @@ export const fetchInventoryItems = async (
     // Helper to check for valid UUID
     const isUUID = (str: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
 
-    if (categoryId && categoryId !== "ALL") {
+    if (categoryId && categoryId !== "ALL" && categoryId !== "all") {
       if (isUUID(categoryId)) {
         query = query.eq("products.category_id", categoryId);
       } else {
@@ -236,7 +245,7 @@ export const fetchInventoryItems = async (
       }
     }
 
-    if (brandId && brandId !== "ALL") {
+    if (brandId && brandId !== "ALL" && brandId !== "all") {
       if (isUUID(brandId)) {
         query = query.eq("products.brand_id", brandId);
       } else if (brandId === "none") {
@@ -320,7 +329,35 @@ export const fetchInventoryItems = async (
            imageUrl = publicUrlData.publicUrl;
         }
 
-        const batches: Batch[] = []; 
+        // Fetch batches for this inventory item
+        let batches: Batch[] = [];
+        try {
+          const { data: batchData } = await supabase
+            .from("batches")
+            .select("*")
+            .eq("inventory_id", inv.id)
+            .order("batch_number", { ascending: true });
+          
+          if (batchData && batchData.length > 0) {
+            batches = batchData.map((b: any) => ({
+              id: b.id,
+              item_id: inv.id,
+              batch_number: b.batch_number,
+              purchase_date: b.purchase_date,
+              expiration_date: null,
+              supplier_id: b.supplier,
+              cost_price: b.cost_price ? parseFloat(b.cost_price) : null,
+              initial_quantity: b.quantity_received,
+              current_quantity: b.stock_remaining,
+              is_active_batch: b.is_active_batch,
+              created_at: b.created_at,
+              updated_at: b.updated_at,
+            }));
+          }
+        } catch (batchError) {
+          console.error("Error fetching batches for inventory:", inv.id, batchError);
+        }
+        
         let volumes: Volume[] = [];
         // Safety check for product and categories
         const categoryName = Array.isArray(product.categories)
@@ -356,7 +393,7 @@ export const fetchInventoryItems = async (
           product_id: inv.product_id || product?.id,
           name: product?.name || "Unknown Product",
           price: inv.selling_price || 0,
-          stock: inv.standard_stock,
+          stock: inv.total_stock || (inv.standard_stock + (inv.closed_bottles_stock || 0) + (inv.open_bottles_stock || 0)),
           category: product?.categories?.name || "Uncategorized",
           brand: product?.brands?.name || "Unknown Brand",
           brand_id: product?.brand_id,
@@ -483,6 +520,7 @@ export const fetchItems = async (
         selling_price,
         open_bottles_stock,
         closed_bottles_stock,
+        total_stock,
         products!inner (
           id,
           name,
@@ -579,24 +617,26 @@ export const fetchItems = async (
              }
         }
 
-        // Fetch batches using the correct product_id from inventory
+        // Fetch batches using the correct inventory_id
         const { data: batchData } = await supabase
           .from("batches")
           .select("*")
-          .eq("product_id", inv.product_id)
-          .eq("location_id", actualLocationId);
+          .eq("inventory_id", inv.id)
+          .order("batch_number", { ascending: true });
 
         const batches: Batch[] = (batchData || []).map((batch: any) => ({
           id: batch.id,
           item_id: product.id,
           purchase_date: batch.purchase_date,
-          expiration_date: batch.expiration_date,
-          supplier_id: batch.supplier_id,
+          expiration_date: null, // Column does not exist
+          supplier_id: batch.supplier,
           cost_price: batch.cost_price ? parseFloat(batch.cost_price) : null,
-          initial_quantity: batch.initial_quantity,
-          current_quantity: batch.current_quantity,
+          initial_quantity: batch.quantity_received,
+          current_quantity: batch.stock_remaining,
+          is_active_batch: batch.is_active_batch,
           created_at: batch.created_at,
           updated_at: batch.updated_at,
+          batch_number: batch.batch_number
         }));
 
         // For lubricants (oil products), stock = open bottles + closed bottles
@@ -1997,17 +2037,30 @@ export const addBatch = async (
       }
     }
 
+    // Resolve inventory_id
+    const { data: inventoryData, error: inventoryError } = await supabase
+      .from("inventory")
+      .select("id")
+      .eq("product_id", batch.item_id)
+      .eq("location_id", actualLocationId)
+      .single();
+
+    if (inventoryError || !inventoryData) {
+      console.error("Error resolving inventory ID:", inventoryError);
+      throw new Error("Inventory item not found for this product and location");
+    }
+
     const { data, error } = await supabase
       .from("batches")
       .insert({
-        product_id: batch.item_id,
-        location_id: actualLocationId,
-        supplier_id: batch.supplier_id,
+        inventory_id: inventoryData.id,
+        supplier: batch.supplier_id, // Map supplier_id to supplier column
         purchase_date: batch.purchase_date,
-        expiration_date: batch.expiration_date,
+        // expiration_date: batch.expiration_date, // Column does not exist in DB
         cost_price: batch.cost_price,
-        initial_quantity: batch.initial_quantity,
-        current_quantity: batch.current_quantity,
+        quantity_received: batch.initial_quantity,
+        stock_remaining: batch.current_quantity,
+        batch_number: 0 // logic handling batch number should be db trigger based or explicit
       })
       .select()
       .single();
@@ -2019,15 +2072,17 @@ export const addBatch = async (
 
     return {
       id: data.id,
-      item_id: data.product_id,
+      item_id: batch.item_id,
       purchase_date: data.purchase_date,
-      expiration_date: data.expiration_date,
-      supplier_id: data.supplier_id,
+      expiration_date: null, // DB has no expiration date
+      supplier_id: data.supplier, // Map back
       cost_price: data.cost_price ? parseFloat(data.cost_price) : null,
-      initial_quantity: data.initial_quantity,
-      current_quantity: data.current_quantity,
+      initial_quantity: data.quantity_received,
+      current_quantity: data.stock_remaining,
+      is_active_batch: data.is_active_batch, // Map
       created_at: data.created_at,
       updated_at: data.updated_at,
+      batch_number: data.batch_number
     };
   } catch (error) {
     console.error("Error in addBatch:", error);
@@ -2043,16 +2098,16 @@ export const updateBatch = async (
     const batchUpdates: any = {};
     if (updates.purchase_date !== undefined)
       batchUpdates.purchase_date = updates.purchase_date;
-    if (updates.expiration_date !== undefined)
-      batchUpdates.expiration_date = updates.expiration_date;
+    // if (updates.expiration_date !== undefined)
+    //   batchUpdates.expiration_date = updates.expiration_date; // Column does not exist
     if (updates.supplier_id !== undefined)
-      batchUpdates.supplier_id = updates.supplier_id;
+      batchUpdates.supplier = updates.supplier_id; // Map to supplier column
     if (updates.cost_price !== undefined)
       batchUpdates.cost_price = updates.cost_price;
     if (updates.initial_quantity !== undefined)
-      batchUpdates.initial_quantity = updates.initial_quantity;
+      batchUpdates.quantity_received = updates.initial_quantity;
     if (updates.current_quantity !== undefined)
-      batchUpdates.current_quantity = updates.current_quantity;
+      batchUpdates.stock_remaining = updates.current_quantity;
 
     const { data, error } = await supabase
       .from("batches")
@@ -2068,15 +2123,17 @@ export const updateBatch = async (
 
     return {
       id: data.id,
-      item_id: data.product_id,
+      item_id: "",
       purchase_date: data.purchase_date,
-      expiration_date: data.expiration_date,
-      supplier_id: data.supplier_id,
+      expiration_date: null,
+      supplier_id: data.supplier,
       cost_price: data.cost_price ? parseFloat(data.cost_price) : null,
-      initial_quantity: data.initial_quantity,
-      current_quantity: data.current_quantity,
+      initial_quantity: data.quantity_received,
+      current_quantity: data.stock_remaining,
+      is_active_batch: data.is_active_batch, // Map
       created_at: data.created_at,
       updated_at: data.updated_at,
+      batch_number: data.batch_number
     };
   } catch (error) {
     console.error("Error in updateBatch:", error);
@@ -2099,3 +2156,110 @@ export const deleteBatch = async (id: string): Promise<boolean> => {
     return false;
   }
 };
+
+// Create initial batch for new inventory items
+export const createInitialBatchForInventory = async (
+  inventoryId: string,
+  costPrice: number,
+  initialStock: number,
+  supplier?: string
+): Promise<Batch | null> => {
+  try {
+    if (initialStock <= 0) {
+      console.log("Skipping initial batch creation - no stock");
+      return null;
+    }
+
+    const { data, error } = await supabase
+      .from("batches")
+      .insert({
+        inventory_id: inventoryId,
+        cost_price: costPrice,
+        quantity_received: initialStock,
+        stock_remaining: initialStock,
+        is_active_batch: true,
+        supplier: supplier || null,
+        purchase_date: new Date().toISOString(),
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Error creating initial batch:", error);
+      return null;
+    }
+
+    return {
+      id: data.id,
+      item_id: data.inventory_id,
+      batch_number: data.batch_number,
+      purchase_date: data.purchase_date,
+      expiration_date: null,
+      supplier_id: data.supplier,
+      cost_price: data.cost_price ? parseFloat(data.cost_price) : null,
+      initial_quantity: data.quantity_received,
+      current_quantity: data.stock_remaining,
+      created_at: data.created_at,
+      updated_at: data.updated_at,
+    };
+  } catch (error) {
+    console.error("Error in createInitialBatchForInventory:", error);
+    return null;
+  }
+};
+
+// Cleanup old exhausted batches (keep last N)
+export const cleanupOldBatches = async (keepCount: number = 5): Promise<number> => {
+  try {
+    const { data, error } = await supabase.rpc('cleanup_old_batches', { 
+      p_keep_count: keepCount 
+    });
+
+    if (error) {
+      console.error("Error cleaning up old batches:", error);
+      return 0;
+    }
+
+    return data || 0;
+  } catch (error) {
+    console.error("Error in cleanupOldBatches:", error);
+    return 0;
+  }
+};
+
+// Fetch all batches for a specific inventory item
+export const fetchBatchesForInventory = async (
+  inventoryId: string
+): Promise<Batch[]> => {
+  try {
+    const { data, error } = await supabase
+      .from("batches")
+      .select("*")
+      .eq("inventory_id", inventoryId)
+      .order("batch_number", { ascending: true });
+
+    if (error) {
+      console.error("Error fetching batches:", error);
+      return [];
+    }
+
+    return (data || []).map((batch: any) => ({
+      id: batch.id,
+      item_id: batch.inventory_id,
+      batch_number: batch.batch_number,
+      purchase_date: batch.purchase_date,
+      expiration_date: null, // Column does not exist
+      supplier_id: batch.supplier, // Map supplier column to supplier_id
+      cost_price: batch.cost_price ? parseFloat(batch.cost_price) : null,
+      initial_quantity: batch.quantity_received,
+      current_quantity: batch.stock_remaining,
+      is_active_batch: batch.is_active_batch, // Map
+      created_at: batch.created_at,
+      updated_at: batch.updated_at,
+    }));
+  } catch (error) {
+    console.error("Error in fetchBatchesForInventory:", error);
+    return [];
+  }
+};
+

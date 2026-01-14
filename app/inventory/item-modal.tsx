@@ -42,6 +42,7 @@ import {
   Trash2 as Trash2Icon,
   Link,
   Upload,
+  Lock,
 } from "lucide-react";
 import { ImageUpload } from "./components/image-upload";
 import { Textarea } from "@/components/ui/textarea";
@@ -404,6 +405,49 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated }: ItemModal
     formData.bottleStates?.open,
     formData.bottleStates?.closed,
   ]);
+
+  // Sync Cost Price and Stock from Batches
+  useEffect(() => {
+    if (formData.batches && formData.batches.length > 0) {
+      // 1. Sync Cost Price from Active Batch
+      // Find active batch, or default to the first one (FIFO)
+      const activeBatch = formData.batches.find(b => b.is_active_batch) || formData.batches[0];
+      const activeCost = activeBatch?.cost_price || 0;
+
+      // 2. Sync Stock from Batches (Total Current Quantity)
+      // Use current_quantity (which maps to stock_remaining in DB) instead of initial_quantity
+      const totalBatchStock = formData.batches.reduce(
+        (sum, batch) => sum + (batch.current_quantity || 0),
+        0
+      );
+
+      setFormData((prev) => {
+        // Calculate new values
+        const openBottles = prev.bottleStates?.open || 0;
+        const newStock = prev.isOil ? (totalBatchStock + openBottles) : totalBatchStock;
+        
+        // Check if updates are needed to avoid infinite loops
+        const needsCostUpdate = prev.costPrice !== activeCost;
+        const needsStockUpdate = prev.stock !== newStock;
+        const needsClosedBottlesUpdate = prev.isOil && prev.bottleStates?.closed !== totalBatchStock;
+
+        if (!needsCostUpdate && !needsStockUpdate && !needsClosedBottlesUpdate) {
+          return prev;
+        }
+
+        return {
+          ...prev,
+          costPrice: activeCost,
+          stock: newStock,
+          bottleStates: prev.isOil ? {
+            ...prev.bottleStates,
+            open: openBottles,
+            closed: totalBatchStock // Sync closed bottles with batch stock
+          } : prev.bottleStates
+        };
+      });
+    }
+  }, [formData.batches, formData.isOil, formData.bottleStates?.open]);
 
   // Calculate total margin based on batches and price
   const calculateMargin = () => {
@@ -1244,20 +1288,36 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated }: ItemModal
                               </div>
                               <div>
                                 <Label htmlFor="costPrice">Cost Price</Label>
-                                <Input
-                                  id="costPrice"
-                                  type="number"
-                                  min="0"
-                                  step="0.01"
-                                  value={formData.costPrice || ""}
-                                  onChange={(e) =>
-                                    setFormData({
-                                      ...formData,
-                                      costPrice: e.target.value === "" ? "" : parseFloat(e.target.value),
-                                    })
-                                  }
-                                  placeholder="0"
-                                />
+                                <div className="relative">
+                                  <Input
+                                    id="costPrice"
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value={formData.costPrice || ""}
+                                    onChange={(e) =>
+                                      setFormData({
+                                        ...formData,
+                                        costPrice: e.target.value === "" ? "" : parseFloat(e.target.value),
+                                      })
+                                    }
+                                    placeholder="0"
+                                    disabled={formData.batches && formData.batches.length > 0}
+                                    className={cn(
+                                      formData.batches && formData.batches.length > 0 && "bg-muted text-muted-foreground pr-8"
+                                    )}
+                                  />
+                                  {formData.batches && formData.batches.length > 0 && (
+                                    <div className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                                      <Lock className="h-4 w-4" />
+                                    </div>
+                                  )}
+                                </div>
+                                {formData.batches && formData.batches.length > 0 && (
+                                  <p className="text-[10px] text-muted-foreground mt-1">
+                                    Linked to Active Batch
+                                  </p>
+                                )}
                               </div>
                               <div>
                                 <Label htmlFor="stock">Stock</Label>
@@ -1490,6 +1550,10 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated }: ItemModal
                                         ? ""
                                         : formData.bottleStates?.closed
                                     }
+                                    disabled={formData.batches && formData.batches.length > 0}
+                                    className={cn(
+                                      formData.batches && formData.batches.length > 0 && "bg-muted text-muted-foreground"
+                                    )}
                                     onChange={(e) => {
                                       const closedValue =
                                         e.target.value === ""
@@ -1526,6 +1590,11 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated }: ItemModal
                                       });
                                     }}
                                   />
+                                  {formData.batches && formData.batches.length > 0 && (
+                                    <p className="text-[10px] text-muted-foreground mt-1">
+                                      Managed via Batches tab
+                                    </p>
+                                  )}
                                 </div>
                               </div>
                             </div>
@@ -1636,64 +1705,45 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated }: ItemModal
                     {activeTab === "batches" && (
                       <div className="pb-6 m-0" key="batches-content">
                         <div className="space-y-6">
-                          {/* FIFO Explanation Banner */}
-                          <div className="bg-muted p-3 sm:p-4 rounded-lg flex items-start space-x-3 hidden sm:flex">
-                            <AlertCircle className="h-5 w-5 text-muted-foreground mt-0.5" />
-                            <div>
-                              <h4 className="text-sm font-medium">
-                                First In, First Out (FIFO) Inventory
-                              </h4>
-                              <p className="text-sm text-muted-foreground mt-1">
-                                Batches are automatically sorted by purchase
-                                date with oldest batches used first. New batches
-                                are only used when older ones are depleted. This
-                                helps maintain inventory freshness and accurate
-                                cost tracking.
-                              </p>
-                            </div>
-                          </div>
 
-                          {/* Mobile FIFO mini explanation */}
-                          <div className="bg-muted p-3 rounded-lg sm:hidden">
-                            <p className="text-sm">
-                              <span className="font-medium">FIFO:</span> Oldest
-                              batches are used first
-                            </p>
-                          </div>
 
-                          {/* Profit Margin Summary Card */}
-                          <Card>
-                            <CardHeader className="pb-3">
-                              <CardTitle className="text-base">
-                                Profit Margin
-                              </CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                              <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                  <div className="text-sm font-medium text-muted-foreground mb-1">
-                                    Average Cost Price
+                          {/* Lubricant Stock Breakdown */}
+                          {formData.isOil && (
+                            <Card className="bg-muted/30 border-dashed">
+                              <CardHeader className="pb-2 pt-4">
+                                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                                  <div className="h-2 w-2 rounded-full bg-blue-500" />
+                                  Lubricant Stock Breakdown
+                                </CardTitle>
+                              </CardHeader>
+                              <CardContent className="pb-4">
+                                <div className="grid grid-cols-3 gap-4">
+                                  <div className="flex flex-col items-center p-2 bg-background rounded-md border text-center">
+                                    <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Sealed (Batches)</span>
+                                    <span className="text-xl font-bold mt-1 text-primary">
+                                      {formData.batches.reduce((sum, batch) => sum + (batch.current_quantity || 0), 0)}
+                                    </span>
+                                    <span className="text-[10px] text-muted-foreground">Units in Batches</span>
                                   </div>
-                                  <div className="text-2xl font-bold">
-                                    {formData.batches &&
-                                    formData.batches.length > 0
-                                      ? `$${calculateAverageCost(
-                                          formData.id
-                                        ).toFixed(2)}`
-                                      : "$0.00"}
+                                  <div className="flex flex-col items-center p-2 bg-background rounded-md border text-center">
+                                    <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Open Bottles</span>
+                                    <span className="text-xl font-bold mt-1 text-orange-600">
+                                      {formData.bottleStates?.open || 0}
+                                    </span>
+                                    <span className="text-[10px] text-muted-foreground">In Use</span>
+                                  </div>
+                                  <div className="flex flex-col items-center p-2 bg-background rounded-md border text-center relative overflow-hidden">
+                                    <div className="absolute inset-x-0 top-0 h-1 bg-green-500/20" />
+                                    <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Total Stock</span>
+                                    <span className="text-xl font-bold mt-1">
+                                      {(formData.batches.reduce((sum, batch) => sum + (batch.current_quantity || 0), 0) + (formData.bottleStates?.open || 0))}
+                                    </span>
+                                    <span className="text-[10px] text-muted-foreground">Total Units</span>
                                   </div>
                                 </div>
-                                <div>
-                                  <div className="text-sm font-medium text-muted-foreground mb-1">
-                                    Profit Margin
-                                  </div>
-                                  <div className="text-2xl font-bold">
-                                    {`${calculateMargin()}%`}
-                                  </div>
-                                </div>
-                              </div>
-                            </CardContent>
-                          </Card>
+                              </CardContent>
+                            </Card>
+                          )}
 
                           {/* Batches List */}
                           <Card>
@@ -1718,11 +1768,11 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated }: ItemModal
                                   // Only use client-side date formatting after component has mounted
                                   setEditingBatch({
                                     id: "",
-                                    purchaseDate: isMounted
+                                    purchase_date: isMounted
                                       ? new Date().toISOString().split("T")[0]
                                       : "2023-01-01",
-                                    costPrice: 0,
-                                    quantity: 0,
+                                    cost_price: 0,
+                                    current_quantity: 0,
                                   });
                                   setIsEditingBatch(true);
                                 }}
@@ -1731,29 +1781,40 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated }: ItemModal
                               </Button>
                             </CardHeader>
                             <CardContent className="space-y-2 p-2 sm:p-6">
-                              {formData.batches &&
-                              formData.batches.length > 0 ? (
-                                <div className="space-y-2">
-                                  {formData.batches.map((batch, index) => (
+                                {formData.batches &&
+                                formData.batches.length > 0 ? (
+                                  <div className="space-y-2">
+                                    {formData.batches.map((batch, index) => (
                                     <div
                                       key={batch.id}
-                                      className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-2 sm:p-3 border rounded-lg"
+                                      className={cn(
+                                        "flex flex-col sm:flex-row items-start sm:items-center justify-between p-2 sm:p-3 border rounded-lg",
+                                        index === 0 && "border-primary/50 bg-primary/5"
+                                      )}
                                     >
                                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full sm:flex-1 mb-2 sm:mb-0">
                                         <div>
-                                          <div className="text-sm font-medium">
-                                            Purchase Date
+                                          <div className="flex items-center gap-2">
+                                            <div className="text-sm font-semibold">
+                                              Batch #{batch.batch_number || index + 1}
+                                            </div>
+                                            {batch.is_active_batch && (
+                                              <Badge variant="default" className="text-xs py-0 px-1.5">
+                                                Active
+                                              </Badge>
+                                            )}
                                           </div>
-                                          <div className="text-sm">
-                                            {new Date(
-                                              batch.purchaseDate
-                                            ).toLocaleDateString()}
+                                          <div className="text-xs text-muted-foreground">
+                                            {batch.purchase_date 
+                                              ? new Date(batch.purchase_date).toLocaleDateString()
+                                              : "No date"
+                                            }
                                           </div>
-                                          <div className="text-xs text-muted-foreground mt-1">
-                                            {calculateBatchAge(
-                                              batch.purchaseDate
-                                            )}{" "}
-                                            days old
+                                          <div className="text-xs text-muted-foreground mt-0.5">
+                                            {batch.purchase_date 
+                                              ? `${calculateBatchAge(batch.purchase_date)} days old`
+                                              : ""
+                                            }
                                           </div>
                                         </div>
                                         <div>
@@ -1761,48 +1822,31 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated }: ItemModal
                                             Cost Price
                                           </div>
                                           <div className="text-sm">
-                                            $
-                                            {typeof batch.costPrice === "number"
-                                              ? batch.costPrice.toFixed(2)
-                                              : "0.00"}
+                                            {typeof batch.cost_price === "number"
+                                              ? batch.cost_price.toFixed(2)
+                                              : "0.00"} OMR
                                           </div>
                                         </div>
                                         <div>
                                           <div className="text-sm font-medium">
-                                            Quantity
+                                            Qty Remaining
                                           </div>
                                           <div className="text-sm">
-                                            {(batch.current_quantity || 0)} units
+                                            {(batch.current_quantity || 0)}/{(batch.initial_quantity || 0)} units
                                           </div>
                                         </div>
-                                        <div className="hidden sm:block">
-                                          <div className="text-sm font-medium">
-                                            FIFO Order
-                                          </div>
-                                          <div className="text-sm">
-                                            {getBatchFifoPosition(
-                                              index,
-                                              formData.batches.length
-                                            )}
-                                          </div>
-                                        </div>
-                                        {index === 0 && (
-                                          <div className="col-span-2 sm:hidden">
-                                            <div className="text-sm font-medium">
-                                              FIFO Order
-                                            </div>
-                                            <div className="text-sm font-medium text-green-600">
-                                              Next in line (will be used first)
-                                            </div>
-                                          </div>
-                                        )}
                                       </div>
                                       <div className="flex items-center space-x-2 ml-auto">
                                         <Button
                                           variant="ghost"
                                           size="icon"
                                           onClick={() => {
-                                            setEditingBatch(batch);
+                                            setEditingBatch({
+                                              ...batch,
+                                              ...batch,
+                                              purchase_date: batch.purchase_date,
+                                              cost_price: batch.cost_price,
+                                            });
                                             setIsEditingBatch(true);
                                           }}
                                         >
@@ -1857,8 +1901,8 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated }: ItemModal
                                         formData.id,
                                         editingBatch.id,
                                         {
-                                          purchaseDate:
-                                            editingBatch.purchaseDate,
+                                          purchase_date:
+                                            editingBatch.purchase_date,
                                           cost_price: editingBatch.cost_price,
                                           current_quantity: editingBatch.current_quantity,
                                         }
@@ -1870,10 +1914,10 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated }: ItemModal
                                           batch.id === editingBatch.id
                                             ? {
                                                 ...batch,
-                                                purchaseDate:
-                                                  editingBatch.purchaseDate,
-                                                costPrice:
-                                                  editingBatch.costPrice,
+                                                purchase_date:
+                                                  editingBatch.purchase_date,
+                                                cost_price:
+                                                  editingBatch.cost_price,
                                                 current_quantity: editingBatch.current_quantity,
                                               }
                                             : batch
@@ -1962,7 +2006,7 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated }: ItemModal
                                         onChange={(e) =>
                                           setEditingBatch({
                                             ...editingBatch,
-                                            purchaseDate: e.target.value,
+                                            purchase_date: e.target.value,
                                           })
                                         }
                                         className="sm:col-span-3"
@@ -1984,7 +2028,7 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated }: ItemModal
                                         onChange={(e) =>
                                           setEditingBatch({
                                             ...editingBatch,
-                                            costPrice: parseFloat(
+                                            cost_price: parseFloat(
                                               e.target.value
                                             ),
                                           })
@@ -2008,7 +2052,7 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated }: ItemModal
                                           onChange={(e) =>
                                             setEditingBatch({
                                               ...editingBatch,
-                                              quantity: parseInt(
+                                              current_quantity: parseInt(
                                                 e.target.value
                                               ),
                                             })

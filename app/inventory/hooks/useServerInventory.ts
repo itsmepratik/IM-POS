@@ -22,8 +22,8 @@ export function useServerInventory({
   
   // Filters state
   const [search, setSearch] = useState("");
-  const [categoryId, setCategoryId] = useState("ALL");
-  const [brandId, setBrandId] = useState("ALL");
+  const [categoryId, setCategoryId] = useState("all");
+  const [brandId, setBrandId] = useState("all");
   
   // Advanced Filters
   const [minPrice, setMinPrice] = useState<number | undefined>(undefined);
@@ -128,8 +128,8 @@ export function useServerInventory({
   
   const resetFilters = useCallback(() => {
     setSearch("");
-    setCategoryId("ALL");
-    setBrandId("ALL");
+    setCategoryId("all");
+    setBrandId("all");
     setMinPrice(undefined);
     setMaxPrice(undefined);
     setStockStatus("all");

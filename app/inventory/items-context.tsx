@@ -32,6 +32,7 @@ import {
   addBatch as addBatchService,
   updateBatch as updateBatchService,
   deleteBatch as deleteBatchService,
+  createInitialBatchForInventory,
 } from "../../lib/services/inventoryService";
 import {
   fetchTypes,
@@ -411,6 +412,24 @@ export const ItemsProvider = ({
         location_id: locationIdForInventory,
       });
       if (newItem) {
+        // Create initial batch if item has stock
+        const initialStock = newItem.stock || 0;
+        const costPrice = newItem.costPrice || 0;
+        
+        if (initialStock > 0) {
+          try {
+            await createInitialBatchForInventory(
+              newItem.id, // This is the inventory_id
+              costPrice,
+              initialStock
+            );
+            console.log(`Created initial batch for ${newItem.name} with stock: ${initialStock}`);
+          } catch (batchError) {
+            console.error("Error creating initial batch:", batchError);
+            // Don't fail the item creation, just log the error
+          }
+        }
+        
         setItems((prev) => {
           // Check if item already exists (from real-time update)
           if (prev.some((item) => item.id === newItem.id)) {
