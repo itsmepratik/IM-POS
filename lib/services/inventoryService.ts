@@ -388,12 +388,20 @@ export const fetchInventoryItems = async (
              }
         }
 
+        // Calculate total stock from batches if they exist
+        const batchStock = batches.length > 0 
+          ? batches.reduce((sum, b) => sum + (b.current_quantity || 0), 0)
+          : null;
+
         return {
           id: inv.product_id || product?.id,
           product_id: inv.product_id || product?.id,
           name: product?.name || "Unknown Product",
           price: inv.selling_price || 0,
-          stock: inv.total_stock || (inv.standard_stock + (inv.closed_bottles_stock || 0) + (inv.open_bottles_stock || 0)),
+          // Prioritize batch stock, then total_stock, then calculated stock
+          stock: batchStock !== null 
+            ? batchStock + (inv.open_bottles_stock || 0) 
+            : (inv.total_stock || (inv.standard_stock + (inv.closed_bottles_stock || 0) + (inv.open_bottles_stock || 0))),
           category: product?.categories?.name || "Uncategorized",
           brand: product?.brands?.name || "Unknown Brand",
           brand_id: product?.brand_id,
@@ -641,9 +649,14 @@ export const fetchItems = async (
 
         // For lubricants (oil products), stock = open bottles + closed bottles
         // For non-lubricants, stock = standard stock
+        // Update: Prioritize batch stock if batches exist
+        const batchStock = batches.length > 0
+          ? batches.reduce((sum, b) => sum + (b.current_quantity || 0), 0)
+          : null;
+
         const totalStock = isOilProduct
-          ? (inv.open_bottles_stock || 0) + (inv.closed_bottles_stock || 0)
-          : inv.standard_stock || 0;
+          ? (batchStock !== null ? batchStock : (inv.closed_bottles_stock || 0)) + (inv.open_bottles_stock || 0)
+          : (batchStock !== null ? batchStock : (inv.standard_stock || 0));
 
         // For lubricants, fetch open_bottle_details to calculate totalOpenVolume
         // Only count the most recent bottles up to open_bottles_stock count

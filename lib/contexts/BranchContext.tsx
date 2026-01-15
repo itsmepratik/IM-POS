@@ -170,6 +170,67 @@ export function BranchProvider({ children }: { children: ReactNode }) {
           pos_id: shop.pos_id || undefined,
         }));
 
+        // PRIORITY 1: Check for email pattern matching (e.g. sanaiya1@hnsautomotive.com)
+        // This overrides everything else if matched
+        if (currentUser?.email && currentUser.email.endsWith("@hnsautomotive.com")) {
+            const emailParts = currentUser.email.split("@");
+            if (emailParts.length > 0) {
+                const potentialShopName = emailParts[0].toLowerCase();
+                
+                // Try to find a matching shop
+                // We check if the shop name matches, or if it's contained in the shop name
+                // e.g. "sanaiya1" matches "Sanaiya1" or "Al Ain Sanaiya 1"
+                const matchedBranch = dbBranches.find(b => 
+                    b.name.toLowerCase().replace(/\s+/g, '') === potentialShopName ||
+                    b.name.toLowerCase().includes(potentialShopName) ||
+                    // Handle edge cases like 'saniya1' in email vs 'sanaiya1' in DB if needed, 
+                    // but for now strict partial match is safer.
+                    (potentialShopName === 'saniya1' && b.name.toLowerCase().includes('sanaiya1')) ||
+                     (potentialShopName === 'saniya2' && b.name.toLowerCase().includes('sanaiya2'))
+                );
+
+                // Admin override check inside this block to ensure admins with matching emails aren't locked if we don't want them to be.
+                // But requirement says "basically all the shop accounts locked to their shops".
+                // If I am "sanaiya1@hnsautomotive.com", I should be locked to Sanaiya1. 
+                // Admin role usually comes from user_profiles. 
+                // Let's assume if you have a specific shop email, you ARE that shop's user, regardless of other roles, 
+                // UNLESS you are explicitly global admin.
+                // Let's check admin status just in case to avoid locking a super admin who happens to have a shop-like email?
+                // Actually, the user request says 'shops like sanaiya1 will be preselected and locked'.
+                // So if I am admin but my email is sanaiya1@..., I probably still want to be locked?
+                // No, admin should be able to switch.
+                // Let's check if the user is ACTUALLY an admin role in DB.
+                
+                const isRealAdmin = userProfile?.role === 'admin' || userProfile?.is_admin === true || isAdmin();
+
+                if (matchedBranch && !isRealAdmin) {
+                    console.log(`🔒 Email Pattern Match: Locking to ${matchedBranch.name} for ${currentUser.email}`);
+                    
+                    // Filter branches to show only assigned shop
+                    dbBranches = dbBranches.filter((b) => b.id === matchedBranch.id);
+                    
+                    // Lock branch selection
+                    setIsBranchLocked(true);
+                    
+                    // Set inventory location ID from shop's location_id
+                    const assignedShop = shops.find((s) => s.id === matchedBranch.id);
+                    if (assignedShop) {
+                        setInventoryLocationId(assignedShop.locationId);
+                    }
+
+                    // Automatically set branch
+                    setCurrentBranch(matchedBranch);
+                    localStorage.setItem("selectedBranchId", matchedBranch.id);
+                    
+                    // Update state and return early
+                    setBranches(dbBranches);
+                    setBranchLoadError(false);
+                    setIsLoadingBranches(false);
+                    return;
+                }
+            }
+        }
+
         // Check if user is admin - moved up to be accessible in scope
         const userIsAdmin = userProfile?.is_admin || userProfile?.role === "admin" || isAdmin();
 
