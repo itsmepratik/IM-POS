@@ -5802,18 +5802,6 @@ const ReceiptComponent = ({
   const handlePrint = useCallback(() => {
     console.log("Print triggered with discount:", localDiscount);
 
-    const content = receiptRef.current;
-    if (!content) return;
-
-    const iframe = document.createElement("iframe");
-    iframe.style.position = "fixed";
-    iframe.style.right = "0";
-    iframe.style.bottom = "0";
-    iframe.style.width = "0";
-    iframe.style.height = "0";
-    iframe.style.border = "0";
-    document.body.appendChild(iframe);
-
     // Calculate subtotal
     const subtotal = cart.reduce(
       (sum, item) => sum + item.price * item.quantity,
@@ -5840,7 +5828,7 @@ const ReceiptComponent = ({
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Receipt</title>
+          <title>Receipt - ${receiptNumber}</title>
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <style>
             body {
@@ -6119,29 +6107,26 @@ const ReceiptComponent = ({
       </html>
     `;
 
-    iframe.onload = () => {
-      try {
-        iframe.contentWindow?.focus();
-        iframe.contentWindow?.print();
-      } finally {
-        setTimeout(() => {
-          document.body.removeChild(iframe);
-        }, 500);
-      }
-    };
-    const doc = iframe.contentWindow?.document;
-    if (!doc) return;
-    doc.open();
-    doc.write(htmlContent);
-    doc.close();
-    setTimeout(() => {
-      if (document.body.contains(iframe)) {
-        try {
-          iframe.contentWindow?.focus();
-          iframe.contentWindow?.print();
-        } catch {}
-      }
-    }, 500);
+    // Use popup window approach for better mobile compatibility
+    const printWindow = window.open("", "_blank");
+    if (printWindow) {
+      printWindow.document.write(htmlContent);
+      printWindow.document.close();
+
+      // On mobile, we need a slight delay before printing
+      setTimeout(() => {
+        printWindow.print();
+        // Close the window after print on desktop, but keep it open on mobile
+        // as mobile browsers handle print differently
+        if (
+          !/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+            navigator.userAgent
+          )
+        ) {
+          printWindow.close();
+        }
+      }, 500);
+    }
   }, [
     cart,
     paymentMethod,
