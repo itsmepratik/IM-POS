@@ -3,6 +3,7 @@ import { z } from "zod";
 // Cart item schema
 export const CartItemSchema = z.object({
   productId: z.string().min(1), // Changed from .uuid() to support non-UUID IDs
+  name: z.string().optional(), // Added to capture snapshot name
   quantity: z.number().positive(),
   sellingPrice: z.number().nonnegative(),
   volumeDescription: z.string().optional(),

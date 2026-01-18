@@ -2126,6 +2126,9 @@ function POSPageContent() {
         return;
       }
 
+      // Start loading
+      setIsProcessingCheckout(true);
+
       // Process the on-hold transaction through the API
       try {
         // Prepare cart items for the API call
@@ -2257,6 +2260,7 @@ function POSPageContent() {
         setShowOnHoldTicket(true);
         setIsProcessingCheckout(false);
         return;
+        return;
       } catch (error) {
         console.error("On-hold checkout error:", error);
         toast({
@@ -2265,8 +2269,10 @@ function POSPageContent() {
           variant: "destructive",
           duration: 5000,
         });
-        return;
+      } finally {
+        setIsProcessingCheckout(false);
       }
+      return;
     }
 
     if (!selectedPaymentMethod || !selectedCashier) {
@@ -2580,52 +2586,11 @@ function POSPageContent() {
       setCashierIdError(null);
       setPaymentRecipient(null);
 
-      // Fallback: Complete the transaction locally even if API fails
-      // This ensures the POS doesn't get stuck and customers can still get receipts
-      console.log("⚠️ API checkout failed, completing transaction manually");
-
-      setShowSuccess(true);
+      // Fallback removed: Do NOT complete transaction manually if API fails.
+      // This ensures data consistency. The user sees the error toast and can retry.
+      console.error("❌ API checkout failed. Transaction NOT completed locally.");
       setIsProcessingCheckout(false);
 
-      // Make a copy of the appliedDiscount for the receipt display
-      const discountForReceipt = appliedDiscount
-        ? { ...appliedDiscount }
-        : null;
-      console.log(
-        "Manual transaction completion with discount:",
-        discountForReceipt
-      );
-
-      // Show additional warning toast after a delay with actionable steps
-      setTimeout(() => {
-        toast({
-          title: "Manual Transaction Completed",
-          description: (
-            <div className="space-y-2">
-              <p>Transaction completed offline due to server issues.</p>
-              <div className="mt-2">
-                <p className="font-medium text-sm">Next steps:</p>
-                <ul className="text-sm mt-1 space-y-0.5">
-                  <li className="text-muted-foreground">
-                    1. Verify inventory was updated correctly
-                  </li>
-                  <li className="text-muted-foreground">
-                    2. Check database connectivity
-                  </li>
-                  <li className="text-muted-foreground">
-                    3. Run GET /api/diagnose-db for diagnostics
-                  </li>
-                  <li className="text-muted-foreground">
-                    4. Contact support if issues persist
-                  </li>
-                </ul>
-              </div>
-            </div>
-          ),
-          variant: "default",
-          duration: 10000,
-        });
-      }, 1500);
     }
   };
 
@@ -4100,6 +4065,7 @@ function POSPageContent() {
         carPlateNumber={carPlateNumber}
         cartItems={cart}
         total={total}
+        ticketNumber={transactionData.receiptNumber || "PENDING"}
         onPrint={() => {
           // Print functionality for on-hold ticket
           const ticketContent = document.getElementById("ticket-content");
@@ -4116,7 +4082,7 @@ function POSPageContent() {
 
             // Get current date and ticket number
             const currentDate = new Date();
-            const ticketNumber = `OH-${Date.now().toString().slice(-6)}`;
+            const ticketNumber = transactionData.receiptNumber || `OH-${Date.now().toString().slice(-6)}`;
 
             const htmlContent = `
               <html>

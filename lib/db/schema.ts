@@ -266,3 +266,102 @@ export const staff = pgTable("staff", {
 // Type inference for staff table
 export type Staff = typeof staff.$inferSelect;
 export type NewStaff = typeof staff.$inferInsert;
+
+import { relations } from "drizzle-orm";
+
+export const locationsRelations = relations(locations, ({ many }) => ({
+  shops: many(shops),
+  inventory: many(inventory),
+  transactions: many(transactions),
+}));
+
+export const shopsRelations = relations(shops, ({ one, many }) => ({
+  location: one(locations, {
+    fields: [shops.locationId],
+    references: [locations.id],
+  }),
+  transactions: many(transactions),
+}));
+
+export const categoriesRelations = relations(categories, ({ many }) => ({
+  products: many(products),
+  types: many(types),
+}));
+
+export const typesRelations = relations(types, ({ one, many }) => ({
+  category: one(categories, {
+    fields: [types.categoryId],
+    references: [categories.id],
+  }),
+  products: many(products),
+}));
+
+export const brandsRelations = relations(brands, ({ many }) => ({
+  products: many(products),
+}));
+
+export const productsRelations = relations(products, ({ one, many }) => ({
+  category: one(categories, {
+    fields: [products.categoryId],
+    references: [categories.id],
+  }),
+  brand: one(brands, {
+    fields: [products.brandId],
+    references: [brands.id],
+  }),
+  type: one(types, {
+    fields: [products.typeId],
+    references: [types.id],
+  }),
+  inventory: many(inventory),
+  volumes: many(productVolumes),
+}));
+
+export const productVolumesRelations = relations(productVolumes, ({ one }) => ({
+  product: one(products, {
+    fields: [productVolumes.productId],
+    references: [products.id],
+  }),
+}));
+
+export const inventoryRelations = relations(inventory, ({ one, many }) => ({
+  product: one(products, {
+    fields: [inventory.productId],
+    references: [products.id],
+  }),
+  location: one(locations, {
+    fields: [inventory.locationId],
+    references: [locations.id],
+  }),
+  batches: many(batches),
+}));
+
+export const batchesRelations = relations(batches, ({ one }) => ({
+  inventory: one(inventory, {
+    fields: [batches.inventoryId],
+    references: [inventory.id],
+  }),
+}));
+
+export const transactionsRelations = relations(transactions, ({ one, many }) => ({
+  location: one(locations, {
+    fields: [transactions.locationId],
+    references: [locations.id],
+  }),
+  shop: one(shops, {
+    fields: [transactions.shopId],
+    references: [shops.id],
+  }),
+  cashier: one(staff, {
+    fields: [transactions.cashierId],
+    references: [staff.id],
+  }),
+  customer: one(customers, {
+    fields: [transactions.customerId],
+    references: [customers.id],
+  }),
+}));
+
+export const staffRelations = relations(staff, ({ many }) => ({
+  transactions: many(transactions),
+}));

@@ -1,4 +1,9 @@
 import { createClient } from "@/supabase/client";
+import {
+  calculateLubricantStock,
+  calculateLubricantStockLegacy,
+  type VolumeInfo,
+} from "@/lib/utils/lubricant-stock-calc";
 
 // Create a singleton Supabase client to prevent dynamic import issues
 const supabase = createClient();
@@ -386,22 +391,71 @@ export const fetchInventoryItems = async (
                  price: parseFloat(v.selling_price)
                }));
              }
-        }
+         }
 
         // Calculate total stock from batches if they exist
         const batchStock = batches.length > 0 
           ? batches.reduce((sum, b) => sum + (b.current_quantity || 0), 0)
           : null;
 
+        // For lubricants, calculate stock correctly using batches and open_bottle_details
+        let derivedOpenBottles = inv.open_bottles_stock || 0;
+        let derivedClosedBottles = inv.closed_bottles_stock || 0;
+        let totalOpenVolume = 0;
+
+        if (isOilProduct && inv.id) {
+          // Fetch open bottle details for lubricants
+          const { data: openBottleRows } = await supabase
+            .from("open_bottle_details")
+            .select("current_volume")
+            .eq("inventory_id", inv.id)
+            .eq("is_empty", false);
+
+          // Convert volumes to VolumeInfo format for the utility
+          const volumeInfos: VolumeInfo[] = volumes.map(v => ({
+            size: v.size,
+            price: v.price
+          }));
+
+          if (batchStock !== null) {
+            // Use the centralized stock calculation utility
+            const stockResult = calculateLubricantStock(
+              batchStock,
+              openBottleRows,
+              volumeInfos
+            );
+            derivedOpenBottles = stockResult.openBottleCount;
+            derivedClosedBottles = stockResult.closedBottleCount;
+            totalOpenVolume = stockResult.totalOpenVolume;
+          } else {
+            // Fallback to legacy calculation
+            const legacyResult = calculateLubricantStockLegacy(
+              inv.open_bottles_stock,
+              inv.closed_bottles_stock
+            );
+            derivedOpenBottles = legacyResult.openBottleCount;
+            derivedClosedBottles = legacyResult.closedBottleCount;
+            // Calculate totalOpenVolume from actual open bottles if available
+            if (openBottleRows) {
+              totalOpenVolume = openBottleRows.reduce(
+                (sum, b) => sum + (parseFloat(String(b.current_volume)) || 0),
+                0
+              );
+            }
+          }
+        }
+
+        // Calculate final stock value
+        const finalStock = isOilProduct
+          ? (batchStock !== null ? batchStock : (inv.total_stock || inv.standard_stock || 0))
+          : (batchStock !== null ? batchStock : (inv.standard_stock || 0));
+
         return {
           id: inv.product_id || product?.id,
           product_id: inv.product_id || product?.id,
           name: product?.name || "Unknown Product",
           price: inv.selling_price || 0,
-          // Prioritize batch stock, then total_stock, then calculated stock
-          stock: batchStock !== null 
-            ? batchStock + (inv.open_bottles_stock || 0) 
-            : (inv.total_stock || (inv.standard_stock + (inv.closed_bottles_stock || 0) + (inv.open_bottles_stock || 0))),
+          stock: finalStock,
           category: product?.categories?.name || "Uncategorized",
           brand: product?.brands?.name || "Unknown Brand",
           brand_id: product?.brand_id,
@@ -424,12 +478,13 @@ export const fetchInventoryItems = async (
           costPrice: product?.cost_price || 0,
           manufacturingDate: product?.manufacturing_date,
           specification: product?.specification,
-          open_bottles_stock: inv.open_bottles_stock,
-          closed_bottles_stock: inv.closed_bottles_stock,
+          open_bottles_stock: derivedOpenBottles,
+          closed_bottles_stock: derivedClosedBottles,
           bottleStates: {
-             open: inv.open_bottles_stock || 0,
-             closed: inv.closed_bottles_stock || 0
-          }
+             open: derivedOpenBottles,
+             closed: derivedClosedBottles
+          },
+          ...(isOilProduct && totalOpenVolume !== undefined && { totalOpenVolume })
         };
       })
     );
@@ -650,63 +705,90 @@ export const fetchItems = async (
         // For lubricants (oil products), stock = open bottles + closed bottles
         // For non-lubricants, stock = standard stock
         // Update: Prioritize batch stock if batches exist
-        const batchStock = batches.length > 0
+        // Calculate total stock from batches if they exist
+        const batchStock = batches.length > 0 
           ? batches.reduce((sum, b) => sum + (b.current_quantity || 0), 0)
           : null;
 
-        const totalStock = isOilProduct
-          ? (batchStock !== null ? batchStock : (inv.closed_bottles_stock || 0)) + (inv.open_bottles_stock || 0)
-          : (batchStock !== null ? batchStock : (inv.standard_stock || 0));
+        // Use the centralized stock calculation utility for lubricants
+        let totalOpenVolume: number = 0;
+        let derivedClosedBottles: number = inv.closed_bottles_stock || 0;
+        let derivedOpenBottles: number = inv.open_bottles_stock || 0;
 
-        // For lubricants, fetch open_bottle_details to calculate totalOpenVolume
-        // Only count the most recent bottles up to open_bottles_stock count
-        // This handles cases where open_bottles_stock is out of sync with actual bottle count
-        let totalOpenVolume: number | undefined = undefined;
         if (isOilProduct && inv.id) {
-          const openBottlesStockCount = inv.open_bottles_stock || 0;
-          
-          // Fetch all non-empty bottles, ordered by most recently opened
-          const { data: openBottleRows, error: openBottleError } = await supabase
+           // Fetch actual open bottles (source of truth for Open Stock)
+           const { data: openBottleRows } = await supabase
             .from("open_bottle_details")
-            .select("id, inventory_id, current_volume, opened_at")
+            .select("current_volume")
             .eq("inventory_id", inv.id)
-            .eq("is_empty", false)
-            .order("opened_at", { ascending: false });
+            .eq("is_empty", false);
 
-          if (openBottleError) {
-            console.error(`Error fetching open bottles for inventory ${inv.id}:`, openBottleError);
-          }
-
-          if (openBottleRows && openBottleRows.length > 0) {
-            // If open_bottles_stock is set and is less than actual count, use only the most recent N bottles
-            // This handles data inconsistency where count is out of sync
-            const bottlesToCount = openBottlesStockCount > 0 && openBottlesStockCount < openBottleRows.length
-              ? openBottleRows.slice(0, openBottlesStockCount)
-              : openBottleRows;
+           // Convert volumes to VolumeInfo format for the utility
+           const volumeInfos: VolumeInfo[] = volumes.map(v => ({
+             size: v.size,
+             price: v.price
+           }));
             
-            totalOpenVolume = bottlesToCount.reduce(
-              (sum, bottle) => {
-                const volume = parseFloat(bottle.current_volume) || 0;
-                return sum + volume;
-              },
-              0
-            );
-            
-            // Debug logging
-            console.log(`[fetchItems] Product: ${product.name} (${product.id})`, {
-              inventoryId: inv.id,
-              openBottlesStock: openBottlesStockCount,
-              actualOpenBottlesCount: openBottleRows.length,
-              bottlesUsedForCalculation: bottlesToCount.length,
-              totalOpenVolume,
-              note: openBottlesStockCount < openBottleRows.length 
-                ? `Using only ${openBottlesStockCount} most recent bottles (data sync issue)` 
-                : 'Using all bottles',
-            });
-          } else {
-            totalOpenVolume = 0;
-          }
+           if (batchStock !== null) {
+              // Use the centralized stock calculation utility
+              const stockResult = calculateLubricantStock(
+                batchStock,
+                openBottleRows,
+                volumeInfos
+              );
+              derivedOpenBottles = stockResult.openBottleCount;
+              derivedClosedBottles = stockResult.closedBottleCount;
+              totalOpenVolume = stockResult.totalOpenVolume;
+              
+              // DEBUG: Log stock calculation for lubricants
+              if (product.name?.toLowerCase().includes('5w-30') || product.name?.toLowerCase().includes('acdelco')) {
+                console.log(`[STOCK DEBUG] ${product.name}:`, {
+                  batchStock,
+                  openBottleRows: openBottleRows?.length ?? 0,
+                  totalOpenVolume: stockResult.totalOpenVolume,
+                  bottleSizeUsed: stockResult.bottleSizeUsed,
+                  derivedClosedBottles: stockResult.closedBottleCount,
+                  derivedOpenBottles: stockResult.openBottleCount,
+                  volumeInfos: volumeInfos.map(v => v.size),
+                  invClosedFromDb: inv.closed_bottles_stock,
+                  invOpenFromDb: inv.open_bottles_stock,
+                });
+              }
+           } else {
+              // Fallback for legacy items without batches
+              const legacyResult = calculateLubricantStockLegacy(
+                inv.open_bottles_stock,
+                inv.closed_bottles_stock
+              );
+              derivedOpenBottles = legacyResult.openBottleCount;
+              derivedClosedBottles = legacyResult.closedBottleCount;
+              // Calculate totalOpenVolume from actual open bottles if available
+              if (openBottleRows) {
+                totalOpenVolume = openBottleRows.reduce(
+                  (sum, b) => sum + (parseFloat(String(b.current_volume)) || 0),
+                  0
+                );
+              }
+              
+              // DEBUG: Log fallback (no batches)
+              if (product.name?.toLowerCase().includes('5w-30') || product.name?.toLowerCase().includes('acdelco')) {
+                console.log(`[STOCK DEBUG LEGACY] ${product.name}:`, {
+                  noBatchStock: true,
+                  derivedClosedBottles,
+                  derivedOpenBottles,
+                  invClosedFromDb: inv.closed_bottles_stock,
+                  invOpenFromDb: inv.open_bottles_stock,
+                });
+              }
+           }
         }
+
+        // Final Stock Assignment
+        // For Oil: Use batchStock (Total Volume) if available, otherwise fallback to legacy logic or volume sum
+        // For Others: Use batchStock (Total Units) if available, otherwise standard_stock
+        const totalStock = isOilProduct
+          ? (batchStock !== null ? batchStock : (inv.total_stock || (inv.standard_stock || 0)))
+          : (batchStock !== null ? batchStock : (inv.standard_stock || 0));
 
         return {
           id: product.id,
@@ -716,8 +798,8 @@ export const fetchItems = async (
           stock: totalStock,
           bottleStates: isOilProduct
             ? {
-                open: inv.open_bottles_stock || 0,
-                closed: inv.closed_bottles_stock || 0,
+                open: derivedOpenBottles,
+                closed: derivedClosedBottles,
               }
             : undefined,
           types: product.product_types
@@ -746,6 +828,8 @@ export const fetchItems = async (
             : undefined,
           manufacturingDate: product.manufacturing_date,
           specification: product.specification,
+          open_bottles_stock: derivedOpenBottles,
+          closed_bottles_stock: derivedClosedBottles,
           // Debug logging for manufacturing date
           ...(product.manufacturing_date && {
             debug_manufacturingDate: product.manufacturing_date,

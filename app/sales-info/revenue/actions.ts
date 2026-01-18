@@ -41,7 +41,7 @@ export async function getRevenueData() {
   // Filter for SALE type transactions created today
   const { data: transactions } = await supabase
     .from('transactions')
-    .select('items_sold, shop_id')
+    .select('items_sold, shop_id, discount_amount, subtotal_before_discount')
     .eq('type', 'SALE')
     .gte('created_at', startOfDay.toISOString())
 
@@ -91,6 +91,22 @@ export async function getRevenueData() {
     const items = tx.items_sold as any[] // cast jsonb
 
     if (Array.isArray(items)) {
+      // Calculate Discount Ratio
+      let discountRatio = 1;
+      const discountAmount = Number(tx.discount_amount) || 0;
+      
+      if (discountAmount > 0) {
+          let subtotal = Number(tx.subtotal_before_discount);
+          // Fallback: Calculate subtotal from items if missing in DB
+          if (!subtotal || isNaN(subtotal) || subtotal === 0) {
+              subtotal = items.reduce((sum, i) => sum + (Number(i.sellingPrice) || 0) * (Number(i.quantity) || 0), 0);
+          }
+          
+          if (subtotal > 0) {
+              discountRatio = Math.max(0, (subtotal - discountAmount) / subtotal);
+          }
+      }
+
       items.forEach(item => {
         const productId = item.productId
         const product = productMap.get(productId)
@@ -117,8 +133,10 @@ export async function getRevenueData() {
         }
 
         const entry = itemMap.get(key)!
+        const revenue = (quantity * price) * discountRatio; // Apply discount
+
         entry.quantity += quantity
-        entry.totalSales += (quantity * price)
+        entry.totalSales += revenue
         // Update average unit price
         if (entry.quantity > 0) {
             entry.unitPrice = entry.totalSales / entry.quantity
@@ -132,7 +150,7 @@ export async function getRevenueData() {
                 entry.variants.push(variant)
             }
             variant.quantity += quantity
-            variant.totalSales += (quantity * price)
+            variant.totalSales += revenue
             if (variant.quantity > 0) {
                 variant.unitPrice = variant.totalSales / variant.quantity
             }

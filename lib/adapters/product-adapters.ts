@@ -275,6 +275,10 @@ export function generateNumericId(uuid: string): number {
 
 /**
  * Calculate available stock for a specific volume size (for lubricants)
+ * 
+ * For lubricants, each closed bottle is a sellable unit. The closed bottle
+ * count is derived from batch stock minus open bottle volume, so we return
+ * the closedBottlesStock directly.
  */
 function calculateVolumeStock(
   product: UnifiedProduct,
@@ -282,16 +286,10 @@ function calculateVolumeStock(
 ): number {
   if (!product.inventory) return 0;
 
-  // For lubricants, we need to calculate stock based on bottle states
-  // This is a simplified calculation - in a real scenario, you might want to
-  // track stock per volume size more precisely
-  const totalBottles =
-    product.inventory.openBottlesStock + product.inventory.closedBottlesStock;
-
-  // Distribute bottles across volumes based on some business logic
-  // For now, we'll assume equal distribution
-  const volumeCount = product.volumes?.length || 1;
-  return Math.floor(totalBottles / volumeCount);
+  // For lubricants, return the closed bottle count directly
+  // Each closed bottle is a sellable unit regardless of volume size selected
+  // (the volume size affects pricing, not stock count)
+  return product.inventory.closedBottlesStock;
 }
 
 /**

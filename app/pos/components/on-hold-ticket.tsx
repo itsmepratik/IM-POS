@@ -14,6 +14,7 @@ interface OnHoldTicketProps {
   cartItems: CartItem[];
   total: number;
   onPrint: () => void;
+  ticketNumber: string;
 }
 
 export function OnHoldTicket({
@@ -23,10 +24,11 @@ export function OnHoldTicket({
   cartItems,
   total,
   onPrint,
+  ticketNumber,
 }: OnHoldTicketProps) {
   const companyInfo = useCompanyInfo();
   const currentDate = new Date();
-  const ticketNumber = `OH-${Date.now().toString().slice(-6)}`;
+
 
   // Download functionality for PDF/text export
   const handleDownload = () => {

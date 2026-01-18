@@ -33,6 +33,11 @@ try {
         connect_timeout: CONNECTION_TIMEOUT * 1000, // Convert to milliseconds
         statement_timeout: 90000, // Increased to 90 seconds to match enhanced checkout timeout
         idle_in_transaction_session_timeout: 60000, // 1 minute idle transaction timeout
+        // @ts-ignore - postgres.js supports these but types might be outdated
+        keepalive: true,
+        keepalive_idle: 10, // Send keepalive every 10 seconds
+        keepalive_interval: 5, // Wait 5 seconds between keepalives
+        keepalive_count: 3, // Fail after 3 failed keepalives
       },
       // Enhanced timeout and retry logic
       connect_timeout: CONNECTION_TIMEOUT,
@@ -52,6 +57,8 @@ try {
       onclose: () => {
         console.log("Database connection closed");
         connectionHealth.isHealthy = false;
+        // Trigger immediate health check attempt
+        setTimeout(() => void performHealthCheck(), 1000);
       },
       onparameter: (key: string, value: string) => {
         console.log(`Database parameter ${key}: ${value}`);

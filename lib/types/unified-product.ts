@@ -164,6 +164,7 @@ export const UnifiedProductSchema = z.object({
     .object({
       open: z.number().min(0, "Open bottles count must be non-negative"),
       closed: z.number().min(0, "Closed bottles count must be non-negative"),
+      totalOpenVolume: z.number().optional(),
     })
     .optional(),
 
@@ -185,6 +186,7 @@ export const ProductInventorySchema = z.object({
   totalStock: z.number().min(0, "Total stock must be non-negative"),
   sellingPrice: z.number().min(0, "Selling price must be non-negative"),
   isAvailable: z.boolean(),
+  totalOpenVolume: z.number().optional(),
 });
 
 export const POSProductSchema = z.object({
@@ -227,6 +229,7 @@ export const POSLubricantProductSchema = z.object({
         .object({
           open: z.number().min(0),
           closed: z.number().min(0),
+          totalOpenVolume: z.number().optional(),
         })
         .optional(),
     })

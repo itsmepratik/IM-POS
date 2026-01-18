@@ -221,19 +221,25 @@ export function LubricantCategory({
                           }}
                         >
                           {/* Available Stock Icons - Top Right of Card */}
-                            {((lubricant.volumes?.reduce((s, v) => s + (v.bottleStates?.closed || v.availableQuantity || 0), 0) || 0) > 0 || (lubricant.volumes?.[0]?.bottleStates?.open || 0) > 0) && (
+                          {/* Available Stock Icons - Top Right of Card */}
+                            {((lubricant.volumes?.[0]?.bottleStates?.closed ?? lubricant.volumes?.reduce((s, v) => s + (v.availableQuantity || 0), 0) ?? 0) > 0 || (lubricant.volumes?.[0]?.bottleStates?.open || 0) > 0) && (
                               <div className="absolute top-2 right-2 flex flex-col gap-1 items-end z-10">
-                                {(lubricant.volumes?.reduce((s, v) => s + (v.bottleStates?.closed || v.availableQuantity || 0), 0) || 0) > 0 && (
-                                  <div className="bg-muted px-1.5 py-1 rounded-md border border-border shadow-sm flex items-center gap-1" title={`${lubricant.volumes?.reduce((s, v) => s + (v.bottleStates?.closed || v.availableQuantity || 0), 0)} Closed Bottles`}>
+                                {(lubricant.volumes?.[0]?.bottleStates?.closed ?? lubricant.volumes?.reduce((s, v) => s + (v.availableQuantity || 0), 0) ?? 0) > 0 && (
+                                  <div className="bg-muted px-1.5 py-1 rounded-md border border-border shadow-sm flex items-center gap-1" title={`${lubricant.volumes?.[0]?.bottleStates?.closed ?? lubricant.volumes?.reduce((s, v) => s + (v.availableQuantity || 0), 0)} Closed Bottles`}>
                                     <ClosedBottleIcon className="w-3 h-3 text-muted-foreground" />
-                                    <span className="text-[10px] font-medium text-muted-foreground leading-none">{lubricant.volumes?.reduce((s, v) => s + (v.bottleStates?.closed || v.availableQuantity || 0), 0)}</span>
+                                    <span className="text-[10px] font-medium text-muted-foreground leading-none">{lubricant.volumes?.[0]?.bottleStates?.closed ?? lubricant.volumes?.reduce((s, v) => s + (v.availableQuantity || 0), 0)}</span>
                                   </div>
                                 )}
                                 {(lubricant.volumes?.[0]?.bottleStates?.open || 0) > 0 && (
-                                  <div className="bg-blue-100 px-1.5 py-1 rounded-md border border-blue-200 shadow-sm flex items-center gap-1" title={`${lubricant.volumes?.[0]?.bottleStates?.open} Open Bottles`}>
-                                    <OpenBottleIcon className="w-3 h-3 text-blue-700" />
-                                    <span className="text-[10px] font-bold text-blue-700 leading-none">{lubricant.volumes?.[0]?.bottleStates?.open}</span>
-                                  </div>
+                                    <div className="bg-blue-100 px-1.5 py-1 rounded-md border border-blue-200 shadow-sm flex items-center gap-1" title={`${lubricant.volumes?.[0]?.bottleStates?.open} Open Bottles (${lubricant.totalOpenVolume?.toFixed(2)}L)`}>
+                                      <OpenBottleIcon className="w-3 h-3 text-blue-700" />
+                                      <span className="text-[10px] font-bold text-blue-700 leading-none">
+                                        {lubricant.volumes?.[0]?.bottleStates?.open}
+                                        {lubricant.totalOpenVolume !== undefined && lubricant.totalOpenVolume > 0 && (
+                                          <span className="ml-0.5 text-[9px] opacity-80">({Number(lubricant.totalOpenVolume).toFixed(1)}L)</span>
+                                        )}
+                                      </span>
+                                    </div>
                                 )}
                               </div>
                             )}
@@ -309,12 +315,12 @@ export function LubricantCategory({
                           }}
                         >
                           {/* Available Stock Icons - Top Right of Card */}
-                          {((lubricant.volumes?.reduce((s, v) => s + (v.bottleStates?.closed || v.availableQuantity || 0), 0) || 0) > 0 || (lubricant.volumes?.[0]?.bottleStates?.open || 0) > 0) && (
+                          {((lubricant.volumes?.[0]?.bottleStates?.closed ?? lubricant.volumes?.reduce((s, v) => s + (v.availableQuantity || 0), 0) ?? 0) > 0 || (lubricant.volumes?.[0]?.bottleStates?.open || 0) > 0) && (
                             <div className="absolute top-2 right-2 flex flex-col gap-1 items-end z-10">
-                              {(lubricant.volumes?.reduce((s, v) => s + (v.bottleStates?.closed || v.availableQuantity || 0), 0) || 0) > 0 && (
-                                <div className="bg-muted px-1.5 py-1 rounded-md border border-border shadow-sm flex items-center gap-1" title={`${lubricant.volumes?.reduce((s, v) => s + (v.bottleStates?.closed || v.availableQuantity || 0), 0)} Closed Bottles`}>
+                              {(lubricant.volumes?.[0]?.bottleStates?.closed ?? lubricant.volumes?.reduce((s, v) => s + (v.availableQuantity || 0), 0) ?? 0) > 0 && (
+                                <div className="bg-muted px-1.5 py-1 rounded-md border border-border shadow-sm flex items-center gap-1" title={`${lubricant.volumes?.[0]?.bottleStates?.closed ?? lubricant.volumes?.reduce((s, v) => s + (v.availableQuantity || 0), 0)} Closed Bottles`}>
                                   <ClosedBottleIcon className="w-3 h-3 text-muted-foreground" />
-                                  <span className="text-[10px] font-medium text-muted-foreground leading-none">{lubricant.volumes?.reduce((s, v) => s + (v.bottleStates?.closed || v.availableQuantity || 0), 0)}</span>
+                                  <span className="text-[10px] font-medium text-muted-foreground leading-none">{lubricant.volumes?.[0]?.bottleStates?.closed ?? lubricant.volumes?.reduce((s, v) => s + (v.availableQuantity || 0), 0)}</span>
                                 </div>
                               )}
                               {(lubricant.volumes?.[0]?.bottleStates?.open || 0) > 0 && (
@@ -409,12 +415,12 @@ export function LubricantCategory({
                           }}
                         >
                           {/* Available Stock Icons - Top Right of Card */}
-                          {((lubricant.volumes?.reduce((s, v) => s + (v.bottleStates?.closed || v.availableQuantity || 0), 0) || 0) > 0 || (lubricant.volumes?.[0]?.bottleStates?.open || 0) > 0) && (
+                          {((lubricant.volumes?.[0]?.bottleStates?.closed ?? lubricant.volumes?.reduce((s, v) => s + (v.availableQuantity || 0), 0) ?? 0) > 0 || (lubricant.volumes?.[0]?.bottleStates?.open || 0) > 0) && (
                             <div className="absolute top-2 right-2 flex flex-col gap-1 items-end z-10">
-                              {(lubricant.volumes?.reduce((s, v) => s + (v.bottleStates?.closed || v.availableQuantity || 0), 0) || 0) > 0 && (
-                                <div className="bg-muted px-1.5 py-1 rounded-md border border-border shadow-sm flex items-center gap-1" title={`${lubricant.volumes?.reduce((s, v) => s + (v.bottleStates?.closed || v.availableQuantity || 0), 0)} Closed Bottles`}>
+                              {(lubricant.volumes?.[0]?.bottleStates?.closed ?? lubricant.volumes?.reduce((s, v) => s + (v.availableQuantity || 0), 0) ?? 0) > 0 && (
+                                <div className="bg-muted px-1.5 py-1 rounded-md border border-border shadow-sm flex items-center gap-1" title={`${lubricant.volumes?.[0]?.bottleStates?.closed ?? lubricant.volumes?.reduce((s, v) => s + (v.availableQuantity || 0), 0)} Closed Bottles`}>
                                   <ClosedBottleIcon className="w-3 h-3 text-muted-foreground" />
-                                  <span className="text-[10px] font-medium text-muted-foreground leading-none">{lubricant.volumes?.reduce((s, v) => s + (v.bottleStates?.closed || v.availableQuantity || 0), 0)}</span>
+                                  <span className="text-[10px] font-medium text-muted-foreground leading-none">{lubricant.volumes?.[0]?.bottleStates?.closed ?? lubricant.volumes?.reduce((s, v) => s + (v.availableQuantity || 0), 0)}</span>
                                 </div>
                               )}
                               {(lubricant.volumes?.[0]?.bottleStates?.open || 0) > 0 && (

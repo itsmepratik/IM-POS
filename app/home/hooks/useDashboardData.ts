@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from "react"
 import { subDays, startOfMonth, endOfMonth, startOfDay, endOfDay, subMonths, eachDayOfInterval, format } from "date-fns"
 import { useBranch } from "@/lib/contexts/BranchContext"
 import { createClient } from "@/supabase/client"
+import { getProfitsReport } from "@/app/actions/profits"
 
 // === TYPES ===
 
@@ -358,34 +359,28 @@ export function useDashboardData(): UseDashboardDataReturn {
       }
     })
     
-    // Top products (mock)
-    const topProducts = [
-      {
-        name: "Mobil 1 5W-30 (1L)",
-        units: 145,
-        revenue: 1200
-      },
-      {
-        name: "Oil Filter OE-quality",
-        units: 120,
-        revenue: 800
-      },
-      {
-        name: "Air Filter Premium",
-        units: 95,
-        revenue: 600
-      },
-      {
-        name: "Brake Pads (Front)",
-        units: 65,
-        revenue: 500
-      },
-      {
-        name: "Wiper Blades",
-        units: 45,
-        revenue: 300
-      }
-    ]
+    // Top products (real data)
+    let topProducts: TopProduct[] = [];
+    try {
+      const { getTopSellingProducts } = await import("@/app/actions/dashboard");
+      
+      // Use the actual date range for top products instead of just "Today"
+      // or "Today" if we want it to match card metrics strictly. 
+      // The previous mock implementation was just static.
+      // The "Top Selling Items" card seems to imply a leader board.
+      // Usually leaderboards are better over a period (e.g. 30 days or the selected filter).
+      // However, the dashboard has a global date filter `dateRange`.
+      
+      console.log('Fetching top products for range:', dateRange.start, dateRange.end);
+      
+      const products = await getTopSellingProducts(dateRange.start, dateRange.end, shopId || undefined);
+      topProducts = products;
+      
+    } catch (error) {
+      console.error('Error fetching top selling products:', error);
+      // Fallback to empty or previous behavior if needed, but for now we want to see real data
+      topProducts = [];
+    }
     
     // Sales trend over time (real data based on DATE RANGE)
     const { data: trendData, error: trendError } = await supabase.rpc('get_daily_sales', {
@@ -442,74 +437,66 @@ export function useDashboardData(): UseDashboardDataReturn {
   }
   
   const fetchProfitMetrics = async (currentSalesMetrics: SalesMetrics) => {
-    // Simulate API call (minimal delay for better responsiveness)
-    await new Promise(resolve => setTimeout(resolve, 20))
+    // Determine dates and shop filter
+    const todayStart = startOfDay(new Date())
+    const todayEnd = endOfDay(new Date())
+    const yesterdayStart = startOfDay(subDays(new Date(), 1))
+    const yesterdayEnd = endOfDay(subDays(new Date(), 1))
     
-    // Calculate gross profit (fixed 35% of sales)
-    const grossProfit = currentSalesMetrics.totalSales * 0.35
-    
-    // Calculate previous period profit
-    const previousPeriodProfit = currentSalesMetrics.previousPeriodSales * 0.35
-    
-    // Calculate profit change percentage
-    const profitChangePercentage = previousPeriodProfit > 0
-      ? ((grossProfit - previousPeriodProfit) / previousPeriodProfit) * 100
-      : 0
-    
-    // Calculate profit margin
-    const profitMargin = currentSalesMetrics.totalSales > 0
-      ? (grossProfit / currentSalesMetrics.totalSales) * 100
-      : 0
-    
-    // Profit by category
-    const profitByCategory = currentSalesMetrics.salesByCategory.map(category => {
-      // Different product categories have different profit margins
-      let margin
-      
-      switch (category.category) {
-        case "Oil":
-          margin = 25
-          break
-        case "Filters":
-          margin = 40
-          break
-        case "Parts":
-          margin = 30
-          break
-        case "Additives":
-          margin = 45
-          break
-        case "Services":
-          margin = 60
-          break
-        default:
-          margin = 35
-      }
-      
-      const amount = category.amount * (margin / 100)
-      
-      return {
-        category: category.category,
-        amount,
-        percentage: grossProfit > 0 ? (amount / grossProfit) * 100 : 0,
-        margin
-      }
-    })
-    
-    // Profit trend follows sales trend but with margin applied
-    const profitTrend = currentSalesMetrics.salesTrend.map(point => ({
-      date: point.date,
-      value: point.value * (profitMargin / 100)
-    }))
-    
-    setProfitMetrics({
-      grossProfit,
-      previousPeriodProfit,
-      profitChangePercentage,
-      profitMargin,
-      profitByCategory,
-      profitTrend
-    })
+    // Handle branch filter: must match what we pass to getProfitsReport
+    // getProfitsReport takes string | undefined. If 'all', pass undefined.
+    const shopId = (branchFilter === 'all' || !branchFilter) ? undefined : branchFilter
+
+    try {
+        // 1. Fetch Today's Profit
+        const todayReport = await getProfitsReport(shopId, todayStart, todayEnd)
+        const grossProfit = todayReport.reduce((sum, item) => sum + item.profit, 0)
+        
+        // 2. Fetch Yesterday's Profit
+        const yesterdayReport = await getProfitsReport(shopId, yesterdayStart, yesterdayEnd)
+        const previousPeriodProfit = yesterdayReport.reduce((sum, item) => sum + item.profit, 0)
+
+        // Calculate profit change percentage
+        const profitChangePercentage = previousPeriodProfit > 0
+          ? ((grossProfit - previousPeriodProfit) / previousPeriodProfit) * 100
+          : 0
+        
+        // Calculate profit margin
+        const profitMargin = currentSalesMetrics.totalSales > 0
+          ? (grossProfit / currentSalesMetrics.totalSales) * 100
+          : 0
+        
+        // Profit by category (Still mocking distribution for now as detailed breakdown is heavy)
+        // Ideally we would aggregate todayReport by category here
+        const profitByCategory = currentSalesMetrics.salesByCategory.map(category => {
+          // Approximate margin based on real total margin for consistency
+          const amount = category.amount * (profitMargin / 100)
+          return {
+            category: category.category,
+            amount: amount,
+            percentage: grossProfit > 0 ? (amount / grossProfit) * 100 : 0,
+            margin: profitMargin
+          }
+        })
+        
+        // Profit trend follows sales trend but with real margin applied (approximation)
+        const profitTrend = currentSalesMetrics.salesTrend.map(point => ({
+          date: point.date,
+          value: point.value * (profitMargin / 100)
+        }))
+        
+        setProfitMetrics({
+          grossProfit,
+          previousPeriodProfit,
+          profitChangePercentage,
+          profitMargin,
+          profitByCategory,
+          profitTrend
+        })
+    } catch (error) {
+        console.error("Error fetching profit metrics:", error)
+        // Fallback to 0 or keep existing
+    }
   }
   
   const fetchInventoryMetrics = async () => {

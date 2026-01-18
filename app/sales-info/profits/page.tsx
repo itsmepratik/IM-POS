@@ -156,7 +156,7 @@ const DesktopView = memo(
           <thead className="text-xs uppercase bg-gray-50">
             <tr>
               <th className="px-6 py-3">Item Name</th>
-              <th className="px-6 py-3">Store</th>
+              <th className="px-6 py-3">Shop</th>
               <th className="px-6 py-3 text-right">Quantity</th>
               <th className="px-6 py-3 text-right">Unit Cost</th>
               <th className="px-6 py-3 text-right">Unit Price</th>
@@ -168,7 +168,7 @@ const DesktopView = memo(
           </thead>
           <tbody>
             {profitData.map((item) => (
-              <React.Fragment key={item.name}>
+              <React.Fragment key={item.id}>
                 <tr
                   className={`border-b ${
                     item.category === "fluid"
@@ -176,7 +176,7 @@ const DesktopView = memo(
                       : ""
                   }`}
                   onClick={() =>
-                    item.category === "fluid" && toggleItem(item.name)
+                    item.category === "fluid" && toggleItem(item.id)
                   }
                 >
                   <td className="px-6 py-4 font-medium">
@@ -184,7 +184,7 @@ const DesktopView = memo(
                       className={
                         item.category === "fluid"
                           ? `${
-                              expandedItems.includes(item.name)
+                              expandedItems.includes(item.id)
                                 ? "text-primary"
                                 : "text-gray-900"
                             } hover:text-primary transition-colors`
@@ -195,16 +195,16 @@ const DesktopView = memo(
                     </span>
                   </td>
                   <td className="px-6 py-4">
-                    {stores.find((store) => store.id === item.storeId)?.name}
+                    {item.storeName}
                   </td>
                   <td className="px-6 py-4 text-right">
                     {item.quantity} units
                   </td>
                   <td className="px-6 py-4 text-right">
-                    OMR {item.unitCost.toFixed(2)}
+                    OMR {item.unitCost.toFixed(3)}
                   </td>
                   <td className="px-6 py-4 text-right">
-                    OMR {item.unitPrice.toFixed(2)}
+                    OMR {item.unitPrice.toFixed(3)}
                   </td>
                   <td className="px-6 py-4 text-right">
                     OMR {item.totalSales.toFixed(2)}
@@ -226,10 +226,10 @@ const DesktopView = memo(
                   </td>
                 </tr>
                 {item.category === "fluid" &&
-                  expandedItems.includes(item.name) &&
+                  expandedItems.includes(item.id) &&
                   item.variants?.map((variant) => (
                     <tr
-                      key={`${item.name}-${variant.size}`}
+                      key={`${item.id}-${variant.size}`}
                       className="border-b bg-gray-50"
                     >
                       <td className="px-6 py-3 pl-12 text-sm text-gray-600">
@@ -240,19 +240,19 @@ const DesktopView = memo(
                         {variant.quantity} units
                       </td>
                       <td className="px-6 py-3 text-right text-sm text-gray-600">
-                        OMR {variant.unitCost.toFixed(2)}
+                        OMR {variant.unitCost.toFixed(3)}
                       </td>
                       <td className="px-6 py-3 text-right text-sm text-gray-600">
-                        OMR {variant.unitPrice.toFixed(2)}
+                        OMR {variant.unitPrice.toFixed(3)}
                       </td>
                       <td className="px-6 py-3 text-right text-sm text-gray-600">
-                        OMR {variant.totalSales.toFixed(2)}
+                        OMR {variant.totalSales.toFixed(3)}
                       </td>
                       <td className="px-6 py-3 text-right text-sm text-red-600">
-                        OMR {variant.totalCost.toFixed(2)}
+                        OMR {variant.totalCost.toFixed(3)}
                       </td>
                       <td className="px-6 py-3 text-right text-sm font-semibold text-green-600">
-                        OMR {variant.profit.toFixed(2)}
+                        OMR {variant.profit.toFixed(3)}
                       </td>
                       <td className="px-6 py-3 text-right text-sm">
                         <span className={`font-medium ${
@@ -318,10 +318,10 @@ const MobileView = memo(
       <div className="space-y-4">
         {profitData.map((item) => (
           <MobileItemCard
-            key={item.name}
+            key={item.id}
             item={item}
-            isExpanded={expandedItems.includes(item.name)}
-            onToggle={() => toggleItem(item.name)}
+            isExpanded={expandedItems.includes(item.id)}
+            onToggle={() => toggleItem(item.id)}
           />
         ))}
         <Card className="p-4 mt-6">
@@ -356,39 +356,26 @@ export default function ProfitsPage() {
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
+  
+  // Date range state
+  const [startDate, setStartDate] = useState<Date | undefined>(new Date(new Date().setDate(1))); // Start of current month
+  const [endDate, setEndDate] = useState<Date | undefined>(new Date());
 
-  const { items, stores, operatingCosts, isLoading } = useProfitsInfo();
+  const { items, stores, isLoading } = useProfitsInfo({
+    storeId: selectedStore,
+    startDate,
+    endDate
+  });
 
-  // Filter items based on selected store, category, and search query
+  // Filter items based on selected category and search query (Store is filtered by hook now)
   const filteredItems = items.filter((item) => {
-    const matchesStore =
-      selectedStore === "all-stores" || item.storeId === selectedStore;
     const matchesCategory =
       selectedCategory === "all" || item.category === selectedCategory;
     const matchesSearch = item.name
       .toLowerCase()
       .includes(searchQuery.toLowerCase());
-    return matchesStore && matchesCategory && matchesSearch;
+    return matchesCategory && matchesSearch;
   });
-
-  // Calculate totals
-  const totals = useMemo(() => {
-    const totalRevenue = filteredItems.reduce(
-      (sum, item) => sum + item.totalSales,
-      0
-    );
-    const totalCost = filteredItems.reduce(
-      (sum, item) => sum + item.totalCost,
-      0
-    );
-    const totalProfit = filteredItems.reduce(
-      (sum, item) => sum + item.profit,
-      0
-    );
-    const grossProfit = totalProfit;
-    const netProfit = grossProfit - operatingCosts.total;
-    return { totalRevenue, totalCost, grossProfit, netProfit };
-  }, [filteredItems, operatingCosts.total]);
 
   const [isMobileView, setIsMobileView] = useState(false);
   const [hasMounted, setHasMounted] = useState(false);
@@ -398,16 +385,9 @@ export default function ProfitsPage() {
       setIsMobileView(window.innerWidth < 1024);
     };
 
-    // Initial check
     checkViewport();
-
-    // Add event listener
     window.addEventListener("resize", checkViewport);
-
-    // Set hasMounted to prevent hydration mismatch
     setHasMounted(true);
-
-    // Cleanup
     return () => window.removeEventListener("resize", checkViewport);
   }, []);
 
@@ -419,8 +399,9 @@ export default function ProfitsPage() {
     );
   }, []);
 
-  // Lazy load the view based on viewport
   const CurrentView = useMemo(() => {
+    if (isLoading) return <div className="p-10 text-center">Loading profits data...</div>;
+    
     if (isMobileView) {
       return (
         <MobileView
@@ -437,7 +418,7 @@ export default function ProfitsPage() {
         toggleItem={toggleItem}
       />
     );
-  }, [isMobileView, filteredItems, expandedItems, toggleItem]);
+  }, [isMobileView, filteredItems, expandedItems, toggleItem, isLoading]);
 
   return (
     <Layout>
@@ -449,110 +430,49 @@ export default function ProfitsPage() {
           <h1 className="text-2xl font-semibold">Detailed Profits Report</h1>
         </div>
 
-        <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:justify-between">
-          <h2 className="text-lg font-semibold">Items & Profits</h2>
-          {hasMounted ? (
-            <Select value={selectedStore} onValueChange={setSelectedStore}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Select store" />
-              </SelectTrigger>
-              <SelectContent>
-                {stores.map((store) => (
-                  <SelectItem key={store.id} value={store.id}>
-                    {store.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          ) : (
-            <div className="w-[180px] h-10" />
-          )}
+        <div className="flex flex-col xl:flex-row gap-4 xl:justify-between xl:items-end">
+          <div className="flex flex-col md:flex-row gap-4 flex-1">
+             {hasMounted && (
+               <>
+                 <Select value={selectedStore} onValueChange={setSelectedStore}>
+                   <SelectTrigger className="w-full md:w-[200px]">
+                     <SelectValue placeholder="Select store" />
+                   </SelectTrigger>
+                   <SelectContent>
+                     {stores.map((store) => (
+                       <SelectItem key={store.id} value={store.id}>
+                         {store.name}
+                       </SelectItem>
+                     ))}
+                   </SelectContent>
+                 </Select>
+
+                 {/* Basic HTML Date Pickers for Simplicity & Robustness */}
+                 <div className="flex gap-2 items-center">
+                    <input 
+                      type="date" 
+                      className="border rounded p-2 text-sm"
+                      value={startDate ? startDate.toISOString().split('T')[0] : ''}
+                      onChange={(e) => setStartDate(e.target.value ? new Date(e.target.value) : undefined)}
+                    />
+                    <span className="text-gray-500">to</span>
+                    <input 
+                      type="date" 
+                      className="border rounded p-2 text-sm"
+                      value={endDate ? endDate.toISOString().split('T')[0] : ''}
+                      onChange={(e) => setEndDate(e.target.value ? new Date(e.target.value) : undefined)}
+                    />
+                 </div>
+               </>
+             )}
+          </div>
+          <div className="text-sm text-gray-500">
+             Showing data for {filteredItems.length} items
+          </div>
         </div>
 
         <Card className={isMobileView ? "p-4" : "p-6"}>{CurrentView}</Card>
-
-        {/* Operating Costs Section */}
-        <Card className={isMobileView ? "p-4" : "p-6"}>
-          <h2 className="text-lg font-semibold mb-4">Operating Costs</h2>
-          <div className="space-y-3">
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Rent</span>
-              <span className="font-medium text-red-600">
-                OMR {operatingCosts.rent.toFixed(2)}
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Utilities</span>
-              <span className="font-medium text-red-600">
-                OMR {operatingCosts.utilities.toFixed(2)}
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Salaries</span>
-              <span className="font-medium text-red-600">
-                OMR {operatingCosts.salaries.toFixed(2)}
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Other Expenses</span>
-              <span className="font-medium text-red-600">
-                OMR {operatingCosts.other.toFixed(2)}
-              </span>
-            </div>
-            <div className="flex justify-between items-center pt-3 border-t">
-              <span className="font-semibold">Total Operating Costs</span>
-              <span className="font-bold text-red-600">
-                OMR {operatingCosts.total.toFixed(2)}
-              </span>
-            </div>
-          </div>
-        </Card>
-
-        {/* Profit Summary Section */}
-        <Card className={isMobileView ? "p-4" : "p-6"}>
-          <h2 className="text-lg font-semibold mb-4">Profit Summary</h2>
-          <div className="space-y-3">
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Total Revenue</span>
-              <span className="font-medium">
-                OMR {totals.totalRevenue.toFixed(2)}
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Cost of Goods Sold (COGS)</span>
-              <span className="font-medium text-red-600">
-                OMR {totals.totalCost.toFixed(2)}
-              </span>
-            </div>
-            <div className="flex justify-between items-center pt-2 border-t">
-              <span className="font-semibold">Gross Profit</span>
-              <span className="font-semibold text-green-600">
-                OMR {totals.grossProfit.toFixed(2)}
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Operating Costs</span>
-              <span className="font-medium text-red-600">
-                OMR {operatingCosts.total.toFixed(2)}
-              </span>
-            </div>
-            <div className="flex justify-between items-center pt-3 border-t-2">
-              <span className="text-lg font-bold">Net Profit</span>
-              <span className={`text-lg font-bold ${
-                totals.netProfit >= 0 ? "text-green-600" : "text-red-600"
-              }`}>
-                OMR {totals.netProfit.toFixed(2)}
-              </span>
-            </div>
-            <div className="text-xs text-muted-foreground text-right pt-1">
-              Net Margin: {totals.totalRevenue > 0
-                ? ((totals.netProfit / totals.totalRevenue) * 100).toFixed(1)
-                : "0.0"}%
-            </div>
-          </div>
-        </Card>
       </div>
     </Layout>
   );
 }
-
