@@ -8,7 +8,7 @@ import dotenv from 'dotenv';
 dotenv.config({ path: path.resolve(__dirname, '../.env.local') });
 
 async function run() {
-  const migrationFile = '20260119000000_fix_open_bottle_checkout_final.sql';
+  const migrationFile = '20260119120000_add_product_bottle_size.sql';
   const migrationPath = path.resolve(__dirname, `../supabase/migrations/${migrationFile}`);
   
   if (!fs.existsSync(migrationPath)) {
@@ -22,7 +22,10 @@ async function run() {
       process.exit(1);
   }
 
-  const sql = postgres(connectionString);
+  const sql = postgres(connectionString, {
+    ssl: true,
+    max: 1
+  });
 
   const migrationSql = fs.readFileSync(migrationPath, 'utf8');
 

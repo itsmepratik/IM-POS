@@ -31,8 +31,8 @@ async function inspectShellOil() {
         id, current_volume, is_empty, opened_at
       )
     `)
-    .gt('open_bottles_stock', 10)
-    .limit(5);
+    .eq('product_id', '2d6f8779-07e2-4cd0-8d25-6e9670955b97')
+    .limit(1);
 
   if (itemError || !items || items.length === 0) {
       console.error('No item found with > 10 open bottles.');

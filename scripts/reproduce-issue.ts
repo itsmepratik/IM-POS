@@ -26,6 +26,8 @@ async function reproduceBug() {
     .from('inventory')
     .select(`
       *,
+      closed_bottles_stock,
+      open_bottles_stock,
       products!inner (
         id, name, product_type
       ),
@@ -36,52 +38,137 @@ async function reproduceBug() {
         id, current_volume, is_empty
       )
     `)
-    .eq('products.product_type', 'Lubricant')
+    .ilike('products.name', '%W-%') // Common oil pattern
     .gt('batches.stock_remaining', 0) // Ensure it has stock
     .limit(1);
 
   if (itemError || !item || item.length === 0) {
     console.error('Failed to fetch item:', itemError);
-    // Debug: list some products
-    const { data: prods } = await supabase.from('products').select('name, product_type').limit(5);
-    console.log('Available products:', prods);
     return;
   }
   
   const targetItem = item[0];
 
-  const initialBatchStock = targetItem.batches.reduce((sum, b) => sum + b.stock_remaining, 0);
+  // Fetch product volumes to debug bottle size detection
+  const { data: volumes } = await supabase
+    .from('product_volumes')
+    .select('volume_description')
+    .eq('product_id', targetItem.product_id);
+    
+  console.log(`Product Volumes for ${targetItem.products.name}:`, volumes);
+
+  const initialBatchStock = targetItem.closed_bottles_stock; // Use specific column
   const initialOpenVolume = targetItem.open_bottle_details.reduce((sum, b) => sum + (Number(b.current_volume) || 0), 0);
   
   console.log(`Initial State for ${targetItem.products.name}:`);
-  console.log(`- Batch Stock (Closed Bottles): ${initialBatchStock}`);
+  console.log(`- Closed Stock: ${initialBatchStock}`);
+  console.log(`- Open Stock: ${targetItem.open_bottles_stock}`);
   console.log(`- Open Volume: ${initialOpenVolume} L`);
 
-  // 2. Simulate Checkout of 1L from Open Bottle
-  const SELL_QUANTITY = 1;
-
-  console.log(`\nSimulating Checkout of ${SELL_QUANTITY}L from Open Bottle...`);
+  // Fetch valid shop ID
+  const { data: shopData } = await supabase
+    .from('shops')
+    .select('id')
+    .eq('location_id', targetItem.location_id)
+    .single();
+    
+  let validShopId = shopData?.id;
+  if (!validShopId) {
+      // Fallback
+      const { data: anyShop } = await supabase.from('shops').select('id').limit(1).single();
+      validShopId = anyShop?.id;
+  }
   
-  // Determine expectation
-  const shouldDeductBatch = initialOpenVolume < SELL_QUANTITY;
-  console.log(`Expectation: Batch calc should be ${shouldDeductBatch ? 'REDUCED by 1 (Opened new bottle)' : 'UNCHANGED (Consumed from open)'}`);
+  if (!validShopId) {
+      console.error('No valid shop found');
+      return;
+  }
+  console.log(`Using Shop ID: ${validShopId}`);
 
-  const payload = {
+  // ---------------------------------------------------------
+  // TEST 1: Checkout 1L from CLOSED Bottle (Partial Sale)
+  // Expectation: Closed -1, Open +1 (New 3L bottle)
+  // ---------------------------------------------------------
+  const SELL_QUANTITY_CLOSED = 1;
+  const SELL_VOLUME_STR_CLOSED = '1L';
+
+  console.log(`\n[TEST 1] Simulating Checkout of ${SELL_QUANTITY_CLOSED} unit(s) of ${SELL_VOLUME_STR_CLOSED} from CLOSED Bottle...`);
+  
+  const payloadClosed = {
     locationId: targetItem.location_id,
-    shopId: targetItem.location_id,
+    shopId: validShopId,
     cashierId: null,
     items: [{
       productId: targetItem.product_id,
-      quantity: SELL_QUANTITY, 
-      source: 'OPEN',
-      volumeDescription: '1L' 
+      quantity: SELL_QUANTITY_CLOSED, 
+      source: 'CLOSED',
+      volumeDescription: SELL_VOLUME_STR_CLOSED 
     }],
     totalAmount: 0,
     paymentMethod: 'CASH',
     type: 'SALE'
   };
 
-  // Call the function directly via RPC
+  const { data: resultClosed, error: rpcErrorClosed } = await supabase.rpc('create_checkout_transaction', {
+    p_location_id: payloadClosed.locationId,
+    p_shop_id: payloadClosed.shopId,
+    p_cashier_id: payloadClosed.cashierId,
+    p_items: payloadClosed.items,
+    p_total_amount: 0, // arguments...
+    p_payment_method: 'CASH',
+    p_type: 'SALE'
+  });
+
+  if (rpcErrorClosed) {
+    console.error('Test 1 Failed:', rpcErrorClosed);
+    return;
+  }
+  console.log('Test 1 Checkout successful:', resultClosed);
+
+  // Verify Test 1
+  const { data: itemAfterTest1 } = await supabase
+    .from('inventory')
+    .select(`*, closed_bottles_stock, open_bottles_stock, open_bottle_details(*)`)
+    .eq('id', targetItem.id)
+    .single();
+
+  const closedDiff = initialBatchStock - itemAfterTest1.closed_bottles_stock;
+  const openStockDiff = itemAfterTest1.open_bottles_stock - initialBatchStock; // wait, variable mismatch
+  const openStockDiffReal = itemAfterTest1.open_bottles_stock - targetItem.open_bottles_stock;
+
+  if (closedDiff === 1 && openStockDiffReal === 1) {
+       console.log('✅ TEST 1 PASSED: Closed -1, Open +1.');
+  } else {
+       console.error(`❌ TEST 1 FAILED: Closed Diff ${closedDiff}, Open Diff ${openStockDiffReal}`);
+  }
+
+  // ---------------------------------------------------------
+  // TEST 2: Checkout 2 units of 0.25L from OPEN Bottle
+  // Expectation: Open Volume decreases by 0.5L
+  // ---------------------------------------------------------
+  const SELL_QUANTITY = 2; // Test 2 units
+  const SELL_VOLUME_STR = '0.25L';
+  const EXPECTED_DEDUCTION = 0.5; // 2 * 0.25
+  const initialOpenVolumeTest2 = itemAfterTest1.open_bottle_details.reduce((sum, b) => sum + (Number(b.current_volume) || 0), 0);
+
+  console.log(`\n[TEST 2] Simulating Checkout of ${SELL_QUANTITY} unit(s) of ${SELL_VOLUME_STR} from OPEN Bottle...`);
+  console.log(`Expectation: Open stock volume should decrease by ${EXPECTED_DEDUCTION}L.`);
+  
+  const payload = {
+    locationId: targetItem.location_id,
+    shopId: validShopId,
+    cashierId: null,
+    items: [{
+      productId: targetItem.product_id,
+      quantity: SELL_QUANTITY, 
+      source: 'OPEN', 
+      volumeDescription: SELL_VOLUME_STR 
+    }],
+    totalAmount: 0,
+    paymentMethod: 'CASH',
+    type: 'SALE'
+  };
+
   const { data: result, error: rpcError } = await supabase.rpc('create_checkout_transaction', {
     p_location_id: payload.locationId,
     p_shop_id: payload.shopId,
@@ -103,32 +190,26 @@ async function reproduceBug() {
   const { data: newItem, error: newItemError } = await supabase
     .from('inventory')
     .select(`
-      batches (
-        id, stock_remaining
-      )
+      standard_stock,
+      closed_bottles_stock,
+      open_bottles_stock,
+      batches (id, stock_remaining),
+      open_bottle_details (id, current_volume, is_empty, opened_at)
     `)
     .eq('id', targetItem.id)
     .single();
 
-  const newBatchStock = newItem.batches.reduce((sum, b) => sum + b.stock_remaining, 0);
+  const newOpenVolume = newItem.open_bottle_details.reduce((sum, b) => sum + (Number(b.current_volume) || 0), 0);
   
   console.log(`\nPost-Checkout State:`);
-  console.log(`- Batch Stock (Closed Bottles): ${newBatchStock}`);
+  console.log(`- Open Volume: ${initialOpenVolumeTest2} -> ${newOpenVolume}`);
   
-  const batchDiff = initialBatchStock - newBatchStock;
+  const volumeDiff = initialOpenVolumeTest2 - newOpenVolume;
   
-  if (shouldDeductBatch) {
-      if (batchDiff === 1) {
-          console.log(`✅ SUCCESS: Batch stock reduced by 1 as expected (Overflow).`);
-      } else {
-          console.error(`❌ FAILURE: Expected batch deduction of 1, got ${batchDiff}.`);
-      }
+  if (Math.abs(volumeDiff - EXPECTED_DEDUCTION) < 0.01) {
+      console.log(`✅ TEST 2 PASSED: Volume reduced by ${volumeDiff}L (Expected ${EXPECTED_DEDUCTION}L).`);
   } else {
-      if (batchDiff === 0) {
-          console.log(`✅ SUCCESS: Batch stock UNCHANGED as expected (Consumed open volume).`);
-      } else {
-          console.error(`❌ FAILURE: BUG DETECTED! Batch stock reduced by ${batchDiff} despite sufficient open volume!`);
-      }
+      console.error(`❌ TEST 2 FAILED: Volume reduced by ${volumeDiff}L (Expected ${EXPECTED_DEDUCTION}L).`);
   }
 }
 

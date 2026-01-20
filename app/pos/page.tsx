@@ -1437,7 +1437,9 @@ function POSPageContent() {
     const sizeNum = parseVolumeString(volume.size);
     const isSmallVolume = sizeNum < 4; 
     
-    if (selectedOil.hasOpenBottles && isSmallVolume) {
+    // Fix: Always show bottle type dialog for small volumes, even if no open bottles exist yet.
+    // This allows creating NEW open bottles from closed stock.
+    if (isSmallVolume) {
       setCurrentBottleVolumeSize(volume.size);
       setIsVolumeModalOpen(false); // Close parent
       setShowBottleTypeDialog(true); // Open child
