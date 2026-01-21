@@ -391,7 +391,11 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated }: ItemModal
   }, [open]);
 
   // Update stock when bottle quantities change for oil products
+  // ONLY if there are NO batches (batches take precedence for stock calculation)
   useEffect(() => {
+    // Skip if item has batches - stock is managed via batch quantities
+    if (formData.batches && formData.batches.length > 0) return;
+    
     if (formData.isOil && formData.bottleStates) {
       const totalBottles =
         formData.bottleStates.open + formData.bottleStates.closed;
@@ -404,49 +408,54 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated }: ItemModal
     formData.isOil,
     formData.bottleStates?.open,
     formData.bottleStates?.closed,
+    formData.batches?.length,
   ]);
 
   // Sync Cost Price and Stock from Batches
+  // Only runs when batches actually exist
   useEffect(() => {
-    if (formData.batches && formData.batches.length > 0) {
-      // 1. Sync Cost Price from Active Batch
-      // Find active batch, or default to the first one (FIFO)
-      const activeBatch = formData.batches.find(b => b.is_active_batch) || formData.batches[0];
-      const activeCost = activeBatch?.cost_price || 0;
+    // Early return if no batches - allow manual input
+    if (!formData.batches || formData.batches.length === 0) return;
 
-      // 2. Sync Stock from Batches (Total Current Quantity)
-      // Use current_quantity (which maps to stock_remaining in DB) instead of initial_quantity
-      const totalBatchStock = formData.batches.reduce(
-        (sum, batch) => sum + (batch.current_quantity || 0),
-        0
-      );
+    // 1. Sync Cost Price from Active Batch
+    // Find active batch, or default to the first one (FIFO)
+    const activeBatch = formData.batches.find(b => b.is_active_batch) || formData.batches[0];
+    const activeCost = activeBatch?.cost_price || 0;
 
-      setFormData((prev) => {
-        // Calculate new values
-        const openBottles = prev.bottleStates?.open || 0;
-        const newStock = prev.isOil ? (totalBatchStock + openBottles) : totalBatchStock;
-        
-        // Check if updates are needed to avoid infinite loops
-        const needsCostUpdate = prev.costPrice !== activeCost;
-        const needsStockUpdate = prev.stock !== newStock;
-        const needsClosedBottlesUpdate = prev.isOil && prev.bottleStates?.closed !== totalBatchStock;
+    // 2. Sync Stock from Batches (Total Current Quantity)
+    const totalBatchStock = formData.batches.reduce(
+      (sum, batch) => sum + (Number(batch.current_quantity) || 0),
+      0
+    );
 
-        if (!needsCostUpdate && !needsStockUpdate && !needsClosedBottlesUpdate) {
-          return prev;
-        }
+    setFormData((prev) => {
+      // Calculate new values
+      const openBottles = prev.bottleStates?.open || 0;
+      const newStock = prev.isOil ? (totalBatchStock + openBottles) : totalBatchStock;
+      
+      // Check if updates are needed to avoid infinite loops
+      const prevCostNum = typeof prev.costPrice === 'string' ? Number(prev.costPrice) : prev.costPrice;
+      const prevStockNum = typeof prev.stock === 'string' ? Number(prev.stock) : prev.stock;
+      
+      const needsCostUpdate = prevCostNum !== activeCost;
+      const needsStockUpdate = prevStockNum !== newStock;
+      const needsClosedBottlesUpdate = prev.isOil && prev.bottleStates?.closed !== totalBatchStock;
 
-        return {
-          ...prev,
-          costPrice: activeCost,
-          stock: newStock,
-          bottleStates: prev.isOil ? {
-            ...prev.bottleStates,
-            open: openBottles,
-            closed: totalBatchStock // Sync closed bottles with batch stock
-          } : prev.bottleStates
-        };
-      });
-    }
+      if (!needsCostUpdate && !needsStockUpdate && !needsClosedBottlesUpdate) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        costPrice: activeCost,
+        stock: newStock,
+        bottleStates: prev.isOil ? {
+          ...prev.bottleStates,
+          open: openBottles,
+          closed: totalBatchStock // Sync closed bottles with batch stock
+        } : prev.bottleStates
+      };
+    });
   }, [formData.batches, formData.isOil, formData.bottleStates?.open]);
 
   // Calculate total margin based on batches and price
@@ -656,7 +665,56 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated }: ItemModal
   };
 
   const handleAddBatch = async () => {
-    if (!item) return;
+    // Check if we have required fields
+    if (!newBatch.purchaseDate || !newBatch.quantity) {
+      toast({
+        title: "Missing fields",
+        description: "Please fill in all required fields.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!item) {
+      // Adding batch to a new item (local state only)
+      const newBatchWithId: Batch = {
+        id: uuidv4(), // Temporary ID
+        ...newBatch,
+        purchase_date: (newBatch as any).purchaseDate || newBatch.purchase_date || new Date().toISOString(),
+        item_id: "", // Will be set when item is created
+        current_quantity: newBatch.quantity, // Set current quantity same as initial
+        initial_quantity: newBatch.quantity,
+      };
+
+      // Sort batches by purchase date
+      const updatedBatches = [
+        ...(formData.batches || []),
+        newBatchWithId,
+      ].sort(
+        (a, b) =>
+          new Date(a.purchase_date || "").getTime() -
+          new Date(b.purchase_date || "").getTime()
+      );
+
+      setFormData((prev) => ({
+        ...prev,
+        batches: updatedBatches,
+        stock: updatedBatches.reduce((sum, batch) => sum + (batch.current_quantity || 0), 0),
+      }));
+
+      // Reset form
+      setNewBatch({
+        purchaseDate: format(new Date(), "yyyy-MM-dd"),
+        costPrice: 0,
+        quantity: 0,
+      });
+
+      toast({
+        title: "Batch added",
+        description: "Batch added to list. Save item to persist.",
+      });
+      return;
+    }
 
     try {
       // Call the addBatch function and await the result
@@ -712,20 +770,29 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated }: ItemModal
   };
 
   const handleUpdateBatch = () => {
-    if (!item || !editingBatchId) return;
+    if (!editingBatchId) return;
 
-    updateBatch(item.id, editingBatchId, newBatch);
+    // If item exists, update in backend immediately
+    if (item) {
+      updateBatch(item.id, editingBatchId, newBatch);
+    }
 
     // Update local formData state to reflect the updated batch
     const currentBatches = formData.batches || [];
     const updatedBatches = currentBatches.map((batch) =>
-      batch.id === editingBatchId ? { ...batch, ...newBatch } : batch
+      batch.id === editingBatchId ? { 
+        ...batch, 
+        ...newBatch,
+        purchase_date: (newBatch as any).purchaseDate || newBatch.purchase_date || batch.purchase_date,
+        current_quantity: newBatch.quantity || batch.current_quantity,
+        initial_quantity: newBatch.quantity || batch.initial_quantity 
+      } : batch
     );
 
     // Re-sort batches by purchase date to maintain FIFO order
     const sortedBatches = updatedBatches.sort(
       (a, b) =>
-        new Date(a.purchase_date).getTime() - new Date(b.purchase_date).getTime()
+        new Date(a.purchase_date || "").getTime() - new Date(b.purchase_date || "").getTime()
     );
 
     setFormData((prev) => ({
@@ -743,7 +810,23 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated }: ItemModal
   };
 
   const handleDeleteBatch = async (batchId: string) => {
-    if (!item) return;
+    if (!item) {
+      // Allow deleting local batches for new items
+      const currentBatches = formData.batches || [];
+      const remainingBatches = currentBatches.filter(
+        (batch) => batch.id !== batchId
+      );
+
+      setFormData((prev) => ({
+        ...prev,
+        batches: remainingBatches,
+        stock: remainingBatches.reduce(
+          (sum, batch) => sum + (batch.current_quantity || 0),
+          0
+        ),
+      }));
+      return;
+    }
 
     // Show confirmation dialog before deletion
     if (
@@ -1268,7 +1351,7 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated }: ItemModal
                               />
                             </div>
                             <div className="space-y-4">
-                              <div>
+                                <div>
                                 <Label htmlFor="price">Selling Price</Label>
                                 <Input
                                   id="price"
@@ -1279,7 +1362,7 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated }: ItemModal
                                   onChange={(e) =>
                                     setFormData({
                                       ...formData,
-                                      price: e.target.value === "" ? "" : parseFloat(e.target.value),
+                                      price: e.target.value,
                                     })
                                   }
                                   required
@@ -1298,7 +1381,7 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated }: ItemModal
                                     onChange={(e) =>
                                       setFormData({
                                         ...formData,
-                                        costPrice: e.target.value === "" ? "" : parseFloat(e.target.value),
+                                        costPrice: e.target.value,
                                       })
                                     }
                                     placeholder="0"
@@ -1329,7 +1412,7 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated }: ItemModal
                                   onChange={(e) =>
                                     setFormData({
                                       ...formData,
-                                      stock: e.target.value === "" ? "" : parseInt(e.target.value),
+                                      stock: e.target.value,
                                     })
                                   }
                                   required
@@ -1366,7 +1449,7 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated }: ItemModal
                                   onChange={(e) =>
                                     setFormData({
                                       ...formData,
-                                      lowStockAlert: e.target.value === "" ? "" : parseInt(e.target.value),
+                                      lowStockAlert: e.target.value,
                                     })
                                   }
                                 />
@@ -1669,9 +1752,7 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated }: ItemModal
                                             updateVolume(
                                               index,
                                               "price",
-                                              e.target.value === ""
-                                                ? ""
-                                                : parseFloat(e.target.value)
+                                              e.target.value
                                             )
                                           }
                                           placeholder="0"
@@ -1892,9 +1973,13 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated }: ItemModal
                                     different purchase dates and costs.
                                   </DialogDescription>
                                 </DialogHeader>
-                                <form
+                                  <form
                                   onSubmit={(e) => {
                                     e.preventDefault();
+                                    // Parse values for submission
+                                    const parsedCostPrice = typeof editingBatch.cost_price === 'string' ? Number(editingBatch.cost_price) || 0 : editingBatch.cost_price;
+                                    const parsedQuantity = typeof editingBatch.current_quantity === 'string' ? Number(editingBatch.current_quantity) || 0 : editingBatch.current_quantity;
+
                                     if (editingBatch.id) {
                                       // Update batch in context
                                       updateBatch(
@@ -1903,8 +1988,8 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated }: ItemModal
                                         {
                                           purchase_date:
                                             editingBatch.purchase_date,
-                                          cost_price: editingBatch.cost_price,
-                                          current_quantity: editingBatch.current_quantity,
+                                          cost_price: parsedCostPrice,
+                                          current_quantity: parsedQuantity,
                                         }
                                       );
 
@@ -1917,8 +2002,8 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated }: ItemModal
                                                 purchase_date:
                                                   editingBatch.purchase_date,
                                                 cost_price:
-                                                  editingBatch.cost_price,
-                                                current_quantity: editingBatch.current_quantity,
+                                                  parsedCostPrice,
+                                                current_quantity: parsedQuantity,
                                               }
                                             : batch
                                         );
@@ -1942,9 +2027,9 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated }: ItemModal
                                       // Add new batch to context
                                       addBatch(formData.id, {
                                         purchase_date: editingBatch.purchase_date,
-                                        cost_price: editingBatch.cost_price,
-                                        initial_quantity: editingBatch.current_quantity,
-                                        current_quantity: editingBatch.current_quantity,
+                                        cost_price: parsedCostPrice,
+                                        initial_quantity: parsedQuantity,
+                                        current_quantity: parsedQuantity,
                                         supplier_id: null,
                                         expiration_date: null,
                                       });
@@ -1957,9 +2042,9 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated }: ItemModal
                                           editingBatch.purchase_date,
                                         expiration_date: null,
                                         supplier_id: null,
-                                        cost_price: editingBatch.cost_price,
-                                        initial_quantity: editingBatch.current_quantity,
-                                        current_quantity: editingBatch.current_quantity,
+                                        cost_price: parsedCostPrice,
+                                        initial_quantity: parsedQuantity,
+                                        current_quantity: parsedQuantity,
                                         created_at: new Date().toISOString(),
                                         updated_at: new Date().toISOString(),
                                       };
@@ -2028,9 +2113,7 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated }: ItemModal
                                         onChange={(e) =>
                                           setEditingBatch({
                                             ...editingBatch,
-                                            cost_price: parseFloat(
-                                              e.target.value
-                                            ),
+                                            cost_price: e.target.value as any,
                                           })
                                         }
                                         className="sm:col-span-3"
@@ -2052,9 +2135,7 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated }: ItemModal
                                           onChange={(e) =>
                                             setEditingBatch({
                                               ...editingBatch,
-                                              current_quantity: parseInt(
-                                                e.target.value
-                                              ),
+                                              current_quantity: e.target.value as any,
                                             })
                                           }
                                           required

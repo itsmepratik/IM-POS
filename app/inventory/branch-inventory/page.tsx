@@ -61,12 +61,9 @@ import {
 } from "@/components/ui/inventory-bottle-icons";
 import { OpenBottleIcon, ClosedBottleIcon } from "@/components/ui/bottle-icons";
 import BrandModal from "../brand-modal";
-import {
-  useAbuDhabiInventory,
-  ABU_DHABI_BRANCH,
-} from "./hooks/useAbuDhabiInventory";
-import { useHafithInventory, HAFITH_BRANCH } from "./hooks/useHafithInventory";
-import { StockIndicator } from "../components/stock-indicator";
+import { useBranchInventory } from "./hooks/useBranchInventory";
+import { useServerInventory } from "../hooks/useServerInventory";
+import { BRANCH_SHOPS, getAllBranchShops, DEFAULT_BRANCH, type BranchShop } from "./branchConfig";
 
 // Define volume type
 interface Volume {
@@ -279,51 +276,45 @@ function MobileView({
   selectedBranch,
   handleDeleteItem,
   onBranchChange,
+  onItemUpdated,
 }: {
   items: Item[];
   isLoading: boolean;
-  selectedBranch: typeof ABU_DHABI_BRANCH | typeof HAFITH_BRANCH;
+  selectedBranch: BranchShop;
   handleDeleteItem: (id: string) => Promise<void>;
-  onBranchChange: (branchId: string) => void;
+  onBranchChange: (locationId: string) => void;
+  onItemUpdated: () => void;
 }) {
+  const { addItem } = useItems(); // Access addItem from context
   const [itemModalOpen, setItemModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Item | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [showLowStockOnly, setShowLowStockOnly] = useState(false);
   const [showOutOfStockOnly, setShowOutOfStockOnly] = useState(false);
-  const [branchId, setBranchId] = useState(selectedBranch.id);
+  // Default to the provided selectedBranch's location
+  const [branchLocationId, setBranchLocationId] = useState(selectedBranch.locationId);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [brandFilter, setBrandFilter] = useState("all");
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [isBrandModalOpen, setIsBrandModalOpen] = useState(false);
+  const { categories, brands } = useItems();
 
-  // Get available branches
-  const branches = [ABU_DHABI_BRANCH, HAFITH_BRANCH];
+  // Get available branches from config
+  const branches = getAllBranchShops();
 
   // Set mounted flag to prevent SSR issues
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
-  // Update the branch ID when selectedBranch changes
+  // Update the branch location ID when selectedBranch changes
   useEffect(() => {
-    if (selectedBranch?.id) {
-      setBranchId(selectedBranch.id);
+    if (selectedBranch?.locationId) {
+      setBranchLocationId(selectedBranch.locationId);
     }
   }, [selectedBranch]);
-
-  // Count out of stock items
-  const outOfStockCount = useMemo(() => {
-    return items.filter((item) => (item.stock ?? 0) === 0).length;
-  }, [items]);
-
-  // Count low stock items (excluding out of stock)
-  const lowStockCount = useMemo(() => {
-    return items.filter((item) => {
-      const stock = item.stock ?? 0;
-      // Use item's lowStockAlert value if available, otherwise use default threshold of 5
-      const threshold = item.lowStockAlert ?? 5;
-      return stock > 0 && stock <= threshold;
-    }).length;
-  }, [items]);
 
   // Filter items based on search and stock filters
   const filteredItems = useMemo(() => {
@@ -369,19 +360,9 @@ function MobileView({
     setItemModalOpen(true);
   };
 
-  const handleLowStockClick = () => {
-    setShowOutOfStockOnly(false);
-    setShowLowStockOnly(!showLowStockOnly);
-  };
-
-  const handleOutOfStockClick = () => {
-    setShowLowStockOnly(false);
-    setShowOutOfStockOnly(!showOutOfStockOnly);
-  };
-
-  const handleBranchChange = (branchId: string) => {
-    setBranchId(branchId);
-    onBranchChange(branchId);
+  const handleBranchChange = (locationId: string) => {
+    setBranchLocationId(locationId);
+    onBranchChange(locationId);
   };
 
   // Prevent rendering until component is mounted to avoid hydration issues
@@ -398,7 +379,7 @@ function MobileView({
       <div className="mb-2 flex flex-col gap-4">
         {/* Branch selector dropdown */}
         <div>
-          <Select value={branchId} onValueChange={handleBranchChange}>
+          <Select value={branchLocationId} onValueChange={handleBranchChange}>
             <SelectTrigger className="w-full rounded-full bg-primary/10">
               <div className="flex items-center gap-2">
                 <Store className="h-4 w-4 text-muted-foreground" />
@@ -406,8 +387,11 @@ function MobileView({
               </div>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="1">Abu Dhurus</SelectItem>
-              <SelectItem value="2">Hafeet Branch</SelectItem>
+              {branches.map((branch) => (
+                <SelectItem key={branch.locationId} value={branch.locationId}>
+                  {branch.displayName}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -529,14 +513,13 @@ function MobileView({
         </div>
       )}
 
-      {/* Item modal for editing/adding */}
       <ItemModal
         open={itemModalOpen}
         onOpenChange={setItemModalOpen}
         item={editingItem || undefined}
+        onItemUpdated={onItemUpdated}
       />
 
-      {/* Mobile Filters Sheet */}
       <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
         <SheetContent side="right" className="w-[280px] sm:w-[380px]">
           <SheetHeader>
@@ -616,127 +599,126 @@ function MobileView({
           </div>
         </SheetContent>
       </Sheet>
+      <CategoryModal
+          open={isCategoryModalOpen}
+          onOpenChange={setIsCategoryModalOpen}
+        />
+        <BrandModal open={isBrandModalOpen} onOpenChange={setIsBrandModalOpen} />
     </div>
   );
 }
 
-function BranchInventoryPage() {
-  const { currentUser } = useUser();
-  const [selectedBranchId, setSelectedBranchId] = useState("1"); // Default to Abu Dhurus
-  const [showLowStockOnly, setShowLowStockOnly] = useState(false);
-  const [showOutOfStockOnly, setShowOutOfStockOnly] = useState(false);
 
-  // Filter states
-  const [showFilters, setShowFilters] = useState(false);
-  const [minPrice, setMinPrice] = useState("");
-  const [maxPrice, setMaxPrice] = useState("");
-  const [stockStatus, setStockStatus] = useState("all");
-  const [brandFilter, setBrandFilter] = useState("all");
 
-  // Branch specific hooks
-  const abuDhabiInventory = useAbuDhabiInventory();
-  const hafithInventory = useHafithInventory();
+// Container Component - Managers State and Context
+function BranchInventoryManager() {
+  const [selectedLocationId, setSelectedLocationId] = useState(DEFAULT_BRANCH.locationId);
 
-  // Select the active branch's data
-  const branchData =
-    selectedBranchId === "1" ? abuDhabiInventory : hafithInventory;
-
-  // Destructure from the selected branch data
-  const {
-    branchItems,
-    filteredItems: originalFilteredItems,
-    isLoading,
-    selectedBranch,
-    handleDeleteItem,
-    // UI states
-    searchQuery,
-    setSearchQuery,
-    selectedCategory,
-    setSelectedCategory,
-    showLowStock,
-    setShowLowStock,
-    // Modal states
-    isModalOpen,
-    setIsModalOpen,
-    isCategoryModalOpen,
-    setIsCategoryModalOpen,
-    isBrandModalOpen,
-    setIsBrandModalOpen,
-    editingItem,
-    setEditingItem,
-    categories,
-    brands,
-    // Actions
-    handleEdit,
-    resetFilters,
-  } = branchData;
-
-  // Count out of stock items
-  const outOfStockCount = useMemo(() => {
-    return branchItems.filter((item) => (item.stock ?? 0) === 0).length;
-  }, [branchItems]);
-
-  // Count low stock items (excluding out of stock)
-  const lowStockCount = useMemo(() => {
-    return branchItems.filter((item) => {
-      const stock = item.stock ?? 0;
-      // Use item's lowStockAlert value if available, otherwise use default threshold of 5
-      const threshold = item.lowStockAlert ?? 5;
-      return stock > 0 && stock <= threshold;
-    }).length;
-  }, [branchItems]);
-
-  // Apply additional filters for low stock and out of stock
-  const filteredItems = useMemo(() => {
-    return originalFilteredItems.filter((item) => {
-      // Low stock filter
-      const matchesLowStock = showLowStockOnly
-        ? (item.stock ?? 0) > 0 &&
-          (item.stock ?? 0) <= (item.lowStockAlert ?? 5)
-        : true;
-
-      // Out of stock filter
-      const matchesOutOfStock = showOutOfStockOnly
-        ? (item.stock ?? 0) === 0
-        : true;
-
-      return showLowStockOnly || showOutOfStockOnly
-        ? matchesLowStock && matchesOutOfStock
-        : true;
-    });
-  }, [originalFilteredItems, showLowStockOnly, showOutOfStockOnly]);
-
-  const handleLowStockClick = () => {
-    setShowOutOfStockOnly(false);
-    setShowLowStockOnly(!showLowStockOnly);
-    setShowLowStock(false); // Turn off the original low stock filter
-  };
-
-  const handleOutOfStockClick = () => {
-    setShowLowStockOnly(false);
-    setShowOutOfStockOnly(!showOutOfStockOnly);
-    setShowLowStock(false); // Turn off the original low stock filter
-  };
-
-  const handleBranchChange = (branchId: string) => {
-    setSelectedBranchId(branchId);
-    setShowLowStockOnly(false);
-    setShowOutOfStockOnly(false);
-  };
-
-  // Memoized modal handlers to prevent re-renders
-  const handleItemModalOpenChange = useCallback(
-    (open: boolean) => {
-      setIsModalOpen(open);
-      if (!open) setEditingItem(null);
-    },
-    [setIsModalOpen, setEditingItem]
+  return (
+    <BranchProvider>
+      <ItemsProvider
+        overrideLocationId={selectedLocationId}
+        skipFetchingItems={true} // Match Main Inventory: Skip context fetching, let useServerInventory handle it
+      >
+        <BranchInventoryContent 
+            selectedLocationId={selectedLocationId}
+            onLocationIdChange={setSelectedLocationId}
+        />
+      </ItemsProvider>
+    </BranchProvider>
   );
+}
 
-  const [isMobile, setIsMobile] = useState(false);
+// Inner component that runs INSIDE ItemsProvider
+function BranchInventoryContent({ 
+  selectedLocationId, 
+  onLocationIdChange 
+}: { 
+  selectedLocationId: string, 
+  onLocationIdChange: (id: string) => void 
+}) {
+  const { addItem, updateItem, deleteItem, duplicateItem, categories, brands, refetchItems } = useItems();
   const [isClient, setIsClient] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  
+  // Use useServerInventory hook (Same as Main Inventory Page)
+  // This handles data fetching, pagination, sorting, and filtering
+  const {
+      items: branchItems,
+      loading: isLoading,
+      // Pagination
+      page, setPage,
+      limit, setLimit,
+      totalCount,
+      // Filters
+      search: searchQuery, setSearch: setSearchQuery,
+      categoryId: selectedCategory, setCategoryId: setSelectedCategory,
+      brandId: brandFilter, setBrandId: setBrandFilter,
+      // Advanced Filters
+      minPrice, setMinPrice,
+      maxPrice, setMaxPrice,
+      stockStatus, setStockStatus,
+      showLowStockOnly, setShowLowStockOnly,
+      showOutOfStockOnly, setShowOutOfStockOnly,
+      // Actions
+      refresh,
+      updateLocalItem,
+      resetFilters
+  } = useServerInventory({
+      locationId: selectedLocationId,
+      initialLimit: 50
+  });
 
-  // Check viewport on mount and resize - with client-side safety
+  // UI States
+  const [showFilters, setShowFilters] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [isBrandModalOpen, setIsBrandModalOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<Item | undefined>(undefined);
+
+  // Derived state for the selected branch object
+  const selectedBranch = useMemo(() => 
+      getAllBranchShops().find(b => b.locationId === selectedLocationId) || DEFAULT_BRANCH, 
+  [selectedLocationId]);
+
+  const handleBranchChange = (locationId: string) => {
+    onLocationIdChange(locationId);
+    // Reset page and filters on branch change (useServerInventory handles this via useEffect on locationId change? 
+    // actually useServerInventory useEffect depends on locationId, so it auto-refreshes)
+  };
+  
+  // Handle Item Updates (Add/Edit)
+  const handleItemUpdated = useCallback(async (updatedItem?: Item) => {
+    // 1. Refresh Context (for brands/categories consistency)
+    await refetchItems(); 
+    
+    // 2. Update Local List (Optimistic or Refresh)
+    console.log("Branch Item updated, refreshing lists...");
+    if (updatedItem) {
+        updateLocalItem(updatedItem);
+    }
+    refresh(true); // Silent refresh from server
+  }, [refetchItems, updateLocalItem, refresh]);
+
+  // Handle Delete
+  const handleDeleteItem = async (id: string) => {
+      try {
+          await deleteItem(id);
+          refresh(); // Refresh list after delete
+          toast({ title: "Item deleted successfully" });
+      } catch (error) {
+          console.error("Failed to delete item:", error);
+          toast({ title: "Failed to delete item", variant: "destructive" });
+      }
+  };
+
+  // Actions for Mobile View
+  const handleEdit = (item: Item) => {
+      setEditingItem(item);
+      setIsModalOpen(true);
+  };
+
+  // Check viewport
   const checkViewport = useCallback(() => {
     if (typeof window !== "undefined") {
       setIsMobile(window.innerWidth < 1024);
@@ -744,9 +726,7 @@ function BranchInventoryPage() {
   }, []);
 
   useEffect(() => {
-    // Set client flag to prevent hydration mismatches
     setIsClient(true);
-
     if (typeof window !== "undefined") {
       checkViewport();
       window.addEventListener("resize", checkViewport);
@@ -754,49 +734,48 @@ function BranchInventoryPage() {
     }
   }, [checkViewport]);
 
-
-
-  // Get available branches
-  const branches = [ABU_DHABI_BRANCH, HAFITH_BRANCH];
-
-  // Prevent hydration mismatches on mobile detection
-  if (!isClient) {
-    return (
-      <div className="w-full h-full flex items-center justify-center">
-        <p className="text-muted-foreground">Loading...</p>
-      </div>
-    );
-  }
+  const handleItemModalOpenChange = useCallback(
+    (open: boolean) => {
+      setIsModalOpen(open);
+      if (!open) setEditingItem(undefined); // use undefined to match ItemModal props type
+    },
+    [setIsModalOpen, setEditingItem]
+  );
+  
+  if (!isClient) return null;
 
   return (
-    <div className="w-full h-full">
-      {isMobile ? (
-        <MobileView
-          items={branchItems}
-          isLoading={isLoading}
-          selectedBranch={
-            selectedBranchId === "1" ? ABU_DHABI_BRANCH : HAFITH_BRANCH
-          }
-          handleDeleteItem={handleDeleteItem}
-          onBranchChange={handleBranchChange}
-        />
-      ) : (
-        <div className="space-y-6">
-          <div className="flex justify-between">
+      <div className="w-full h-full">
+        {isMobile ? (
+          <MobileView
+            items={branchItems}
+            isLoading={isLoading}
+            selectedBranch={selectedBranch}
+            handleDeleteItem={handleDeleteItem}
+            onBranchChange={handleBranchChange}
+            onItemUpdated={() => handleItemUpdated()}
+          />
+        ) : (
+          <div className="space-y-6">
+            <div className="flex justify-between">
             <div className="w-[300px]">
               <Select
-                value={selectedBranchId}
+                value={selectedLocationId}
                 onValueChange={handleBranchChange}
               >
                 <SelectTrigger className="w-full rounded-full bg-primary/10">
                   <div className="flex items-center gap-2">
                     <Store className="h-4 w-4 text-muted-foreground" />
                     <SelectValue placeholder="Select Branch" />
+                    {process.env.NODE_ENV === 'development' && <span className="text-xs text-muted-foreground opacity-50">({selectedLocationId.slice(0,4)})</span>}
                   </div>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="1">Abu Dhurus</SelectItem>
-                  <SelectItem value="2">Hafeet Branch</SelectItem>
+                  {getAllBranchShops().map((branch) => (
+                    <SelectItem key={branch.locationId} value={branch.locationId}>
+                      {branch.displayName}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -846,33 +825,12 @@ function BranchInventoryPage() {
                 </DropdownMenuContent>
               </DropdownMenu>
 
-              <Button onClick={() => setIsModalOpen(true)}>
+              <Button onClick={() => { setEditingItem(undefined); setIsModalOpen(true); }}>
                 <Plus className="h-4 w-4 mr-1" />
                 Add Item
               </Button>
             </div>
           </div>
-
-          {/* Filter status indicators */}
-          {(showLowStockOnly || showOutOfStockOnly) && (
-            <div className="flex items-center">
-              <Badge variant="outline" className="py-1 px-3">
-                {showLowStockOnly && "Showing low stock items only"}
-                {showOutOfStockOnly && "Showing out of stock items only"}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-auto p-0 ml-2 text-muted-foreground"
-                  onClick={() => {
-                    setShowLowStockOnly(false);
-                    setShowOutOfStockOnly(false);
-                  }}
-                >
-                  Clear
-                </Button>
-              </Badge>
-            </div>
-          )}
 
           {/* Awesome Filter Section - Desktop Only */}
           {showFilters && !isMobile && (
@@ -894,14 +852,7 @@ function BranchInventoryPage() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => {
-                    setMinPrice("");
-                    setMaxPrice("");
-                    setStockStatus("all");
-                    setBrandFilter("all");
-                    setShowLowStockOnly(false);
-                    setShowOutOfStockOnly(false);
-                  }}
+                  onClick={resetFilters}
                   className="rounded-[2.0625rem] text-gray-600 hover:bg-gray-100"
                 >
                   <X className="h-4 w-4 mr-1" />
@@ -910,31 +861,6 @@ function BranchInventoryPage() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {/* Price Range Filter */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                    <span className="text-green-600">💰</span>
-                    Price Range
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="number"
-                      placeholder="Min"
-                      value={minPrice}
-                      onChange={(e) => setMinPrice(e.target.value)}
-                      className="flex-1 rounded-[2.0625rem] border-gray-300 focus:border-orange-500 focus:ring-orange-500"
-                    />
-                    <span className="text-gray-400">-</span>
-                    <Input
-                      type="number"
-                      placeholder="Max"
-                      value={maxPrice}
-                      onChange={(e) => setMaxPrice(e.target.value)}
-                      className="flex-1 rounded-[2.0625rem] border-gray-300 focus:border-orange-500 focus:ring-orange-500"
-                    />
-                  </div>
-                </div>
-
                 {/* Category Filter */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
@@ -949,7 +875,7 @@ function BranchInventoryPage() {
                       <SelectValue placeholder="All Categories" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="All">All Categories</SelectItem>
+                      <SelectItem value="all">All Categories</SelectItem>
                       {categories.map((category) => (
                         <SelectItem key={category} value={category}>
                           {category}
@@ -980,159 +906,85 @@ function BranchInventoryPage() {
                     </SelectContent>
                   </Select>
                 </div>
-
-                {/* Stock Status Filter */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                    <span className="text-orange-600">📦</span>
-                    Stock Status
-                  </label>
-                  <Select value={stockStatus} onValueChange={setStockStatus}>
-                    <SelectTrigger className="w-full rounded-[2.0625rem] border-gray-300 focus:border-orange-500 focus:ring-orange-500">
-                      <SelectValue placeholder="All Stock" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Stock</SelectItem>
-                      <SelectItem value="in-stock">In Stock</SelectItem>
-                      <SelectItem value="low-stock">Low Stock</SelectItem>
-                      <SelectItem value="out-of-stock">Out of Stock</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Quick Actions */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                    <span className="text-red-600">⚡</span>
-                    Quick Filters
-                  </label>
-                  <div className="flex flex-col gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setShowOutOfStockOnly(false);
-                        setShowLowStockOnly(!showLowStockOnly);
-                      }}
-                      className={`justify-start rounded-[2.0625rem] ${
-                        showLowStockOnly
-                          ? "bg-amber-100 text-amber-800 border border-amber-300"
-                          : "hover:bg-amber-50"
-                      }`}
-                    >
-                      <AlertTriangle className="h-4 w-4 mr-2" />
-                      Low Stock
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setShowLowStockOnly(false);
-                        setShowOutOfStockOnly(!showOutOfStockOnly);
-                      }}
-                      className={`justify-start rounded-[2.0625rem] ${
-                        showOutOfStockOnly
-                          ? "bg-red-100 text-red-800 border border-red-300"
-                          : "hover:bg-red-50"
-                      }`}
-                    >
-                      <PackageX className="h-4 w-4 mr-2" />
-                      Out of Stock
-                    </Button>
-                  </div>
-                </div>
               </div>
             </div>
           )}
 
-          {isLoading ? (
-            <div className="flex justify-center py-8">
-              <div className="animate-pulse text-center">
-                <p>Loading inventory...</p>
-              </div>
-            </div>
-          ) : filteredItems.length === 0 ? (
-            <div className="text-center py-8 border rounded-lg">
-              <p className="text-muted-foreground">No items found</p>
-            </div>
-          ) : (
-            <div className="rounded-[1.125rem] border bg-white shadow-sm">
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[800px]">
-                  <thead>
-                    <tr className="border-b bg-muted/50">
-                      <th className="h-14 px-4 text-left align-middle font-medium min-w-[200px]">
-                        Item
+          {/* Desktop Table View */}
+          {!isLoading && (
+             <div className="rounded-md border bg-white">
+              <div className="relative w-full overflow-auto">
+                <table className="w-full caption-bottom text-sm">
+                  <thead className="[&_tr]:border-b">
+                    <tr className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
+                      <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground w-[80px]">
+                        Image
                       </th>
-                      <th className="h-14 px-4 text-left align-middle font-medium min-w-[120px]">
+                      <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
+                        Name
+                      </th>
+                      <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
                         Category
                       </th>
-                      <th className="h-14 px-4 text-left align-middle font-medium min-w-[100px]">
+                      <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
                         Brand
                       </th>
-                      <th className="h-14 px-4 text-left align-middle font-medium min-w-[80px]">
+                      <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
                         Stock
                       </th>
-                      <th className="h-14 px-4 text-left align-middle font-medium min-w-[100px]">
+                      <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
                         Price
                       </th>
-                      <th className="h-14 px-4 text-left align-middle font-medium min-w-[160px]">
-                        Bottle Inventory
+                      <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
+                        Bottle States
                       </th>
-                      <th className="h-14 w-16"></th>
+                      <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground">
+                        Actions
+                      </th>
                     </tr>
                   </thead>
-                  <tbody>
-                    {filteredItems.map((item) => (
+                  <tbody className="[&_tr:last-child]:border-0">
+                    {branchItems.map((item) => (
                       <tr
                         key={item.id}
-                        className="border-b hover:bg-muted/30 transition-colors"
+                        className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"
                       >
-                        <td className="h-16 px-4 text-left align-middle">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-md border overflow-hidden bg-muted flex items-center justify-center">
-                              {item.imageUrl || item.image_url ? (
-                                <img
-                                  src={item.imageUrl || item.image_url || ""}
-                                  alt={item.name}
-                                  className="object-contain w-full h-full"
-                                  onError={(e) => {
-                                    (
-                                      e.target as HTMLImageElement
-                                    ).style.display = "none";
-                                  }}
-                                />
-                              ) : (
-                                <ImageIcon className="w-5 h-5 text-muted-foreground" />
-                              )}
-                            </div>
-                            <div>
-                              <div className="font-medium">{item.name}</div>
-                              {item.sku && (
-                                <div className="text-xs text-muted-foreground">
-                                  SKU: {item.sku}
-                                </div>
-                              )}
-                            </div>
+                        <td className="p-4 align-middle">
+                          <div className="relative h-10 w-10 overflow-hidden rounded-md border bg-muted">
+                             {item.imageUrl || item.image_url ? (
+                              <img
+                                src={item.imageUrl || item.image_url || ""}
+                                alt={item.name}
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <div className="flex h-full w-full items-center justify-center">
+                                <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                              </div>
+                            )}
                           </div>
                         </td>
-                        <td className="h-16 px-4 text-left align-middle">
-                          <Badge variant="secondary">
-                            {item.category || "Uncategorized"}
-                          </Badge>
+                        <td className="p-4 align-middle font-medium">
+                          {item.name}
                         </td>
-                        <td className="h-16 px-4 text-left align-middle">
-                          {item.brand || "-"}
+                        <td className="p-4 align-middle">{item.category}</td>
+                        <td className="p-4 align-middle">{item.brand}</td>
+                        <td className="p-4 align-middle">
+                          <div className="flex items-center gap-2">
+                             <span className="font-medium">{item.stock || 0}</span>
+                             {(item.stock || 0) === 0 ? (
+                               <Badge variant="destructive" className="h-5 px-1.5 text-[10px]">Out</Badge>
+                             ) : (item.stock || 0) <= (item.lowStockAlert || 5) ? (
+                               <Badge variant="outline" className="h-5 px-1.5 text-[10px] border-amber-500 text-amber-600 bg-amber-50">Low</Badge>
+                             ) : null}
+                          </div>
                         </td>
-                        <td className="h-16 px-4 text-left align-middle">
-                          {item.stock || 0}
-                        </td>
-                        <td className="h-16 px-4 text-left align-middle">
+                        <td className="p-4 align-middle">
                           OMR {item.price.toFixed(2)}
                         </td>
-                        <td className="h-16 px-4 text-left align-middle">
+                        <td className="p-4 align-middle">
                           {item.isOil && item.bottleStates ? (
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-col gap-1">
                               <div className="flex items-center gap-1">
                                 <OpenBottleIcon className="h-3 w-3 text-red-600" />
                                 <span>{item.bottleStates.open}</span>
@@ -1146,7 +998,7 @@ function BranchInventoryPage() {
                             <span className="text-muted-foreground">-</span>
                           )}
                         </td>
-                        <td className="h-16 px-4 text-right align-middle">
+                        <td className="p-4 align-middle text-right">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button
@@ -1185,10 +1037,12 @@ function BranchInventoryPage() {
         </div>
       )}
 
+      {/* Item modal for editing/adding */}
       <ItemModal
         open={isModalOpen}
         onOpenChange={handleItemModalOpenChange}
         item={editingItem || undefined}
+        onItemUpdated={handleItemUpdated}
       />
       <CategoryModal
         open={isCategoryModalOpen}
@@ -1199,12 +1053,5 @@ function BranchInventoryPage() {
   );
 }
 
-export default function BranchInventoryItemsPage() {
-  return (
-    <BranchProvider>
-      <ItemsProvider>
-        <BranchInventoryPage />
-      </ItemsProvider>
-    </BranchProvider>
-  );
-}
+// Default export is the Manager
+export default BranchInventoryManager;

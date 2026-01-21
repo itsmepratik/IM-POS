@@ -407,26 +407,56 @@ export const ItemsProvider = ({
         return null;
       }
 
+      // FIX: Pass location_id as the second argument, not just inside the object
       const newItem = await createItem({
         ...item,
         location_id: locationIdForInventory,
-      });
+      }, locationIdForInventory);
+      
       if (newItem) {
-        // Create initial batch if item has stock
-        const initialStock = newItem.stock || 0;
-        const costPrice = newItem.costPrice || 0;
-        
-        if (initialStock > 0) {
-          try {
-            await createInitialBatchForInventory(
-              newItem.id, // This is the inventory_id
-              costPrice,
-              initialStock
-            );
-            console.log(`Created initial batch for ${newItem.name} with stock: ${initialStock}`);
-          } catch (batchError) {
-            console.error("Error creating initial batch:", batchError);
-            // Don't fail the item creation, just log the error
+        // Handle batches explicitly
+        if (item.batches && item.batches.length > 0) {
+          console.log(`Processing ${item.batches.length} batches for new item ${newItem.name}`);
+          
+          // Create each batch from the provided array
+          for (const batch of item.batches) {
+            try {
+              // Handle potential mix of snake_case and camelCase from frontend forms
+              // Explicitly cast to any to access potential camelCase properties
+              const batchAny = batch as any;
+              
+              await addBatchService({
+                item_id: newItem.id,
+                purchase_date: batch.purchase_date || batchAny.purchaseDate || new Date().toISOString(),
+                cost_price: batch.cost_price || batchAny.costPrice || 0,
+                initial_quantity: batch.initial_quantity || batchAny.displayQuantity || batchAny.quantity || 0,
+                current_quantity: batch.current_quantity || batchAny.displayQuantity || batchAny.quantity || 0,
+                supplier_id: batch.supplier_id || null,
+                expiration_date: batch.expiration_date || batchAny.expirationDate || null,
+              }, locationIdForInventory); // FIX: Pass locationId
+              console.log("Added batch for new item");
+            } catch (err) {
+              console.error("Failed to add batch for new item:", err);
+            }
+          }
+        } else {
+          // Fallback: Create initial batch if item has stock but no specific batches defined
+          const initialStock = newItem.stock || 0;
+          const costPrice = newItem.costPrice || 0;
+          
+          if (initialStock > 0) {
+            try {
+              await createInitialBatchForInventory(
+                newItem.id, // This is the inventory_id/product_id
+                costPrice,
+                initialStock,
+                undefined // supplier
+              );
+              console.log(`Created initial batch for ${newItem.name} with stock: ${initialStock}`);
+            } catch (batchError) {
+              console.error("Error creating initial batch:", batchError);
+              // Don't fail the item creation, just log the error
+            }
           }
         }
         
@@ -462,7 +492,18 @@ export const ItemsProvider = ({
     updatedItem: Omit<Item, "id">
   ): Promise<Item | null> => {
     try {
-      const updated = await updateItemService(id, updatedItem);
+      // FIX: Resolve locationId for update
+      let locationIdForInventory = overrideLocationId || inventoryLocationId;
+      
+      // If we have a current location ref, use that as fallback
+      if (!locationIdForInventory && currentLocationIdRef.current) {
+        locationIdForInventory = currentLocationIdRef.current;
+      }
+
+      // If still no location, default to undefined which service might handle or fallback to sanaiya (but at least we tried)
+      // Ideally we should warn if strictly needed.
+      
+      const updated = await updateItemService(id, updatedItem, locationIdForInventory);
       if (updated) {
         setItems((prevItems) =>
           prevItems.map((item) => (item.id === id ? { ...updated } : item))
@@ -516,7 +557,13 @@ export const ItemsProvider = ({
         console.log("Item not found locally or remotely, attempting delete by ID anyway");
       }
 
-      const success = await deleteItemService(id);
+      // FIX: Resolve locationId for deletion
+      let locationIdForInventory = overrideLocationId || inventoryLocationId;
+      if (!locationIdForInventory && currentLocationIdRef.current) {
+         locationIdForInventory = currentLocationIdRef.current;
+      }
+
+      const success = await deleteItemService(id, locationIdForInventory);
       if (success) {
         setItems((prevItems) => prevItems.filter((item) => item.id !== id));
         toast({
@@ -590,7 +637,8 @@ export const ItemsProvider = ({
       };
       delete (duplicateData as any).id; // Remove id to create new item
 
-      const duplicatedItem = await createItem(duplicateData);
+      // FIX: Pass locationId as second argument
+      const duplicatedItem = await createItem(duplicateData, locationIdForInventory);
       if (duplicatedItem) {
         setItems((prev) => {
           // Check if item already exists (from real-time update)
@@ -945,10 +993,16 @@ export const ItemsProvider = ({
     >
   ): Promise<boolean> => {
     try {
+      // FIX: Resolve locationId for batch creation
+      let locationIdForInventory = overrideLocationId || inventoryLocationId;
+      if (!locationIdForInventory && currentLocationIdRef.current) {
+         locationIdForInventory = currentLocationIdRef.current;
+      }
+      
       const newBatch = await addBatchService({
         ...batchData,
         item_id: itemId,
-      });
+      }, locationIdForInventory);
 
       if (newBatch) {
         // Refresh items to get updated batch data

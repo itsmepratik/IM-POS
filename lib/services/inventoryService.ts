@@ -1031,6 +1031,19 @@ export const createItem = async (
           closed_bottles_stock: item.bottleStates?.closed || 0,
         },
       });
+
+      // CRITICAL: Rollback product creation to prevent orphan products without inventory
+      // This ensures atomicity: either both exist or neither
+      console.log("Rolling back product creation due to inventory error...");
+      const { error: deleteError } = await supabase
+        .from("products")
+        .delete()
+        .eq("id", productData.id);
+        
+      if (deleteError) {
+        console.error("CRITICAL: Failed to rollback product creation!", deleteError);
+      }
+
       return null;
     }
 
@@ -1191,11 +1204,14 @@ export const updateItem = async (
 
     // Update inventory
     const inventoryUpdates: any = {};
-    if (updates.stock !== undefined)
-      inventoryUpdates.standard_stock = updates.stock;
-    if (updates.price !== undefined)
-      inventoryUpdates.selling_price =
-        updates.price && updates.price > 0 ? updates.price : null;
+    if (updates.stock !== undefined) {
+      const stockNum = typeof updates.stock === 'string' ? Number(updates.stock) : updates.stock;
+      inventoryUpdates.standard_stock = isNaN(stockNum) ? 0 : stockNum;
+    }
+    if (updates.price !== undefined) {
+      const priceNum = typeof updates.price === 'string' ? Number(updates.price) : updates.price;
+      inventoryUpdates.selling_price = !isNaN(priceNum) && priceNum > 0 ? priceNum : null;
+    }
     // Note: is_battery, battery_state columns don't exist in inventory table
     if (updates.bottleStates?.open !== undefined)
       inventoryUpdates.open_bottles_stock = updates.bottleStates.open;
@@ -2154,9 +2170,15 @@ export const addBatch = async (
         supplier: batch.supplier_id, // Map supplier_id to supplier column
         purchase_date: batch.purchase_date,
         // expiration_date: batch.expiration_date, // Column does not exist in DB
-        cost_price: batch.cost_price,
-        quantity_received: batch.initial_quantity,
-        stock_remaining: batch.current_quantity,
+        cost_price: batch.cost_price !== undefined && batch.cost_price !== null && !isNaN(Number(batch.cost_price))
+          ? Number(batch.cost_price)
+          : null,
+        quantity_received: batch.initial_quantity !== undefined && batch.initial_quantity !== null && !isNaN(Number(batch.initial_quantity))
+          ? Number(batch.initial_quantity)
+          : 0,
+        stock_remaining: batch.current_quantity !== undefined && batch.current_quantity !== null && !isNaN(Number(batch.current_quantity))
+          ? Number(batch.current_quantity)
+          : 0,
         batch_number: 0 // logic handling batch number should be db trigger based or explicit
       })
       .select()
@@ -2199,12 +2221,18 @@ export const updateBatch = async (
     //   batchUpdates.expiration_date = updates.expiration_date; // Column does not exist
     if (updates.supplier_id !== undefined)
       batchUpdates.supplier = updates.supplier_id; // Map to supplier column
-    if (updates.cost_price !== undefined)
-      batchUpdates.cost_price = updates.cost_price;
-    if (updates.initial_quantity !== undefined)
-      batchUpdates.quantity_received = updates.initial_quantity;
-    if (updates.current_quantity !== undefined)
-      batchUpdates.stock_remaining = updates.current_quantity;
+    if (updates.cost_price !== undefined) {
+      const costPrice = Number(updates.cost_price);
+      batchUpdates.cost_price = !isNaN(costPrice) ? costPrice : null;
+    }
+    if (updates.initial_quantity !== undefined) {
+      const initialQty = Number(updates.initial_quantity);
+      batchUpdates.quantity_received = !isNaN(initialQty) ? initialQty : 0;
+    }
+    if (updates.current_quantity !== undefined) {
+      const currentQty = Number(updates.current_quantity);
+      batchUpdates.stock_remaining = !isNaN(currentQty) ? currentQty : 0;
+    }
 
     const { data, error } = await supabase
       .from("batches")
