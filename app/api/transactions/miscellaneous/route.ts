@@ -39,8 +39,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    console.log(`✅ Cashier validated and converted to UUID: ${staffUuid}`);
-
     // Derive locationId from shopId if shopId is provided
     let actualLocationId = locationId;
     if (shopId) {
@@ -52,9 +50,6 @@ export async function POST(req: NextRequest) {
 
       if (shopData) {
         actualLocationId = shopData.locationId;
-        console.log(
-          `Derived locationId ${actualLocationId} from shopId ${shopId}`
-        );
       } else {
         return NextResponse.json(
           {

@@ -198,16 +198,6 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated }: ItemModal
       );
 
       // Log the item data to help debug
-      console.log("Raw item data from database:", item);
-      console.log(
-        "Manufacturing date from database:",
-        item.manufacturingDate,
-        typeof item.manufacturingDate
-      );
-      console.log(
-        "Manufacturing date validation:",
-        getDateValidationInfo(item.manufacturingDate)
-      );
 
       // Map backend field names to frontend field names
       const typeName = item.type || "";
@@ -247,18 +237,6 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated }: ItemModal
         types: item.types || [],
         selectedTypeIds: item.types?.map(t => t.id) || (item.type_id ? [item.type_id] : []),
       };
-
-      console.log("Transformed form data:", {
-        ...formDataObj,
-        isOil: formDataObj.isOil,
-        bottleStates: formDataObj.bottleStates,
-        stock: formDataObj.stock,
-        manufacturingDate: formDataObj.manufacturingDate,
-        manufacturingDateType: typeof formDataObj.manufacturingDate,
-        formattedManufacturingDate: formatDateForInput(
-          formDataObj.manufacturingDate
-        ),
-      });
 
       setFormData(formDataObj as ExtendedItem);
 
@@ -489,7 +467,6 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated }: ItemModal
     e.preventDefault();
 
     // Log the current form data to help with debugging
-    console.log("Form data before submission:", formData);
 
     // For oil products, update the stock to be the sum of open and closed bottles
     const updatedFormData = { ...formData };
@@ -499,13 +476,6 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated }: ItemModal
       const openBottles = updatedFormData.bottleStates.open || 0;
       const closedBottles = updatedFormData.bottleStates.closed || 0;
       updatedFormData.stock = openBottles + closedBottles;
-
-      console.log("Processing oil product:", {
-        openBottles,
-        closedBottles,
-        totalStock: updatedFormData.stock,
-        bottleStates: updatedFormData.bottleStates,
-      });
     } else if (updatedFormData.batches && updatedFormData.batches.length > 0) {
       // For items with batches, update the stock to be the sum of batch quantities
       updatedFormData.stock = updatedFormData.batches.reduce(
@@ -589,24 +559,11 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated }: ItemModal
       isOil: updatedFormData.isOil, 
     };
 
-    console.log("Saving item data:", JSON.stringify(itemToSave, null, 2));
-
     setIsSubmitting(true);
     try {
       let result: Item | null = null;
       if (item) {
         // When updating, explicitly log key oil-related fields to help debug
-        console.log("Updating existing item:", {
-          id: item.product_id || item.id,
-          original_id: item.id,
-          product_id: item.product_id,
-          isOil: itemToSave.isOil,
-          bottleStates: itemToSave.bottleStates,
-          stock: itemToSave.stock,
-          description: itemToSave.description,
-          category_id: itemToSave.category_id,
-          brand_id: itemToSave.brand_id,
-        });
         result = await updateItem(item.product_id || item.id, itemToSave);
       } else {
         result = await addItem(itemToSave);
@@ -838,13 +795,9 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated }: ItemModal
     }
 
     try {
-      console.log(
-        `Attempting to delete batch ${batchId} for item ${item.id}...`
-      );
       const success = await deleteBatch(item.id, batchId);
 
       if (success) {
-        console.log(`Successfully deleted batch ${batchId}`);
 
         // Update local formData state to reflect the deleted batch
         const currentBatches = formData.batches || [];
@@ -1036,10 +989,6 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated }: ItemModal
                                       }
                                     }
 
-                                    console.log(
-                                      `Selected category: ${value}, ID: ${categoryId}`
-                                    );
-
                                     // Auto-set isOil and show volumes tab when Lubricants is selected
                                     const isLubricants = value === "Lubricants";
 
@@ -1104,10 +1053,6 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated }: ItemModal
                                         }
                                       }
                                     }
-
-                                    console.log(
-                                      `Selected brand: ${value}, ID: ${brandId}`
-                                    );
 
                                     setFormData({
                                       ...formData,
@@ -1303,11 +1248,6 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated }: ItemModal
                                 value={
                                   formData.manufacturingDate
                                     ? (() => {
-                                        console.log(
-                                          "Form data manufacturing date:",
-                                          formData.manufacturingDate,
-                                          typeof formData.manufacturingDate
-                                        );
                                         // Ensure it's in the correct format
                                         if (
                                           typeof formData.manufacturingDate ===
@@ -1325,10 +1265,6 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated }: ItemModal
                                             const formatted = date
                                               .toISOString()
                                               .split("T")[0];
-                                            console.log(
-                                              "Formatted date for input:",
-                                              formatted
-                                            );
                                             return formatted;
                                           }
                                         }
@@ -1337,10 +1273,6 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated }: ItemModal
                                     : ""
                                 }
                                 onChange={(value) => {
-                                  console.log(
-                                    "Manufacturing date changed:",
-                                    value
-                                  );
                                   setFormData({
                                     ...formData,
                                     manufacturingDate: value,
@@ -1541,10 +1473,6 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated }: ItemModal
                               id="description"
                               value={formData.notes || ""}
                               onChange={(e) => {
-                                console.log(
-                                  "Description changed:",
-                                  e.target.value
-                                );
                                 setFormData({
                                   ...formData,
                                   notes: e.target.value,
@@ -1594,13 +1522,6 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated }: ItemModal
                                         closed: closedValue,
                                       };
 
-                                      console.log("Updating open bottles:", {
-                                        old: formData.bottleStates?.open,
-                                        new: openValue,
-                                        newBottleStates,
-                                        stock: openValue + closedValue,
-                                      });
-
                                       // Update both bottle states and stock
                                       setFormData((prev) => {
                                         const updated = {
@@ -1610,10 +1531,6 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated }: ItemModal
                                           // Ensure backend fields are also updated for is_oil items
                                           is_oil: prev.isOil, // Keep backend field synced
                                         };
-                                        console.log(
-                                          "Updated form data:",
-                                          updated
-                                        );
                                         return updated;
                                       });
                                     }}
@@ -1649,13 +1566,6 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated }: ItemModal
                                         closed: closedValue,
                                       };
 
-                                      console.log("Updating closed bottles:", {
-                                        old: formData.bottleStates?.closed,
-                                        new: closedValue,
-                                        newBottleStates,
-                                        stock: openValue + closedValue,
-                                      });
-
                                       // Update both bottle states and stock
                                       setFormData((prev) => {
                                         const updated = {
@@ -1665,10 +1575,6 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated }: ItemModal
                                           // Ensure backend fields are also updated for is_oil items
                                           is_oil: prev.isOil, // Keep backend field synced
                                         };
-                                        console.log(
-                                          "Updated form data:",
-                                          updated
-                                        );
                                         return updated;
                                       });
                                     }}

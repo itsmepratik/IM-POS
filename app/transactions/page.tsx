@@ -1031,11 +1031,6 @@ export default function TransactionsPage() {
 
     // Debug: Log first transaction to check customer data
     if (apiTransactions.length > 0) {
-      console.log("📊 Frontend - First transaction data:", {
-        id: apiTransactions[0].id,
-        customer_id: apiTransactions[0].customer_id,
-        customers: apiTransactions[0].customers,
-      });
     }
 
     return apiTransactions.map((t) => {

@@ -18,7 +18,7 @@ import {
 } from "@/lib/utils/imageCache";
 import { ImageErrorFallback } from "@/components/ui/image-error-boundary";
 import { useImagePreloader } from "@/lib/hooks/useImagePreloader";
-import { useNotification } from "@/app/notification-context";
+import { useNotification } from "@/lib/contexts/NotificationContext";
 
 interface Filter {
   id: number;

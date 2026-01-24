@@ -89,13 +89,6 @@ export function testDateFormatting(): DateTestSuiteResult {
       };
 
       results.push(result);
-
-      console.log(`✅ ${testCase.name}:`, {
-        input: testCase.input,
-        formatted,
-        valid: isValid,
-        validation,
-      });
     } catch (error) {
       const result: DateTestResult = {
         input: testCase.input,
@@ -141,7 +134,6 @@ export function testManufacturingDateField(): Promise<{
   details?: any;
 }> {
   return new Promise((resolve) => {
-    console.log("🧪 Testing manufacturing date field functionality...");
 
     try {
       const testSuite = testDateFormatting();
@@ -191,57 +183,19 @@ export function validateManufacturingDate(
  * Run comprehensive date tests and log results to console
  */
 export function runDateTests(): void {
-  console.log("🚀 Running comprehensive manufacturing date tests...");
 
   const testSuite = testDateFormatting();
-
-  console.log("\n📊 Test Summary:");
-  console.log(`Total Tests: ${testSuite.totalTests}`);
-  console.log(`Passed: ${testSuite.passedTests}`);
-  console.log(`Failed: ${testSuite.failedTests}`);
-  console.log(
-    `Success Rate: ${(
-      (testSuite.passedTests / testSuite.totalTests) *
-      100
-    ).toFixed(1)}%`
-  );
-
-  console.log("\n📈 Date Statistics:");
-  console.log(`Valid Dates: ${testSuite.summary.validDates}`);
-  console.log(`Invalid Dates: ${testSuite.summary.invalidDates}`);
-  console.log(`Future Dates: ${testSuite.summary.futureDates}`);
-  console.log(`Old Dates: ${testSuite.summary.oldDates}`);
-
-  console.log("\n🔍 Detailed Results:");
   testSuite.results.forEach((result, index) => {
     const status = result.success ? "✅" : "❌";
-    console.log(`${status} Test ${index + 1}:`, {
-      input: result.input,
-      formatted: result.formatted,
-      valid: result.isValid,
-      message: result.validation?.message || "No validation info",
-    });
   });
-
-  console.log(
-    "\n🎯 Overall Status:",
-    testSuite.passedTests === testSuite.totalTests ? "SUCCESS" : "ISSUES FOUND"
-  );
 }
 
 /**
  * Debug helper function for browser console
  */
 export function debugManufacturingDate(): void {
-  console.log("🔧 Manufacturing Date Debug Helper");
-  console.log("Available functions:");
-  console.log("- runDateTests() - Run comprehensive date tests");
-  console.log("- validateManufacturingDate(date) - Validate a specific date");
-  console.log("- formatDateForInput(date) - Format date for HTML input");
-  console.log("- getDateValidationInfo(date) - Get detailed validation info");
 
   // Run tests automatically
-  console.log("\n📋 Running tests...");
   runDateTests();
 }
 
@@ -251,14 +205,11 @@ if (typeof window !== "undefined") {
   (window as any).testManufacturingDate = testManufacturingDateField;
   (window as any).validateManufacturingDate = validateManufacturingDate;
   (window as any).checkDatabaseDates = async () => {
-    console.log("🔍 Checking manufacturing dates in database...");
     const { verifyDatabaseConnection, getSampleData } = await import(
       "./databaseVerification"
     );
     const connectionResult = await verifyDatabaseConnection();
-    console.log("Database connection result:", connectionResult);
     const sampleData = await getSampleData();
-    console.log("Sample data:", sampleData);
     return { connectionResult, sampleData };
   };
 
@@ -284,7 +235,6 @@ if (typeof window !== "undefined") {
   };
 
   (window as any).testManufacturingDateDisplay = async () => {
-    console.log("🧪 Testing manufacturing date display functionality...");
 
     // Test database connection and data
     const dbResult = await (window as any).checkDatabaseDates();
@@ -296,11 +246,8 @@ if (typeof window !== "undefined") {
     try {
       const { fetchItems } = await import("../services/inventoryService");
       const items = await fetchItems("sanaiya");
-      console.log("📦 Items fetched:", items.length);
 
       const itemsWithDates = items.filter((item) => item.manufacturingDate);
-      console.log("📦 Items with manufacturing dates:", itemsWithDates.length);
-      console.log("📦 Sample items with dates:", itemsWithDates.slice(0, 3));
 
       return {
         success:

@@ -40,26 +40,12 @@ export async function verifyDatabaseConnection(): Promise<DatabaseVerificationRe
     }
 
     // Check if tables exist and have manufacturing date data
-    console.log(
-      "🔍 Verifying database connection and manufacturing date data..."
-    );
     const [brandsResult, productsResult] = await Promise.all([
       supabase.from("brands").select("*", { count: "exact" }),
       supabase
         .from("products")
         .select("id, name, manufacturing_date", { count: "exact" }),
     ]);
-
-    console.log("📊 Database verification results:");
-    console.log("- Brands table exists:", !brandsResult.error);
-    console.log("- Products table exists:", !productsResult.error);
-    console.log("- Total brands:", brandsResult.count);
-    console.log("- Total products:", productsResult.count);
-    console.log(
-      "- Products with manufacturing dates:",
-      productsResult.data?.filter((p) => p.manufacturing_date).length || 0
-    );
-    console.log("- Sample products:", productsResult.data?.slice(0, 3));
 
     const brandsWithImages =
       brandsResult.data?.filter(
@@ -106,14 +92,6 @@ export async function getSampleData(): Promise<{
         .limit(5),
     ]);
 
-    console.log("🔍 Database sample data fetched:");
-    console.log("📦 Products result:", productsResult.data);
-    console.log("📦 Products error:", productsResult.error);
-    console.log(
-      "📦 Products with manufacturing dates:",
-      productsResult.data?.filter((p) => p.manufacturing_date)
-    );
-
     const brandImages: string[] = [];
     brandsResult.data?.forEach((brand) => {
       if (brand.images) {
@@ -138,14 +116,8 @@ export async function getSampleData(): Promise<{
         productImages.push(product.imageUrl);
       }
       if (product.manufacturing_date) {
-        console.log(
-          `📅 Product ${product.name} has manufacturing date:`,
-          product.manufacturing_date,
-          typeof product.manufacturing_date
-        );
         manufacturingDates.push(product.manufacturing_date);
       } else {
-        console.log(`📅 Product ${product.name} has no manufacturing date`);
       }
     });
 

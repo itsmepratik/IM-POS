@@ -149,8 +149,6 @@ export async function POST(req: Request) {
         updateData.category_id = body.category_id;
       }
 
-      console.log("About to update product with data:", updateData);
-
       const { error: updateError } = await supabase
         .from("products")
         .update(updateData)
@@ -287,13 +285,8 @@ export async function POST(req: Request) {
     }
 
     // 3) Lubricant volumes upsert - now with proper upsert logic
-    console.log("🔍 Volume processing check:");
-    console.log("- isLubricant:", isLubricant);
-    console.log("- body.volumes:", body.volumes);
-    console.log("- volumes length:", body.volumes?.length || 0);
 
     if (isLubricant && body.volumes && body.volumes.length > 0) {
-      console.log("✅ Processing volumes for lubricant product");
 
       // Get existing volumes to determine what to update/insert/delete
       const { data: existingVolumes, error: fetchVolumesError } = await supabase
@@ -308,8 +301,6 @@ export async function POST(req: Request) {
           { status: 500 }
         );
       }
-
-      console.log("📦 Existing volumes:", existingVolumes);
 
       // Create a map of existing volumes by volume_description for easy lookup
       const existingVolumeMap = new Map();
@@ -330,9 +321,6 @@ export async function POST(req: Request) {
         if (existingVolume) {
           // Update existing volume if price changed
           if (existingVolume.selling_price !== price) {
-            console.log(
-              `🔄 Updating volume ${volumeDescription}: ${existingVolume.selling_price} → ${price}`
-            );
             const { error: updateError } = await supabase
               .from("product_volumes")
               .update({ selling_price: price })
@@ -346,11 +334,9 @@ export async function POST(req: Request) {
               );
             }
           } else {
-            console.log(`✅ Volume ${volumeDescription} unchanged`);
           }
         } else {
           // Insert new volume
-          console.log(`➕ Adding new volume: ${volumeDescription} at ${price}`);
           const { error: insertError } = await supabase
             .from("product_volumes")
             .insert({
@@ -376,7 +362,6 @@ export async function POST(req: Request) {
       );
       
       if (volumesToDelete.length > 0) {
-        console.log("🗑️ Removing volumes:", volumesToDelete.map(v => v.volume_description));
         const { error: deleteError } = await supabase
           .from("product_volumes")
           .delete()
@@ -387,12 +372,7 @@ export async function POST(req: Request) {
         }
       }
       */
-
-      console.log("✅ Successfully processed volumes");
     } else {
-      console.log(
-        "⏭️ Skipping volume processing - not a lubricant or no volumes"
-      );
     }
 
     // 4) Initial batch for new product

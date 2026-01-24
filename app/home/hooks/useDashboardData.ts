@@ -371,8 +371,6 @@ export function useDashboardData(): UseDashboardDataReturn {
       // Usually leaderboards are better over a period (e.g. 30 days or the selected filter).
       // However, the dashboard has a global date filter `dateRange`.
       
-      console.log('Fetching top products for range:', dateRange.start, dateRange.end);
-      
       const products = await getTopSellingProducts(dateRange.start, dateRange.end, shopId || undefined);
       topProducts = products;
       

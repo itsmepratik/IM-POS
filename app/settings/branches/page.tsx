@@ -38,7 +38,7 @@ import {
 import { BranchProvider, useBranch } from "@/lib/contexts/BranchContext";
 import { type Branch, updateShop } from "@/lib/services/inventoryService";
 import { toast } from "@/components/ui/use-toast";
-import { useUser } from "../../user-context";
+import { useUser } from "@/lib/contexts/UserContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 function ShopForm({
@@ -269,7 +269,7 @@ function ShopForm({
 }
 
 // Use any to bypass strict type checks for DbBranch vs Branch
-function ShopCard({ shop }: { shop: any }) {
+function ShopCard({ shop }: { shop: Branch }) {
   const { currentBranch, selectBranch, refreshBranches } = useBranch();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);

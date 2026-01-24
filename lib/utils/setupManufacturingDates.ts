@@ -23,7 +23,6 @@ export interface SetupResult {
  */
 export async function setupSampleManufacturingDates(): Promise<SetupResult> {
   try {
-    console.log("🔧 Setting up sample manufacturing dates...");
 
     // Check current state
     const { data: products, error: fetchError } = await supabase
@@ -37,8 +36,6 @@ export async function setupSampleManufacturingDates(): Promise<SetupResult> {
         message: `Failed to fetch products: ${fetchError.message}`,
       };
     }
-
-    console.log("📦 Current products state:", products);
 
     // Generate sample manufacturing dates (between 1-5 years ago)
     const sampleDates = [];
@@ -63,8 +60,6 @@ export async function setupSampleManufacturingDates(): Promise<SetupResult> {
       }
     }
 
-    console.log("📅 Generated manufacturing dates:", sampleDates);
-
     if (updates.length === 0) {
       return {
         success: true,
@@ -87,10 +82,6 @@ export async function setupSampleManufacturingDates(): Promise<SetupResult> {
         message: `Failed to update products: ${updateError.message}`,
       };
     }
-
-    console.log(
-      `✅ Successfully updated ${updates.length} products with manufacturing dates`
-    );
 
     return {
       success: true,
@@ -115,7 +106,6 @@ export async function setupSampleManufacturingDates(): Promise<SetupResult> {
  */
 export async function clearManufacturingDates(): Promise<SetupResult> {
   try {
-    console.log("🧹 Clearing all manufacturing dates...");
 
     const { error } = await supabase
       .from("products")
@@ -169,12 +159,6 @@ export async function checkManufacturingDateCoverage(): Promise<{
       totalProducts > 0 ? (productsWithDates / totalProducts) * 100 : 0;
 
     const sampleProducts = products?.slice(0, 5) || [];
-
-    console.log("📊 Manufacturing date coverage:");
-    console.log(`- Total products: ${totalProducts}`);
-    console.log(`- Products with dates: ${productsWithDates}`);
-    console.log(`- Coverage: ${coveragePercentage.toFixed(1)}%`);
-    console.log("- Sample products:", sampleProducts);
 
     return {
       totalProducts,

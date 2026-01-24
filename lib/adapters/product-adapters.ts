@@ -320,13 +320,6 @@ export function itemsToUnifiedProducts(
     const baseItem = productItems[0];
     
     // Debug logging for merged inventory
-    console.log(`[itemsToUnifiedProducts] Merging ${productItems.length} inventory records for product: ${baseItem.name} (${productId})`, {
-      inventoryRecords: productItems.map(item => ({
-        totalOpenVolume: item.totalOpenVolume,
-        openBottlesStock: item.bottleStates?.open,
-        closedBottlesStock: item.bottleStates?.closed,
-      })),
-    });
     
     const mergedInventory: ProductInventory = {
       locationId,

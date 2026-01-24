@@ -51,17 +51,14 @@ try {
       publications: "alltables", // Enable logical replication awareness
       // Enhanced error handling
       onnotice: (notice: any) => {
-        console.log("Database notice:", notice);
       },
       // Connection event handling
       onclose: () => {
-        console.log("Database connection closed");
         connectionHealth.isHealthy = false;
         // Trigger immediate health check attempt
         setTimeout(() => void performHealthCheck(), 1000);
       },
       onparameter: (key: string, value: string) => {
-        console.log(`Database parameter ${key}: ${value}`);
       },
     });
 
@@ -75,7 +72,6 @@ try {
         connectionHealth.isHealthy = true;
         connectionHealth.consecutiveFailures = 0;
         connectionHealth.lastCheck = Date.now();
-        console.log("✅ Database health check passed");
       } catch (error) {
         connectionHealth.isHealthy = false;
         connectionHealth.consecutiveFailures++;

@@ -195,7 +195,6 @@ export default function Transfer2Page() {
   // Separate effect to log locations after they've been updated
   useEffect(() => {
     if (locations.length > 0) {
-      console.log("Transfer 2.0 - Current locations available:", locations);
     }
   }, [locations]);
 
@@ -381,22 +380,6 @@ export default function Transfer2Page() {
     );
 
     try {
-      console.log("🔄 Submitting transfer order:", {
-        transferId,
-        sourceLocation,
-        destinationLocation,
-        staffId: selectedStaff.id,
-        staffName: selectedStaff.name,
-        itemsCount: posCart.length,
-        totalAmount,
-        items: posCart.map(item => ({
-          id: item.id,
-          originalId: item.originalId,
-          name: item.name,
-          quantity: item.quantity,
-          price: item.price,
-        })),
-      });
 
       // Get actual location names for notes
       // Map "sanaiya" to "loc0" for lookup since locations array uses "loc0" as ID
@@ -405,15 +388,6 @@ export default function Transfer2Page() {
                                   (sourceLocation === "sanaiya" ? "Sanaiya (Main)" : "Unknown");
       const destinationLocationName = locations.find((l) => l.id === destinationLocation)?.name || "Unknown";
       const transferNotes = `Stock transfer between ${sourceLocationName} to ${destinationLocationName}`;
-
-      console.log("📝 Transfer notes from frontend:", {
-        sourceLocation,
-        sourceLocationIdForLookup,
-        sourceLocationName,
-        destinationLocation,
-        destinationLocationName,
-        transferNotes,
-      });
 
       // Create stock transfer transaction in the database
       const response = await fetch("/api/stock-transfer", {
@@ -460,8 +434,6 @@ export default function Transfer2Page() {
 
       const result = await response.json();
 
-      console.log("✅ Transfer transaction created:", result);
-
       if (!result.ok) {
         console.error("❌ Transaction creation failed:", result);
         throw new Error(
@@ -507,7 +479,7 @@ export default function Transfer2Page() {
         title: "Transfer Order Submitted",
         description: `Transfer ${transferId} has been submitted successfully. Transaction ${result.transaction?.referenceNumber || 'created'} has been recorded.`,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("❌ Error submitting transfer:", error);
       toast({
         title: "Error",

@@ -47,13 +47,6 @@ export function CustomerForm({
   onSubmit,
   loading = false,
 }: CustomerFormProps) {
-  console.log("🔄 CustomerForm: Component rendered", {
-    isOpen,
-    hasCustomer: !!customer,
-    customerId: customer?.id,
-    loading,
-    timestamp: new Date().toISOString(),
-  });
 
   // Helper function to convert address object to string
   const addressToString = (address: any): string => {
@@ -101,11 +94,6 @@ export function CustomerForm({
 
   // Reset form data when customer prop changes
   useEffect(() => {
-    console.log("🔄 CustomerForm: Customer prop changed", {
-      customerId: customer?.id,
-      customerName: customer?.name,
-      timestamp: new Date().toISOString(),
-    });
     setFormData({
       name: customer?.name || "",
       email: customer?.email || "",
@@ -117,20 +105,13 @@ export function CustomerForm({
   }, [customer]);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    console.log("📝 CustomerForm: Form submission started", {
-      formData: { ...formData, vehicles: formData.vehicles.length },
-      isSubmitting,
-      timestamp: new Date().toISOString(),
-    });
 
     e.preventDefault();
     if (isSubmitting) {
-      console.log("⚠️ CustomerForm: Form already submitting, ignoring");
       return;
     }
 
     setIsSubmitting(true);
-    console.log("🔄 CustomerForm: Set isSubmitting to true");
 
     try {
       // Convert address string back to object before submitting
@@ -138,31 +119,17 @@ export function CustomerForm({
         ...formData,
         address: stringToAddress(formData.address as string),
       };
-      console.log("📤 CustomerForm: Calling onSubmit with data", {
-        submissionData: {
-          ...submissionData,
-          vehicles: submissionData.vehicles.length,
-        },
-      });
 
       await onSubmit(submissionData);
-      console.log("✅ CustomerForm: onSubmit completed successfully");
-
-      console.log("🚪 CustomerForm: Calling onClose");
       onClose();
     } catch (error) {
       console.error("❌ CustomerForm: Error submitting form:", error);
     } finally {
-      console.log("🔄 CustomerForm: Setting isSubmitting to false");
       setIsSubmitting(false);
     }
   };
 
   const addVehicle = () => {
-    console.log("🚗 CustomerForm: Adding new vehicle", {
-      currentVehicleCount: formData.vehicles.length,
-      timestamp: new Date().toISOString(),
-    });
 
     setFormData((prev) => {
       const newVehicles = [
@@ -175,10 +142,6 @@ export function CustomerForm({
           plateNumber: "",
         },
       ];
-      console.log("🔄 CustomerForm: Vehicle added", {
-        newVehicleCount: newVehicles.length,
-        newVehicleId: newVehicles[newVehicles.length - 1].id,
-      });
       return {
         ...prev,
         vehicles: newVehicles,
@@ -187,12 +150,6 @@ export function CustomerForm({
   };
 
   const updateVehicle = (id: string, field: keyof Vehicle, value: string) => {
-    console.log("🔧 CustomerForm: Updating vehicle", {
-      vehicleId: id,
-      field,
-      value,
-      timestamp: new Date().toISOString(),
-    });
 
     setFormData((prev) => ({
       ...prev,
@@ -203,17 +160,9 @@ export function CustomerForm({
   };
 
   const removeVehicle = (id: string) => {
-    console.log("🗑️ CustomerForm: Removing vehicle", {
-      vehicleId: id,
-      currentVehicleCount: formData.vehicles.length,
-      timestamp: new Date().toISOString(),
-    });
 
     setFormData((prev) => {
       const newVehicles = prev.vehicles.filter((vehicle) => vehicle.id !== id);
-      console.log("🔄 CustomerForm: Vehicle removed", {
-        newVehicleCount: newVehicles.length,
-      });
       return {
         ...prev,
         vehicles: newVehicles,
@@ -225,13 +174,7 @@ export function CustomerForm({
     <Dialog
       open={isOpen}
       onOpenChange={(open) => {
-        console.log("🚪 CustomerForm: Dialog onOpenChange", {
-          open,
-          isOpen,
-          timestamp: new Date().toISOString(),
-        });
         if (!open) {
-          console.log("🚪 CustomerForm: Dialog closing, calling onClose");
           onClose();
         }
       }}
@@ -260,11 +203,6 @@ export function CustomerForm({
                       id="name"
                       value={formData.name}
                       onChange={(e) => {
-                        console.log("📝 CustomerForm: Name field changed", {
-                          newValue: e.target.value,
-                          previousValue: formData.name,
-                          timestamp: new Date().toISOString(),
-                        });
                         setFormData({ ...formData, name: e.target.value });
                       }}
                       placeholder="John Doe"
@@ -278,11 +216,6 @@ export function CustomerForm({
                       id="email"
                       value={formData.email}
                       onChange={(e) => {
-                        console.log("📝 CustomerForm: Email field changed", {
-                          newValue: e.target.value,
-                          previousValue: formData.email,
-                          timestamp: new Date().toISOString(),
-                        });
                         setFormData({ ...formData, email: e.target.value });
                       }}
                       placeholder="customer@example.com"
@@ -296,11 +229,6 @@ export function CustomerForm({
                       id="phone"
                       value={formData.phone}
                       onChange={(e) => {
-                        console.log("📝 CustomerForm: Phone field changed", {
-                          newValue: e.target.value,
-                          previousValue: formData.phone,
-                          timestamp: new Date().toISOString(),
-                        });
                         setFormData({ ...formData, phone: e.target.value });
                       }}
                       placeholder="(555) 123-4567"
@@ -314,11 +242,6 @@ export function CustomerForm({
                       id="address"
                       value={formData.address}
                       onChange={(e) => {
-                        console.log("📝 CustomerForm: Address field changed", {
-                          newValue: e.target.value,
-                          previousValue: formData.address,
-                          timestamp: new Date().toISOString(),
-                        });
                         setFormData({ ...formData, address: e.target.value });
                       }}
                       placeholder="Customer address"
@@ -332,11 +255,6 @@ export function CustomerForm({
                       id="notes"
                       value={formData.notes}
                       onChange={(e) => {
-                        console.log("📝 CustomerForm: Notes field changed", {
-                          newValue: e.target.value,
-                          previousValue: formData.notes,
-                          timestamp: new Date().toISOString(),
-                        });
                         setFormData({ ...formData, notes: e.target.value });
                       }}
                       placeholder="Additional notes about the customer"

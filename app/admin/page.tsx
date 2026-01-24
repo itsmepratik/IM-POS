@@ -1,6 +1,6 @@
 "use client";
 
-import { useUser } from "@/app/user-context";
+import { useUser } from "@/lib/contexts/UserContext";
 import { RouteProtection } from "@/components/route-protection";
 import { Layout } from "@/components/layout";
 import {

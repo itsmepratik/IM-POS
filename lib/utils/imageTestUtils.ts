@@ -28,7 +28,6 @@ export interface ImageTestResult {
  */
 export async function testImageFunctionality(): Promise<ImageTestResult> {
   try {
-    console.log("🧪 Testing image functionality...");
 
     // Test database connection
     const dbResult = await verifyDatabaseConnection();
@@ -91,8 +90,6 @@ export function logImageSystemStatus() {
   const cacheStats = getCacheStats();
 
   console.group("📊 Image System Status");
-  console.log("Cache Stats:", cacheStats);
-  console.log("Valid URL function:", typeof isValidImageUrl);
   console.groupEnd();
 
   return cacheStats;

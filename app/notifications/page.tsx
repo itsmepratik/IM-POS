@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useNotification } from "../notification-context";
+import { useNotification } from "@/lib/contexts/NotificationContext";
 import { Layout } from "@/components/layout";
 import { Bell, X, CheckCheck, Inbox, ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";

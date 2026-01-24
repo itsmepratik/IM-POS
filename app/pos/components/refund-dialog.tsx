@@ -28,7 +28,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Search, ArrowLeft, Check, AlertCircle, Printer, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader } from "@/src/components/ui/shadcn-io/ai/loader";
+import { Loader } from "@/components/ui/loader";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui/use-toast";
 import { BillComponent } from "./bill-component";
@@ -37,7 +37,7 @@ import { format } from "date-fns";
 import { useStaffIDs } from "@/lib/hooks/useStaffIDs";
 import { useCompanyInfo } from "@/lib/hooks/useCompanyInfo";
 import { useBranch } from "@/lib/contexts/DataProvider";
-import { useNotification } from "@/app/notification-context";
+import { useNotification } from "@/lib/contexts/NotificationContext";
 import { createRefundErrorAlert } from "@/lib/utils/alert-helpers";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { isBatteryTransaction } from "@/lib/types/dispute";
@@ -82,8 +82,6 @@ const fetchProductNames = async (
     const { createClient } = await import("@/supabase/client");
     const supabase = createClient();
 
-    console.log("🔍 Fetching product names for IDs:", productIds);
-
     // Query products table directly for these specific IDs (UUIDs)
     const { data: productsData, error } = await supabase
       .from("products")
@@ -95,8 +93,6 @@ const fetchProductNames = async (
       return new Map();
     }
 
-    console.log("✅ Fetched products:", productsData);
-
     // Create a map of product ID (UUID string) to product name
     const productNameMap = new Map<string, string>();
     productsData?.forEach((product: any) => {
@@ -106,8 +102,6 @@ const fetchProductNames = async (
         : product.name;
       productNameMap.set(product.id, fullName);
     });
-
-    console.log("📊 Product name map:", Object.fromEntries(productNameMap));
 
     return productNameMap;
   } catch (error) {
@@ -127,8 +121,6 @@ const fetchProductDetails = async (
     const { createClient } = await import("@/supabase/client");
     const supabase = createClient();
 
-    console.log("🔍 Fetching product details for battery validation:", productIds);
-
     // Query products table with category and type information
     const { data: productsData, error } = await supabase
       .from("products")
@@ -145,8 +137,6 @@ const fetchProductDetails = async (
       return new Map();
     }
 
-    console.log("✅ Fetched product details:", productsData);
-
     // Create a map of product ID to product details
     const productDetailsMap = new Map();
     productsData?.forEach((product: any) => {
@@ -157,8 +147,6 @@ const fetchProductDetails = async (
       });
     });
 
-    console.log("📊 Product details map:", Object.fromEntries(productDetailsMap));
-
     return productDetailsMap;
   } catch (error) {
     console.error("❌ Exception fetching product details:", error);
@@ -167,30 +155,22 @@ const fetchProductDetails = async (
 };
 
 async function parseTransactionItems(items: any[]): Promise<CartItem[]> {
-  console.log("🔄 Parsing transaction items:", JSON.stringify(items, null, 2));
 
   // Extract product IDs that need name lookup
   const productIds = items
     .map((item: any) => {
       const id = item.productId || item.id || item.product_id;
-      console.log(`  📦 Item raw data:`, JSON.stringify(item, null, 2));
-      console.log(`  🔑 Extracted ID: "${id}" (type: ${typeof id})`);
       return id;
     })
     .filter((id: any) => {
       if (!id) {
-        console.log(`  ❌ Filtered out: ID is null/undefined`);
         return false;
       }
       if (typeof id !== "string") {
-        console.log(`  ❌ Filtered out: "${id}" is not a string`);
         return false;
       }
-      console.log(`  ✅ Keeping ID: ${id}`);
       return true;
     });
-
-  console.log("🔢 Final extracted product IDs (UUIDs):", productIds);
 
   // Fetch product names for these IDs
   const productNameMap = await fetchProductNames(productIds);
@@ -213,10 +193,6 @@ async function parseTransactionItems(items: any[]): Promise<CartItem[]> {
       item.product_name ||
       fetchedName || // Use fetched product name with brand
       `Product ${productId}`;
-
-    console.log(
-      `  🏷️ Product ${productId}: VolumeDesc="${volumeDescription}", Fetched="${fetchedName}", Final="${itemName}"`
-    );
 
     const itemPrice = item.price || item.sellingPrice || 0;
     const itemQuantity = item.quantity || 1;
@@ -504,8 +480,6 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
         throw new Error(errorMessage);
       }
 
-      console.log("✅ Refund processed successfully:", result.refund);
-
       // Show success message
       toast({
         title: "Refund Processed Successfully",
@@ -600,7 +574,6 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
             message: errorDescription,
             itemName: itemName,
           });
-          console.log("🔴 Error state set:", { title: errorTitle, message: errorDescription });
         }, 10);
       }
 
@@ -614,8 +587,6 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
 
       // Create and show persistent notification (EXACTLY like open bottle notifications)
       // This replicates the exact pattern used in app/pos/page.tsx for lubricant volume alerts
-      console.log("🔔 Creating refund error notification...");
-      console.log("🔔 Error details:", { errorTitle, errorDescription, itemName });
       
       const alertParams = createRefundErrorAlert({
         itemName: itemName,
@@ -627,12 +598,9 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
       // Override title for better visibility
       alertParams.title = errorTitle;
       
-      console.log("🔔 Alert params:", JSON.stringify(alertParams, null, 2));
-      
       // Call exactly like open bottle notifications - fire and forget with catch
       addPersistentNotification(alertParams)
         .then(() => {
-          console.log("✅ Refund notification created successfully in database");
         })
         .catch((error) => {
           console.error("❌ Error creating persistent notification:", error);
@@ -1165,7 +1133,6 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
                           </div>
                           <button
                             onClick={() => {
-                              console.log("🔴 Dismissing error");
                               setRefundError(null);
                             }}
                             className="absolute top-3 right-3 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 p-1 hover:bg-red-200 dark:hover:bg-red-800"

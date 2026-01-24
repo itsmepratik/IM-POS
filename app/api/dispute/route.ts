@@ -42,8 +42,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    console.log(`✅ Cashier validated and converted to UUID: ${staffUuid}`);
-
     // Perform all operations in a single database transaction
     const result = await db.transaction(async (tx) => {
       // 1. Fetch & Validate original transaction

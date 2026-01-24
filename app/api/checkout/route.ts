@@ -34,7 +34,6 @@ export async function POST(req: NextRequest) {
     
     // Check database availability - CRITICAL FIX: await the test
     if (!isDatabaseAvailable()) {
-       console.log(`[${requestId}] Database reported unavailable, attempting to reconnect...`);
        await testDatabaseConnection(); // Wait for it!
        if (!isDatabaseAvailable()) { // Double check
           console.error(`[${requestId}] Database still unavailable after test.`);
@@ -122,7 +121,6 @@ export async function POST(req: NextRequest) {
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
       try {
         if (attempt > 1) {
-            console.log(`[${requestId}] Retry attempt ${attempt}/${MAX_RETRIES}...`);
             await delay(RETRY_DELAY * attempt);
         }
 

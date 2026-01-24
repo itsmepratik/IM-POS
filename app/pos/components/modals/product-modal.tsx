@@ -156,9 +156,6 @@ export function ProductModal({
               alt={`${productName} ${productType}`}
               className="object-contain w-full h-full p-2"
               onError={(e) => {
-                console.log(
-                  `Error loading image for ${productName} ${productType}`
-                );
                 e.currentTarget.onerror = null; // Prevent infinite error loops
                 e.currentTarget.src = isLubricant
                   ? "/lubricants/default-lubricant.jpg"

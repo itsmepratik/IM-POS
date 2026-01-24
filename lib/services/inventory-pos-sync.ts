@@ -130,15 +130,10 @@ export function useInventoryPOSSync(
 
         setError(null);
 
-        console.log(
-          `🔄 Syncing products for location: ${locationId} (background: ${isBackgroundSync})`
-        );
-
         const inventoryItems = await fetchItems(locationId);
 
         // Check if aborted
         if (abortControllerRef.current?.signal.aborted) {
-          console.log("🛑 Sync aborted, ignoring results");
           return;
         }
 
@@ -196,10 +191,6 @@ export function useInventoryPOSSync(
           data: { count: unifiedProducts.length },
         });
 
-        console.log(
-          `✅ Successfully synced ${unifiedProducts.length} products (background: ${isBackgroundSync})`
-        );
-
         if (showToast) {
           toast({
             title: "Products Synced",
@@ -230,9 +221,6 @@ export function useInventoryPOSSync(
         // Retry logic
         if (retryCountRef.current < finalConfig.maxRetries) {
           retryCountRef.current++;
-          console.log(
-            `🔁 Retrying sync (attempt ${retryCountRef.current}/${finalConfig.maxRetries})`
-          );
 
           setTimeout(() => {
             syncProducts(false, isBackgroundSync);
@@ -253,10 +241,6 @@ export function useInventoryPOSSync(
   const updateStock = useCallback(
     async (stockUpdate: StockUpdate): Promise<boolean> => {
       try {
-        console.log(
-          `📦 Updating stock for product: ${stockUpdate.productId}`,
-          stockUpdate
-        );
 
         // Find the current product
         const currentProduct = products.find(
@@ -369,10 +353,6 @@ export function useInventoryPOSSync(
                 newStandardStock + newOpenBottlesStock + newClosedBottlesStock,
             },
           });
-
-          console.log(
-            `✅ Stock updated successfully for product: ${stockUpdate.productId}`
-          );
           return true;
         } else {
           throw new Error("Failed to update stock in inventory system");
@@ -430,9 +410,6 @@ export function useInventoryPOSSync(
       const success = await updateStock(stockUpdate);
 
       if (success) {
-        console.log(
-          `💰 Sale processed: ${quantity} units of product ${productId}`
-        );
       }
 
       return { success, error: success ? undefined : "Failed to process sale" };

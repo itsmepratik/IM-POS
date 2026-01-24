@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { useUser } from "@/app/user-context";
+import { useUser } from "@/lib/contexts/UserContext";
 import {
   Home,
   ClipboardList,
@@ -46,7 +46,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
-import { useNotification } from "@/app/notification-context";
+import { useNotification } from "@/lib/contexts/NotificationContext";
 import { Switch } from "@/components/ui/switch";
 
 export function Sidebar({

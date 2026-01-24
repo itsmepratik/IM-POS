@@ -51,7 +51,6 @@ import type { CustomerData } from "@/lib/hooks/data/useCustomers";
 import ErrorBoundary from "@/components/ui/error-boundary";
 
 export default function CustomersPage() {
-  console.log("🔄 CustomersPage: Component rendering started");
 
   const {
     customers,
@@ -62,12 +61,6 @@ export default function CustomersPage() {
     error,
   } = useCustomers();
   const { toast } = useToast();
-
-  console.log("📊 CustomersPage: Hook data", {
-    customersCount: customers?.length,
-    loading,
-    error: error?.message,
-  });
 
   const [searchQuery, setSearchQuery] = useState("");
   const [filterValue, setFilterValue] = useState("All customers");
@@ -88,22 +81,6 @@ export default function CustomersPage() {
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [currentCustomer, setCurrentCustomer] = useState<string | null>(null);
   const [hasMounted, setHasMounted] = useState(false);
-
-  console.log("🎛️ CustomersPage: Current state", {
-    searchQuery,
-    filterValue,
-    isFilterExpanded,
-    selectedCustomers,
-    viewMode,
-    completenessFilter,
-    requiredFieldsFilter,
-    isCustomerFormOpen,
-    isCustomerDetailsOpen,
-    isDeleteDialogOpen,
-    isImportDialogOpen,
-    currentCustomer,
-    hasMounted,
-  });
 
   // Helper function to determine if a customer is complete
   const isCustomerComplete = (customer: CustomerData): boolean => {
@@ -133,13 +110,6 @@ export default function CustomersPage() {
 
   // Filter customers based on search query and filter values
   const filteredCustomers = useMemo(() => {
-    console.log("🔍 CustomersPage: Filtering customers", {
-      totalCustomers: customers.length,
-      searchQuery,
-      filterValue,
-      completenessFilter,
-      requiredFieldsFilter,
-    });
 
     const filtered = customers.filter((customer) => {
       const matchesSearch =
@@ -176,11 +146,6 @@ export default function CustomersPage() {
       );
     });
 
-    console.log("✅ CustomersPage: Filtered customers", {
-      filteredCount: filtered.length,
-      originalCount: customers.length,
-    });
-
     return filtered;
   }, [
     customers,
@@ -192,81 +157,58 @@ export default function CustomersPage() {
 
   // Toggle selection of a customer
   const toggleCustomerSelection = useCallback((id: string) => {
-    console.log("🎯 CustomersPage: Toggling customer selection", {
-      customerId: id,
-    });
     setSelectedCustomers((prev) => {
       const newSelection = prev.includes(id)
         ? prev.filter((customerId) => customerId !== id)
         : [...prev, id];
-      console.log("📝 CustomersPage: Updated customer selection", {
-        previousSelection: prev,
-        newSelection,
-      });
       return newSelection;
     });
   }, []);
 
   // Toggle selection of all customers
   const toggleAllCustomers = useCallback(() => {
-    console.log("🎯 CustomersPage: Toggling all customers selection");
     if (selectedCustomers.length === filteredCustomers.length) {
-      console.log("📝 CustomersPage: Deselecting all customers");
       setSelectedCustomers([]);
     } else {
       const allIds = filteredCustomers.map((c) => c.id);
-      console.log("📝 CustomersPage: Selecting all customers", { allIds });
       setSelectedCustomers(allIds);
     }
   }, [selectedCustomers.length, filteredCustomers]);
 
   // Modal handlers with proper state transitions to prevent race conditions
   const openAddCustomer = useCallback(() => {
-    console.log("🚪 Modal: Opening add customer modal");
 
     startTransition(() => {
       setCurrentCustomer(null);
       setIsCustomerFormOpen(true);
     });
-
-    console.log("✅ Modal: Add customer modal opened");
   }, []);
 
   const openEditCustomer = useCallback((id: string) => {
-    console.log("✏️ Modal: Opening edit customer modal", { customerId: id });
 
     startTransition(() => {
       setCurrentCustomer(id);
       setIsCustomerFormOpen(true);
     });
-
-    console.log("✅ Modal: Edit customer modal opened", { customerId: id });
   }, []);
 
   const openViewCustomer = useCallback((id: string) => {
-    console.log("👁️ Modal: Opening view customer modal", { customerId: id });
 
     startTransition(() => {
       setCurrentCustomer(id);
       setIsCustomerDetailsOpen(true);
     });
-
-    console.log("✅ Modal: View customer modal opened", { customerId: id });
   }, []);
 
   const openDeleteCustomer = useCallback((id: string) => {
-    console.log("🗑️ Modal: Opening delete customer modal", { customerId: id });
 
     startTransition(() => {
       setCurrentCustomer(id);
       setIsDeleteDialogOpen(true);
     });
-
-    console.log("✅ Modal: Delete customer modal opened", { customerId: id });
   }, []);
 
   const openImportDialog = useCallback(() => {
-    console.log("🚪 CustomersPage: Opening import dialog");
     setIsImportDialogOpen(true);
   }, []);
 
@@ -274,12 +216,8 @@ export default function CustomersPage() {
   const handleAddCustomer = async (
     customerData: Omit<CustomerData, "id" | "createdAt" | "updatedAt">
   ) => {
-    console.log("➕ CustomersPage: Adding customer", {
-      customerName: customerData.name,
-    });
     try {
       await addCustomer(customerData);
-      console.log("✅ CustomersPage: Customer added successfully");
       startTransition(() => {
         setIsCustomerFormOpen(false);
       });
@@ -307,14 +245,9 @@ export default function CustomersPage() {
   const handleUpdateCustomer = async (
     customerData: Omit<CustomerData, "id" | "createdAt" | "updatedAt">
   ) => {
-    console.log("✏️ CustomersPage: Updating customer", {
-      customerId: currentCustomer,
-      customerName: customerData.name,
-    });
     if (currentCustomer) {
       try {
         await updateCustomer(currentCustomer, customerData);
-        console.log("✅ CustomersPage: Customer updated successfully");
         startTransition(() => {
           setIsCustomerFormOpen(false);
         });
@@ -341,14 +274,10 @@ export default function CustomersPage() {
   };
 
   const handleDeleteCustomer = async () => {
-    console.log("🗑️ CustomersPage: Deleting customer", {
-      customerId: currentCustomer,
-    });
     if (currentCustomer) {
       const customer = customers.find((c) => c.id === currentCustomer);
       try {
         await deleteCustomer(currentCustomer);
-        console.log("✅ CustomersPage: Customer deleted successfully");
         startTransition(() => {
           setIsDeleteDialogOpen(false);
         });
@@ -378,9 +307,6 @@ export default function CustomersPage() {
   const handleImportCustomers = async (
     importedCustomers: Omit<CustomerData, "id" | "lastVisit">[]
   ) => {
-    console.log("📥 CustomersPage: Importing customers", {
-      count: importedCustomers.length,
-    });
 
     try {
       const importPromises = importedCustomers.map((customer) =>
@@ -428,13 +354,8 @@ export default function CustomersPage() {
 
   // Handle mobile view
   useEffect(() => {
-    console.log("📱 CustomersPage: Setting up resize handler");
     const handleResize = () => {
       const newViewMode = window.innerWidth < 1024 ? "cards" : "table";
-      console.log("📱 CustomersPage: Window resized", {
-        width: window.innerWidth,
-        newViewMode,
-      });
       setViewMode(newViewMode);
     };
 
@@ -446,13 +367,11 @@ export default function CustomersPage() {
 
     // Clean up
     return () => {
-      console.log("🧹 CustomersPage: Cleaning up resize handler");
       window.removeEventListener("resize", handleResize);
     };
   }, []);
 
   useEffect(() => {
-    console.log("🏗️ CustomersPage: Component mounted");
     // Set hasMounted to true after component mounts
     setHasMounted(true);
   }, []);
@@ -460,10 +379,6 @@ export default function CustomersPage() {
   // Get current customer for modals
   const getCurrentCustomer = useMemo(() => {
     const customer = customers.find((c) => c.id === currentCustomer);
-    console.log("👤 CustomersPage: Getting current customer", {
-      currentCustomerId: currentCustomer,
-      found: !!customer,
-    });
     return customer;
   }, [customers, currentCustomer]);
 
@@ -471,10 +386,6 @@ export default function CustomersPage() {
   const handleSearchChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const newQuery = e.target.value;
-      console.log("🔍 CustomersPage: Search query changed", {
-        oldQuery: searchQuery,
-        newQuery,
-      });
       setSearchQuery(newQuery);
     },
     [searchQuery]
@@ -483,10 +394,6 @@ export default function CustomersPage() {
   // Add logging for filter changes
   const handleFilterChange = useCallback(
     (value: string) => {
-      console.log("🔧 CustomersPage: Filter value changed", {
-        oldValue: filterValue,
-        newValue: value,
-      });
       setFilterValue(value);
     },
     [filterValue]
@@ -495,10 +402,6 @@ export default function CustomersPage() {
   // Add logging for completeness filter changes
   const handleCompletenessFilterChange = useCallback(
     (value: "all" | "complete" | "incomplete") => {
-      console.log("🔧 CustomersPage: Completeness filter changed", {
-        oldValue: completenessFilter,
-        newValue: value,
-      });
       setCompletenessFilter(value);
     },
     [completenessFilter]
@@ -507,10 +410,6 @@ export default function CustomersPage() {
   // Add logging for required fields filter changes
   const handleRequiredFieldsFilterChange = useCallback(
     (value: "all" | "complete" | "incomplete") => {
-      console.log("🔧 CustomersPage: Required fields filter changed", {
-        oldValue: requiredFieldsFilter,
-        newValue: value,
-      });
       setRequiredFieldsFilter(value);
     },
     [requiredFieldsFilter]
@@ -518,10 +417,6 @@ export default function CustomersPage() {
 
   // Add logging for filter expansion toggle
   const handleFilterExpansionToggle = useCallback(() => {
-    console.log("🔧 CustomersPage: Filter expansion toggled", {
-      wasExpanded: isFilterExpanded,
-      willBeExpanded: !isFilterExpanded,
-    });
     setIsFilterExpanded(!isFilterExpanded);
   }, [isFilterExpanded]);
 
@@ -803,23 +698,6 @@ export default function CustomersPage() {
                             <DropdownMenuItem
                               onClick={(e) => {
                                 e.preventDefault();
-                                console.log(
-                                  "🖱️ Dropdown: View details clicked",
-                                  {
-                                    customerId: customer.id,
-                                    customerName: customer.name,
-                                    timestamp: new Date().toISOString(),
-                                  }
-                                );
-                                console.log(
-                                  "🔄 Dropdown: Current modal states before view",
-                                  {
-                                    isCustomerFormOpen,
-                                    isCustomerDetailsOpen,
-                                    isDeleteDialogOpen,
-                                    currentCustomer,
-                                  }
-                                );
                                 openViewCustomer(customer.id);
                               }}
                             >
@@ -828,20 +706,6 @@ export default function CustomersPage() {
                             <DropdownMenuItem
                               onClick={(e) => {
                                 e.preventDefault();
-                                console.log("🖱️ Dropdown: Edit clicked", {
-                                  customerId: customer.id,
-                                  customerName: customer.name,
-                                  timestamp: new Date().toISOString(),
-                                });
-                                console.log(
-                                  "🔄 Dropdown: Current modal states before edit",
-                                  {
-                                    isCustomerFormOpen,
-                                    isCustomerDetailsOpen,
-                                    isDeleteDialogOpen,
-                                    currentCustomer,
-                                  }
-                                );
                                 openEditCustomer(customer.id);
                               }}
                             >
@@ -851,20 +715,6 @@ export default function CustomersPage() {
                               className="text-red-600"
                               onClick={(e) => {
                                 e.preventDefault();
-                                console.log("🖱️ Dropdown: Delete clicked", {
-                                  customerId: customer.id,
-                                  customerName: customer.name,
-                                  timestamp: new Date().toISOString(),
-                                });
-                                console.log(
-                                  "🔄 Dropdown: Current modal states before delete",
-                                  {
-                                    isCustomerFormOpen,
-                                    isCustomerDetailsOpen,
-                                    isDeleteDialogOpen,
-                                    currentCustomer,
-                                  }
-                                );
                                 openDeleteCustomer(customer.id);
                               }}
                             >
@@ -954,23 +804,6 @@ export default function CustomersPage() {
                             <DropdownMenuItem
                               onClick={(e) => {
                                 e.preventDefault();
-                                console.log(
-                                  "🖱️ Dropdown: View details clicked",
-                                  {
-                                    customerId: customer.id,
-                                    customerName: customer.name,
-                                    timestamp: new Date().toISOString(),
-                                  }
-                                );
-                                console.log(
-                                  "🔄 Dropdown: Current modal states before view",
-                                  {
-                                    isCustomerFormOpen,
-                                    isCustomerDetailsOpen,
-                                    isDeleteDialogOpen,
-                                    currentCustomer,
-                                  }
-                                );
                                 openViewCustomer(customer.id);
                               }}
                             >
@@ -979,20 +812,6 @@ export default function CustomersPage() {
                             <DropdownMenuItem
                               onClick={(e) => {
                                 e.preventDefault();
-                                console.log("🖱️ Dropdown: Edit clicked", {
-                                  customerId: customer.id,
-                                  customerName: customer.name,
-                                  timestamp: new Date().toISOString(),
-                                });
-                                console.log(
-                                  "🔄 Dropdown: Current modal states before edit",
-                                  {
-                                    isCustomerFormOpen,
-                                    isCustomerDetailsOpen,
-                                    isDeleteDialogOpen,
-                                    currentCustomer,
-                                  }
-                                );
                                 openEditCustomer(customer.id);
                               }}
                             >
@@ -1002,20 +821,6 @@ export default function CustomersPage() {
                               className="text-red-600"
                               onClick={(e) => {
                                 e.preventDefault();
-                                console.log("🖱️ Dropdown: Delete clicked", {
-                                  customerId: customer.id,
-                                  customerName: customer.name,
-                                  timestamp: new Date().toISOString(),
-                                });
-                                console.log(
-                                  "🔄 Dropdown: Current modal states before delete",
-                                  {
-                                    isCustomerFormOpen,
-                                    isCustomerDetailsOpen,
-                                    isDeleteDialogOpen,
-                                    currentCustomer,
-                                  }
-                                );
                                 openDeleteCustomer(customer.id);
                               }}
                             >
@@ -1054,20 +859,6 @@ export default function CustomersPage() {
                           size="sm"
                           className="text-xs"
                           onClick={() => {
-                            console.log("🖱️ Button: View Details clicked", {
-                              customerId: customer.id,
-                              customerName: customer.name,
-                              timestamp: new Date().toISOString(),
-                            });
-                            console.log(
-                              "🔄 Button: Current modal states before view",
-                              {
-                                isCustomerFormOpen,
-                                isCustomerDetailsOpen,
-                                isDeleteDialogOpen,
-                                currentCustomer,
-                              }
-                            );
                             openViewCustomer(customer.id);
                           }}
                         >
@@ -1078,20 +869,6 @@ export default function CustomersPage() {
                           size="sm"
                           className="text-xs"
                           onClick={() => {
-                            console.log("🖱️ Button: Edit Customer clicked", {
-                              customerId: customer.id,
-                              customerName: customer.name,
-                              timestamp: new Date().toISOString(),
-                            });
-                            console.log(
-                              "🔄 Button: Current modal states before edit",
-                              {
-                                isCustomerFormOpen,
-                                isCustomerDetailsOpen,
-                                isDeleteDialogOpen,
-                                currentCustomer,
-                              }
-                            );
                             openEditCustomer(customer.id);
                           }}
                         >
@@ -1110,7 +887,6 @@ export default function CustomersPage() {
         <CustomerForm
           isOpen={isCustomerFormOpen}
           onClose={() => {
-            console.log("🚪 Modal: Closing customer form modal");
             startTransition(() => {
               setIsCustomerFormOpen(false);
             });
@@ -1125,14 +901,12 @@ export default function CustomersPage() {
           <CustomerDetails
             isOpen={isCustomerDetailsOpen}
             onClose={() => {
-              console.log("🚪 Modal: Closing customer details modal");
               startTransition(() => {
                 setIsCustomerDetailsOpen(false);
               });
             }}
             customer={getCurrentCustomer}
             onEdit={() => {
-              console.log("✏️ Modal: Transitioning from details to edit modal");
               startTransition(() => {
                 setIsCustomerDetailsOpen(false);
                 setIsCustomerFormOpen(true);
@@ -1146,7 +920,6 @@ export default function CustomersPage() {
           <DeleteDialog
             isOpen={isDeleteDialogOpen}
             onClose={() => {
-              console.log("🚪 Modal: Closing delete confirmation dialog");
               startTransition(() => {
                 setIsDeleteDialogOpen(false);
               });

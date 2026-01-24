@@ -33,12 +33,15 @@ import {
   AlertTriangle,
   PackageX,
   ChevronDown,
+  Box,
+  AlertCircle,
+  ArrowUpDown,
 } from "lucide-react";
 import { ItemsProvider, useItems, type Item } from "../items-context";
 import { ItemModal } from "../item-modal";
 import { toast } from "@/components/ui/use-toast";
 import { CategoryModal } from "../category-modal";
-import { useUser } from "../../user-context";
+import { useUser } from "@/lib/contexts/UserContext";
 import { BranchProvider } from "@/lib/contexts/BranchContext";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -64,6 +67,8 @@ import BrandModal from "../brand-modal";
 import { useBranchInventory } from "./hooks/useBranchInventory";
 import { useServerInventory } from "../hooks/useServerInventory";
 import { BRANCH_SHOPS, getAllBranchShops, DEFAULT_BRANCH, type BranchShop } from "./branchConfig";
+import ExportButton from "../export-button";
+import { BatteryStateSwitch } from "../components/battery-state-switch";
 
 // Define volume type
 interface Volume {
@@ -657,9 +662,15 @@ function BranchInventoryContent({
       // Advanced Filters
       minPrice, setMinPrice,
       maxPrice, setMaxPrice,
+      // Filter variables
       stockStatus, setStockStatus,
       showLowStockOnly, setShowLowStockOnly,
       showOutOfStockOnly, setShowOutOfStockOnly,
+      showInStock, setShowInStock,
+      showBatteries, setShowBatteries, // NEW
+      batteryState, setBatteryState, // NEW
+      sortBy, setSortBy, // NEW
+      sortOrder, setSortOrder, // NEW
       // Actions
       refresh,
       updateLocalItem,
@@ -693,7 +704,6 @@ function BranchInventoryContent({
     await refetchItems(); 
     
     // 2. Update Local List (Optimistic or Refresh)
-    console.log("Branch Item updated, refreshing lists...");
     if (updatedItem) {
         updateLocalItem(updatedItem);
     }
@@ -781,54 +791,119 @@ function BranchInventoryContent({
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <div className="relative flex-1 min-w-0">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="search"
-                placeholder="Search items..."
-                className="pl-9 pr-4 w-full rounded-[2.0625rem] border border-gray-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1 min-w-0">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="search"
+                  placeholder="Search items..."
+                  className="pl-9 pr-4 w-full rounded-[2.0625rem] border border-gray-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+
+              <div className="flex-shrink-0 space-x-2 flex items-center">
+                <Button
+                  variant="ghost"
+                  onClick={() => setShowFilters(!showFilters)}
+                  className="rounded-[12px] p-2 bg-white border-none"
+                  size="sm"
+                >
+                  <Filter className="h-4 w-4" />
+                </Button>
+                
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" className="rounded-[12px] pl-6" size="sm">
+                      More Options
+                      <ChevronDown className="h-4 w-4 ml-1" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent placement="bottom end" className="w-40">
+                    <DropdownMenuItem onAction={() => setIsCategoryModalOpen(true)}>
+                      Categories
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onAction={() => setIsBrandModalOpen(true)}>
+                      Brands
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
+                <Button onClick={() => { setEditingItem(undefined); setIsModalOpen(true); }} variant="chonky">
+                  <Plus className="h-4 w-4 mr-1" />
+                  Add Item
+                </Button>
+                <ExportButton items={branchItems} />
+              </div>
             </div>
-            <div className="flex-shrink-0 space-x-2">
-              <Button
-                variant="outline"
-                onClick={() => setShowFilters(!showFilters)}
-                className="rounded-[2.0625rem] p-2"
-                size="sm"
-              >
-                <Filter className="h-4 w-4" />
-              </Button>
 
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="rounded-[2.0625rem]"
-                    size="sm"
-                  >
-                    More Options
-                    <ChevronDown className="h-4 w-4 ml-1" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent placement="bottom end" className="w-32">
-                  <DropdownMenuItem
-                    onAction={() => setIsCategoryModalOpen(true)}
-                  >
-                    Categories
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onAction={() => setIsBrandModalOpen(true)}>
-                    Brands
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+            <div className="flex items-center gap-2">
+              <div className="text-sm text-muted-foreground">
+                {branchItems.length} {branchItems.length === 1 ? "item" : "items"} found
+              </div>
+             
+              {showLowStockOnly && (
+                <Badge variant="outline" className="bg-amber-100 border-amber-300 text-amber-700 flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" />
+                  Low Stock Only
+                </Badge>
+              )}
+              {showOutOfStockOnly && (
+                 <Badge variant="outline" className="bg-red-100 border-red-300 text-red-700 flex items-center gap-1">
+                   <PackageX className="h-3 w-3" />
+                   Out of Stock Only
+                 </Badge>
+              )}
 
-              <Button onClick={() => { setEditingItem(undefined); setIsModalOpen(true); }}>
-                <Plus className="h-4 w-4 mr-1" />
-                Add Item
-              </Button>
+              <div className="flex gap-4 items-center ml-6">
+                <div className="flex items-center gap-2">
+                  <label htmlFor="showBatteriesBranch" className="text-sm font-medium cursor-pointer">
+                    Show batteries:
+                  </label>
+                  <Checkbox
+                    id="showBatteriesBranch"
+                    checked={showBatteries}
+                    onCheckedChange={(checked) => setShowBatteries(!!checked)}
+                  />
+                </div>
+                {showBatteries && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">State:</span>
+                    <BatteryStateSwitch
+                      value={batteryState || "new"}
+                      onChange={setBatteryState}
+                    />
+                  </div>
+                )}
+              </div>
+
+               <div className="flex items-center gap-2 ml-auto">
+                 <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-8 gap-1 rounded-[12px]">
+                      <ArrowUpDown className="h-3.5 w-3.5" />
+                      <span className="hidden sm:inline">Sort</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    <DropdownMenuItem onClick={() => { setSortBy('name'); setSortOrder('asc'); }}>
+                      Name (A-Z)
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => { setSortBy('name'); setSortOrder('desc'); }}>
+                      Name (Z-A)
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => { setSortBy('price'); setSortOrder('asc'); }}>
+                      Price (Low-High)
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => { setSortBy('price'); setSortOrder('desc'); }}>
+                      Price (High-Low)
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             </div>
           </div>
 
@@ -910,125 +985,167 @@ function BranchInventoryContent({
             </div>
           )}
 
-          {/* Desktop Table View */}
+      {/* Desktop Table View */}
           {!isLoading && (
              <div className="rounded-md border bg-white">
               <div className="relative w-full overflow-auto">
                 <table className="w-full caption-bottom text-sm">
                   <thead className="[&_tr]:border-b">
-                    <tr className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
-                      <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground w-[80px]">
-                        Image
+                     <tr className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
+                      <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground min-w-[300px]">
+                        Item
                       </th>
-                      <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
-                        Name
-                      </th>
-                      <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
+                      <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground min-w-[150px]">
                         Category
                       </th>
-                      <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
-                        Brand
-                      </th>
-                      <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
+                      <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground min-w-[100px]">
                         Stock
                       </th>
-                      <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
-                        Price
+                      <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground min-w-[120px]">
+                        Cost Price
                       </th>
-                      <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
-                        Bottle States
+                      <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground min-w-[120px]">
+                        Selling Price
                       </th>
-                      <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground">
+                      <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground min-w-[150px]">
+                        Bottle Status
+                      </th>
+                      <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground min-w-[140px]">
+                        Batches
+                      </th>
+                      <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground w-[80px]">
                         Actions
                       </th>
                     </tr>
                   </thead>
                   <tbody className="[&_tr:last-child]:border-0">
-                    {branchItems.map((item) => (
-                      <tr
-                        key={item.id}
-                        className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"
-                      >
-                        <td className="p-4 align-middle">
-                          <div className="relative h-10 w-10 overflow-hidden rounded-md border bg-muted">
-                             {item.imageUrl || item.image_url ? (
-                              <img
-                                src={item.imageUrl || item.image_url || ""}
-                                alt={item.name}
-                                className="h-full w-full object-cover"
-                              />
-                            ) : (
-                              <div className="flex h-full w-full items-center justify-center">
-                                <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                    {branchItems.map((item) => {
+                      // Get active batch cost price
+                      const activeBatchCost = item.batches && item.batches.length > 0 
+                        ? (item.batches.find(b => b.is_active_batch) || item.batches[0])?.cost_price || 0
+                        : 0; // Or fall back to item.costPrice if available
+                      
+                      const batchCount = item.batches?.length || 0;
+
+                      return (
+                        <tr
+                          key={item.id}
+                          className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"
+                        >
+                          <td className="p-4 align-middle">
+                            <div className="flex items-center gap-3">
+                              <div className="relative h-10 w-10 overflow-hidden rounded-md border bg-muted shrink-0">
+                                {item.imageUrl || item.image_url ? (
+                                  <img
+                                    src={item.imageUrl || item.image_url || ""}
+                                    alt={item.name}
+                                    className="h-full w-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="flex h-full w-full items-center justify-center">
+                                    <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                                  </div>
+                                )}
                               </div>
-                            )}
-                          </div>
-                        </td>
-                        <td className="p-4 align-middle font-medium">
-                          {item.name}
-                        </td>
-                        <td className="p-4 align-middle">{item.category}</td>
-                        <td className="p-4 align-middle">{item.brand}</td>
-                        <td className="p-4 align-middle">
-                          <div className="flex items-center gap-2">
-                             <span className="font-medium">{item.stock || 0}</span>
-                             {(item.stock || 0) === 0 ? (
-                               <Badge variant="destructive" className="h-5 px-1.5 text-[10px]">Out</Badge>
-                             ) : (item.stock || 0) <= (item.lowStockAlert || 5) ? (
-                               <Badge variant="outline" className="h-5 px-1.5 text-[10px] border-amber-500 text-amber-600 bg-amber-50">Low</Badge>
-                             ) : null}
-                          </div>
-                        </td>
-                        <td className="p-4 align-middle">
-                          OMR {item.price.toFixed(2)}
-                        </td>
-                        <td className="p-4 align-middle">
-                          {item.isOil && item.bottleStates ? (
-                            <div className="flex flex-col gap-1">
-                              <div className="flex items-center gap-1">
-                                <OpenBottleIcon className="h-3 w-3 text-red-600" />
-                                <span>{item.bottleStates.open}</span>
-                              </div>
-                              <div className="flex items-center gap-1">
-                                <ClosedBottleIcon className="h-3 w-3 text-green-600" />
-                                <span>{item.bottleStates.closed}</span>
+                              <div className="flex flex-col">
+                                <span className="font-medium line-clamp-2">{item.name}</span>
+                                <span className="text-xs text-muted-foreground">
+                                  {item.brand || "-"}
+                                </span>
                               </div>
                             </div>
-                          ) : (
-                            <span className="text-muted-foreground">-</span>
-                          )}
-                        </td>
-                        <td className="p-4 align-middle text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-8 w-8 p-0"
+                          </td>
+                          <td className="p-4 align-middle">
+                            <Badge variant="secondary" className="font-normal">
+                              {item.category}
+                            </Badge>
+                          </td>
+                          <td className="p-4 align-middle">
+                            <div className="flex items-center gap-2">
+                              <span className={cn(
+                                "font-medium",
+                                (item.stock || 0) <= (item.lowStockAlert || 5) && "text-amber-600",
+                                (item.stock || 0) === 0 && "text-red-600"
+                              )}>
+                                {item.stock || 0}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="p-4 align-middle">
+                            {activeBatchCost > 0 ? (
+                              <span className="font-medium text-muted-foreground">
+                                OMR {activeBatchCost.toFixed(3)}
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground text-xs">N/A</span>
+                            )}
+                          </td>
+                          <td className="p-4 align-middle">
+                            <span className="font-medium text-emerald-600">
+                              OMR {item.price.toFixed(3)}
+                            </span>
+                          </td>
+                          <td className="p-4 align-middle">
+                            {item.isOil && item.bottleStates ? (
+                              <div className="flex items-center gap-4">
+                                <div className="flex items-center gap-1.5 text-muted-foreground" title="Open Bottles">
+                                  <OpenBottleIcon className="h-4 w-4 text-orange-500" />
+                                  <span className="font-medium text-foreground">{item.bottleStates.open}</span>
+                                </div>
+                                <div className="flex items-center gap-1.5 text-muted-foreground" title="Sealed Bottles">
+                                  <ClosedBottleIcon className="h-4 w-4 text-primary" />
+                                  <span className="font-medium text-foreground">{item.bottleStates.closed}</span>
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground text-xs">N/A</span>
+                            )}
+                          </td>
+                          <td className="p-4 align-middle">
+                            {batchCount > 0 ? (
+                              <Badge
+                                variant="outline"
+                                className="bg-[#d5f365]/20 text-[#4a5200] border-[#d5f365]/50 gap-1 font-normal"
                               >
-                                <MoreHorizontal className="h-4 w-4" />
-                                <span className="sr-only">Open menu</span>
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem
-                                onClick={() => handleEdit(item)}
-                              >
-                                Edit
-                              </DropdownMenuItem>
-                              <DropdownMenuItem>Duplicate</DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                className="text-destructive"
-                                onClick={() => handleDeleteItem(item.id)}
-                              >
-                                Delete
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </td>
-                      </tr>
-                    ))}
+                                <Box className="h-3.5 w-3.5" />
+                                Batches: {batchCount}
+                              </Badge>
+                            ) : (
+                              <span className="text-muted-foreground text-xs italic">No batches</span>
+                            )}
+                          </td>
+                          <td className="p-4 align-middle text-right">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 w-8 p-0"
+                                >
+                                  <MoreHorizontal className="h-4 w-4" />
+                                  <span className="sr-only">Open menu</span>
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem
+                                  onClick={() => handleEdit(item)}
+                                >
+                                  Edit
+                                </DropdownMenuItem>
+                                <DropdownMenuItem>Duplicate</DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  className="text-destructive"
+                                  onClick={() => handleDeleteItem(item.id)}
+                                >
+                                  Delete
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

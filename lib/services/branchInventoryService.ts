@@ -250,7 +250,6 @@ export const fetchBranchInventory = async (
   branchId: string
 ): Promise<Item[]> => {
   try {
-    console.log("Fetching inventory for branch ID:", branchId);
 
     // Add a delay to simulate API call
     await new Promise((resolve) => setTimeout(resolve, 500));
@@ -277,7 +276,6 @@ export const deleteBranchItem = async (
   branchId?: string
 ): Promise<boolean> => {
   try {
-    console.log(`Deleting item ${itemId} from branch ${branchId} (mock)`);
 
     // Add a delay to simulate API call
     await new Promise((resolve) => setTimeout(resolve, 300));
@@ -323,9 +321,6 @@ export const updateBranchItemQuantity = async (
   quantity: number
 ): Promise<boolean> => {
   try {
-    console.log(
-      `Updating quantity for item ${itemId} in branch ${branchId} to ${quantity} (mock)`
-    );
 
     // Add a delay to simulate API call
     await new Promise((resolve) => setTimeout(resolve, 300));
@@ -366,9 +361,6 @@ export const updateBranchBottleStates = async (
   closedBottles: number
 ): Promise<boolean> => {
   try {
-    console.log(
-      `Updating bottle states for item ${itemId} in branch ${branchId}: open=${openBottles}, closed=${closedBottles} (mock)`
-    );
 
     // Add a delay to simulate API call
     await new Promise((resolve) => setTimeout(resolve, 300));

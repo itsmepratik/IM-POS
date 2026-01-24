@@ -31,7 +31,6 @@ export function useCachedInventory() {
           STORAGE_KEYS.INVENTORY_ITEMS,
           JSON.stringify(items)
         );
-        console.log("Stored", items.length, "inventory items (debounced)");
       } catch (error) {
         console.error("Error storing inventory:", error);
       }
@@ -51,11 +50,6 @@ export function useCachedInventory() {
           : null;
 
         if (cachedItems) {
-          console.log(
-            "Loaded inventory from localStorage:",
-            cachedItems.length,
-            "items"
-          );
           // If we have stored data, update the state directly
           inventory.setItems?.(cachedItems);
         }

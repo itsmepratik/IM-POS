@@ -49,7 +49,7 @@ import {
   Shield,
   Loader2,
 } from "lucide-react";
-import { useUser } from "../../user-context";
+import { useUser } from "@/lib/contexts/UserContext";
 import { toast } from "@/components/ui/use-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";

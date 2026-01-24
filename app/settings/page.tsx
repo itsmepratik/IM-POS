@@ -34,7 +34,7 @@ import {
   Loader2,
   Save,
 } from "lucide-react";
-import { useUser } from "../user-context";
+import { useUser } from "@/lib/contexts/UserContext";
 import { BranchProvider, useBranch } from "@/lib/contexts/BranchContext";
 import { Branch, updateShop } from "@/lib/services/inventoryService";
 import {
@@ -313,8 +313,8 @@ function ShopForm({
   );
 }
 
-// Use any to bypass strict type checks for legacy/broken branch tab code
-function ShopCard({ shop }: { shop: any }) {
+// ShopCard component for branch management
+function ShopCard({ shop }: { shop: Branch }) {
   const { toast } = useToast();
   const { currentBranch, selectBranch, refreshBranches } = useBranch();
   
@@ -327,7 +327,7 @@ function ShopCard({ shop }: { shop: any }) {
   const handleUpdate = async (updatedShopData: Partial<Branch>) => {
     setIsSaving(true);
     try {
-      const updated = await updateShop(shop.id, updatedShopData as any);
+      const updated = await updateShop(shop.id, updatedShopData);
       if (updated) {
         setIsEditDialogOpen(false);
         toast({
@@ -416,7 +416,7 @@ function UserForm({
   isLoading = false,
 }: {
   user?: UserType;
-  onSubmit: (user: any) => void;
+  onSubmit: (user: Partial<UserType>) => void;
   onCancel: () => void;
   isLoading?: boolean;
 }) {
@@ -513,10 +513,10 @@ function SettingsContent() {
   const router = useRouter();
   const { currentUser } = useUser();
   const { branches } = useBranch();
-  // Stub missing actions
-  const addBranch = (b: any) => console.log("addBranch not implemented", b);
-  const updateBranch = (b: any) => console.log("updateBranch not implemented", b);
-  const deleteBranch = (id: string) => console.log("deleteBranch not implemented", id);
+  // Stub missing actions (unused)
+  const addBranch = (_b: unknown) => { /* not implemented */ };
+  const updateBranch = (_b: unknown) => { /* not implemented */ };
+  const deleteBranch = (_id: string) => { /* not implemented */ };
   const { toast } = useToast();
 
   const [showBranchForm, setShowBranchForm] = useState(false);

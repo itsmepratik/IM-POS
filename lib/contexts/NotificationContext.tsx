@@ -185,7 +185,7 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
               filter: `user_id=eq.${user.id}`,
             },
             async (payload) => {
-              console.log('[Realtime] Notification change:', payload.eventType, payload)
+              
               
               if (payload.eventType === 'INSERT') {
                 const newNotification = payload.new as NotificationRecord
@@ -200,25 +200,20 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
                   // Check if notification already exists (avoid duplicates)
                   const exists = prev.some(n => n.dbId === newNotification.id)
                   if (exists) {
-                    console.log('[Realtime] Notification already exists, skipping:', newNotification.id)
                     return prev
                   }
                   
                   // Check if we're on notifications page using ref
                   const isOnNotificationsPage = pathnameRef.current === "/notifications"
-                  console.log('[Realtime] INSERT - isOnNotificationsPage:', isOnNotificationsPage, 'pathname:', pathnameRef.current)
                   
                   // If on notifications page, add to list (at the top, before other DB notifications)
                   if (isOnNotificationsPage) {
                     const activeTemporaryNotifications = prev.filter(n => n.isTemporary)
                     const existingDbNotifications = prev.filter(n => !n.isTemporary)
-                    const newState = [uiNotification, ...activeTemporaryNotifications, ...existingDbNotifications]
-                    console.log('[Realtime] Adding notification to state, new count:', newState.length)
-                    return newState
+                    return [uiNotification, ...activeTemporaryNotifications, ...existingDbNotifications]
                   }
                   
                   // Otherwise, keep temporary notifications only (badge will update via unreadCount)
-                  console.log('[Realtime] Not on notifications page, keeping temporary only')
                   return prev.filter(n => n.isTemporary)
                 })
               } else if (payload.eventType === 'UPDATE') {

@@ -28,5 +28,3 @@ for (const make in carData) {
     }
   }
 }
-
-console.log(statements.join('\n'));

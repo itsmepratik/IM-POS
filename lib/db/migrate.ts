@@ -10,7 +10,6 @@ async function main() {
   try {
     await migrate(db, { migrationsFolder: "drizzle" });
     // eslint-disable-next-line no-console
-    console.log("Migrations applied successfully");
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error("Migration failed", err);

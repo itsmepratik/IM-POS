@@ -28,8 +28,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useUser, type Permission } from "@/app/user-context";
-import { useNotification } from "@/app/notification-context";
+import { useUser, type Permission } from "@/lib/contexts/UserContext";
+import { useNotification } from "@/lib/contexts/NotificationContext";
 import { useRouter } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";

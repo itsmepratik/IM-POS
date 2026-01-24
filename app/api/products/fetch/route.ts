@@ -292,16 +292,6 @@ export async function GET(req: Request) {
 
         // Debug logging to verify calculation
         if (openBottles.length > 0) {
-          console.log(`[Products API] Product ${it.id} (${it.name}):`, {
-            openBottlesCount: openBottles.length,
-            openBottlesDetails: openBottles.map(b => ({
-              id: b.id,
-              current_volume: b.current_volume,
-              type: typeof b.current_volume,
-            })),
-            totalOpenVolume,
-            calculation: openBottles.map(b => b.current_volume).join(' + ') + ` = ${totalOpenVolume}`,
-          });
         }
 
         return {

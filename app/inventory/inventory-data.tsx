@@ -228,13 +228,9 @@ export const useInventoryData = () => {
     try {
       const item = items.find((item) => item.id === id);
       const itemName = item?.name || "Item";
-
-      console.log(`User confirmed deletion of item: ${itemName} (${id})`);
-      console.log("Calling deleteItem with id:", id);
       const success = await deleteItem(id);
 
       if (success) {
-        console.log(`Item ${id} successfully deleted`);
         toast({
           title: "Item deleted",
           description: `${itemName} has been deleted from this branch.`,

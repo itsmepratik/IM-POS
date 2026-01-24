@@ -637,11 +637,7 @@ export const fetchItems = async (
         `Failed to fetch inventory for location "${locationId}" (resolved to "${actualLocationId}"): ${error.message || "Unknown error"}`
       );
     }
-
-    console.log("📦 Raw inventory data from database:", inventoryData);
     if (inventoryData && inventoryData.length > 0) {
-      console.log("📦 First inventory item:", inventoryData[0]);
-      console.log("📦 First product data:", inventoryData[0]?.products);
     }
 
     // Transform the data to match the Item interface
@@ -742,17 +738,6 @@ export const fetchItems = async (
               
               // DEBUG: Log stock calculation for lubricants
               if (product.name?.toLowerCase().includes('5w-30') || product.name?.toLowerCase().includes('acdelco')) {
-                console.log(`[STOCK DEBUG] ${product.name}:`, {
-                  batchStock,
-                  openBottleRows: openBottleRows?.length ?? 0,
-                  totalOpenVolume: stockResult.totalOpenVolume,
-                  bottleSizeUsed: stockResult.bottleSizeUsed,
-                  derivedClosedBottles: stockResult.closedBottleCount,
-                  derivedOpenBottles: stockResult.openBottleCount,
-                  volumeInfos: volumeInfos.map(v => v.size),
-                  invClosedFromDb: inv.closed_bottles_stock,
-                  invOpenFromDb: inv.open_bottles_stock,
-                });
               }
            } else {
               // Fallback for legacy items without batches
@@ -772,13 +757,6 @@ export const fetchItems = async (
               
               // DEBUG: Log fallback (no batches)
               if (product.name?.toLowerCase().includes('5w-30') || product.name?.toLowerCase().includes('acdelco')) {
-                console.log(`[STOCK DEBUG LEGACY] ${product.name}:`, {
-                  noBatchStock: true,
-                  derivedClosedBottles,
-                  derivedOpenBottles,
-                  invClosedFromDb: inv.closed_bottles_stock,
-                  invOpenFromDb: inv.open_bottles_stock,
-                });
               }
            }
         }
@@ -917,21 +895,6 @@ export const createItem = async (
       }
     }
 
-    console.log("Creating item with:", {
-      locationId,
-      actualLocationId,
-      item: {
-        name: item.name,
-        category_id: item.category_id,
-        brand_id: item.brand_id,
-        price: item.price,
-        stock: item.stock,
-        is_oil: item.isOil,
-        specification: item.specification,
-        type_ids: item.types?.map(t => t.id),
-      },
-    });
-
     // Validate required fields
     if (!item.category_id) {
       console.error("Error: category_id is required");
@@ -1034,7 +997,6 @@ export const createItem = async (
 
       // CRITICAL: Rollback product creation to prevent orphan products without inventory
       // This ensures atomicity: either both exist or neither
-      console.log("Rolling back product creation due to inventory error...");
       const { error: deleteError } = await supabase
         .from("products")
         .delete()
@@ -1099,7 +1061,6 @@ export const updateItem = async (
   updates: Partial<Item>,
   locationId: string = "sanaiya"
 ): Promise<Item | null> => {
-  console.log("Called updateItem with id:", id, "updates:", updates, "locationId:", locationId);
   try {
     // Get location ID
     let actualLocationId = locationId;
@@ -1281,7 +1242,6 @@ export const updateItem = async (
 
             // Delete duplicates (any IDs after the first one)
             if (ids.length > 1) {
-              console.log(`Found duplicate volumes for ${volumeDesc}, cleaning up...`);
               const duplicateIds = ids.slice(1);
               for (const dupId of duplicateIds) {
                 await supabase.from("product_volumes").delete().eq("id", dupId);
@@ -1311,7 +1271,6 @@ export const updateItem = async (
 
     // Update product types if provided
     if (updates.types !== undefined) {
-      console.log("Updating product types:", updates.types);
       // 1. Delete existing relationships
       const { error: deleteError } = await supabase
         .from("product_types")
@@ -1363,10 +1322,7 @@ export const updateItem = async (
         });
       }
     }
-
-    console.log("Update completed, fetching updated item...");
     const updatedItem = await fetchItem(id, locationId);
-    console.log("Fetched updated item:", updatedItem ? "Success" : "Failed (null)");
     return updatedItem;
   } catch (error) {
     console.error("Error in updateItem:", {
@@ -1512,17 +1468,8 @@ export const fetchBrands = async (): Promise<Brand[]> => {
       return [];
     }
 
-    console.log(
-      "🔍 fetchBrands - Raw data from DB:",
-      JSON.stringify(data, null, 2)
-    );
-
     // Map the data (image_url is now a direct column)
     const brands = (data || []).map((brand: any) => {
-      console.log(`🔍 Processing brand "${brand.name}":`, {
-        hasImageUrl: !!brand.image_url,
-        image_url: brand.image_url,
-      });
 
       return {
         id: brand.id,
@@ -1530,15 +1477,6 @@ export const fetchBrands = async (): Promise<Brand[]> => {
         image_url: brand.image_url || null,
       };
     });
-
-    console.log(
-      "✅ fetchBrands - Processed brands:",
-      JSON.stringify(
-        brands.map((b) => ({ name: b.name, image_url: b.image_url })),
-        null,
-        2
-      )
-    );
 
     return brands;
   } catch (error) {
@@ -1742,9 +1680,6 @@ export const fetchBranches = async (): Promise<Branch[]> => {
     if (saniya1Index > 0) {
       const saniya1Branch = branches.splice(saniya1Index, 1)[0];
       branches.unshift(saniya1Branch);
-      console.log(
-        "✅ Prioritized Saniya1 as main branch for inventory display"
-      );
     }
 
     return branches;
@@ -1857,8 +1792,6 @@ export const updateBrandService = async (
       // Update the image_url column directly
       dbUpdates.image_url = updates.image_url || null;
     }
-
-    console.log("🔍 updateBrandService - Updating brand:", { id, dbUpdates });
 
     const { data, error } = await supabase
       .from("brands")
@@ -2291,7 +2224,6 @@ export const createInitialBatchForInventory = async (
 ): Promise<Batch | null> => {
   try {
     if (initialStock <= 0) {
-      console.log("Skipping initial batch creation - no stock");
       return null;
     }
 

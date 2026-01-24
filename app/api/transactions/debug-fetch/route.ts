@@ -8,8 +8,6 @@ export async function GET(req: Request) {
     const url = new URL(req.url);
     const refNumber = url.searchParams.get("referenceNumber");
 
-    console.log("🔍 Debug: Fetching transaction with reference:", refNumber);
-
     // First, try to get ALL transactions (limit 10) to see what exists
     const { data: allTrans, error: allError } = await supabase
       .from("transactions")
@@ -28,8 +26,6 @@ export async function GET(req: Request) {
         { status: 500 }
       );
     }
-
-    console.log("✅ Found transactions:", allTrans?.length || 0);
 
     if (refNumber) {
       // Try to fetch specific transaction WITHOUT customer join

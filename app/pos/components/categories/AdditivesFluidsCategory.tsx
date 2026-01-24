@@ -4,7 +4,7 @@ import React, { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { ChevronDown, ChevronUp, Droplet, ImageIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { useNotification } from "@/app/notification-context";
+import { useNotification } from "@/lib/contexts/NotificationContext";
 import Image from "next/image";
 import {
   isValidImageUrl,

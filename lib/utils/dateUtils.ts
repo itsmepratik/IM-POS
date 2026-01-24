@@ -12,22 +12,16 @@ export function formatDateForInput(
   dateValue: string | Date | null | undefined
 ): string | null {
   if (!dateValue) {
-    console.log("formatDateForInput: No date value provided");
     return null;
   }
 
   try {
-    console.log("formatDateForInput: Raw input:", dateValue, typeof dateValue);
 
     let date: Date;
 
     if (typeof dateValue === "string") {
       // If it's already in YYYY-MM-DD format, use it directly
       if (/^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
-        console.log(
-          "formatDateForInput: Already in YYYY-MM-DD format:",
-          dateValue
-        );
         return dateValue;
       }
 
@@ -38,12 +32,6 @@ export function formatDateForInput(
           2,
           "0"
         )}-${parts[0].padStart(2, "0")}`;
-        console.log(
-          "formatDateForInput: Converted DD/MM/YYYY to YYYY-MM-DD:",
-          dateValue,
-          "->",
-          converted
-        );
         return converted;
       }
 
@@ -59,7 +47,6 @@ export function formatDateForInput(
     }
 
     const formatted = date.toISOString().split("T")[0];
-    console.log("formatDateForInput: Formatted to YYYY-MM-DD:", formatted);
     return formatted;
   } catch (error) {
     console.error(

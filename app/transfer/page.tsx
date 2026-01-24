@@ -146,7 +146,6 @@ export default function TransferPage() {
   // Separate effect to log locations after they've been updated
   useEffect(() => {
     if (locations.length > 0) {
-      console.log("Current locations available:", locations);
     }
   }, [locations]);
   const [destinationLocation, setDestinationLocation] = useState<string>("");

@@ -127,14 +127,6 @@ class CheckoutService {
       }, REQUEST_TIMEOUT);
 
       //Log the request being sent (especially discount and trade-ins)
-      console.log("📤 CheckoutService: Sending request to API:", {
-        hasDiscount: !!request.discount,
-        discount: request.discount,
-        cartLength: request.cart.length,
-        hasTradeIns: !!request.tradeIns,
-        tradeInsLength: request.tradeIns?.length || 0,
-        tradeIns: request.tradeIns,
-      });
 
       const response = await fetch("/api/checkout", {
         method: "POST",
@@ -191,9 +183,6 @@ class CheckoutService {
       // Retry logic with exponential backoff
       if (attempt < RETRY_ATTEMPTS && this.isRetryableError(error)) {
         const delay = RETRY_DELAY_BASE * Math.pow(2, attempt - 1); // Exponential backoff
-        console.log(
-          `Retrying checkout in ${delay}ms (attempt ${attempt}/${RETRY_ATTEMPTS})`
-        );
 
         await this.delay(delay);
         return this.attemptAPICheckout(request, attempt + 1);
@@ -237,7 +226,6 @@ class CheckoutService {
       // Check if enough time has passed to try API again
       if (Date.now() - this.lastFailureTime > CIRCUIT_RECOVERY_TIMEOUT) {
         this.circuitState = CircuitState.HALF_OPEN;
-        console.log("🔄 Circuit breaker: Half-open, testing API...");
         return false;
       }
       return true;
@@ -249,7 +237,6 @@ class CheckoutService {
     this.failureCount = 0;
     if (this.circuitState !== CircuitState.CLOSED) {
       this.circuitState = CircuitState.CLOSED;
-      console.log("✅ Circuit breaker: Closed, API recovered");
     }
   }
 
@@ -259,9 +246,6 @@ class CheckoutService {
 
     if (this.failureCount >= CIRCUIT_FAILURE_THRESHOLD) {
       this.circuitState = CircuitState.OPEN;
-      console.log(
-        `🚫 Circuit breaker: Opened after ${this.failureCount} failures`
-      );
     }
   }
 

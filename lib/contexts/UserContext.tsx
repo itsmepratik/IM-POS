@@ -113,13 +113,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
               const profile = data.profile;
               const permissions = data.permissions || [];
 
-              console.log("Loaded user profile and permissions:", {
-                userId: user.id,
-                email: user.email,
-                role: profile.role,
-                permissions: permissions,
-                isAdmin: profile.is_admin,
-              });
+
 
               const mappedUser: User = {
                 id: user.id,
@@ -179,7 +173,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
                   role: fallbackRole,
                   is_admin: fallbackRole === "admin",
                 });
-                console.log("Created missing user profile for:", user.email);
+
               } catch (insertError) {
                 console.error("Could not create user profile:", insertError);
               }
@@ -393,7 +387,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
   const signOut = async () => {
     try {
       setIsLoading(true);
-      console.log("Signing out from Supabase...");
+
       
       // Sign out from Supabase FIRST - this clears cookies and session
       const { error } = await supabase.auth.signOut();
@@ -403,7 +397,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
         throw error; // Throw so caller knows it failed
       }
 
-      console.log("Supabase signout successful, clearing local state...");
+
 
       // Clear local state after successful sign out
       setCurrentUser(null);
@@ -427,7 +421,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
       // Small delay to ensure auth state change propagates
       await new Promise((resolve) => setTimeout(resolve, 100));
       
-      console.log("Sign out completed successfully");
+
     } catch (error) {
       console.error("Error signing out:", error);
       // Even if signout fails, clear local state to prevent stuck UI

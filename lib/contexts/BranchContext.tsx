@@ -10,7 +10,7 @@ import {
 } from "react";
 import { createClient } from "@/supabase/client";
 import { toast } from "@/components/ui/use-toast";
-import { useUser } from "@/app/user-context";
+import { useUser } from "@/lib/contexts/UserContext";
 
 // Define branch type since branches table no longer exists
 export type DbBranch = {
@@ -102,10 +102,6 @@ export function BranchProvider({ children }: { children: ReactNode }) {
       setIsLoadingBranches(true);
       setBranchLoadError(false);
 
-      console.log(
-        "🏢 Loading real branches from database via fetchBranches service..."
-      );
-
       // Fetch current user's profile to check for shop assignment
 
 
@@ -120,11 +116,6 @@ export function BranchProvider({ children }: { children: ReactNode }) {
 
           if (!profileError && profileData) {
             userProfile = profileData;
-            console.log("👤 User profile loaded:", {
-              shop_id: userProfile.shop_id,
-              role: userProfile.role,
-              is_admin: userProfile.is_admin,
-            });
           }
         } catch (error) {
           console.error("Error fetching user profile:", error);
@@ -204,7 +195,6 @@ export function BranchProvider({ children }: { children: ReactNode }) {
                 const isRealAdmin = userProfile?.role === 'admin' || userProfile?.is_admin === true || isAdmin();
 
                 if (matchedBranch && !isRealAdmin) {
-                    console.log(`🔒 Email Pattern Match: Locking to ${matchedBranch.name} for ${currentUser.email}`);
                     
                     // Filter branches to show only assigned shop
                     dbBranches = dbBranches.filter((b) => b.id === matchedBranch.id);
@@ -246,9 +236,6 @@ export function BranchProvider({ children }: { children: ReactNode }) {
           const assignedShop = shops.find((s) => s.id === userProfile!.shop_id);
           if (assignedShop) {
             setInventoryLocationId(assignedShop.locationId);
-            console.log(
-              `📦 Shop user: Set inventory location to ${assignedShop.locationName} (${assignedShop.locationId})`
-            );
           }
 
           // Automatically set branch to shop_id
@@ -256,9 +243,6 @@ export function BranchProvider({ children }: { children: ReactNode }) {
           if (assignedBranch) {
             setCurrentBranch(assignedBranch);
             localStorage.setItem("selectedBranchId", assignedBranch.id);
-            console.log(
-              `🔒 Locked branch to: ${assignedBranch.name} (${assignedBranch.id}) for shop user`
-            );
           }
           
           setBranchLoadError(false);
@@ -268,11 +252,6 @@ export function BranchProvider({ children }: { children: ReactNode }) {
           setIsBranchLocked(false);
           setUserShopDisplayName(null);
         }
-
-        console.log(
-          "✅ Successfully loaded branches:",
-          dbBranches.map((b) => ({ id: b.id, name: b.name }))
-        );
         setBranches(dbBranches);
 
         // FOR ADMINS: Always default to Sanaiya1, ignore localStorage
@@ -296,14 +275,7 @@ export function BranchProvider({ children }: { children: ReactNode }) {
             const defaultShop = shops.find((s) => s.id === defaultBranch.id);
             if (defaultShop) {
               setInventoryLocationId(defaultShop.locationId);
-              console.log(
-                `📦 Admin enforced default to ${defaultBranch.name}: Set inventory location to ${defaultShop.locationName} (${defaultShop.locationId})`
-              );
             }
-            
-            console.log(
-              `🏢 Enforced default branch for Admin to: ${defaultBranch.name} (${defaultBranch.id})`
-            );
             setBranchLoadError(false);
             return;
         }
@@ -401,9 +373,6 @@ export function BranchProvider({ children }: { children: ReactNode }) {
           const defaultBranch = saniya1Fallback || filteredFallbackBranches[0];
           setCurrentBranch(defaultBranch);
           localStorage.setItem("selectedBranchId", defaultBranch.id);
-          console.log(
-            `🏢 Set fallback default branch to: ${defaultBranch.name} (${defaultBranch.id})`
-          );
         } else if (userProfile?.shop_location_id) {
           // For shop users, use their assigned shop location
           const shopBranch = filteredFallbackBranches.find((b) => 
@@ -490,9 +459,6 @@ export function BranchProvider({ children }: { children: ReactNode }) {
             const selectedShop = shops.find((s) => s.id === branchId);
             if (selectedShop) {
               setInventoryLocationId(selectedShop.locationId);
-              console.log(
-                `📦 Admin selected ${branch.name}: Set inventory location to ${selectedShop.locationName} (${selectedShop.locationId})`
-              );
             }
           } catch (error) {
             console.error("Error fetching shop location:", error);
@@ -503,8 +469,6 @@ export function BranchProvider({ children }: { children: ReactNode }) {
 
       setCurrentBranch(branch);
       localStorage.setItem("selectedBranchId", branchId);
-
-      console.log(`✅ Switched to branch: ${branch.name} (${branch.id})`);
 
       toast({
         title: "Location Selected",

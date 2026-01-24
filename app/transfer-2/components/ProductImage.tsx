@@ -51,14 +51,11 @@ export function ProductImage({
   const imgSrc = React.useMemo(() => {
     // Use database image if available and valid
     if (productImageUrl && isValidImageUrl(productImageUrl)) {
-      console.log(`[ProductImage] Using image URL for ${product.name}:`, productImageUrl);
       return productImageUrl;
     }
     // Otherwise return null to show fallback icon
     if (productImageUrl) {
-      console.log(`[ProductImage] Invalid image URL for ${product.name}:`, productImageUrl);
     } else {
-      console.log(`[ProductImage] No image URL for ${product.name}`);
     }
     return null;
   }, [productImageUrl, product.name]);
@@ -112,7 +109,6 @@ export function ProductImage({
     setHasError(false);
     if (imgSrc) {
       cacheImageValid(imgSrc);
-      console.log(`[ProductImage] Successfully loaded image for ${product.name}`);
     }
   }, [imgSrc, product.name]);
 

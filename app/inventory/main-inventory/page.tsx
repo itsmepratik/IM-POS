@@ -60,7 +60,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useUser } from "../../user-context";
+import { useUser } from "@/lib/contexts/UserContext";
 import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -1195,7 +1195,6 @@ function MobileView({
         onOpenChange={handleItemModalOpenChange}
         item={editingItem}
         onItemUpdated={(item) => {
-            console.log("Mobile Item updated, refreshing list...");
             updateLocalItem(item);
             refresh(true); // Silent refresh
         }}
@@ -1943,7 +1942,6 @@ function DesktopView({
         onOpenChange={handleItemModalOpenChange}
         item={editingItem}
         onItemUpdated={(item) => {
-            console.log("Desktop Item updated, refreshing list...");
             updateLocalItem(item);
             refresh(true); // Silent refresh
         }}

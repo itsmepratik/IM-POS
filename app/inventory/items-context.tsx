@@ -207,9 +207,6 @@ export const ItemsProvider = ({
           const shop = shops.find((s) => s.id === currentBranch.id);
           if (shop) {
             locationIdForInventory = shop.locationId;
-            console.log(
-              `📦 Derived location ${locationIdForInventory} from shop ${currentBranch.name}`
-            );
           }
         } catch (error) {
           console.error("Error deriving location from shop:", error);
@@ -221,8 +218,6 @@ export const ItemsProvider = ({
         setItems([]);
         return;
       }
-
-      console.log(`Using location ID for inventory: ${locationIdForInventory}`);
 
       // Load items for the location
       let itemsData: Item[] = [];
@@ -245,11 +240,9 @@ export const ItemsProvider = ({
 
       // Load brands
       const brandsData = await fetchBrands();
-      console.log("📦 ItemsContext - Loaded brands from DB:", brandsData);
       const brandNames = brandsData.map((brand) => brand.name);
       setBrands(brandNames);
       setBrandObjects(brandsData);
-      console.log("✅ ItemsContext - Set brandObjects:", brandsData);
       const brandMapInstance = new Map<string, string>();
       brandsData.forEach((brand) => brandMapInstance.set(brand.id, brand.name));
       setBrandMap(brandMapInstance);
@@ -257,16 +250,12 @@ export const ItemsProvider = ({
       // Load types
       const typesData = await fetchTypes();
       setTypes(typesData);
-      console.log("✅ ItemsContext - Loaded types from DB:", typesData);
 
       // Load suppliers
       const suppliersData = await fetchSuppliers();
       setSuppliers(suppliersData);
 
       if (currentBranch) {
-        console.log(
-          `Loaded ${itemsData.length} items for branch ${currentBranch.name}`
-        );
       }
     } catch (error) {
       console.error("Error loading data:", error);
@@ -312,7 +301,6 @@ export const ItemsProvider = ({
       }
 
       if (!locationIdForInventory) {
-        console.log("⚠️ No location ID available for inventory subscription");
         return; // No location ID, skip subscription
       }
 
@@ -334,7 +322,6 @@ export const ItemsProvider = ({
             filter: `location_id=eq.${locationIdForInventory}`,
           },
           (payload) => {
-            console.log("🔄 Inventory update detected:", payload.new);
             
             // Refetch items to get updated stock levels
             // Use a small delay to ensure database transaction is committed
@@ -352,7 +339,6 @@ export const ItemsProvider = ({
             filter: `location_id=eq.${locationIdForInventory}`,
           },
           (payload) => {
-            console.log("🔄 New inventory item detected:", payload.new);
             
             // Refetch items to include new inventory items
             setTimeout(() => {
@@ -361,7 +347,6 @@ export const ItemsProvider = ({
           }
         )
         .subscribe((status) => {
-          console.log("📡 Inventory subscription status:", status);
         });
 
       subscriptionRef.current = channel;
@@ -372,7 +357,6 @@ export const ItemsProvider = ({
     // Cleanup subscription on unmount or when location changes
     return () => {
       if (subscriptionRef.current) {
-        console.log("🔌 Unsubscribing from inventory channel");
         const supabase = createClient();
         supabase.removeChannel(subscriptionRef.current);
         subscriptionRef.current = null;
@@ -416,7 +400,6 @@ export const ItemsProvider = ({
       if (newItem) {
         // Handle batches explicitly
         if (item.batches && item.batches.length > 0) {
-          console.log(`Processing ${item.batches.length} batches for new item ${newItem.name}`);
           
           // Create each batch from the provided array
           for (const batch of item.batches) {
@@ -434,7 +417,6 @@ export const ItemsProvider = ({
                 supplier_id: batch.supplier_id || null,
                 expiration_date: batch.expiration_date || batchAny.expirationDate || null,
               }, locationIdForInventory); // FIX: Pass locationId
-              console.log("Added batch for new item");
             } catch (err) {
               console.error("Failed to add batch for new item:", err);
             }
@@ -452,7 +434,6 @@ export const ItemsProvider = ({
                 initialStock,
                 undefined // supplier
               );
-              console.log(`Created initial batch for ${newItem.name} with stock: ${initialStock}`);
             } catch (batchError) {
               console.error("Error creating initial batch:", batchError);
               // Don't fail the item creation, just log the error
@@ -554,7 +535,6 @@ export const ItemsProvider = ({
         // But the user pattern seems to enforce existence check.
         // Let's assume if fetchItem failed, it might not exist.
         // However, we can also just proceed to try deleting.
-        console.log("Item not found locally or remotely, attempting delete by ID anyway");
       }
 
       // FIX: Resolve locationId for deletion

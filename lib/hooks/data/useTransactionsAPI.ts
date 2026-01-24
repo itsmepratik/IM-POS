@@ -110,7 +110,6 @@ export function useTransactionsAPI(
           ...(shopId && shopId !== "all-stores" ? { filter: `shop_id=eq.${shopId}` } : {}),
         },
         async (payload) => {
-          console.log("🔄 New transaction detected:", payload.new);
           
           // Fetch the new transaction with all relations
           try {
@@ -141,14 +140,12 @@ export function useTransactionsAPI(
         }
       )
       .subscribe((status) => {
-        console.log("📡 Transactions subscription status:", status);
       });
 
     subscriptionRef.current = channel;
 
     // Cleanup subscription on unmount or when shopId changes
     return () => {
-      console.log("🔌 Unsubscribing from transactions channel");
       supabase.removeChannel(channel);
     };
   }, [shopId, startDate, endDate, fetchTransactions]);

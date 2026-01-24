@@ -175,24 +175,12 @@ export function Transfer2POSInterface({
 
   // Debug logging
   useEffect(() => {
-    console.log("🔄 Transfer2POSInterface - Location & Products:", {
-      sourceLocationId,
-      lubricantProductsCount: lubricantProducts.length,
-      productsCount: products.length,
-      isLoading,
-    });
   }, [sourceLocationId, lubricantProducts.length, products.length, isLoading]);
 
   // Note: useInventoryPOSSync already syncs automatically when locationId changes
   // This effect is just for logging/debugging purposes
   useEffect(() => {
     if (sourceLocationId) {
-      console.log(
-        `📍 Transfer2POSInterface - Using location: ${sourceLocationId}`
-      );
-      console.log(
-        `📦 Current products - Lubricants: ${lubricantProducts.length}, Regular: ${products.length}`
-      );
     } else {
       console.warn(
         "⚠️ Transfer2POSInterface - No sourceLocationId provided, using branch context"
@@ -227,12 +215,6 @@ export function Transfer2POSInterface({
   const addToCart = useCallback(
     (product: any, details?: string, quantity: number = 1) => {
       // Debug: Log product structure
-      console.log("🛒 Adding to cart:", {
-        productName: product.name,
-        productId: product.id,
-        originalId: product.originalId,
-        hasOriginalId: !!product.originalId,
-      });
 
       // Ensure originalId exists (required for database operations)
       if (!product.originalId) {
@@ -273,8 +255,6 @@ export function Transfer2POSInterface({
           uniqueId,
           bottleType: product.bottleType,
         };
-
-        console.log("✅ Cart item created:", cartItem);
         return [...prevCart, cartItem];
       });
 

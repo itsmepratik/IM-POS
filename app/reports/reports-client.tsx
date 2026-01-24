@@ -24,7 +24,7 @@ import {
   Calendar,
 } from "lucide-react"
 import dynamic from "next/dynamic"
-import { useUser } from "../user-context"
+import { useUser } from "@/lib/contexts/UserContext"
 
 const ReportCard = dynamic(() => import("./report-card"), {
   loading: () => <Skeleton className="h-[200px] w-full" />,

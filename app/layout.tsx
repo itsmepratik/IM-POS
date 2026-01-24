@@ -3,10 +3,10 @@ import { Inter } from "next/font/google";
 import localFont from "next/font/local";
 import "react-day-picker/dist/style.css";
 import "./globals.css";
-import { UserProvider } from "./user-context";
+import { UserProvider } from "@/lib/contexts/UserContext";
 import { DataProvider } from "@/lib/contexts/DataProvider";
-import { NotificationProvider } from "./notification-context";
-import { NotificationDemo } from "./notification-demo";
+import { NotificationProvider } from "@/lib/contexts/NotificationContext";
+
 // Conditional imports for production only
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
@@ -152,7 +152,7 @@ export default function RootLayout({
               >
                 {children}
               </div>
-              <NotificationDemo />
+
               <Toaster />
             </NotificationProvider>
           </DataProvider>

@@ -36,7 +36,7 @@ import { format } from "date-fns";
 import { BranchProvider } from "@/lib/contexts/BranchContext";
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { useUser } from "@/app/user-context";
+import { useUser } from "@/lib/contexts/UserContext";
 import { RouteProtection } from "@/components/route-protection";
 import { SalesTrendChart } from "./components/SalesTrendChart";
 

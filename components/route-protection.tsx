@@ -1,6 +1,6 @@
 "use client";
 
-import { useUser, type Permission } from "@/app/user-context";
+import { useUser, type Permission } from "@/lib/contexts/UserContext";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 

@@ -85,7 +85,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { useCompanyInfo } from "@/lib/hooks/useCompanyInfo";
-import { useNotification } from "@/app/notification-context";
+import { useNotification } from "@/lib/contexts/NotificationContext";
 import { createLubricantVolumeAlert } from "@/lib/utils/alert-helpers";
 // Removed unused hooks
 import { Textarea } from "@/components/ui/textarea";
@@ -96,7 +96,7 @@ import {
   AccordionContent,
 } from "@/components/ui/accordion";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader } from "@/src/components/ui/shadcn-io/ai/loader";
+import { Loader } from "@/components/ui/loader";
 
 // Import the RefundDialog component
 import { RefundDialog, WarrantyDialog } from "./components/refund-dialog";
@@ -134,878 +134,18 @@ import {
   isHighestVolume,
 } from "@/lib/utils/volume-parser";
 
-// Types are now imported from usePOSMockData hook
+// Extracted types
+import { CartItem as CartItemType, SelectedVolume, ImportedCustomer, TradeinBattery } from "./types";
+// Extracted components
+import { CartItem } from "./components/cart/CartItem";
+import { ProductButton } from "./components/cart/ProductButton";
+import { Numpad } from "./components/Numpad";
+import { POSCustomerForm } from "./components/POSCustomerForm";
 
-interface CartItem extends Product {
-  quantity: number;
-  details?: string;
-  uniqueId: string;
-  bottleType?: "open" | "closed";
-  source?: string; // Required for lubricant checkout API ("OPEN" or "CLOSED")
-  category?: string;
-  brand?: string;
-  type?: string;
-}
+// Components are now imported from ./components/*
+// Note: useTradeIn and useDiscount hooks are available in ./hooks/ for future use
 
-interface SelectedVolume {
-  size: string;
-  quantity: number;
-  price: number;
-  bottleType?: "open" | "closed";
-}
 
-// Add these after the existing interface definitions near the top of the file
-interface ImportedCustomer {
-  id: string;
-  name: string;
-  email?: string;
-  phone?: string;
-  // Add any other properties that might be in imported customers
-}
-
-interface TradeinBattery {
-  id: string;
-  size: string;
-  status: "scrap" | "resellable";
-  amount: number;
-}
-
-// Replaced hardcoded arrays with hook-driven POS catalog
-
-// products and lubricantProducts will come from usePOSCatalog
-
-// Memoize the cart item component
-const CartItem = memo(
-  ({
-    item,
-    updateQuantity,
-    removeFromCart,
-  }: {
-    item: CartItem;
-    updateQuantity: (id: number, quantity: number, uniqueId?: string) => void;
-    removeFromCart: (id: number, uniqueId?: string) => void;
-  }) => (
-    <div className="grid grid-cols-[1fr_auto] gap-3 py-3 first:pt-0 items-start border-b last:border-b-0">
-      {/* Item details */}
-      <div className="min-w-0">
-        <div className="font-medium text-[clamp(0.875rem,2vw,1rem)] mb-1">
-          {item.name}
-        </div>
-{/* Bottle type is now included in the name for consistency */}
-        {/* {item.bottleType && (
-          <div className="flex items-center gap-1 mb-1">
-            {item.bottleType === "closed" ? (
-              <ClosedBottleIcon className="h-4 w-4 text-primary" />
-            ) : (
-              <OpenBottleIcon className="h-4 w-4 text-primary" />
-            )}
-            <span className="text-xs text-muted-foreground capitalize">
-              {item.bottleType} bottle
-            </span>
-          </div>
-        )} */}
-        <div className="text-[clamp(0.75rem,1.5vw,0.875rem)] text-muted-foreground">
-          OMR {item.price.toFixed(3)} each
-        </div>
-        <div className="font-medium text-[clamp(0.875rem,2vw,1rem)] mt-1">
-          OMR {(item.price * item.quantity).toFixed(3)}
-        </div>
-      </div>
-
-      {/* Right side controls: quantity and delete */}
-      <div className="flex flex-col gap-2 items-end">
-        {/* Delete button */}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-6 w-6 flex-shrink-0"
-          onClick={() => removeFromCart(item.id, item.uniqueId)}
-          aria-label="Remove item"
-        >
-          <X className="h-3 w-3" />
-        </Button>
-
-        {/* Quantity controls - horizontal */}
-        <div className="flex items-center gap-1 mt-1">
-          <Button
-            variant="outline"
-            size="icon"
-            className="h-6 w-6"
-            onClick={() =>
-              updateQuantity(
-                item.id,
-                Math.max(1, item.quantity - 1),
-                item.uniqueId
-              )
-            }
-          >
-            <Minus className="h-3 w-3" />
-          </Button>
-          <span className="w-5 text-center font-medium text-xs">
-            {item.quantity}
-          </span>
-          <Button
-            variant="outline"
-            size="icon"
-            className="h-6 w-6"
-            onClick={() =>
-              updateQuantity(item.id, item.quantity + 1, item.uniqueId)
-            }
-          >
-            <Plus className="h-3 w-3" />
-          </Button>
-        </div>
-      </div>
-    </div>
-  )
-);
-CartItem.displayName = "CartItem";
-
-// Memoize the product button component
-const ProductButton = memo(
-  ({
-    product,
-    addToCart,
-  }: {
-    product: Product;
-    addToCart: (product: Product) => void;
-  }) => (
-    <Button
-      key={product.id}
-      variant="outline"
-      className="h-[160px] sm:h-[180px] flex flex-col items-center justify-between text-center p-4 hover:shadow-md transition-all overflow-hidden"
-      onClick={() => addToCart(product)}
-    >
-      <div className="flex items-center justify-center h-10 w-10 mb-2">
-        <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
-          <Package className="h-4 w-4 text-primary opacity-70" />
-        </div>
-      </div>
-      <div className="text-center flex-1 flex flex-col justify-between">
-        <span
-          className="font-medium text-xs sm:text-sm word-wrap whitespace-normal leading-tight hyphens-auto"
-          style={{ lineHeight: 1.1 }}
-        >
-          {product.name}
-        </span>
-        <span className="block text-sm font-medium text-foreground mt-2">
-          OMR {product.price.toFixed(3)}
-        </span>
-      </div>
-    </Button>
-  )
-);
-ProductButton.displayName = "ProductButton";
-
-// Numpad component for cashier ID entry
-function Numpad({
-  value,
-  onChange,
-  onBackspace,
-  onSubmit,
-  disabled,
-}: {
-  value: string;
-  onChange: (val: string) => void;
-  onBackspace: () => void;
-  onSubmit: () => void;
-  disabled?: boolean;
-}) {
-  const touchHandled = useRef(false);
-
-  const handleClick = (num: string) => {
-    if (value.length < 6) onChange(value + num);
-  };
-
-  const handleTouchStart = (num: string) => {
-    touchHandled.current = true;
-    handleClick(num);
-    setTimeout(() => {
-      touchHandled.current = false;
-    }, 100);
-  };
-
-  return (
-    <div className="grid grid-cols-3 gap-2 w-48 mx-auto my-4">
-      {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
-        <button
-          key={n}
-          className="bg-muted rounded-lg p-4 text-xl font-bold hover:bg-accent"
-          onClick={() => {
-            if (!touchHandled.current) handleClick(n.toString());
-          }}
-          onTouchStart={() => handleTouchStart(n.toString())}
-          disabled={disabled}
-        >
-          {n}
-        </button>
-      ))}
-      <button
-        className="bg-muted rounded-lg p-4 text-xl font-bold hover:bg-accent"
-        onClick={() => {
-          if (!touchHandled.current) onBackspace();
-        }}
-        onTouchStart={() => {
-          touchHandled.current = true;
-          onBackspace();
-          setTimeout(() => {
-            touchHandled.current = false;
-          }, 100);
-        }}
-        disabled={disabled}
-      >
-        ⌫
-      </button>
-      <button
-        className="bg-muted rounded-lg p-4 text-xl font-bold hover:bg-accent"
-        onClick={() => {
-          if (!touchHandled.current) handleClick("0");
-        }}
-        onTouchStart={() => handleTouchStart("0")}
-        disabled={disabled}
-      >
-        0
-      </button>
-      <button
-        className="bg-primary text-primary-foreground rounded-lg p-4 text-xl font-bold hover:bg-primary/90"
-        onClick={() => {
-          if (!touchHandled.current) onSubmit();
-        }}
-        onTouchStart={() => {
-          touchHandled.current = true;
-          onSubmit();
-          setTimeout(() => {
-            touchHandled.current = false;
-          }, 100);
-        }}
-        disabled={disabled || value.length === 0}
-      >
-        OK
-      </button>
-    </div>
-  );
-}
-
-// Add POS Customer Form component - adapted from the customer form
-function POSCustomerForm({
-  isOpen,
-  onClose,
-  onSubmit,
-  onSkip,
-  setCurrentCustomer,
-}: {
-  isOpen: boolean;
-  onClose: () => void;
-  onSubmit: (customer: CustomerData) => void;
-  onSkip: () => void;
-  setCurrentCustomer: (customer: CustomerData) => void;
-}) {
-  const [formData, setFormData] = useState<
-    Omit<CustomerData, "id" | "lastVisit">
-  >({
-    name: "",
-    email: "",
-    phone: "",
-    address: "",
-    notes: "",
-    vehicles: [],
-  });
-
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedCustomerId, setSelectedCustomerId] = useState<string>("");
-  const [existingCustomers, setExistingCustomers] = useState<
-    Array<{
-      id: string;
-      name: string;
-      email: string;
-      phone: string;
-      displayText: string;
-    }>
-  >([]);
-  const [isLoadingCustomers, setIsLoadingCustomers] = useState(false);
-  const [customerSearchTerm, setCustomerSearchTerm] = useState("");
-
-  // Fetch existing customers for dropdown
-  const fetchCustomers = useCallback(async (search: string = "") => {
-    setIsLoadingCustomers(true);
-    try {
-      const response = await fetch(
-        `/api/customers/dropdown?search=${encodeURIComponent(search)}&limit=50`
-      );
-      if (response.ok) {
-        const data = await response.json();
-        const sortedCustomers = (data.customers || []).sort((a: any, b: any) => 
-          (a.displayText || "").localeCompare(b.displayText || "")
-        );
-        setExistingCustomers(sortedCustomers);
-      }
-    } catch (error) {
-      console.error("Error fetching customers:", error);
-    } finally {
-      setIsLoadingCustomers(false);
-    }
-  }, []);
-
-  // Handle customer selection from dropdown
-  const handleCustomerSelect = useCallback(
-    async (customerId: string) => {
-      console.log(
-        "🔍 POSCustomerForm: handleCustomerSelect called with ID:",
-        customerId
-      );
-
-      if (!customerId || customerId === "new-customer") {
-        console.log("🔍 POSCustomerForm: Clearing customer selection");
-        setSelectedCustomerId("");
-        setFormData({
-          name: "",
-          email: "",
-          phone: "",
-          address: "",
-          notes: "",
-          vehicles: [],
-        });
-        return;
-      }
-
-      try {
-        const response = await fetch(`/api/customers/${customerId}`);
-        if (response.ok) {
-          const responseData = await response.json();
-          const customer = responseData.customer;
-
-          if (!customer || !customer.id) {
-            console.error("❌ POSCustomerForm: Invalid customer data received");
-            return;
-          }
-
-          setSelectedCustomerId(customer.id);
-          // Set currentCustomer with the full customer data including id
-          const fullCustomerData: CustomerData = {
-            id: customer.id,
-            name: customer.name || "",
-            email: customer.email || "",
-            phone: customer.phone || "",
-            address: customer.address || "",
-            notes: customer.notes || "",
-            vehicles: customer.vehicles || [],
-            lastVisit: new Date().toISOString(), // Set a default last visit as ISO string
-          };
-
-          console.log(
-            "✅ POSCustomerForm: Setting currentCustomer with ID:",
-            fullCustomerData.id
-          );
-          setCurrentCustomer(fullCustomerData);
-          setFormData({
-            name: customer.name || "",
-            email: customer.email || "",
-            phone: customer.phone || "",
-            address: customer.address || "",
-            notes: customer.notes || "",
-            vehicles: customer.vehicles || [],
-          });
-        }
-      } catch (error) {
-        console.error(
-          "❌ POSCustomerForm: Error fetching customer details:",
-          error
-        );
-      }
-    },
-    [setCurrentCustomer]
-  );
-
-  // Load customers when dialog opens
-  useEffect(() => {
-    if (isOpen) {
-      fetchCustomers();
-    }
-  }, [isOpen, fetchCustomers]);
-
-  // Search customers with debounce
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (customerSearchTerm !== undefined) {
-        fetchCustomers(customerSearchTerm);
-      }
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [customerSearchTerm, fetchCustomers]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (isSubmitting) return;
-
-    setIsSubmitting(true);
-
-    try {
-      let customerData;
-
-      if (selectedCustomerId) {
-        // Use existing customer - fetch fresh data to ensure we have the ID
-        const response = await fetch(`/api/customers/${selectedCustomerId}`);
-        if (response.ok) {
-          const responseData = await response.json();
-          // Extract the customer object from the response
-          customerData = responseData.customer;
-          console.log(
-            "✅ POSCustomerForm: Fetched existing customer with ID:",
-            customerData?.id
-          );
-        } else {
-          throw new Error("Failed to fetch existing customer");
-        }
-      } else {
-        // Create new customer
-        customerData = await customerService.createCustomer({
-          name: formData.name,
-          email: formData.email,
-          phone: formData.phone,
-          address: formData.address,
-          notes: formData.notes,
-          vehicles: formData.vehicles.map((v) => ({
-            make: v.make,
-            model: v.model,
-            year: v.year,
-            licensePlate: v.licensePlate,
-            color: v.color || "",
-            engineType: v.engineType || "",
-            notes: v.notes || "",
-          })),
-        });
-        console.log(
-          "✅ POSCustomerForm: Created new customer with ID:",
-          customerData?.id
-        );
-      }
-
-      if (customerData && customerData.id) {
-        // Set currentCustomer with the returned data that includes id
-        console.log(
-          "✅ POSCustomerForm: Setting currentCustomer with ID:",
-          customerData.id
-        );
-        setCurrentCustomer(customerData);
-        onSubmit(customerData);
-      } else {
-        throw new Error("Failed to handle customer - missing customer ID");
-      }
-    } catch (error) {
-      console.error("❌ POSCustomerForm: Error handling customer:", error);
-      // Error is already handled by the service with toast
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const addVehicle = () => {
-    setFormData((prev) => ({
-      ...prev,
-      vehicles: [
-        ...prev.vehicles,
-        {
-          id: Date.now().toString(),
-          make: "",
-          model: "",
-          year: "",
-          licensePlate: "",
-        },
-      ],
-    }));
-  };
-
-  const updateVehicle = (id: string, field: keyof Vehicle, value: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      vehicles: prev.vehicles.map((vehicle) =>
-        vehicle.id === id ? { ...vehicle, [field]: value } : vehicle
-      ),
-    }));
-  };
-
-  const removeVehicle = (id: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      vehicles: prev.vehicles.filter((vehicle) => vehicle.id !== id),
-    }));
-  };
-
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-[90%] max-w-[600px] max-h-[85vh] rounded-lg flex flex-col overflow-hidden">
-        <DialogHeader className="p-0 shrink-0 pb-6">
-          <div className="flex items-center gap-4">
-            <DialogTitle>
-              {selectedCustomerId ? "Selected Customer" : "Add New Customer"}
-            </DialogTitle>
-            <DialogDescription className="sr-only">
-              {selectedCustomerId
-                ? "View and manage customer details"
-                : "Add a new customer to the system"}
-            </DialogDescription>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-8 px-2 text-xs flex items-center gap-1 hover:bg-muted"
-              onClick={() => {
-                setSelectedCustomerId("");
-                setCustomerSearchTerm("");
-                setFormData({
-                  name: "",
-                  email: "",
-                  phone: "",
-                  address: "",
-                  notes: "",
-                  vehicles: [],
-                });
-              }}
-              title="Clear all fields"
-            >
-              <Eraser className="h-3.5 w-3.5" />
-              Clear
-            </Button>
-          </div>
-        </DialogHeader>
-        
-        <div className="flex-1 overflow-y-auto py-1 px-0 min-h-0">
-          <form
-            id="customer-form"
-            onSubmit={handleSubmit}
-            className="space-y-6 pb-2"
-          >
-            <div className="space-y-4">
-              {/* Customer Selector Dropdown */}
-              <div className="space-y-2">
-                <Label htmlFor="customer-select">
-                  Select Existing Customer
-                </Label>
-                <Select
-                  value={selectedCustomerId}
-                  onValueChange={handleCustomerSelect}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Choose an existing customer or create new..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <div className="p-2">
-                      <Input
-                        placeholder="Search customers..."
-                        value={customerSearchTerm}
-                        onChange={(e) =>
-                          setCustomerSearchTerm(e.target.value)
-                        }
-                        className="mb-2"
-                      />
-                    </div>
-                    {isLoadingCustomers ? (
-                      <SelectItem value="loading" disabled>
-                        Loading customers...
-                      </SelectItem>
-                    ) : existingCustomers.length > 0 ? (
-                      <>
-                        <SelectItem value="new-customer">
-                          Create New Customer
-                        </SelectItem>
-                        {existingCustomers.map((customer) => (
-                          <SelectItem key={customer.id} value={customer.id}>
-                            {customer.displayText}
-                          </SelectItem>
-                        ))}
-                      </>
-                    ) : (
-                      <SelectItem value="no-customers" disabled>
-                        {customerSearchTerm
-                          ? "No customers found"
-                          : "No customers available"}
-                      </SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Label htmlFor="name">Full Name</Label>
-                  {selectedCustomerId && (
-                    <Badge variant="secondary" className="text-xs">
-                      From existing customer
-                    </Badge>
-                  )}
-                </div>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) =>
-                    setFormData({ ...formData, name: e.target.value })
-                  }
-                  placeholder="Customer full name"
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    value={formData.email}
-                    onChange={(e) =>
-                      setFormData({ ...formData, email: e.target.value })
-                    }
-                    placeholder="customer@example.com"
-                    type="email"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Phone</Label>
-                  <Input
-                    id="phone"
-                    value={formData.phone}
-                    onChange={(e) =>
-                      setFormData({ ...formData, phone: e.target.value })
-                    }
-                    placeholder="(555) 123-4567"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="address">Address</Label>
-                <Textarea
-                  id="address"
-                  value={formData.address}
-                  onChange={(e) =>
-                    setFormData({ ...formData, address: e.target.value })
-                  }
-                  placeholder="Customer address"
-                  className="h-20"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="notes">Notes</Label>
-                <Textarea
-                  id="notes"
-                  value={formData.notes}
-                  onChange={(e) =>
-                    setFormData({ ...formData, notes: e.target.value })
-                  }
-                  placeholder="Additional notes about the customer"
-                  className="h-20"
-                />
-              </div>
-
-              <div className="space-y-3 pt-2">
-                <div className="flex items-center justify-between">
-                  <Label>Vehicles ({formData.vehicles.length})</Label>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={addVehicle}
-                  >
-                    <Plus className="h-4 w-4 mr-1" /> Add Vehicle
-                  </Button>
-                </div>
-
-                {formData.vehicles.length > 0 ? (
-                  <Accordion type="multiple" className="w-full">
-                    {formData.vehicles.map((vehicle, idx) => (
-                      <AccordionItem
-                        key={vehicle.id}
-                        value={vehicle.id}
-                        className="border rounded-md px-3 my-2"
-                      >
-                        <div className="flex items-center">
-                          <Car className="h-4 w-4 mr-2 text-muted-foreground" />
-                          <AccordionTrigger className="flex-1 hover:no-underline py-2">
-                            <span className="text-sm">
-                              {vehicle.make && vehicle.model
-                                ? `${vehicle.make} ${vehicle.model} ${vehicle.year}`
-                                : `Vehicle ${idx + 1}`}
-                            </span>
-                          </AccordionTrigger>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              removeVehicle(vehicle.id);
-                            }}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                        <AccordionContent className="pb-3 pt-1">
-                          <div className="grid grid-cols-2 gap-3">
-                            <div className="space-y-2">
-                              <Label htmlFor={`make-${vehicle.id}`}>
-                                Make
-                              </Label>
-                              <Input
-                                id={`make-${vehicle.id}`}
-                                value={vehicle.make}
-                                onChange={(e) =>
-                                  updateVehicle(
-                                    vehicle.id,
-                                    "make",
-                                    e.target.value
-                                  )
-                                }
-                                placeholder="Toyota"
-                              />
-                            </div>
-                            <div className="space-y-2">
-                              <Label htmlFor={`model-${vehicle.id}`}>
-                                Model
-                              </Label>
-                              <Input
-                                id={`model-${vehicle.id}`}
-                                value={vehicle.model}
-                                onChange={(e) =>
-                                  updateVehicle(
-                                    vehicle.id,
-                                    "model",
-                                    e.target.value
-                                  )
-                                }
-                                placeholder="Camry"
-                              />
-                            </div>
-                            <div className="space-y-2">
-                              <Label htmlFor={`year-${vehicle.id}`}>
-                                Year
-                              </Label>
-                              <Input
-                                id={`year-${vehicle.id}`}
-                                value={vehicle.year}
-                                onChange={(e) =>
-                                  updateVehicle(
-                                    vehicle.id,
-                                    "year",
-                                    e.target.value
-                                  )
-                                }
-                                placeholder="2023"
-                              />
-                            </div>
-                            <div className="space-y-2">
-                              <Label htmlFor={`license-${vehicle.id}`}>
-                                License Plate
-                              </Label>
-                              <Input
-                                id={`license-${vehicle.id}`}
-                                value={vehicle.licensePlate}
-                                onChange={(e) =>
-                                  updateVehicle(
-                                    vehicle.id,
-                                    "licensePlate",
-                                    e.target.value
-                                  )
-                                }
-                                placeholder="ABC-1234"
-                              />
-                            </div>
-                            <div className="space-y-2 col-span-2">
-                              <Label htmlFor={`vin-${vehicle.id}`}>
-                                VIN (Optional)
-                              </Label>
-                              <Input
-                                id={`vin-${vehicle.id}`}
-                                value={vehicle.vin || ""}
-                                onChange={(e) =>
-                                  updateVehicle(
-                                    vehicle.id,
-                                    "vin",
-                                    e.target.value
-                                  )
-                                }
-                                placeholder="Vehicle Identification Number"
-                              />
-                            </div>
-                            <div className="space-y-2 col-span-2">
-                              <Label htmlFor={`notes-${vehicle.id}`}>
-                                Vehicle Notes
-                              </Label>
-                              <Textarea
-                                id={`notes-${vehicle.id}`}
-                                value={vehicle.notes || ""}
-                                onChange={(e) =>
-                                  updateVehicle(
-                                    vehicle.id,
-                                    "notes",
-                                    e.target.value
-                                  )
-                                }
-                                placeholder="Additional information about the vehicle"
-                                className="h-16"
-                              />
-                            </div>
-                          </div>
-                        </AccordionContent>
-                      </AccordionItem>
-                    ))}
-                  </Accordion>
-                ) : (
-                  <div className="text-center py-6 border border-dashed rounded-md">
-                    <Car className="h-10 w-10 text-muted-foreground mx-auto mb-2" />
-                    <p className="text-sm text-muted-foreground">
-                      No vehicles added yet
-                    </p>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="mt-2"
-                      onClick={addVehicle}
-                    >
-                      <Plus className="h-4 w-4 mr-1" /> Add Vehicle
-                    </Button>
-                  </div>
-                )}
-              </div>
-            </div>
-          </form>
-        </div>
-
-        <DialogFooter className="p-0 bg-background shrink-0 flex flex-col sm:flex-row gap-3 sm:gap-2 pt-6">
-          <Button
-            type="button"
-            variant="chonky-secondary"
-            onClick={onSkip}
-            className="w-full sm:w-auto order-2 sm:order-1 h-auto px-4 py-[9px]"
-          >
-            Skip
-          </Button>
-          <Button
-            type="submit"
-            form="customer-form"
-            variant="chonky"
-            className="w-full sm:w-auto order-1 sm:order-2 h-auto px-4 py-[9px]"
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                Adding...
-              </>
-            ) : (
-              "Add Customer"
-            )}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
 
 function POSPageContent() {
   // ✅ CRITICAL: ALL HOOKS MUST BE CALLED FIRST (React Rules of Hooks)
@@ -1068,17 +208,15 @@ function POSPageContent() {
   const [carPlateNumber, setCarPlateNumber] = useState("");
   const [showOnHoldTicket, setShowOnHoldTicket] = useState(false);
 
-  // Add discount state
+  // Discount state (kept inline as these are directly used in the UI)
   const [isDiscountDialogOpen, setIsDiscountDialogOpen] = useState(false);
-  const [discountType, setDiscountType] = useState<"percentage" | "amount">(
-    "amount"
-  );
-  const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
+  const [discountType, setDiscountType] = useState<"percentage" | "amount">("amount");
   const [discountValue, setDiscountValue] = useState<number>(0);
   const [appliedDiscount, setAppliedDiscount] = useState<{
     type: "percentage" | "amount";
     value: number;
   } | null>(null);
+  const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
 
   // Trade-In Dialog State
   const [isTradeInDialogOpen, setIsTradeInDialogOpen] = useState(false);
@@ -1159,9 +297,7 @@ function POSPageContent() {
   const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
 
   // Trade-in battery states
-  const [tradeinBatteries, setTradeinBatteries] = useState<TradeinBattery[]>(
-    []
-  );
+  const [tradeinBatteries, setTradeinBatteries] = useState<TradeinBattery[]>([]);
   const [currentBatteryEntry, setCurrentBatteryEntry] = useState<{
     size: string;
     status: string;
@@ -1266,6 +402,9 @@ function POSPageContent() {
     setEditingBatteryId(null);
     setTradeinFormErrors({ size: false, status: false, amount: false });
   };
+
+
+
   // Memoize handlers
   const removeFromCart = useCallback((productId: number, uniqueId?: string) => {
     if (uniqueId) {
@@ -1361,12 +500,6 @@ function POSPageContent() {
       updatedProduct.hasOpenBottles !== selectedOil.hasOpenBottles;
     
     if (hasChanged) {
-      console.log("🔄 Updating selectedOil with fresh data:", {
-        oldTotalOpenVolume: selectedOil.totalOpenVolume,
-        newTotalOpenVolume: updatedProduct.totalOpenVolume,
-        oldHasOpenBottles: selectedOil.hasOpenBottles,
-        newHasOpenBottles: updatedProduct.hasOpenBottles,
-      });
       setSelectedOil(updatedProduct);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1590,7 +723,6 @@ function POSPageContent() {
             
             // Prevent duplicate notifications within 2 seconds
             if (lastNotification && lastNotification.key === notificationKey && (now - lastNotification.timestamp) < 2000) {
-              console.log("[POS] Duplicate notification prevented:", notificationKey);
               return prev;
             }
             
@@ -1627,7 +759,6 @@ function POSPageContent() {
   };
 
   const handleAddSelectedToCart = () => {
-    console.log("🔍 handleAddSelectedToCart - selectedVolumes:", selectedVolumes);
     selectedVolumes.forEach((volume) => {
       if (selectedOil) {
         // Construct details string
@@ -1646,19 +777,6 @@ function POSPageContent() {
         // quantity should represent the volume amount (e.g., 1 for 1L, 3 for 3L)
         const volumeAmount = parseVolumeString(volume.size);
         const totalVolume = volumeAmount * volume.quantity;
-
-        console.log("🔍 Adding to cart:", {
-          productId: selectedOil.id,
-          productName: selectedOil.name,
-          displayName: fullDisplayName,
-          volumeSize: volume.size,
-          volumeAmount,
-          quantity: volume.quantity,
-          totalVolume,
-          source,
-          bottleType: volume.bottleType || "closed (highest volume)",
-          details,
-        });
 
         addToCart(
           {
@@ -1938,14 +1056,12 @@ function POSPageContent() {
 
   const handleCheckout = async () => {
     if (isCheckoutLoading) {
-      console.log("⏳ Checkout already in progress, ignoring click");
       return;
     }
 
     setIsCheckoutLoading(true);
 
     try {
-      console.log("🛒 Checkout initiated with cart:", cart);
 
       // Validate cart is not empty
       if (cart.length === 0) {
@@ -1967,20 +1083,11 @@ function POSPageContent() {
           cartItem.id === 9999 ||
           cartItem.name === "Labor - Custom Service"
         ) {
-          console.log(
-            `⚡ Skipping inventory check for labor charge: ${cartItem.name}`
-          );
           continue;
         }
 
-        console.log(`🔍 Checking availability for product ID: ${cartItem.id}`);
-
         try {
           const availability = getAvailabilityByNumericId(cartItem.id);
-          console.log(
-            `📊 Availability result for ${cartItem.name}:`,
-            availability
-          );
 
           if (availability) {
             if (!availability.canSell) {
@@ -2015,7 +1122,6 @@ function POSPageContent() {
 
       // If there are stock validation errors, show them and don't proceed
       if (stockValidationErrors.length > 0) {
-        console.log("❌ Stock validation failed:", stockValidationErrors);
         toast({
           title: "Stock Validation Failed",
           description: (
@@ -2037,8 +1143,6 @@ function POSPageContent() {
         return;
       }
 
-      console.log("✅ Stock validation passed, proceeding with checkout");
-
       // If all validations pass, proceed with checkout
       setIsCustomerFormOpen(true);
 
@@ -2051,19 +1155,11 @@ function POSPageContent() {
         second: "2-digit",
       });
 
-      console.log("📋 Transaction data generated:", {
-        receiptNumber: "PENDING",
-        currentDate: newCurrentDate,
-        currentTime: newCurrentTime,
-      });
-
       setTransactionData({
         receiptNumber: "",
         currentDate: newCurrentDate,
         currentTime: newCurrentTime,
       });
-
-      console.log("🎯 Checkout process completed successfully");
     } catch (error) {
       console.error("💥 Critical error in handleCheckout:", error);
       toast({
@@ -2200,13 +1296,6 @@ function POSPageContent() {
           "@/lib/services/checkout-service"
         );
 
-        console.log("🔍 POS: Checkout data:", {
-          customerId: currentCustomer?.id,
-          customerName: currentCustomer?.name,
-          cartLength: cartForAPI.length,
-          paymentMethod: "ON_HOLD",
-        });
-
         const result = await checkoutService.processCheckout({
           locationId: inventoryLocationId || currentBranch?.id || "default-location",
           shopId: currentBranch?.id || "default-shop",
@@ -2226,12 +1315,8 @@ function POSPageContent() {
         }
 
         // Store the transaction result for receipt display
-        console.log("✅ On-hold transaction completed:", result.data);
 
         if (result.data?.offline) {
-          console.log(
-            "📱 On-hold transaction completed offline - will sync when online"
-          );
           toast({
             title: "On-Hold Transaction Completed Offline",
             description:
@@ -2240,7 +1325,6 @@ function POSPageContent() {
             duration: 5000,
           });
         } else {
-          console.log("🌐 On-hold transaction completed online");
           toast({
             title: "On-Hold Transaction Saved",
             description: "Transaction has been recorded successfully.",
@@ -2349,13 +1433,6 @@ function POSPageContent() {
         };
 
         if (isLubricant) {
-          console.log("🔍 Preparing lubricant cart item for API:", {
-            productId: originalId,
-            quantity: item.quantity,
-            source: cartItemForAPI.source,
-            bottleType: item.bottleType,
-            volumeDescription: cartItemForAPI.volumeDescription,
-          });
         }
 
         return cartItemForAPI;
@@ -2366,12 +1443,6 @@ function POSPageContent() {
 
       // Check if this is a battery sale (for logging/logic) but send trade-ins regardless
       const isBatterySale = cartContainsAnyBatteries(cart);
-      console.log('🔋 Trade-in Debug:', {
-        isBatterySale,
-        tradeinBatteriesLength: tradeinBatteries.length,
-        tradeinBatteries: tradeinBatteries,
-        cartItems: cart.map(item => ({ id: item.id, name: item.name, category: item.category, type: item.type }))
-      });
       
       if (tradeinBatteries.length > 0) {
         // Create trade-in entries using battery size as name
@@ -2386,22 +1457,13 @@ function POSPageContent() {
           name: battery.size, // Use battery size as the name
           costPrice: battery.amount, // Use trade-in amount as cost price
         }));
-        console.log('✅ Trade-ins prepared for API:', tradeInsForAPI);
       } else {
-        console.log('❌ No trade-ins will be sent:', { isBatterySale, tradeinBatteriesLength: tradeinBatteries.length });
       }
 
       // Use the enhanced checkout service with retry and offline support
       const { checkoutService } = await import(
         "@/lib/services/checkout-service"
       );
-
-      console.log("🔍 POS: Regular checkout data:", {
-        customerId: currentCustomer?.id,
-        customerName: currentCustomer?.name,
-        cartLength: cartForAPI.length,
-        paymentMethod: selectedPaymentMethod.toUpperCase(),
-      });
 
       const checkoutPayload = {
         locationId: inventoryLocationId || currentBranch?.id || "default-location", // Will be derived from shopId if shopId is provided
@@ -2420,12 +1482,6 @@ function POSPageContent() {
           ? { mobileNumber: currentCustomer.phone }
           : {}),
       };
-      
-      console.log("🔍 POS: Sending checkout request with discount:", {
-        hasDiscount: !!appliedDiscount,
-        discount: appliedDiscount,
-        payload: checkoutPayload,
-      });
 
       const result = await checkoutService.processCheckout(checkoutPayload);
 
@@ -2434,7 +1490,6 @@ function POSPageContent() {
       }
 
       // Store the transaction result for receipt display
-      console.log("✅ Transaction completed:", result.data);
 
       // Update transaction data with real reference number from server
       // Update transaction data with real reference number from server
@@ -2447,7 +1502,6 @@ function POSPageContent() {
       }
 
       if (result.data?.offline) {
-        console.log("📱 Transaction completed offline - will sync when online");
         toast({
           title: "Transaction Completed Offline",
           description:
@@ -2456,11 +1510,8 @@ function POSPageContent() {
           duration: 5000,
         });
       } else {
-        console.log("🌐 Transaction completed online");
         if (result.data?.batteryBillHtml) {
-          console.log("✅ Battery bill generated and saved to database");
         } else if (result.data?.receiptHtml) {
-          console.log("✅ Thermal receipt generated and saved to database");
         }
       }
 
@@ -2471,7 +1522,6 @@ function POSPageContent() {
       // Refresh products to update inventory counts (especially open bottle volumes)
       try {
         await syncProducts(false, true);
-        console.log("✅ Products refreshed after checkout");
       } catch (error) {
         console.error("Failed to refresh products after checkout:", error);
       }
@@ -2491,7 +1541,6 @@ function POSPageContent() {
       const discountForReceipt = appliedDiscount
         ? { ...appliedDiscount }
         : null;
-      console.log("Finalizing payment with discount:", discountForReceipt);
     } catch (error) {
       console.error("Checkout error:", error);
 
@@ -2643,7 +1692,6 @@ function POSPageContent() {
 
   // Function to apply discount
   const applyDiscount = () => {
-    console.log("Applying discount:", discountType, discountValue);
     setAppliedDiscount({
       type: discountType,
       value: discountValue,
@@ -2659,7 +1707,6 @@ function POSPageContent() {
 
   // Debug discount state
   useEffect(() => {
-    console.log("Main component discount state:", appliedDiscount);
   }, [appliedDiscount]);
 
   // Mobile Cart Animation State
@@ -2933,8 +1980,6 @@ function POSPageContent() {
   // Handle customer form submission
   const handleAddCustomer = (customerData: CustomerData) => {
     // Save customer data (includes id)
-    console.log("🎯 POS: Setting currentCustomer with ID:", customerData.id);
-    console.log("🎯 POS: Customer data received:", customerData);
     setCurrentCustomer(customerData);
 
     // Show customer add success animation
@@ -4777,10 +3822,8 @@ function POSPageContent() {
         onOpenChange={setIsTradeInDialogOpen}
         initialAmount={appliedTradeInAmount}
         onApply={(total, batteries) => {
-          console.log('🔋🔋 Trade-in Dialog onApply called:', { total, batteriesCount: batteries.length, batteries });
           setAppliedTradeInAmount(total);
           setTradeinBatteries(batteries);
-          console.log('✅ Trade-in batteries state updated');
         }}
       />
 
@@ -5720,8 +4763,6 @@ const ReceiptComponent = ({
   const { brand } = useCompanyInfo();
   // POS terminal identifier (used where VATIN used to be)
   const POS_ID = brand.posId || "POS-01";
-  console.log("ReceiptComponent mounted with discount:", discount);
-  console.log("Payment recipient:", paymentRecipient);
 
   const [localDiscount, setLocalDiscount] = useState(discount);
   const receiptRef = useRef<HTMLDivElement>(null);
@@ -5735,7 +4776,6 @@ const ReceiptComponent = ({
 
   useEffect(() => {
     if (discount) {
-      console.log("Updating local discount from props:", discount);
       setLocalDiscount(discount);
     }
   }, [discount]);
@@ -5752,23 +4792,12 @@ const ReceiptComponent = ({
       (sum, item) => sum + item.price * item.quantity,
       0
     );
-    console.log("Receipt useEffect - discount value:", localDiscount);
-    console.log("Receipt subtotal:", subtotal);
     if (localDiscount) {
-      console.log("Receipt displaying discount:", {
-        type: localDiscount.type,
-        value: localDiscount.value,
-        calculatedAmount:
-          localDiscount.type === "percentage"
-            ? subtotal * (localDiscount.value / 100)
-            : Math.min(localDiscount.value, subtotal),
-      });
     }
     return () => clearTimeout(timer);
   }, [cart, localDiscount]); // Removed receiptData from dependencies
 
   const handlePrint = useCallback(() => {
-    console.log("Print triggered with discount:", localDiscount);
 
     // Calculate subtotal
     const subtotal = cart.reduce(
@@ -5782,12 +4811,6 @@ const ReceiptComponent = ({
         ? subtotal * (localDiscount.value / 100)
         : Math.min(localDiscount.value, subtotal)
       : 0;
-
-    console.log("Print window calculations:", {
-      subtotal,
-      discountAmount,
-      discount: localDiscount,
-    });
 
     const vat = 0;
     const total = subtotal - discountAmount;

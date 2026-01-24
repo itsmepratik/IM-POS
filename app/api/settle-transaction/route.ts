@@ -20,7 +20,6 @@ type SettlementRequest = z.infer<typeof SettlementRequestSchema>;
  */
 export async function POST(req: NextRequest) {
   const requestId = `settle-${Date.now()}`;
-  console.log(`[${requestId}] Settlement request received`);
 
   try {
     const body = await req.json();
@@ -48,9 +47,6 @@ export async function POST(req: NextRequest) {
     const supabase = await createClient();
 
     // Step 1: Fetch the original transaction
-    console.log(
-      `[${requestId}] Fetching original transaction: ${referenceNumber}`
-    );
 
     const { data: originalTransaction, error: fetchError } = await supabase
       .from("transactions")
@@ -89,7 +85,6 @@ export async function POST(req: NextRequest) {
     }
 
     // Step 3: Check if already settled (prevent duplicate settlements)
-    console.log(`[${requestId}] Checking for existing settlement`);
 
     const { data: existingSettlement, error: settlementCheckError } =
       await supabase
@@ -144,8 +139,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    console.log(`[${requestId}] Cashier validated and converted to UUID: ${staffUuid}`);
-
     // Fetch staff details for response
     const { data: staffData } = await supabase
       .from("staff")
@@ -169,10 +162,6 @@ export async function POST(req: NextRequest) {
       settlementType,
       isBatterySale,
       paymentMethod
-    );
-
-    console.log(
-      `[${requestId}] Creating settlement transaction: ${newReferenceNumber}`
     );
 
     // Step 6: Create new settlement transaction
@@ -210,10 +199,6 @@ export async function POST(req: NextRequest) {
         { status: 500 }
       );
     }
-
-    console.log(
-      `[${requestId}] Settlement successful: ${settlementTransaction.reference_number}`
-    );
 
     // Step 7: Return success response
     return NextResponse.json(

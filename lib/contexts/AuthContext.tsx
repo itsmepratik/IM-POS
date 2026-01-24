@@ -58,9 +58,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (error) {
         // Handle case where profile doesn't exist (e.g., new user)
         if (error.code === "PGRST116") {
-          console.log(
-            "User profile not found - user may need to complete profile setup"
-          );
           setProfile(null);
           return;
         }
@@ -94,7 +91,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log("Auth state changed:", event);
 
       setSession(session);
       setUser(session?.user || null);

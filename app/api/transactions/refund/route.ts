@@ -153,10 +153,6 @@ export async function POST(req: Request) {
 
     // Parse and validate the request body
     const body = await req.json();
-    console.log(
-      "📥 Received refund request body:",
-      JSON.stringify(body, null, 2)
-    );
 
     const parsed = RefundSchema.safeParse(body);
 
@@ -174,8 +170,6 @@ export async function POST(req: Request) {
       );
     }
 
-    console.log("✅ Refund request validated successfully");
-
     const refundData: RefundRequest = parsed.data;
 
     // Validate cashier/staff ID and convert to UUID
@@ -191,8 +185,6 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
-
-    console.log(`✅ Cashier validated and converted to UUID: ${staffUuid}`);
 
     // First, find the original transaction by reference number
     const { data: originalTransaction, error: originalError } = await supabase
@@ -257,8 +249,6 @@ export async function POST(req: Request) {
       );
     }
 
-    console.log(`🔍 Found ${existingRefunds?.length || 0} existing refund(s) for transaction ${refundData.originalReferenceNumber}`);
-
     // Get original transaction items for validation
     const originalItems = originalTransaction.items_sold as Array<any> | null;
     
@@ -273,17 +263,8 @@ export async function POST(req: Request) {
       );
     }
 
-    console.log(`📦 Original transaction has ${originalItems.length} item(s)`);
-    console.log("📦 Original items:", JSON.stringify(originalItems.map(item => ({
-      id: getItemIdentifier(item),
-      name: item.name || item.productName,
-      price: item.price || item.sellingPrice,
-      quantity: item.quantity
-    })), null, 2));
-
     // Check if any items have already been refunded
     if (existingRefunds && existingRefunds.length > 0) {
-      console.log(`🔍 Checking ${existingRefunds.length} existing refund(s) for duplicates...`);
       
       // Collect all refunded items from existing refunds
       // CRITICAL: Store the actual item objects, not just identifiers, for proper matching
@@ -293,7 +274,6 @@ export async function POST(req: Request) {
         const refundedItems = refund.items_sold as Array<any> | null;
         
         if (refundedItems && Array.isArray(refundedItems)) {
-          console.log(`  📦 Processing refund with ${refundedItems.length} item(s)`);
           for (const item of refundedItems) {
             const itemName = item.name || item.productName || item.product_name || item.volumeDescription || "Unknown";
             const itemQty = item.quantity || 1;
@@ -302,36 +282,14 @@ export async function POST(req: Request) {
               item: item,
               quantity: itemQty,
             });
-            
-            console.log(`    ✓ Refunded: ${itemName} (Qty: ${itemQty})`, {
-              id: item.id,
-              productId: item.productId,
-              volumeDescription: item.volumeDescription,
-              name: item.name,
-              price: item.price,
-            });
           }
         }
       }
-
-      console.log(`📊 Total refunded items tracked: ${refundedItemsList.length} item(s)`);
 
       // Validate each item being refunded
       for (const refundItem of refundData.refundItems) {
         const refundItemName = refundItem.name || "Unknown";
         const refundItemQty = refundItem.quantity || 1;
-        
-        console.log(`🔎 Validating refund item: ${refundItemName} (Qty: ${refundItemQty})`, {
-          refundItem: {
-            id: refundItem.id,
-            productId: refundItem.productId,
-            name: refundItem.name,
-            volumeDescription: refundItem.volumeDescription,
-            price: refundItem.price,
-            quantity: refundItemQty,
-            allIds: getAllItemIds(refundItem),
-          },
-        });
 
         // CRITICAL: First check if this item matches any already-refunded items
         // This must happen BEFORE checking against original items
@@ -343,50 +301,17 @@ export async function POST(req: Request) {
           if (itemsMatch(refundedEntry.item, refundItem)) {
             matchedRefundedItem = refundedEntry;
             totalRefundedQty += refundedEntry.quantity;
-            console.log(`    ⚠️ Found matching refunded item:`, {
-              refundedItem: {
-                id: refundedEntry.item.id,
-                productId: refundedEntry.item.productId,
-                name: refundedEntry.item.name,
-                volumeDescription: refundedEntry.item.volumeDescription,
-                price: refundedEntry.item.price,
-                quantity: refundedEntry.quantity,
-              },
-              totalRefundedQty,
-            });
           }
         }
 
         // Find matching original item using improved matching
         // Log detailed comparison for debugging
-        console.log(`    🔍 Attempting to match refund item against original transaction:`, {
-          refundItem: {
-            id: refundItem.id,
-            productId: refundItem.productId,
-            name: refundItemName,
-            volumeDescription: refundItem.volumeDescription,
-            price: refundItem.price,
-            quantity: refundItemQty,
-            allIds: getAllItemIds(refundItem),
-          },
-          originalItems: originalItems.map(item => ({
-            id: item.id,
-            productId: item.productId,
-            product_id: item.product_id,
-            name: item.name || item.productName || item.product_name || item.volumeDescription,
-            volumeDescription: item.volumeDescription,
-            price: item.price || item.sellingPrice,
-            sellingPrice: item.sellingPrice,
-            allIds: getAllItemIds(item),
-          })),
-        });
         
         // Try to find matching item in original transaction
         let originalItem = originalItems.find((item) => itemsMatch(item, refundItem));
         
         // If not found, try a more lenient match by checking if productId matches
         if (!originalItem && refundItem.productId) {
-          console.log(`    🔄 Trying productId-based match: ${refundItem.productId}`);
           originalItem = originalItems.find((item) => {
             const itemProductId = item.productId || item.product_id || item.id;
             return String(itemProductId) === String(refundItem.productId);
@@ -436,19 +361,8 @@ export async function POST(req: Request) {
             { status: 400 }
           );
         }
-        
-        console.log(`    ✅ Matched original item:`, {
-          id: originalItem.id,
-          productId: originalItem.productId || originalItem.product_id,
-          name: originalItem.name || originalItem.productName || originalItem.product_name || originalItem.volumeDescription,
-          volumeDescription: originalItem.volumeDescription,
-          price: originalItem.price || originalItem.sellingPrice,
-        });
 
         const originalQty = originalItem.quantity || 0;
-        
-        console.log(`    📊 Original item: ${originalItem.name || originalItem.productName || originalItem.volumeDescription} (Qty: ${originalQty})`);
-        console.log(`    📈 Already refunded: ${totalRefundedQty}, Original: ${originalQty}, Requested: ${refundItemQty}`);
 
         // Calculate available quantity
         const availableQty = originalQty - totalRefundedQty;
@@ -476,13 +390,8 @@ export async function POST(req: Request) {
             { status: 400 }
           );
         }
-
-        console.log(`    ✅ Item validated: ${availableQty} available, ${refundItemQty} requested`);
       }
-
-      console.log("✅ All items validated successfully - no duplicates detected");
     } else {
-      console.log("✅ No existing refunds found - proceeding with refund");
     }
 
     // Use location_id and shop_id from original transaction if provided, otherwise use from request
@@ -573,13 +482,6 @@ export async function POST(req: Request) {
         { status: 500 }
       );
     }
-
-    console.log("✅ Refund transaction created successfully:", {
-      id: refundTransactionData.id,
-      reference_number: refundReferenceNumber,
-      original_reference: refundData.originalReferenceNumber,
-      amount: refundData.refundAmount,
-    });
 
     return NextResponse.json({
       ok: true,

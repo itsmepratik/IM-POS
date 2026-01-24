@@ -16,8 +16,6 @@ export async function POST(req: Request) {
 
     const supabase = createAdminClient();
 
-    console.log("🛢️ API: Updating bottle states:", body);
-
     // Update the lubricant_inventory table directly - triggers will sync bottle_states automatically
     const { error: inventoryError } = await supabase
       .from("lubricant_inventory")
@@ -36,10 +34,6 @@ export async function POST(req: Request) {
         { status: 500 }
       );
     }
-
-    console.log(
-      "✅ Successfully updated inventory - triggers will sync bottle states"
-    );
     return NextResponse.json({
       ok: true,
       message: "Inventory updated successfully",

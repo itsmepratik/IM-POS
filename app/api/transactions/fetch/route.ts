@@ -124,18 +124,6 @@ export async function GET(req: Request) {
 
     // Debug: Log first transaction to check customer data structure
     if (transactionsData && transactionsData.length > 0) {
-      console.log(
-        "📊 Sample transaction data:",
-        JSON.stringify(
-          {
-            id: transactionsData[0].id,
-            customer_id: transactionsData[0].customer_id,
-            customers: transactionsData[0].customers,
-          },
-          null,
-          2
-        )
-      );
     }
 
     return NextResponse.json({
