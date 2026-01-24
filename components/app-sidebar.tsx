@@ -357,14 +357,17 @@ function NavUser() {
   const [isLoggingOut, setIsLoggingOut] = React.useState(false)
 
   const handleSettingsClick = () => {
+    console.log("Navigating to settings...");
     router.push("/settings")
   }
 
   const handleLogout = async () => {
+     console.log("Starting logout...");
      if (isLoggingOut) return
      setIsLoggingOut(true)
      try {
        await signOut()
+       console.log("Signout successful, redirecting...");
        router.replace("/login")
      } catch (error) {
        console.error("Logout error", error)
@@ -375,6 +378,7 @@ function NavUser() {
   }
 
   const toggleDarkMode = () => {
+    console.log("Toggling dark mode...");
     setDarkMode(!darkMode)
   }
 
@@ -410,13 +414,17 @@ function NavUser() {
             align="end"
             sideOffset={4}
           >
-            <DropdownMenuItem onSelect={() => {}}>
-              <User className="mr-2 h-4 w-4" />
-              Profile
+            <DropdownMenuItem asChild>
+              <Link href="/settings" className="flex w-full items-center">
+                <User className="mr-2 h-4 w-4" />
+                Profile
+              </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem onSelect={handleSettingsClick}>
-              <Settings className="mr-2 h-4 w-4" />
-              Settings
+            <DropdownMenuItem asChild>
+              <Link href="/settings" className="flex w-full items-center">
+                <Settings className="mr-2 h-4 w-4" />
+                Settings
+              </Link>
             </DropdownMenuItem>
              <DropdownMenuItem
                 onSelect={(e) => {
