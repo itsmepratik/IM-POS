@@ -279,7 +279,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                     <CollapsibleTrigger asChild>
                       <SidebarMenuButton tooltip="Manage Orders">
                         <HugeiconsIcon icon={ContainerTruck02Icon} size={22} strokeWidth={2.2} className="!size-[22px]" />
-                        <span>Orders</span>
+                        <span>Transfers | Orders</span>
                         <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
                       </SidebarMenuButton>
                     </CollapsibleTrigger>
@@ -320,7 +320,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   >
                     <Link href="/notifications">
                       <HugeiconsIcon icon={InboxIcon} size={22} strokeWidth={2.2} className="!size-[22px]" />
-                      <span>Notifications</span>
+                      <span>Inbox</span>
                       {unreadCount > 0 && (
                           <SidebarMenuBadge className="bg-orange-500 text-white hover:text-white">
                             {unreadCount}
@@ -351,10 +351,6 @@ function TeamSwitcher() {
           size="lg"
           className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
         >
-          <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-             {/* Using a simple placeholder logo similar to shadcn demo or current text */}
-             <span className="font-bold">HA</span>
-          </div>
           <div className="grid flex-1 text-left text-sm leading-tight">
             <span className="truncate font-semibold font-wide" style={{ letterSpacing: "0px" }}>
               HNS Automotive
