@@ -23,7 +23,25 @@ import {
   User,
   ChevronRight,
   ChevronsUpDown,
+  Search,
+  Sliders, // Kept any that might be needed, but removing unused ones from the list below if they are not used elsewhere.
+  // Keeping imports that might be used elsewhere or if I miss something.
+  // Actually, I should remove the ones I'm replacing if they are not used anymore to clean up, 
+  // but to be safe I will just add the new imports and let the linter handle unused ones later or just keep them.
+  // Better to just add new imports.
 } from "lucide-react"
+import {
+  Home01Icon,
+  DiscountTag02Icon,
+  Wrench01Icon,
+  UserGroupIcon,
+  AiFileIcon,
+  TransactionHistoryIcon,
+  Store02Icon,
+  ContainerTruck02Icon,
+  InboxIcon,
+} from "hugeicons-react"
+import HugeiconsIcon from "@/components/HugeiconsIcon"
 
 import {
   Collapsible,
@@ -73,42 +91,42 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     {
       title: "Dashboard",
       href: "/home",
-      icon: Home,
+      icon: () => <HugeiconsIcon icon={Home01Icon} size={22} strokeWidth={2.2} className="!size-[22px]" />,
       permission: "admin.access",
       adminOnly: true,
     },
     {
       title: "POS",
       href: "/pos",
-      icon: ShoppingCart,
+      icon: () => <HugeiconsIcon icon={DiscountTag02Icon} size={22} strokeWidth={2.2} className="!size-[22px]" />,
       permission: "pos.access",
       adminOnly: false,
     },
     {
       title: "Internal Tool",
       href: "/internal-tool",
-      icon: Wrench,
+      icon: () => <HugeiconsIcon icon={Wrench01Icon} size={22} strokeWidth={2.2} className="!size-[22px]" />,
       permission: "admin.access",
       adminOnly: true,
     },
     {
       title: "Customers",
       href: "/customers",
-      icon: Users,
+      icon: () => <HugeiconsIcon icon={UserGroupIcon} size={22} strokeWidth={2.2} className="!size-[22px]" />,
       permission: "customers.access",
       adminOnly: false,
     },
     {
       title: "Reports",
       href: "/reports",
-      icon: BarChart2,
+      icon: () => <HugeiconsIcon icon={AiFileIcon} size={22} strokeWidth={2.2} className="!size-[22px]" />,
       permission: "reports.access",
       adminOnly: true,
     },
     {
       title: "Transactions",
       href: "/transactions",
-      icon: RefreshCcw,
+      icon: () => <HugeiconsIcon icon={TransactionHistoryIcon} size={22} strokeWidth={2.2} className="!size-[22px]" />,
       permission: "transactions.access",
       adminOnly: false,
     },
@@ -221,7 +239,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   <SidebarMenuItem>
                     <CollapsibleTrigger asChild>
                       <SidebarMenuButton tooltip="Inventory Items">
-                        <Warehouse />
+                        <HugeiconsIcon icon={Store02Icon} size={22} strokeWidth={2.2} className="!size-[22px]" />
                         <span>Inventory</span>
                         <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
                       </SidebarMenuButton>
@@ -260,7 +278,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   <SidebarMenuItem>
                     <CollapsibleTrigger asChild>
                       <SidebarMenuButton tooltip="Manage Orders">
-                        <ShoppingCart />
+                        <HugeiconsIcon icon={ContainerTruck02Icon} size={22} strokeWidth={2.2} className="!size-[22px]" />
                         <span>Orders</span>
                         <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
                       </SidebarMenuButton>
@@ -301,7 +319,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                     tooltip="Notifications"
                   >
                     <Link href="/notifications">
-                      <Inbox />
+                      <HugeiconsIcon icon={InboxIcon} size={22} strokeWidth={2.2} className="!size-[22px]" />
                       <span>Notifications</span>
                       {unreadCount > 0 && (
                           <SidebarMenuBadge className="bg-orange-500 text-white hover:text-white">
