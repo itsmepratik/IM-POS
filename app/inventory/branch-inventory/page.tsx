@@ -69,6 +69,7 @@ import { useServerInventory } from "../hooks/useServerInventory";
 import { BRANCH_SHOPS, getAllBranchShops, DEFAULT_BRANCH, type BranchShop } from "./branchConfig";
 import ExportButton from "../export-button";
 import { BatteryStateSwitch } from "../components/battery-state-switch";
+import { TradeInsModal } from "../components/trade-ins-modal";
 
 // Define volume type
 interface Volume {
@@ -304,6 +305,7 @@ function MobileView({
   const [brandFilter, setBrandFilter] = useState("all");
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [isBrandModalOpen, setIsBrandModalOpen] = useState(false);
+  const [isTradeInsModalOpen, setIsTradeInsModalOpen] = useState(false);
   const { categories, brands } = useItems();
 
   // Get available branches from config
@@ -459,6 +461,14 @@ function MobileView({
                 >
                   Brands
                 </DropdownMenuItem>
+                <DropdownMenuItem
+                  onAction={() => {
+                    setIsTradeInsModalOpen(true);
+                    setFiltersOpen(false);
+                  }}
+                >
+                  Trade-ins
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -609,6 +619,10 @@ function MobileView({
           onOpenChange={setIsCategoryModalOpen}
         />
         <BrandModal open={isBrandModalOpen} onOpenChange={setIsBrandModalOpen} />
+        <TradeInsModal
+          isOpen={isTradeInsModalOpen}
+          onClose={() => setIsTradeInsModalOpen(false)}
+        />
     </div>
   );
 }
@@ -685,6 +699,7 @@ function BranchInventoryContent({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [isBrandModalOpen, setIsBrandModalOpen] = useState(false);
+  const [isTradeInsModalOpen, setIsTradeInsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Item | undefined>(undefined);
 
   // Derived state for the selected branch object
@@ -827,6 +842,9 @@ function BranchInventoryContent({
                     </DropdownMenuItem>
                     <DropdownMenuItem onAction={() => setIsBrandModalOpen(true)}>
                       Brands
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onAction={() => setIsTradeInsModalOpen(true)}>
+                      Trade-ins
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -1166,6 +1184,10 @@ function BranchInventoryContent({
         onOpenChange={setIsCategoryModalOpen}
       />
       <BrandModal open={isBrandModalOpen} onOpenChange={setIsBrandModalOpen} />
+      <TradeInsModal
+        isOpen={isTradeInsModalOpen}
+        onClose={() => setIsTradeInsModalOpen(false)}
+      />
     </div>
   );
 }

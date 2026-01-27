@@ -405,15 +405,13 @@ function NavUser() {
               tooltip={currentUser?.name || "User"}
               className="h-10 w-full bg-sidebar hover:bg-zinc-100 dark:hover:bg-zinc-800 text-sidebar-foreground px-2 !shadow-none !border-none"
             >
-              <Avatar className="h-8 w-8 rounded-md">
-                <AvatarImage src="/avatars/01.svg" alt={currentUser?.name || "User"} />
-                <AvatarFallback className="rounded-md bg-zinc-200 text-zinc-900 text-xs shadow-sm">
-                   {currentUser?.name ? currentUser.name.charAt(0) : "U"}
-                </AvatarFallback>
+              <Avatar className="h-8 w-8 rounded-full ring-2 ring-green-500 ring-offset-2 ring-offset-sidebar">
+                <AvatarImage src="https://github.com/shadcn.png" alt={currentUser?.name || "User"} className="rounded-full" />
+                <AvatarFallback className="rounded-full">CN</AvatarFallback>
               </Avatar>
               {state !== "collapsed" && (
                 <>
-                  <div className="grid flex-1 text-left text-sm leading-tight ml-1">
+                  <div className="grid flex-1 text-left text-sm leading-tight ml-3">
                     <span className="truncate font-medium text-foreground">{currentUser?.name || "Admin User"}</span>
                     <span className="truncate text-[11px] text-muted-foreground">{currentUser?.role || "admin"}</span>
                   </div>

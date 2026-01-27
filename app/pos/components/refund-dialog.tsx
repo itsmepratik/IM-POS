@@ -28,7 +28,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Search, ArrowLeft, Check, AlertCircle, Printer, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader } from "@/components/ui/loader";
+import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui/use-toast";
 import { BillComponent } from "./bill-component";
@@ -1629,7 +1629,7 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
               >
                 {isProcessingRefund ? (
                   <div className="flex items-center justify-center w-full">
-                    <Loader size={16} className="text-white mr-2" />
+                    <Spinner className="text-white mr-2" />
                     Processing...
                   </div>
                 ) : (
@@ -3130,7 +3130,7 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
               >
                 {isProcessingRefund ? (
                   <div className="flex items-center justify-center w-full">
-                    <Loader size={16} className="text-white mr-2" />
+                    <Spinner className="text-white mr-2" />
                     Processing...
                   </div>
                 ) : (

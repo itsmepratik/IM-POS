@@ -96,7 +96,7 @@ import {
   AccordionContent,
 } from "@/components/ui/accordion";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader } from "@/components/ui/loader";
+import { Spinner } from "@/components/ui/spinner";
 
 // Import the RefundDialog component
 import { RefundDialog, WarrantyDialog } from "./components/refund-dialog";
@@ -2016,7 +2016,7 @@ function POSPageContent() {
       <Layout>
         <div className="h-[calc(100vh-4rem)] flex items-center justify-center">
           <div className="flex flex-col items-center gap-4">
-            <Loader size={32} className="text-muted-foreground" />
+            <Spinner className="text-muted-foreground w-8 h-8" />
           </div>
         </div>
       </Layout>
@@ -2347,7 +2347,7 @@ function POSPageContent() {
                     >
                       {isCheckoutLoading ? (
                         <div className="flex items-center justify-center w-full">
-                          <Loader size={16} className="text-black mr-2" />
+                          <Spinner className="text-black mr-2" />
                           Processing...
                         </div>
                       ) : (
@@ -2503,7 +2503,7 @@ function POSPageContent() {
                       >
                         {isCheckoutLoading ? (
                           <div className="flex items-center justify-center w-full">
-                            <Loader size={16} className="text-black mr-2" />
+                            <Spinner className="text-black mr-2" />
                             Processing...
                           </div>
                         ) : (
@@ -3523,7 +3523,7 @@ function POSPageContent() {
                 >
                   {isProcessingCheckout ? (
                     <div className="flex items-center justify-center w-full">
-                      <Loader size={20} className="text-black" />
+                      <Spinner className="text-black w-5 h-5" />
                     </div>
                   ) : (
                     "Confirm Payment"
@@ -4309,7 +4309,7 @@ function POSPageContent() {
                   >
                     {isProcessingSettlement ? (
                       <div className="flex items-center justify-center w-full">
-                        <Loader size={16} className="text-black mr-2" />
+                        <Spinner className="text-black mr-2" />
                         Processing...
                       </div>
                     ) : (
@@ -4678,7 +4678,7 @@ function POSPageContent() {
                   >
                     {isProcessingMiscellaneous ? (
                       <div className="flex items-center justify-center w-full">
-                        <Loader size={16} className="text-black mr-2" />
+                        <Spinner className="text-black mr-2" />
                         Processing...
                       </div>
                     ) : (

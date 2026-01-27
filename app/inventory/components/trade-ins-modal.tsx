@@ -250,11 +250,12 @@ export function TradeInsModal({ isOpen, onClose }: TradeInsModalProps) {
                   </div>
                   <div className="flex-1">
                     <label className="text-sm font-medium text-gray-700 mb-2 block">
-                      Price
+                      Price (OMR)
                     </label>
                     <Input
-                      placeholder="Enter price"
+                      placeholder="Enter price (e.g. 5.000)"
                       type="number"
+                      step="0.001"
                       value={newPrice}
                       onChange={(e) => setNewPrice(e.target.value)}
                       className="rounded-lg"
@@ -438,7 +439,7 @@ export function TradeInsModal({ isOpen, onClose }: TradeInsModalProps) {
                           ) : (
                             <div className="flex items-center gap-1 flex-1 justify-between">
                               <span className="text-sm font-medium text-gray-900">
-                                ${item.price.toFixed(2)}
+                                OMR {item.price.toFixed(3)}
                               </span>
                               <Button
                                 variant="ghost"

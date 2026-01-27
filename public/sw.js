@@ -2,7 +2,7 @@
 // Ensures fresh data and automatic cache invalidation
 
 // IMPORTANT: Update this version number on every deploy to invalidate old caches
-const SW_VERSION = "1.0.0";
+const SW_VERSION = "1.0.1";
 const CACHE_NAME = `pos-app-v${SW_VERSION}`;
 const STATIC_CACHE_NAME = `pos-static-v${SW_VERSION}`;
 
@@ -15,13 +15,13 @@ const NETWORK_FIRST_PATTERNS = [
   /\/transactions\//, // Transaction pages
   /\/inventory\//, // Inventory pages
   /\/customers\//, // Customer pages
+  /\/_next\/static\//, // Next.js static assets - Changed to Network First for immediate updates
+  /\.(js|css|woff2?|ttf|eot|svg|png|jpg|jpeg|gif|webp|ico)$/i, // Static files
 ];
 
 // Resources that can use stale-while-revalidate (performance + freshness)
-const STALE_WHILE_REVALIDATE_PATTERNS = [
-  /\/_next\/static\//, // Next.js static assets
-  /\.(js|css|woff2?|ttf|eot|svg|png|jpg|jpeg|gif|webp|ico)$/i,
-];
+// keeping empty for now as we want aggressive updates
+const STALE_WHILE_REVALIDATE_PATTERNS = [];
 
 // Resources that should never be cached
 const NO_CACHE_PATTERNS = [

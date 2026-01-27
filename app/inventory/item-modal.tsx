@@ -1284,7 +1284,7 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated }: ItemModal
                             </div>
                             <div className="space-y-4">
                                 <div>
-                                <Label htmlFor="price">Selling Price</Label>
+                                <Label htmlFor="price">Selling Price (OMR)</Label>
                                 <Input
                                   id="price"
                                   type="number"
@@ -1302,7 +1302,7 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated }: ItemModal
                                 />
                               </div>
                               <div>
-                                <Label htmlFor="costPrice">Cost Price</Label>
+                                <Label htmlFor="costPrice">Cost Price (OMR)</Label>
                                 <div className="relative">
                                   <Input
                                     id="costPrice"
