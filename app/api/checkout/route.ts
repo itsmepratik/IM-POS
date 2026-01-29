@@ -131,6 +131,9 @@ export async function POST(req: NextRequest) {
         
         // convert cart items to map for efficient lookup
         const productIds = processedCart.map(i => i.productId);
+        // Filter for valid UUIDs only to prevent DB errors with "9999" (Labor Charge)
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        const validProductIds = productIds.filter(id => uuidRegex.test(id));
         
         // Fetch critical data for cost calculation:
         // 1. Products (for base Cost Price and Category)
@@ -138,17 +141,19 @@ export async function POST(req: NextRequest) {
         // 3. Product Volumes (for Lubricant Max Volume inference)
         
         // 1. Fetch Products
-        const productsData = await db.query.products.findMany({
-          where: (products, { inArray }) => inArray(products.id, productIds),
+        // Only query if we have valid UUIDs
+        const productsData = validProductIds.length > 0 ? await db.query.products.findMany({
+          where: (products, { inArray }) => inArray(products.id, validProductIds),
           with: {
             category: true, // to check if fluid
           }
-        });
+        }) : [];
         
         // 2. Fetch Inventory for these products (EXPLICIT - not subquery)
-        const inventoryData = await db.select().from(inventory).where(
-          sql`${inventory.productId} IN (${sql.join(productIds.map(id => sql`${id}::uuid`), sql`, `)})`
-        );
+        const inventoryData = validProductIds.length > 0 ? await db.select().from(inventory).where(
+          sql`${inventory.productId} IN (${sql.join(validProductIds.map(id => sql`${id}::uuid`), sql`, `)})`
+        ) : [];
+
         const inventoryMap = new Map<string, string>(); // inventoryId -> productId
         const inventoryIds = inventoryData.map(inv => {
             inventoryMap.set(inv.id, inv.productId);
@@ -170,9 +175,10 @@ export async function POST(req: NextRequest) {
         }
 
         // 4. Fetch Product Volumes (only for fluids needed really, but easier to fetch all matching products)
-        const productVolumesData = await db.query.productVolumes.findMany({
-          where: (volumes, { inArray }) => inArray(volumes.productId, productIds),
-        });
+        // Use validProductIds
+        const productVolumesData = validProductIds.length > 0 ? await db.query.productVolumes.findMany({
+          where: (volumes, { inArray }) => inArray(volumes.productId, validProductIds),
+        }) : [];
 
         const { calculateItemCost, resolveCostPrice } = await import("@/lib/utils/cost-calc");
 
