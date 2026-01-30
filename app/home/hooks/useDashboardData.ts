@@ -371,7 +371,11 @@ export function useDashboardData(): UseDashboardDataReturn {
       // Usually leaderboards are better over a period (e.g. 30 days or the selected filter).
       // However, the dashboard has a global date filter `dateRange`.
       
-      const products = await getTopSellingProducts(dateRange.start, dateRange.end, shopId || undefined);
+      // Use "All Time" range (from epoch to now) as requested
+      const allTimeStart = new Date(0); // 1970-01-01
+      const now = new Date();
+      
+      const products = await getTopSellingProducts(allTimeStart, now, shopId || undefined);
       topProducts = products;
       
     } catch (error) {
@@ -619,28 +623,61 @@ export function useDashboardData(): UseDashboardDataReturn {
       return
     }
 
+    // Prepare default methods to ensure they always exist
+    // User requested "Mobile" instead of "Transfer" and specific order
+    const methodMap = new Map<string, PaymentMethodData>([
+      ["Cash", { method: "Cash", amount: 0, count: 0, percentage: 0 }],
+      ["Mobile", { method: "Mobile", amount: 0, count: 0, percentage: 0 }],
+      ["Card", { method: "Card", amount: 0, count: 0, percentage: 0 }]
+    ])
+
     // Calculate totals for percentage
-    const totalAmount = metricsData?.reduce((sum: number, item: any) => sum + Number(item.total_amount), 0) || 0
-    
-    // Process and map the data
-    const byPaymentMethod: PaymentMethodData[] = metricsData?.map((item: any) => ({
-      method: item.payment_method || "Unknown",
-      amount: Number(item.total_amount),
-      count: Number(item.transaction_count),
-      percentage: totalAmount > 0 ? (Number(item.total_amount) / totalAmount) * 100 : 0
-    })) || []
-    
-    // If no data, fall back to empty state rather than mock data
-    if (byPaymentMethod.length === 0) {
-      setPaymentMetrics({
-        byPaymentMethod: [],
-        trend: []
+    const totalAmount = metricsData?.reduce((sum: number, item: any) => sum + Number(item.total_amount), 0) || 0;
+
+    // Merge DB data into map
+    if (metricsData) {
+      metricsData.forEach((item: any) => {
+        let name = item.payment_method || "Unknown"
+        
+        // Normalize name: Title Case (e.g. "CASH" -> "Cash")
+        if (name && typeof name === 'string') {
+          name = name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+        }
+
+        // Map "Transfer" to "Mobile" if that's what's in DB
+        if (name === "Transfer") name = "Mobile";
+
+        // Update existing or add new
+        methodMap.set(name, {
+          method: name,
+          amount: Number(item.total_amount),
+          count: Number(item.transaction_count),
+          percentage: totalAmount > 0 ? (Number(item.total_amount) / totalAmount) * 100 : 0
+        })
       })
-      return
     }
 
-    // Sort by percentage descending
-    byPaymentMethod.sort((a, b) => b.percentage - a.percentage)
+    // Convert map to array
+    const byPaymentMethod = Array.from(methodMap.values())
+
+    // Sort order: Cash, Mobile, Card
+    byPaymentMethod.sort((a, b) => {
+       const order = ["Cash", "Mobile", "Card"];
+       const indexA = order.indexOf(a.method);
+       const indexB = order.indexOf(b.method);
+       
+       // If both are in the known list, sort by fixed order
+       if (indexA !== -1 && indexB !== -1) {
+         return indexA - indexB;
+       }
+       
+       // If only one is in known list, put known first
+       if (indexA !== -1) return -1;
+       if (indexB !== -1) return 1;
+
+       // Otherwise sort by percentage desc
+       return b.percentage - a.percentage;
+    })
 
     setPaymentMetrics({
       byPaymentMethod,

@@ -243,15 +243,31 @@ export async function getProfitsReport(
        // Build display name with brand prefix (e.g., "Shell 20W-50")
        const brandName = product?.brand?.name || "";
        const productName = product?.name || "";
-       const rawName = brandName && productName 
-           ? `${brandName} ${productName}` 
-           : (productName || item.name || `Unknown Item (${item.productId})`);
-       const nameKey = rawName.trim(); // Normalize
+       
+       let displayTitle = "Unknown Item";
+       if (brandName && productName) {
+           displayTitle = `${brandName} ${productName}`;
+       } else if (productName) {
+           displayTitle = productName;
+       } else if (item.name) {
+           displayTitle = item.name;
+       } else if (item.volumeDescription) {
+           // Fallback for Labor/Custom items which often have volumeDescription like "Labor - Custom Service"
+           displayTitle = item.volumeDescription;
+       } else {
+           displayTitle = `Unknown Item (${item.productId})`;
+       }
+       
+       const nameKey = displayTitle.trim(); // Normalize
 
        let category: "fluid" | "part" | "service" = "part";
        const catName = product?.category?.name?.toLowerCase() || "";
        if (catName.includes('fluid') || catName.includes('oil') || catName.includes('lubricant')) category = "fluid";
        else if (catName.includes('service') || catName.includes('labor')) category = "service";
+       // Also check if the item itself implies service/labor (e.g. ID 9999)
+       if (item.productId === '9999' || displayTitle.toLowerCase().includes('labor') || displayTitle.toLowerCase().includes('service')) {
+           category = "service";
+       }
 
        // Store Name Mapping
        const txStoreId = tx.shopId;
@@ -282,8 +298,11 @@ export async function getProfitsReport(
        if (!aggregation.has(uniqueKey)) {
           // Create new record
           aggregation.set(uniqueKey, {
-              id: item.productId, 
-              name: rawName,
+              // IMPORTANT: The ID must be unique for the frontend list key. 
+              // Using item.productId is NOT unique if the same product is in multiple stores.
+              // So we use uniqueKey or a composite ID.
+              id: uniqueKey, 
+              name: displayTitle,
               category,
               quantity: 0,
               unitPrice: 0,

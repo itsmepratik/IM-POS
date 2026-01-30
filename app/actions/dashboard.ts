@@ -34,19 +34,21 @@ export async function getTopSellingProducts(
         SELECT
           t.id,
           t.created_at,
-          -- Fallback to product name from products table if missing in JSON
-          -- If product exists, try to prepend Brand name
+          -- Fallback logic for product name
           CASE 
             WHEN p.name IS NOT NULL THEN 
               TRIM(CONCAT(COALESCE(b.name, ''), ' ', p.name))
-            ELSE COALESCE(item->>'name', 'Unknown Product')
+            WHEN item->>'name' IS NOT NULL THEN item->>'name'
+            WHEN item->>'volumeDescription' IS NOT NULL THEN item->>'volumeDescription'
+            ELSE 'Custom Item'
           END as product_name,
           COALESCE((item->>'quantity')::int, 0) as quantity,
-          -- Use sellingPrice as it matches the Zod schema
           COALESCE((item->>'sellingPrice')::numeric, (item->>'price')::numeric, 0) as unit_price
         FROM ${transactions} t
         CROSS JOIN LATERAL jsonb_array_elements(t.items_sold) as item
-        LEFT JOIN ${products} p ON p.id = (item->>'productId')::uuid
+        -- Cast product.id to text to compare with JSON string to avoid "invalid input syntax for type uuid" error
+        -- when productId is "9999" (Labor) or other non-UUID legacy/custom IDs
+        LEFT JOIN ${products} p ON p.id::text = (item->>'productId')
         LEFT JOIN ${brands} b ON b.id = p.brand_id
         WHERE 
           t.created_at >= ${startDate.toISOString()}

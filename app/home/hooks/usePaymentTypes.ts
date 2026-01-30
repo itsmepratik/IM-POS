@@ -27,7 +27,7 @@ export function usePaymentTypes() {
         description: "Breakdown of all cash payments",
         icon: Banknote,
       },
-      "Mobile Payments": {
+      "Mobile": { // Renamed from "Mobile Payments"
         title: "Mobile Payments",
         description: "Breakdown of all mobile payment transactions",
         icon: Smartphone,

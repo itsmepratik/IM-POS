@@ -341,7 +341,7 @@ function PaymentType({ label, amount, percentage, color }: PaymentTypeProps) {
         <span>{label}</span>
         <span>{amount}</span>
       </div>
-      <Progress value={percentage} className={`h-2 [&>div]:${color}`} />
+      <Progress value={percentage} className={`h-[18px] rounded-[4px] [&>div]:${color}`} />
     </div>
   );
 }
