@@ -82,7 +82,7 @@ function HomePageContent() {
     fetchShops();
   }, []);
 
-  const { sales, profit, payments, lastUpdated, isLoading, setBranchFilter } =
+  const { sales, profit, payments, lastUpdated, isLoading, isSalesLoading, isProfitLoading, setBranchFilter } =
     useDashboardData();
 
   // Sync branch selection with dashboard data
@@ -162,12 +162,12 @@ function HomePageContent() {
               <MetricCard
                 title="Total Revenue"
                 value={
-                  isLoading
+                  isSalesLoading
                     ? "Loading..."
                     : `OMR ${sales.totalSales.toFixed(2)}`
                 }
                 comparison={
-                  isLoading
+                  isSalesLoading
                     ? "-"
                     : `${sales.changePercentage.toFixed(1)}% from last period`
                 }
@@ -176,12 +176,12 @@ function HomePageContent() {
               <MetricCard
                 title="Net Profits"
                 value={
-                  isLoading
+                  isProfitLoading
                     ? "Loading..."
                     : `OMR ${profit.grossProfit.toFixed(2)}`
                 }
                 comparison={
-                  isLoading
+                  isProfitLoading
                     ? "-"
                     : `${
                         isNaN(profit.profitChangePercentage)
@@ -195,7 +195,7 @@ function HomePageContent() {
           </section>
 
           <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <Card className="border-2 rounded-[33px]">
+            <Card className="border-2 rounded-[16px]">
               <CardHeader className="pb-2">
                 <CardTitle>Payment types</CardTitle>
               </CardHeader>
@@ -230,7 +230,7 @@ function HomePageContent() {
               </CardContent>
             </Card>
 
-            <Card className="border-2 rounded-[33px]">
+            <Card className="border-2 rounded-[16px]">
               <CardHeader className="pb-2">
                 <CardTitle>Top selling items</CardTitle>
               </CardHeader>
@@ -296,7 +296,7 @@ interface MetricCardProps {
 
 function MetricCard({ title, value, comparison, link }: MetricCardProps) {
   return (
-    <Card className="border-2 rounded-[33px]">
+    <Card className="border-2 rounded-[16px]">
       <CardHeader className="pb-2">
         <CardTitle className="text-base font-bold">{title}</CardTitle>
       </CardHeader>

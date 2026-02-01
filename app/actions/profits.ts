@@ -183,21 +183,24 @@ export async function getProfitsReport(
     if (!items || !Array.isArray(items)) continue;
 
     // Calculate Discount Ratio to Apply Proportional Revenue Reduction
-    let discountRatio = 1;
-    const discountAmount = Number(tx.discountAmount) || 0;
+    // Calculate Revenue Ratio (Handles both Discount AND Trade-In)
+    // Revenue = Subtotal * Ratio = NetTotal
+    // Ratio = NetTotal / Subtotal
     
-    if (discountAmount > 0) {
-        let subtotal = Number(tx.subtotalBeforeDiscount);
-        // Fallback: Calculate subtotal from items if missing in DB
-        if (!subtotal || isNaN(subtotal) || subtotal === 0) {
-            subtotal = items.reduce((sum, i) => sum + (Number(i.sellingPrice) || 0) * (Number(i.quantity) || 0), 0);
-        }
-        
-        if (subtotal > 0) {
-            // Apply discount proportionally: (Subtotal - Discount) / Subtotal
-            // e.g. (50 - 5) / 50 = 0.9. Revenue becomes 90% of original.
-            discountRatio = Math.max(0, (subtotal - discountAmount) / subtotal);
-        }
+    let revenueRatio = 1;
+    let subtotal = Number(tx.subtotalBeforeDiscount);
+    const totalAmount = Number(tx.totalAmount) || 0; // The final cash amount
+
+    // Fallback if subtotal missing
+    if (!subtotal || isNaN(subtotal) || subtotal === 0) {
+        subtotal = items.reduce((sum, i) => sum + (Number(i.sellingPrice) || 0) * (Number(i.quantity) || 0), 0);
+    }
+
+    if (subtotal > 0) {
+        // Apply ratio: Total / Subtotal
+        // e.g. Subtotal 50, Discount 5, TradeIn 5 -> Total 40.
+        // Ratio = 40/50 = 0.8
+        revenueRatio = Math.max(0, totalAmount / subtotal);
     }
 
     for (const item of items) {
@@ -208,8 +211,8 @@ export async function getProfitsReport(
        
        if (quantity === 0) continue; // Skip 0 quantity items
 
-       // Revenue (Adjusted for Discount)
-       const revenue = sellingPrice * quantity * discountRatio;
+       // Revenue (Adjusted for Discount AND Trade-In)
+       const revenue = sellingPrice * quantity * revenueRatio;
 
        // Cost Logic
        let finalCost = 0;

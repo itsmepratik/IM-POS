@@ -14,7 +14,7 @@ interface SalesTrendChartProps {
 export function SalesTrendChart({ data, isLoading, trendPercentage }: SalesTrendChartProps) {
   if (isLoading) {
     return (
-      <Card className="col-span-1 lg:col-span-2 border-2 rounded-[33px]">
+      <Card className="col-span-1 lg:col-span-2 border-2 rounded-[16px]">
         <CardHeader>
           <CardTitle>Revenue Trend</CardTitle>
           <CardDescription>Daily revenue over the selected period</CardDescription>
@@ -40,7 +40,7 @@ export function SalesTrendChart({ data, isLoading, trendPercentage }: SalesTrend
   const isPositive = (trendPercentage || 0) >= 0
 
   return (
-    <Card className="col-span-1 lg:col-span-2 border-2 rounded-[33px]">
+    <Card className="col-span-1 lg:col-span-2 border-2 rounded-[16px]">
       <CardHeader>
         <div className="flex items-center justify-between">
             <div>

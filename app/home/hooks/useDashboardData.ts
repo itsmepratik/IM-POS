@@ -144,6 +144,8 @@ export interface UseDashboardDataReturn {
   
   // Loading states
   isLoading: boolean
+  isSalesLoading: boolean
+  isProfitLoading: boolean
   lastUpdated: Date | null
   
   // Actions
@@ -171,6 +173,8 @@ export function useDashboardData(): UseDashboardDataReturn {
   
   // Loading state
   const [isLoading, setIsLoading] = useState(true)
+  const [isSalesLoading, setIsSalesLoading] = useState(true)
+  const [isProfitLoading, setIsProfitLoading] = useState(true)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   
   // === METRICS STATE ===
@@ -281,77 +285,95 @@ export function useDashboardData(): UseDashboardDataReturn {
   
   // === DATA FETCHING LOGIC ===
   
-  const fetchSalesMetrics = async (): Promise<SalesMetrics> => {
+  // Helper to fetch from Edge Function
+  const fetchMetric = async (path: string, payload: any) => {
     const supabase = createClient()
-    
-    // Handle branch filter: ensure we pass null if it's 'all' or undefined
-    const shopId = (branchFilter === 'all' || !branchFilter) ? null : branchFilter
-    
-    console.log("Fetching net revenue for shop:", shopId)
+    const { data, error } = await supabase.functions.invoke(`dashboard-metrics/${path}`, {
+      body: payload
+    })
+    if (error) throw error
+    return data
+  }
 
+  const fetchSalesMetrics = async (): Promise<SalesMetrics> => {
+    // Handle branch filter: ensure we pass null if it's 'all' or undefined
+    const shopId = (branchFilter === 'all' || !branchFilter) ? undefined : branchFilter
+    
     // === CARD METRICS (ALWAYS TODAY) ===
-    // We override the summary cards to always show TODAY's data for immediate relevance
     const todayStart = startOfDay(new Date())
     const todayEnd = endOfDay(new Date())
     const yesterdayStart = startOfDay(subDays(new Date(), 1))
     const yesterdayEnd = endOfDay(subDays(new Date(), 1))
 
-    // Calculate net revenue for TODAY
-    const { data: netRevenue, error } = await supabase.rpc('get_net_revenue', {
-      start_date: todayStart.toISOString(),
-      end_date: todayEnd.toISOString(),
-      filter_shop_id: shopId
-    })
-
-    if (error) {
-      console.error('Error fetching net revenue:', error)
-    }
-
-    // Fetch net revenue for YESTERDAY (for comparison)
-    const { data: prevNetRevenue, error: prevError } = await supabase.rpc('get_net_revenue', {
-      start_date: yesterdayStart.toISOString(),
-      end_date: yesterdayEnd.toISOString(),
-      filter_shop_id: shopId
-    })
-
-    if (prevError) {
-      console.error('Error fetching previous net revenue:', prevError)
-    }
+    let totalSales = 0
+    let previousPeriodSales = 0
+    let topProducts: TopProduct[] = []
+    let salesTrend = []
     
-    const totalSales = Number(netRevenue) || 0
-    const previousPeriodSales = Number(prevNetRevenue) || 0
+    try {
+        setIsSalesLoading(true)
+        // Parallel Fetching for speed
+        const [todayRevenue, yesterdayRevenue, topItemsData, trendData] = await Promise.all([
+            fetchMetric('revenue', { startDate: todayStart, endDate: todayEnd, shopId }),
+            fetchMetric('revenue', { startDate: yesterdayStart, endDate: yesterdayEnd, shopId }),
+            fetchMetric('top-items', { startDate: new Date(0), endDate: new Date(), shopId }),
+            fetchMetric('sales-trend', { startDate: dateRange.start, endDate: dateRange.end, shopId })
+        ])
+
+        totalSales = Number(todayRevenue) || 0
+        previousPeriodSales = Number(yesterdayRevenue) || 0
+        topProducts = topItemsData || []
+        
+        // Process trend data
+        const salesMap = new Map<string, number>()
+        if (Array.isArray(trendData)) {
+            trendData.forEach((item: any) => {
+                salesMap.set(item.sale_date, Number(item.total_sales))
+            })
+        }
+
+        const days = eachDayOfInterval({
+          start: dateRange.start,
+          end: dateRange.end
+        })
+
+        salesTrend = days.map(day => {
+          const dateKey = format(day, 'yyyy-MM-dd')
+          return {
+            date: dateKey,
+            value: salesMap.get(dateKey) || 0
+          }
+        })
+
+    } catch (e) {
+        console.error("Error fetching sales metrics from Edge Function:", e)
+    } finally {
+        setIsSalesLoading(false)
+    }
     
     // Calculate change percentage (Today vs Yesterday)
     const changePercentage = previousPeriodSales > 0 
       ? ((totalSales - previousPeriodSales) / previousPeriodSales) * 100
       : 0
     
-    // === TREND METRICS (RESPECT DATE RANGE) ===
-    // The chart and lists still respect the selected date range (default 7 days)
-    
-    // Get date range duration in days for trend averages
+    // Derived metrics (mock or estimation)
     const durationDays = Math.max(1, Math.ceil(
       (dateRange.end.getTime() - dateRange.start.getTime()) / (1000 * 60 * 60 * 24)
     ))
-
-    // Transaction count and average ticket (mock for now, should be real eventually)
-    const transactionCount = Math.floor(durationDays * 25)
-    const avgTicketValue = transactionCount > 0 ? totalSales / transactionCount : 0 /* Note: this uses Today's sales, might want to update later to use range sales */
+    const transactionCount = Math.floor(durationDays * 25) // Mock
+    const avgTicketValue = transactionCount > 0 ? totalSales / transactionCount : 0 
     
-    // Sales by category (mock distribution of real total)
+    // Sales by category (mock distribution)
     const categories = ["Oil", "Filters", "Parts", "Additives", "Services"]
-    
     const salesByCategory = categories.map((category, index) => {
-      // Fixed distribution
       let percentage = 0
       switch(index) {
-        case 0: percentage = 35; break; // Oil
-        case 1: percentage = 25; break; // Filters
-        case 2: percentage = 20; break; // Parts
-        case 3: percentage = 15; break; // Additives
-        case 4: percentage = 5; break;  // Services
+        case 0: percentage = 35; break;
+        case 1: percentage = 25; break;
+        case 2: percentage = 20; break;
+        case 3: percentage = 15; break;
+        case 4: percentage = 5; break;
       }
-      
       return {
         category,
         amount: (totalSales * percentage) / 100,
@@ -359,65 +381,8 @@ export function useDashboardData(): UseDashboardDataReturn {
       }
     })
     
-    // Top products (real data)
-    let topProducts: TopProduct[] = [];
-    try {
-      const { getTopSellingProducts } = await import("@/app/actions/dashboard");
-      
-      // Use the actual date range for top products instead of just "Today"
-      // or "Today" if we want it to match card metrics strictly. 
-      // The previous mock implementation was just static.
-      // The "Top Selling Items" card seems to imply a leader board.
-      // Usually leaderboards are better over a period (e.g. 30 days or the selected filter).
-      // However, the dashboard has a global date filter `dateRange`.
-      
-      // Use "All Time" range (from epoch to now) as requested
-      const allTimeStart = new Date(0); // 1970-01-01
-      const now = new Date();
-      
-      const products = await getTopSellingProducts(allTimeStart, now, shopId || undefined);
-      topProducts = products;
-      
-    } catch (error) {
-      console.error('Error fetching top selling products:', error);
-      // Fallback to empty or previous behavior if needed, but for now we want to see real data
-      topProducts = [];
-    }
-    
-    // Sales trend over time (real data based on DATE RANGE)
-    const { data: trendData, error: trendError } = await supabase.rpc('get_daily_sales', {
-      start_date: dateRange.start.toISOString(),
-      end_date: dateRange.end.toISOString(),
-      filter_shop_id: shopId
-    })
-
-    if (trendError) {
-      console.error('Error fetching sales trend:', trendError)
-    }
-
-    // Process trend data to fill gaps
-    const salesMap = new Map<string, number>()
-    if (trendData) {
-      trendData.forEach((item: any) => {
-        salesMap.set(item.sale_date, Number(item.total_sales))
-      })
-    }
-
-    const days = eachDayOfInterval({
-      start: dateRange.start,
-      end: dateRange.end
-    })
-
-    const salesTrend = days.map(day => {
-      const dateKey = format(day, 'yyyy-MM-dd')
-      return {
-        date: dateKey,
-        value: salesMap.get(dateKey) || 0
-      }
-    })
-    
     // Find best selling day
-    const bestSellingDay = salesTrend.reduce((best, current) => 
+    const bestSellingDay = salesTrend.reduce((best: any, current: any) => 
       current.value > (best?.value || 0) ? current : best, 
       null as TrendPoint | null
     )?.date
@@ -430,7 +395,7 @@ export function useDashboardData(): UseDashboardDataReturn {
       transactionCount,
       salesByCategory,
       topProducts,
-      salesTrend,
+      salesTrend: salesTrend as TrendPoint[],
       bestSellingDay
     }
 
@@ -450,13 +415,20 @@ export function useDashboardData(): UseDashboardDataReturn {
     const shopId = (branchFilter === 'all' || !branchFilter) ? undefined : branchFilter
 
     try {
-        // 1. Fetch Today's Profit
-        const todayReport = await getProfitsReport(shopId, todayStart, todayEnd)
-        const grossProfit = todayReport.reduce((sum, item) => sum + item.profit, 0)
+        setIsProfitLoading(true)
+        // 1. Fetch Today's Profit via Edge Function
+        const grossProfit = await fetchMetric('profits-card', { 
+            startDate: todayStart, 
+            endDate: todayEnd, 
+            shopId 
+        })
         
-        // 2. Fetch Yesterday's Profit
-        const yesterdayReport = await getProfitsReport(shopId, yesterdayStart, yesterdayEnd)
-        const previousPeriodProfit = yesterdayReport.reduce((sum, item) => sum + item.profit, 0)
+        // 2. Fetch Yesterday's Profit via Edge Function
+        const previousPeriodProfit = await fetchMetric('profits-card', { 
+            startDate: yesterdayStart, 
+            endDate: yesterdayEnd, 
+            shopId 
+        })
 
         // Calculate profit change percentage
         const profitChangePercentage = previousPeriodProfit > 0
@@ -498,6 +470,8 @@ export function useDashboardData(): UseDashboardDataReturn {
     } catch (error) {
         console.error("Error fetching profit metrics:", error)
         // Fallback to 0 or keep existing
+    } finally {
+        setIsProfitLoading(false)
     }
   }
   
@@ -606,25 +580,18 @@ export function useDashboardData(): UseDashboardDataReturn {
       topCustomers
     })
   }
-  
-  const fetchPaymentMetrics = async (currentSalesMetrics: SalesMetrics) => {
-    const supabase = createClient()
-    const shopId = (branchFilter === 'all' || !branchFilter) ? null : branchFilter
-    const today = new Date()
-    
-    // Fetch daily payment metrics from the database
-    const { data: metricsData, error } = await supabase.rpc('get_daily_payment_metrics', {
-      query_date: today.toISOString(),
-      target_shop_id: shopId
-    })
 
-    if (error) {
-      console.error("Error fetching payment metrics:", JSON.stringify(error, null, 2))
-      return
+  const fetchPaymentMetrics = async (currentSalesMetrics: SalesMetrics) => {
+    const shopId = (branchFilter === 'all' || !branchFilter) ? undefined : branchFilter
+    
+    let metricsData = []
+    try {
+        metricsData = await fetchMetric('payment-types', { shopId })
+    } catch (e) {
+        console.error("Error fetching payment metrics:", e)
     }
 
-    // Prepare default methods to ensure they always exist
-    // User requested "Mobile" instead of "Transfer" and specific order
+    // Prepare default methods
     const methodMap = new Map<string, PaymentMethodData>([
       ["Cash", { method: "Cash", amount: 0, count: 0, percentage: 0 }],
       ["Mobile", { method: "Mobile", amount: 0, count: 0, percentage: 0 }],
@@ -635,19 +602,15 @@ export function useDashboardData(): UseDashboardDataReturn {
     const totalAmount = metricsData?.reduce((sum: number, item: any) => sum + Number(item.total_amount), 0) || 0;
 
     // Merge DB data into map
-    if (metricsData) {
+    if (Array.isArray(metricsData)) {
       metricsData.forEach((item: any) => {
         let name = item.payment_method || "Unknown"
-        
-        // Normalize name: Title Case (e.g. "CASH" -> "Cash")
+        // Normalize name: Title Case
         if (name && typeof name === 'string') {
           name = name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
         }
-
-        // Map "Transfer" to "Mobile" if that's what's in DB
         if (name === "Transfer") name = "Mobile";
 
-        // Update existing or add new
         methodMap.set(name, {
           method: name,
           amount: Number(item.total_amount),
@@ -657,31 +620,21 @@ export function useDashboardData(): UseDashboardDataReturn {
       })
     }
 
-    // Convert map to array
     const byPaymentMethod = Array.from(methodMap.values())
-
-    // Sort order: Cash, Mobile, Card
+    // Sort: Cash, Mobile, Card
     byPaymentMethod.sort((a, b) => {
        const order = ["Cash", "Mobile", "Card"];
        const indexA = order.indexOf(a.method);
        const indexB = order.indexOf(b.method);
-       
-       // If both are in the known list, sort by fixed order
-       if (indexA !== -1 && indexB !== -1) {
-         return indexA - indexB;
-       }
-       
-       // If only one is in known list, put known first
+       if (indexA !== -1 && indexB !== -1) return indexA - indexB;
        if (indexA !== -1) return -1;
        if (indexB !== -1) return 1;
-
-       // Otherwise sort by percentage desc
        return b.percentage - a.percentage;
     })
 
     setPaymentMetrics({
       byPaymentMethod,
-      trend: [] // Trend data requires a separate query/RPC if needed
+      trend: [] 
     })
   }
   
@@ -696,26 +649,27 @@ export function useDashboardData(): UseDashboardDataReturn {
   }
   
   // Function to refresh all data
-  const refreshData = async () => {
-    setIsLoading(true)
+   const refreshData = async () => {
+    // We don't block with global isLoading anymore to allow progressive loading
+    // But we set individual loading states in their respective fetch functions
     
     try {
-      // First fetch sales metrics as other metrics depend on it
+      // Start independent calls in parallel
+      fetchInventoryMetrics()
+      fetchPaymentMetrics({ ...salesMetrics }) // Pass existing sales metrics as it doesn't really depend on it
+      
+      // Sales metrics is the dependency for others
       const currentSalesMetrics = await fetchSalesMetrics()
       
-      // Then fetch other metrics using the sales data
-      await Promise.all([
-        fetchProfitMetrics(currentSalesMetrics),
-        fetchInventoryMetrics(),
-        fetchCustomerMetrics(currentSalesMetrics),
-        fetchPaymentMetrics(currentSalesMetrics)
-      ])
+      // Once sales is done, fetch dependents
+      fetchProfitMetrics(currentSalesMetrics)
+      fetchCustomerMetrics(currentSalesMetrics)
       
       setLastUpdated(new Date())
     } catch (error) {
       console.error("Error fetching dashboard data", error)
     } finally {
-      setIsLoading(false)
+      setIsLoading(false) // Global loading off
     }
   }
   
@@ -770,6 +724,8 @@ export function useDashboardData(): UseDashboardDataReturn {
     
     // Loading states
     isLoading,
+    isSalesLoading,
+    isProfitLoading,
     lastUpdated,
     
     // Actions

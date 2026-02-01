@@ -44,6 +44,8 @@ import {
   DollarSign,
   MoreHorizontal,
 } from "lucide-react";
+import { Cashier02Icon } from "hugeicons-react";
+import HugeiconsIcon from "@/components/HugeiconsIcon";
 import {
   Dialog,
   DialogContent,
@@ -2069,7 +2071,7 @@ function POSPageContent() {
                         className="dispute-button h-auto px-4 py-[9px] rounded-[12px] flex items-center gap-2 relative transition-all duration-200 ease-in-out active:transition-none"
                         onClick={() => setIsDisputeDialogOpen(true)}
                       >
-                        <RotateCcw className="h-4 w-4" />
+                        <HugeiconsIcon icon={Cashier02Icon} size={22} strokeWidth={2.2} className="!size-[22px]" />
                         <span className="font-medium">Dispute</span>
                       </Button>
 
@@ -2116,7 +2118,7 @@ function POSPageContent() {
                     className="dispute-button h-auto px-4 py-[9px] flex items-center gap-2 relative transition-all duration-200 ease-in-out active:transition-none"
                     onClick={() => setIsDisputeDialogOpen(true)}
                   >
-                    <RotateCcw className="h-4 w-4" />
+                    <HugeiconsIcon icon={Cashier02Icon} size={22} strokeWidth={2.2} className="!size-[22px]" />
                     <span className="font-medium">Dispute</span>
                   </Button>
                 </div>
