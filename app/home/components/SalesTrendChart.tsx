@@ -1,9 +1,23 @@
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts"
+import { Bar, BarChart, CartesianGrid, LabelList, XAxis } from "recharts"
+import {
+  ChartConfig,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart"
 import { format } from "date-fns"
-import { ArrowUpRight, ArrowDownRight, TrendingUp } from "lucide-react"
+import { ArrowUpRight, ArrowDownRight } from "lucide-react"
+
+// Neutral color config
+const chartConfig = {
+  revenue: {
+    label: "Revenue",
+    color: "hsl(var(--muted-foreground))", // Neutral color
+  },
+} satisfies ChartConfig
 
 interface SalesTrendChartProps {
   data: { date: string; value: number }[]
@@ -55,60 +69,38 @@ export function SalesTrendChart({ data, isLoading, trendPercentage }: SalesTrend
             )}
         </div>
       </CardHeader>
-      <CardContent className="pl-0">
-        <div className="h-[300px] w-full pr-4">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={formattedData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-              <defs>
-                <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#E30600" stopOpacity={0.1}/>
-                  <stop offset="95%" stopColor="#E30600" stopOpacity={0}/>
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-              <XAxis 
-                dataKey="formattedDate" 
-                tickLine={false} 
-                axisLine={false} 
-                tickMargin={10}
-                tick={{ fontSize: 12, fill: '#6b7280' }}
-                interval="preserveStartEnd"
+      <CardContent>
+        <ChartContainer config={chartConfig} className="h-[300px] w-full">
+          <BarChart
+            accessibilityLayer
+            data={formattedData}
+            margin={{
+              top: 20,
+            }}
+          >
+            <CartesianGrid vertical={false} />
+            <XAxis
+              dataKey="formattedDate"
+              tickLine={false}
+              tickMargin={10}
+              axisLine={false}
+              tickFormatter={(value) => value.slice(0, 5)}
+            />
+            <ChartTooltip
+              cursor={false}
+              content={<ChartTooltipContent hideLabel />}
+            />
+            <Bar dataKey="value" fill="var(--color-revenue)" radius={8}>
+              <LabelList
+                position="top"
+                offset={12}
+                className="fill-foreground"
+                fontSize={12}
+                formatter={(value: number) => `OMR ${value.toFixed(0)}`}
               />
-              <YAxis 
-                tickLine={false} 
-                axisLine={false} 
-                tickFormatter={(value) => `OMR ${value}`} 
-                tick={{ fontSize: 12, fill: '#6b7280' }}
-                width={80}
-              />
-              <Tooltip 
-                cursor={{ stroke: '#E30600', strokeWidth: 1, strokeDasharray: '5 5' }}
-                content={({ active, payload, label }) => {
-                    if (active && payload && payload.length) {
-                    return (
-                        <div className="bg-white p-3 border border-gray-100 shadow-lg rounded-xl">
-                        <p className="text-sm font-medium text-gray-500 mb-1">{label}</p>
-                        <p className="text-lg font-bold text-gray-900">
-                            OMR {Number(payload[0].value).toFixed(2)}
-                        </p>
-                        </div>
-                    )
-                    }
-                    return null
-                }}
-              />
-              <Area 
-                type="monotone" 
-                dataKey="value" 
-                stroke="#E30600" 
-                strokeWidth={3}
-                fillOpacity={1} 
-                fill="url(#colorValue)" 
-                activeDot={{ r: 6, strokeWidth: 0, fill: '#E30600' }}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
+            </Bar>
+          </BarChart>
+        </ChartContainer>
       </CardContent>
     </Card>
   )

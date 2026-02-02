@@ -309,20 +309,25 @@ export function useDashboardData(): UseDashboardDataReturn {
     let previousPeriodSales = 0
     let topProducts: TopProduct[] = []
     let salesTrend = []
+    let realTransactionCount = 0
     
     try {
         setIsSalesLoading(true)
         // Parallel Fetching for speed
-        const [todayRevenue, yesterdayRevenue, topItemsData, trendData] = await Promise.all([
+        const [todayRevenue, yesterdayRevenue, topItemsData, trendData, todayTxCount, yesterdayTxCount] = await Promise.all([
             fetchMetric('revenue', { startDate: todayStart, endDate: todayEnd, shopId }),
             fetchMetric('revenue', { startDate: yesterdayStart, endDate: yesterdayEnd, shopId }),
             fetchMetric('top-items', { startDate: new Date(0), endDate: new Date(), shopId }),
-            fetchMetric('sales-trend', { startDate: dateRange.start, endDate: dateRange.end, shopId })
+            fetchMetric('sales-trend', { startDate: dateRange.start, endDate: dateRange.end, shopId }),
+            fetchMetric('transaction-count', { startDate: todayStart, endDate: todayEnd, shopId }),
+            fetchMetric('transaction-count', { startDate: yesterdayStart, endDate: yesterdayEnd, shopId })
         ])
 
         totalSales = Number(todayRevenue) || 0
         previousPeriodSales = Number(yesterdayRevenue) || 0
         topProducts = topItemsData || []
+        // Use real transaction count
+        realTransactionCount = todayTxCount || 0
         
         // Process trend data
         const salesMap = new Map<string, number>()
@@ -360,7 +365,8 @@ export function useDashboardData(): UseDashboardDataReturn {
     const durationDays = Math.max(1, Math.ceil(
       (dateRange.end.getTime() - dateRange.start.getTime()) / (1000 * 60 * 60 * 24)
     ))
-    const transactionCount = Math.floor(durationDays * 25) // Mock
+    const transactionCount = realTransactionCount; // Use the fetched count
+    // avgTicketValue based on today's sales
     const avgTicketValue = transactionCount > 0 ? totalSales / transactionCount : 0 
     
     // Sales by category (mock distribution)

@@ -94,6 +94,24 @@ Deno.serve(async (req) => {
          data = Number(profData) || 0;
          break;
 
+      case 'transaction-count':
+        // Count transactions directly
+        let query = supabaseClient
+            .from('transactions')
+            .select('*', { count: 'exact', head: true })
+            .gte('created_at', startDate)
+            .lte('created_at', endDate)
+            .in('type', ['SALE', 'ON_HOLD_PAID', 'CREDIT_PAID']);
+        
+        if (shopId) {
+            query = query.eq('shop_id', shopId); 
+        }
+
+        const { count, error: txError } = await query;
+        if (txError) throw txError;
+        data = count || 0;
+        break;
+
       default:
         if (!path || path === 'dashboard-metrics') {
              return new Response(JSON.stringify({ status: "ok" }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }});

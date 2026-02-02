@@ -158,7 +158,7 @@ function HomePageContent() {
         <div className="space-y-6">
           <section>
             <h2 className="text-lg font-semibold mb-3">Key metrics</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <MetricCard
                 title="Total Revenue"
                 value={
@@ -190,6 +190,16 @@ function HomePageContent() {
                       }% from last period`
                 }
                 link="/sales-info/profits"
+              />
+              <MetricCard
+                title="Transactions"
+                value={
+                  isSalesLoading
+                    ? "Loading..."
+                    : `${sales.transactionCount}`
+                }
+                comparison="Today"
+                // No link for now as per request/current scope
               />
             </div>
           </section>
