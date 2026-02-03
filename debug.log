@@ -1,0 +1,55 @@
+Starting Lubricant Partial Sale verification...
+Setup complete. Product: Test-Lube-Verification-1770133986362, ID: be51326e-d9e5-49ea-8ac7-97794f2825ec
+Initial Inventory: 10 Closed, 0 Open.
+Transaction Failed: 36 |   async queryWithCache(queryString, params, query) {
+37 |     if (this.cache === void 0 || is(this.cache, NoopCache) || this.queryMetadata === void 0) {
+38 |       try {
+39 |         return await query();
+40 |       } catch (e) {
+41 |         throw new DrizzleQueryError(queryString, params, e);
+                   ^
+error: Failed query: 
+        SELECT create_checkout_transaction(
+            $1::uuid,
+            $2::uuid,
+            $3::uuid,
+            $4::jsonb,
+            $5::numeric,
+            $6::text,
+            $7::text,
+            NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'Test', NULL
+        )
+      
+params: c4212c14-64f3-4c9e-aa0e-6317fa3e9c3c,00000000-0000-0000-0000-000000000001,,[{"productId":"be51326e-d9e5-49ea-8ac7-97794f2825ec","quantity":1,"volumeDescription":"1L","source":"CLOSED","price":10}],10,CASH,SALE
+  query: "\n        SELECT create_checkout_transaction(\n            $1::uuid,\n            $2::uuid,\n            $3::uuid,\n            $4::jsonb,\n            $5::numeric,\n            $6::text,\n            $7::text,\n            NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'Test', NULL\n        )\n      ",
+ params: [
+  "c4212c14-64f3-4c9e-aa0e-6317fa3e9c3c", "00000000-0000-0000-0000-000000000001", null,
+  "[{\"productId\":\"be51326e-d9e5-49ea-8ac7-97794f2825ec\",\"quantity\":1,\"volumeDescription\":\"1L\",\"source\":\"CLOSED\",\"price\":10}]",
+  "10", "CASH", "SALE"
+],
+
+      at queryWithCache (D:\Coding Projects\pos\node_modules\drizzle-orm\pg-core\session.js:41:15)
+
+789 |     query.execute()
+790 |   }
+791 | 
+792 |   function ErrorResponse(x) {
+793 |     query && (query.cursorFn || query.describeFirst) && write(Sync)
+794 |     const error = Errors.postgres(parseError(x))
+                               ^
+PostgresError: DEBUG: IsLube: t, Desc: 1L, UnitVol: <NULL>, Req: <NULL>, BottleSize: 4.0, ToOpen: <NULL>, InventoryClosed: 10
+ severity_local: "ERROR",
+   severity: "ERROR",
+      where: "PL/pgSQL function create_checkout_transaction(uuid,uuid,uuid,jsonb,numeric,text,text,uuid,numeric,text,numeric,numeric,text,text,text,text,jsonb) line 192 at RAISE",
+       file: "pl_exec.c",
+    routine: "exec_stmt_raise",
+       code: "P0001"
+
+      at ErrorResponse (D:\Coding Projects\pos\node_modules\postgres\src\connection.js:794:26)
+      at handle (D:\Coding Projects\pos\node_modules\postgres\src\connection.js:750:36)
+      at data (D:\Coding Projects\pos\node_modules\postgres\src\connection.js:452:3)
+      at emit (node:events:95:22)
+      at addChunk (internal:streams/readable:264:47)
+      at readableAddChunkPushByteMode (internal:streams/readable:242:18)
+      at data (node:net:280:52)
+

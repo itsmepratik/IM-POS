@@ -203,6 +203,10 @@ export const BillComponent: React.FC<BillComponentProps> = ({
               font-size: 15px !important;
               color: #666 !important;
             }
+            .address-line {
+              font-size: 11px !important;
+              white-space: nowrap !important;
+            }
           }
           /* Screen preview fallback */
           .left-header div, .right-header div {
@@ -409,16 +413,16 @@ export const BillComponent: React.FC<BillComponentProps> = ({
             <tr>
               <td class="left-header">
                 <div class="cr-number-line">C.R. No.: ${companyDetails.crNumber}</div>
-                <div>${companyDetails.addressLine1}</div>
-                <div>${companyDetails.addressLine2}</div>
-                <div>${companyDetails.addressLine3}</div>
+                <div class="address-line">${companyDetails.addressLine1}</div>
+                <div class="address-line">${companyDetails.addressLine2}</div>
+                <div class="address-line">${companyDetails.addressLine3}</div>
               </td>
               <td class="right-header">
-                <div class="cr-number">السجل التجاري: ${
+                <div class="cr-number" style="white-space: nowrap">السجل التجاري: ${
                   companyDetails.crNumber
                 }</div>
-                <div>${companyDetails.arabicAddressLines?.[0] || ""}</div>
-                <div>${companyDetails.arabicAddressLines?.[1] || ""}</div>
+                <div class="address-line" style="white-space: nowrap">${companyDetails.arabicAddressLines?.[0] || ""}</div>
+                <div class="address-line" style="white-space: nowrap">${companyDetails.arabicAddressLines?.[1] || ""}</div>
               </td>
             </tr>
           </table>
