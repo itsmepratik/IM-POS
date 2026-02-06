@@ -16,6 +16,7 @@ export type Permission =
   | "reports.access"
   | "settings.access"
   | "users.access"
+  | "appointments.access"
   | "admin.access";
 
 interface User {
@@ -74,6 +75,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
         "reports.access",
         "settings.access",
         "users.access",
+        "appointments.access",
         "admin.access",
       ],
     },
@@ -139,6 +141,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
                       "reports.access",
                       "settings.access",
                       "users.access",
+                      "appointments.access",
                       "admin.access",
                     ]
                   : [
@@ -194,6 +197,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
                     "reports.access",
                     "settings.access",
                     "users.access",
+                    "appointments.access",
                     "admin.access",
                   ]
                 : [
@@ -292,6 +296,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
                       "reports.access",
                       "settings.access",
                       "users.access",
+                      "appointments.access",
                       "admin.access",
                     ]
                   : [
@@ -331,6 +336,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
                     "reports.access",
                     "settings.access",
                     "users.access",
+                    "appointments.access",
                     "admin.access",
                   ]
                 : [

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useCallback, useEffect, useState } from "react";
+import React, { useRef, useCallback, useEffect, useState, forwardRef, useImperativeHandle } from "react";
 import { useCompanyInfo } from "@/lib/hooks/useCompanyInfo";
 import { Button } from "@/components/ui/button";
 import { Printer } from "lucide-react";
@@ -17,33 +17,33 @@ interface CartItem {
   bottleType?: "open" | "closed";
 }
 
-interface BillComponentProps {
+interface WarrantyClaimBillProps {
   cart: CartItem[];
   billNumber: string;
   currentDate: string;
   currentTime: string;
   customerName?: string;
   cashier?: string;
-  appliedDiscount?: { type: "percentage" | "amount"; value: number } | null;
-  appliedTradeInAmount?: number;
-  hideButton?: boolean;
   carPlateNumber?: string;
+  hideButton?: boolean;
   onClose?: () => void;
 }
 
-export const BillComponent: React.FC<BillComponentProps> = ({
+export interface WarrantyClaimBillRef {
+  print: () => void;
+}
+
+export const WarrantyClaimBill = forwardRef<WarrantyClaimBillRef, WarrantyClaimBillProps>(({
   cart,
   billNumber,
   currentDate,
   currentTime,
   customerName = "",
   cashier,
-  appliedDiscount,
-  appliedTradeInAmount,
-  hideButton = false,
   carPlateNumber,
+  hideButton = false,
   onClose,
-}) => {
+}, ref) => {
   const billRef = useRef<HTMLDivElement>(null);
   const [isClient, setIsClient] = useState(false);
   const { registered, thankYouMessage } = useCompanyInfo();
@@ -77,31 +77,14 @@ export const BillComponent: React.FC<BillComponentProps> = ({
     }
 
     let subtotalForBill = 0;
-    let oldBatteryDiscountAmount = 0;
     const billItems = cart.filter((item) => {
-      if (item.name.toLowerCase().includes("discount on old battery")) {
-        oldBatteryDiscountAmount += Math.abs(item.price * item.quantity);
-        return false;
-      }
+      // Typically warranty claims might not show prices the same way or might be zero cost,
+      // but assuming we print the item value for record.
       subtotalForBill += item.price * item.quantity;
       return true;
     });
 
-    let mainDiscountAmount = 0;
-    if (appliedDiscount) {
-      if (appliedDiscount.type === "percentage") {
-        mainDiscountAmount = subtotalForBill * (appliedDiscount.value / 100);
-      } else {
-        mainDiscountAmount = Math.min(appliedDiscount.value, subtotalForBill);
-      }
-    }
-
-    const subtotalAfterMainDiscount = subtotalForBill - mainDiscountAmount;
-    const finalTradeInAmount = appliedTradeInAmount || 0;
-    const totalAmount = Math.max(
-      0,
-      subtotalAfterMainDiscount - finalTradeInAmount - oldBatteryDiscountAmount
-    );
+    const totalAmount = subtotalForBill; // Warranty usually doesn't have discounts applied on the claim certificate itself unless specified
 
     const htmlContent = `
       <!DOCTYPE html>
@@ -109,7 +92,7 @@ export const BillComponent: React.FC<BillComponentProps> = ({
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title></title>
+        <title>Warranty Claim</title>
         <style>
           @page {
             size: A5;
@@ -238,6 +221,21 @@ export const BillComponent: React.FC<BillComponentProps> = ({
           .service-description-arabic {
             font-size: 12.5px;
             margin-top: 2px;
+          }
+          /* Warranty claim text */
+          .warranty-claim-text {
+            text-align: center;
+            font-weight: bold;
+            font-size: 9px;
+            margin-top: 5px;
+            color: #D9534F;
+            display: block;
+          }
+          .warranty-claim-text-arabic {
+            font-size: 8px;
+            margin-top: 2px;
+            color: #D9534F;
+            display: block;
           }
           /* Bill info */
           .bill-info-table {
@@ -414,6 +412,12 @@ export const BillComponent: React.FC<BillComponentProps> = ({
             }</div>
           </div>
           
+           <!-- Warranty claim text -->
+           <div style="text-align: center; font-weight: bold; font-size: 13.5px; margin: 8px 0; color: #D9534F; border-bottom: 1px solid #ccc; padding-bottom: 6px;">
+             <span style="border: 1px solid #D9534F; padding: 2px 8px; display: inline-block;">WARRANTY CLAIM CERTIFICATE</span>
+             <div style="font-size: 13.5px; margin-top: 4px; color: #D9534F;">شهادة ضمان</div>
+           </div>
+
           <!-- Bill info with two columns -->
           <table class="bill-info-table" style="width: 100%;">
             <tr>
@@ -429,7 +433,7 @@ export const BillComponent: React.FC<BillComponentProps> = ({
               <td class="customer-info">To, Mr./Mrs.: <span class="customer-name">${
                 customerName || ""
               }</span></td>
-              <td class="car-plate">Car Plate: <span class="plate-number">${carPlateNumber || "N/A"}</span></td>
+              <td class="car-plate">Warranty Type: Battery</td>
             </tr>
           </table>
 
@@ -469,53 +473,13 @@ export const BillComponent: React.FC<BillComponentProps> = ({
               <td class="label">Subtotal</td>
               <td class="amount">${subtotalForBill.toFixed(3)}</td>
             </tr>
-            ${
-              finalTradeInAmount > 0
-                ? `
-              <tr style="color: #D9534E;">
-                <td class="label">Trade-In Amount</td>
-                <td class="amount" style="color: #D9534E;">- ${finalTradeInAmount.toFixed(
-                  3
-                )}</td>
-              </tr>
-            `
-                : ""
-            }
-            ${
-              mainDiscountAmount > 0
-                ? `
-              <tr style="color: #D9534E;">
-                <td class="label">Discount ${
-                  appliedDiscount?.type === "percentage"
-                    ? `(${appliedDiscount.value}%)`
-                    : `(Amount)`
-                }</td>
-                <td class="amount" style="color: #D9534E;">- ${mainDiscountAmount.toFixed(
-                  3
-                )}</td>
-              </tr>
-            `
-                : ""
-            }
-            ${
-              oldBatteryDiscountAmount > 0
-                ? `
-              <tr style="color: #D9534E;">
-                <td class="label">Discount on old battery</td>
-                <td class="amount" style="color: #D9534E;">- ${oldBatteryDiscountAmount.toFixed(
-                  3
-                )}</td>
-              </tr>
-            `
-                : ""
-            }
           </table>
           
           <div class="summary-divider"></div>
           
           <table class="summary-table">
             <tr class="total-row">
-              <td class="label">TOTAL AMOUNT:</td>
+              <td class="label">WARRANTY AMOUNT:</td>
               <td class="amount">${totalAmount.toFixed(3)} OMR</td>
             </tr>
           </table>
@@ -551,14 +515,12 @@ export const BillComponent: React.FC<BillComponentProps> = ({
     setTimeout(() => {
       printWindow.print();
       // Don't automatically close the print window on mobile devices
-      // and don't add the about:blank text
       if (
         !/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
           navigator.userAgent
         )
       ) {
-        // Removed auto close to prevent about:blank text
-        // printWindow.close();
+        // Removed auto close
       }
     }, 500);
   }, [
@@ -569,47 +531,22 @@ export const BillComponent: React.FC<BillComponentProps> = ({
     currentTime,
     customerName,
     cashier,
-    appliedDiscount,
-    appliedTradeInAmount,
   ]);
+
+  useImperativeHandle(ref, () => ({
+    print: handlePrint
+  }));
 
   if (!isClient) {
     return null;
   }
 
   let subtotalForDisplay = 0;
-  let oldBatteryDiscountForDisplay = 0;
   cart.forEach((item) => {
-    if (item.name.toLowerCase().includes("discount on old battery")) {
-      oldBatteryDiscountForDisplay += Math.abs(item.price * item.quantity);
-    } else {
-      subtotalForDisplay += item.price * item.quantity;
-    }
+    subtotalForDisplay += item.price * item.quantity;
   });
 
-  let mainDiscountForDisplay = 0;
-  if (appliedDiscount) {
-    if (appliedDiscount.type === "percentage") {
-      mainDiscountForDisplay =
-        subtotalForDisplay * (appliedDiscount.value / 100);
-    } else {
-      mainDiscountForDisplay = Math.min(
-        appliedDiscount.value,
-        subtotalForDisplay
-      );
-    }
-  }
-
-  const subtotalAfterMainDiscountDisplay =
-    subtotalForDisplay - mainDiscountForDisplay;
-  const finalTradeInAmountForDisplay = appliedTradeInAmount || 0;
-
-  const totalAmountForDisplay = Math.max(
-    0,
-    subtotalAfterMainDiscountDisplay -
-      finalTradeInAmountForDisplay -
-      oldBatteryDiscountForDisplay
-  );
+  const totalAmountForDisplay = subtotalForDisplay;
 
   return (
     <motion.div
@@ -617,12 +554,10 @@ export const BillComponent: React.FC<BillComponentProps> = ({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
       className="w-full flex flex-col"
-      data-bill-component
     >
       <div className="max-h-[40vh] overflow-auto mb-4">
         <div
           ref={billRef}
-          data-bill-ref
           className="bg-white border rounded-lg p-4 w-full max-w-[400px] mx-auto font-formula1"
         >
           {/* Header - three column layout */}
@@ -659,7 +594,16 @@ export const BillComponent: React.FC<BillComponentProps> = ({
             </p>
           </div>
 
-          <div className="border-b border-dashed mb-3"></div>
+          <div className="border-b border-dashed py-1 mb-3">
+            <div className="flex justify-center mt-2">
+              <span className="text-xs font-bold text-center text-red-600 border border-red-600 px-2 py-0.5">
+                WARRANTY CLAIM CERTIFICATE
+              </span>
+            </div>
+            <p className="text-xs font-bold text-center text-red-600 mt-1">
+              شهادة ضمان
+            </p>
+          </div>
 
           {/* Bill info */}
           <div className="flex justify-between text-xs">
@@ -674,7 +618,7 @@ export const BillComponent: React.FC<BillComponentProps> = ({
           <div className="flex justify-between text-xs mb-3">
             <span className="font-medium">To, Mr./Mrs.: {customerName}</span>
             <span className="font-medium">
-              Car Plate: {carPlateNumber || "N/A"}
+              Warranty Type: Battery
             </span>
           </div>
 
@@ -688,29 +632,24 @@ export const BillComponent: React.FC<BillComponentProps> = ({
               <span className="col-span-2 text-right">Total</span>
             </div>
 
-            {cart
-              .filter(
-                (item) =>
-                  !item.name.toLowerCase().includes("discount on old battery")
-              )
-              .map((item, index) => (
-                <div
-                  key={item.uniqueId}
-                  className="grid grid-cols-12 gap-1 mb-1"
-                >
-                  <span className="col-span-1">{index + 1}</span>
-                  <span className="col-span-5 break-words">
-                    {item.name} {item.details ? `(${item.details})` : ""}
-                  </span>
-                  <span className="col-span-2 text-right">{item.quantity}</span>
-                  <span className="col-span-2 text-right">
-                    {item.price.toFixed(3)}
-                  </span>
-                  <span className="col-span-2 text-right">
-                    {(item.price * item.quantity).toFixed(3)}
-                  </span>
-                </div>
-              ))}
+            {cart.map((item, index) => (
+              <div
+                key={item.uniqueId}
+                className="grid grid-cols-12 gap-1 mb-1"
+              >
+                <span className="col-span-1">{index + 1}</span>
+                <span className="col-span-5 break-words">
+                  {item.name} {item.details ? `(${item.details})` : ""}
+                </span>
+                <span className="col-span-2 text-right">{item.quantity}</span>
+                <span className="col-span-2 text-right">
+                  {item.price.toFixed(3)}
+                </span>
+                <span className="col-span-2 text-right">
+                  {(item.price * item.quantity).toFixed(3)}
+                </span>
+              </div>
+            ))}
           </div>
 
           {/* Summary section */}
@@ -719,60 +658,19 @@ export const BillComponent: React.FC<BillComponentProps> = ({
               <span>Subtotal</span>
               <span>OMR {subtotalForDisplay.toFixed(3)}</span>
             </div>
-
-            {finalTradeInAmountForDisplay > 0 && (
-              <div className="flex justify-between text-xs text-[#D9534E]">
-                <span>Trade-In Amount</span>
-                <span>- OMR {finalTradeInAmountForDisplay.toFixed(3)}</span>
-              </div>
-            )}
-
-            {mainDiscountForDisplay > 0 && (
-              <div className="flex justify-between text-xs text-[#D9534E]">
-                <span>
-                  Discount{" "}
-                  {appliedDiscount?.type === "percentage"
-                    ? `(${appliedDiscount.value}%)`
-                    : `(Amount)`}
-                </span>
-                <span>- OMR {mainDiscountForDisplay.toFixed(3)}</span>
-              </div>
-            )}
-
-            {oldBatteryDiscountForDisplay > 0 && (
-              <div className="flex justify-between text-xs text-[#D9534E]">
-                <span>Discount on old battery</span>
-                <span>- OMR {oldBatteryDiscountForDisplay.toFixed(3)}</span>
-              </div>
-            )}
+            {/* Warranty doesn't usually show discounts unless needed */}
           </div>
           
           <div className="border-t border-dashed pt-2 mb-3">
              <div className="flex justify-between text-xs font-bold text-[#0000CC]">
-               <span>TOTAL AMOUNT:</span>
+               <span>WARRANTY AMOUNT:</span>
                <span>OMR {totalAmountForDisplay.toFixed(3)}</span>
              </div>
           </div>
 
-          {/* Footer */}
-          <div className="text-center text-xs border-t border-dashed pt-2">
-            <div className="flex justify-between mb-2">
-              <span>Cashier: {cashier || ""}</span>
-              <div className="text-right">
-                <div className="inline-block border-t border-gray-500 w-[100px] text-center pt-1 text-xs text-gray-600">
-                  Authorized Signature
-                </div>
-              </div>
-            </div>
-
-            <p className="font-medium">
-              Contact no.: {companyDetails.contactNumber}
-            </p>
-            <p className="rtl">رقم الاتصال: {companyDetails.contactNumberArabic}</p>
-            <p className="italic text-xs" style={{ whiteSpace: "pre-line" }}>
-              {thankYouMessage?.english + (thankYouMessage?.arabic ? "\n" + thankYouMessage.arabic : "")}
-            </p>
-            <p className="font-mono mt-2">{billNumber}</p>
+          <div className="flex justify-between text-xs mt-4">
+             <div>Cashier: {cashier || ""}</div>
+             <div className="border-t border-gray-400 w-32 text-center pt-1 text-[10px] text-gray-500">Authorized Signature</div>
           </div>
         </div>
       </div>
@@ -789,19 +687,17 @@ export const BillComponent: React.FC<BillComponentProps> = ({
             </Button>
           )}
           <Button
-            onClick={handlePrint}
             variant="chonky"
-            className={`flex items-center justify-center gap-2 ${
-              onClose ? "flex-1" : "w-full"
-            }`}
-            data-warranty-print-button
+            onClick={handlePrint}
+            className="flex-1 flex items-center justify-center gap-2"
           >
-            <Printer className="h-4 w-4" /> Print Bill
+            <Printer className="h-4 w-4" />
+            Print Warranty Claim
           </Button>
         </div>
       )}
     </motion.div>
   );
-};
+});
 
-export default BillComponent;
+WarrantyClaimBill.displayName = "WarrantyClaimBill";

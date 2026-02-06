@@ -33,6 +33,7 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui/use-toast";
 import { BillComponent } from "./bill-component";
 import { RefundReceipt } from "./refund-receipt";
+import { WarrantyClaimBill, WarrantyClaimBillRef } from "./warranty-claim-bill";
 import { format } from "date-fns";
 import { useStaffIDs } from "@/lib/hooks/useStaffIDs";
 import { useCompanyInfo } from "@/lib/hooks/useCompanyInfo";
@@ -259,6 +260,7 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
     email?: string;
     phone?: string;
   } | null>(null);
+  const [refundReferenceNumber, setRefundReferenceNumber] = useState<string>("");
 
   // Calculate refund amount
   const refundAmount =
@@ -488,6 +490,7 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
         )} has been recorded. Reference: ${result.refund.referenceNumber}`,
       });
 
+      setRefundReferenceNumber(result.refund.referenceNumber);
       setStep("complete");
       setRefundComplete(true);
     } catch (error) {
@@ -618,6 +621,7 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
       setCurrentReceipt(null);
       setSelectedItems([]);
       setRefundComplete(false);
+      setRefundReferenceNumber("");
       setStep("search");
       setEnteredCashierId("");
       setFetchedCashier(null);
@@ -685,9 +689,9 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
       0
     );
     const subtotal = refundAmount / 1.05; // remove 5% VAT if any
-    const refundId = `R${Math.floor(Math.random() * 10000)
+    const refundId = refundReferenceNumber || `R${Math.floor(Math.random() * 10000)
       .toString()
-      .padStart(4, "0")}`;
+      .padStart(4, "0")}`; // Fallback only if state missing (shouldn't happen)
 
     const htmlContent = `
       <!DOCTYPE html>
@@ -1377,7 +1381,12 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
                                   selectedItems.includes(item.uniqueId)
                                 ) || []
                               }
-                              receiptNumber={`R${
+                              items={
+                                currentReceipt?.items.filter((item) =>
+                                  selectedItems.includes(item.uniqueId)
+                                ) || []
+                              }
+                              receiptNumber={refundReferenceNumber || `R${
                                 currentReceipt?.receiptNumber || ""
                               }`}
                               originalReceiptNumber={
@@ -1683,6 +1692,7 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
     referenceNumber: string;
     batteryBillHtml: string | null;
   } | null>(null);
+  const warrantyBillRef = React.useRef<WarrantyClaimBillRef>(null);
 
   // Calculate claim amount (same as refund for now)
   const claimAmount =
@@ -2070,453 +2080,21 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
       return;
     }
 
-    // Fallback: Generate HTML manually if API HTML is not available
-    // Get selected items for the warranty claim
-    const selectedClaimItems =
-      currentReceipt?.items.filter((item) =>
-        selectedItems.includes(item.uniqueId)
-      ) || [];
-
-    // Use the actual warranty claim reference number from API response
-    const warrantyBillNumber = warrantyClaimTransaction?.referenceNumber || 
-      `WBX${Math.floor(Math.random() * 10000).toString().padStart(4, "0")}`;
-
-    // Open a new window for printing
-    const printWindow = window.open("", "_blank");
-    if (!printWindow) {
-      alert("Please allow popups to print the warranty claim receipt.");
-      return;
+    // Fallback: Use component print logic
+    if (warrantyBillRef.current) {
+      warrantyBillRef.current.print();
+    } else {
+        // Fallback if ref is not available (should not happen if visible)
+       console.error("Print ref not available");
+       toast({
+          title: "Print Error",
+          description: "Could not access warranty bill for printing. Please try closing giving it a moment.",
+          variant: "destructive"
+       });
     }
-
-
-    // Use the A5 format HTML for battery warranty claims
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html lang="en">
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Warranty Claim Certificate</title>
-        <style>
-          @page {
-            size: A5;
-            margin: 0;
-          }
-          @font-face {
-            font-family: 'Formula1';
-            src: url('/fonts/Formula1-Bold-4.ttf') format('truetype');
-            font-weight: bold;
-            font-style: normal;
-          }
-          @font-face {
-            font-family: 'Formula1';
-            src: url('/fonts/Formula1-Regular-1.ttf') format('truetype');
-            font-weight: normal;
-            font-style: normal;
-          }
-          @font-face {
-            font-family: 'Formula1';
-            src: url('/fonts/Formula1-Black.ttf') format('truetype');
-            font-weight: 900;
-            font-style: normal;
-          }
-
-          html, body {
-            height: 100%;
-            margin: 0;
-            padding: 0;
-            font-family: 'Formula1', sans-serif;
-          }
-          body {
-            font-family: 'Formula1', sans-serif !important;
-            font-size: 10pt;
-            line-height: 1.3;
-            width: 100%;
-            color: #000;
-          }
-          * {
-            font-family: 'Formula1', sans-serif !important;
-          }
-          .bill-container {
-            width: calc(100% - 4mm); 
-            height: 100%;
-            padding: 2mm;
-            margin: 0 auto; 
-            box-sizing: border-box;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-          }
-          /* Exact Styles from BillComponent */
-          .company-name {
-            color: #0000CC;
-            font-size: 16.5px;
-            font-weight: bold;
-            text-transform: uppercase;
-            white-space: nowrap;
-          }
-          .company-arabic-name {
-            color: #0000CC;
-            font-size: 15.5px;
-            font-weight: bold;
-            margin-top: 2px;
-          }
-          .header-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 10px;
-          }
-          .header-table td {
-            vertical-align: top;
-            padding: 0;
-          }
-          .left-header {
-            width: 50%;
-            text-align: left;
-            color: #777 !important;
-            line-height: 1.2 !important;
-            zoom: 0.95; 
-            -webkit-text-size-adjust: none;
-          }
-          .right-header {
-            width: 50%;
-            text-align: right;
-            color: #777 !important;
-            line-height: 1.2 !important;
-            direction: rtl;
-            zoom: 0.95;
-            -webkit-text-size-adjust: none;
-          }
-          .cr-number, .cr-number-line {
-            font-weight: bold !important;
-            color: #555 !important;
-          }
-          @media print {
-            .left-header, .left-header div, .right-header, .right-header div {
-              font-size: 15px !important;
-              color: #666 !important;
-            }
-          }
-          .left-header div, .right-header div {
-            font-size: 12px !important; 
-          }
-          
-          .service-description {
-            text-align: center;
-            font-weight: bold;
-            font-size: 13.5px;
-            margin: 15px 0;
-            padding: 6px 0;
-          }
-          .service-description-arabic {
-            font-size: 12.5px;
-            margin-top: 2px;
-          }
-          .warranty-claim-text {
-            text-align: center;
-            font-weight: bold;
-            font-size: 11px;
-            margin-top: 5px;
-            color: #D9534F;
-            display: block;
-          }
-          .bill-info-table {
-            width: 100%;
-            margin-bottom: 12px;
-          }
-          .bill-info-table td {
-            vertical-align: top;
-            padding: 0;
-          }
-          .bill-number {
-            text-align: left;
-            font-size: 13.5px;
-          }
-          .print-date {
-            text-align: right;
-            font-size: 13.5px;
-          }
-          .customer-info {
-            text-align: left;
-            font-size: 13.5px;
-            font-weight: bold;
-            margin-bottom: 8px;
-          }
-          .car-plate {
-            text-align: right;
-            font-size: 13.5px;
-            font-weight: bold;
-          }
-          .items-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 20px;
-            font-size: 13.5px;
-          }
-          .items-table th, .items-table td {
-            padding: 6px 5px;
-            text-align: left;
-          }
-          .items-table th {
-            font-weight: bold;
-          }
-          .items-table td, .items-table th {
-            border-bottom: 1px solid #ddd;
-          }
-          .items-table th:nth-child(3), .items-table td:nth-child(3),
-          .items-table th:nth-child(4), .items-table td:nth-child(4),
-          .items-table th:nth-child(5), .items-table td:nth-child(5) {
-            text-align: right;
-          }
-          .items-table tr:last-child td {
-            border-bottom: none;
-          }
-          .summary-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 13.5px;
-          }
-          .summary-table td {
-            padding: 3px 0;
-          }
-          .summary-table .label {
-            text-align: left;
-          }
-          .summary-table .amount {
-            text-align: right;
-            font-weight: bold;
-          }
-          .summary-divider {
-            border-top: 1px solid #000;
-            margin: 6px 0;
-          }
-          .total-row {
-            font-weight: bold;
-            font-size: 15.5px;
-            color: #0000CC;
-          }
-          .cashier-section {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 5px;
-            margin-bottom: 0;
-            font-size: 12.5px !important;
-            -webkit-text-size-adjust: none;
-          }
-          .cashier-info {
-            text-align: left;
-          }
-          .signature-line {
-            text-align: right;
-          }
-          .signature-line .line {
-            display: inline-block;
-            border-top: 1px solid #777;
-            width: 150px;
-            text-align: center;
-            padding-top: 3px;
-            font-size: 12.5px !important;
-            -webkit-text-size-adjust: none;
-            color: #777;
-          }
-          .footer {
-            text-align: center;
-            font-size: 12.5px !important;
-            -webkit-text-size-adjust: none;
-            color: #333;
-            width: 100%;
-            margin-top: 5px;
-          }
-          .footer-contact {
-            font-weight: bold;
-            margin-bottom: 1px;
-          }
-          .footer-phone-numbers {
-            margin-bottom: 1px;
-            direction: rtl;
-          }
-          .footer-thank-you {
-            font-style: italic;
-            font-size: 12.5px !important;
-            -webkit-text-size-adjust: none;
-            line-height: 1.2;
-            white-space: pre-line;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="bill-container">
-          
-          <!-- Header Structure Matching BillComponent -->
-          <div style="text-align: center; margin-bottom: 8px;">
-            <div class="company-name">${registered.name || ""}</div>
-            ${
-              registered.arabicName
-                ? `<div class="company-arabic-name">${registered.arabicName}</div>`
-                : ""
-            }
-          </div>
-
-          <table class="header-table">
-            <tr>
-              <td class="left-header">
-                ${
-                  registered.crNumber
-                    ? `<div class="cr-number-line">C.R. No.: ${registered.crNumber}</div>`
-                    : ""
-                }
-                ${
-                  Array.isArray(registered.addressLines) &&
-                  registered.addressLines[0]
-                    ? `<div>${registered.addressLines[0]}</div>`
-                    : ""
-                }
-                ${
-                  Array.isArray(registered.addressLines) &&
-                  registered.addressLines[1]
-                    ? `<div>${registered.addressLines[1]}</div>`
-                    : ""
-                }
-                ${
-                  Array.isArray(registered.addressLines) &&
-                  registered.addressLines[2]
-                    ? `<div>${registered.addressLines[2]}</div>`
-                    : ""
-                }
-              </td>
-              <td class="right-header">
-                ${
-                  registered.crNumber
-                    ? `<div class="cr-number">السجل التجاري: ${registered.crNumber}</div>`
-                    : ""
-                }
-                ${
-                  // Use ARABIC address lines for the right column
-                  Array.isArray(registered.arabicAddressLines) &&
-                  registered.arabicAddressLines[0]
-                    ? `<div>${registered.arabicAddressLines[0]}</div>`
-                    : ""
-                }
-                ${
-                  Array.isArray(registered.arabicAddressLines) &&
-                  registered.arabicAddressLines[1]
-                    ? `<div>${registered.arabicAddressLines[1]}</div>`
-                    : ""
-                }
-              </td>
-            </tr>
-          </table>
-
-          <!-- Service description -->
-          <div class="service-description">
-            ${registered.serviceDescription?.english || "TYRE REPAIRING & LUBRICANT CHANGING OF VEHICLES"}
-                          <div class="service-description-arabic">${registered.serviceDescription?.arabic || "إصلاح الإطارات وتغيير مواد التشحيم للمركبات"}</div>
-          </div>
-          
-          <!-- Warranty claim text -->
-          <div style="text-align: center; font-weight: bold; font-size: 13.5px; margin: 8px 0; color: #D9534F; border-bottom: 1px solid #ccc; padding-bottom: 6px;">
-            <span style="border: 1px solid #D9534F; padding: 2px 8px; display: inline-block;">WARRANTY CLAIM CERTIFICATE</span>
-            <div style="font-size: 13.5px; margin-top: 4px; color: #D9534F;">شهادة ضمان</div>
-          </div>
-
-          <!-- Bill info with two columns -->
-          <table class="bill-info-table" style="width: 100%;">
-            <tr>
-              <td class="bill-number">Bill no.: ${warrantyBillNumber}</td>
-              <td class="print-date">Printed on: ${format(
-                new Date(),
-                "dd/MM/yyyy"
-              )} ${format(new Date(), "HH:mm:ss")}</td>
-            </tr>
-          </table>
-          <div style="width: 100%; border-bottom: 1px dashed #999; margin: 3px 0;"></div>
-
-          <!-- Customer info with two columns -->
-          <table class="bill-info-table">
-            <tr>
-              <td class="customer-info">To, Mr./Mrs.: <span class="customer-name">${customerName || ""}</span></td>
-              <td class="car-plate">Warranty Type: <span class="plate-number">Battery</span></td>
-            </tr>
-          </table>
-
-          <!-- Items table -->
-          <table class="items-table">
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Item</th>
-                <th>Quantity</th>
-                <th>Unit Price</th>
-                <th>Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${selectedClaimItems
-                .map(
-                  (item, index) => `
-                <tr>
-                  <td>${index + 1}</td>
-                  <td>${item.name}${
-                    item.details ? " (" + item.details + ")" : ""
-                  }</td>
-                  <td>${item.quantity}</td>
-                  <td>${item.price.toFixed(3)}</td>
-                  <td>${(item.price * item.quantity).toFixed(3)}</td>
-                </tr>
-              `
-                )
-                .join("")}
-            </tbody>
-          </table>
-
-          <!-- Summary section -->
-          <table class="summary-table">
-            <tr class="total-row">
-              <td class="label">WARRANTY AMOUNT:</td>
-              <td class="amount">${claimAmount.toFixed(3)} OMR</td>
-            </tr>
-          </table>
-          
-          <div style="flex-grow: 1;"></div>
-          
-          <div class="cashier-section">
-            <div class="cashier-info">Cashier: ${
-              selectedCashier?.name || fetchedCashier?.name || ""
-            }</div>
-            <div class="signature-line">
-              <div class="line">Authorized Signature</div>
-            </div>
-          </div>
-
-          <hr style="width: 100%; border: none; border-top: 1px solid #ccc; margin: 5px 0 2px 0;" />
-          <div class="footer" style="border-top: none;">
-            <div class="footer-contact">Contact no.: ${registered.contactNumber}</div>
-            <div class="footer-phone-numbers" style="direction: rtl;">رقم الاتصال: ${registered.contactNumberArabic || ""}</div>
-            <div class="footer-thank-you" style="white-space: pre-line;">${thankYouMessage?.english + "\n" + thankYouMessage?.arabic}</div>
-          </div>
-        </div>
-      </body>
-      </html>
-    `;
-
-    printWindow.document.open();
-    printWindow.document.write(htmlContent);
-    printWindow.document.close();
-    printWindow.document.title = "";
-
-    setTimeout(() => {
-      printWindow.print();
-      // Don't automatically close the print window on mobile devices
-      if (
-        !/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-          navigator.userAgent
-        )
-      ) {
-        // Removed auto close to prevent about:blank text
-        // printWindow.close();
-      }
-    }, 500);
   };
+
+
 
   // Scroll to top when showing the receipt
   useEffect(() => {
@@ -2920,8 +2498,9 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
                           Warranty Certificate
                         </h3>
                         <div className="overflow-hidden rounded-lg">
-                          {/* Use BillComponent for warranty claims since they're only for batteries */}
-                          <BillComponent
+                          {/* Use WarrantyClaimBill for warranty claims */}
+                          <WarrantyClaimBill
+                            ref={warrantyBillRef}
                             cart={
                               currentReceipt?.items.filter((item) =>
                                 selectedItems.includes(item.uniqueId)
@@ -2938,7 +2517,6 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
                               ""
                             }
                             hideButton={true}
-                            isWarrantyClaim={true}
                           />
                         </div>
                       </div>

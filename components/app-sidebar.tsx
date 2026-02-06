@@ -40,6 +40,7 @@ import {
   Store02Icon,
   ContainerTruck02Icon,
   InboxIcon,
+  Calendar03Icon,
 } from "hugeicons-react"
 import HugeiconsIcon from "@/components/HugeiconsIcon"
 
@@ -130,6 +131,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       permission: "transactions.access",
       adminOnly: false,
     },
+    {
+      title: "Appointments",
+      href: "/appointments",
+      icon: () => <HugeiconsIcon icon={Calendar03Icon} size={22} strokeWidth={2.2} className="!size-[22px]" />,
+      // permission: "appointments.access", // Made public
+      adminOnly: false,
+    },
   ]
 
   const inventoryItems = [
@@ -206,7 +214,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             {navItems.map((item) => {
               if (item.adminOnly && !isAdmin()) return null
               // @ts-ignore
-              if (!hasPermission(item.permission)) return null
+              if (item.permission && !hasPermission(item.permission)) return null
 
               return (
                 <SidebarMenuItem key={item.href}>

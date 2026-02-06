@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { db } from "@/lib/db/client";
+import { generateReferenceNumber } from "@/lib/utils/reference-numbers";
 import { z } from "zod";
 import { createClient } from "@/supabase/server";
 
@@ -422,11 +424,12 @@ export async function POST(req: Request) {
       );
     }
 
-    // Generate a unique reference number for the refund
-    const refundReferenceNumber = `R${Date.now()}${Math.random()
-      .toString(36)
-      .substr(2, 4)
-      .toUpperCase()}`;
+    // Generate a sequential reference number
+    const refundReferenceNumber = await generateReferenceNumber(
+      "REFUND",
+      false,
+      "REFUND"
+    );
 
     // Prepare the refund transaction data
     const refundTransaction = {

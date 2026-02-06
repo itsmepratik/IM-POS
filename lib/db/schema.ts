@@ -267,6 +267,25 @@ export const staff = pgTable("staff", {
 export type Staff = typeof staff.$inferSelect;
 export type NewStaff = typeof staff.$inferInsert;
 
+export const appointments = pgTable("appointments", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  customerName: text("customer_name").notNull(),
+  customerPhone: text("customer_phone").notNull(),
+  customerEmail: text("customer_email"),
+  serviceType: text("service_type").notNull(),
+  appointmentDate: timestamp("appointment_date", { withTimezone: true }).notNull(),
+  status: text("status").notNull().default("pending"),
+  notes: text("notes"),
+  vehicleMake: text("vehicle_make"),
+  vehicleModel: text("vehicle_model"),
+  vehicleYear: text("vehicle_year"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+export type Appointment = typeof appointments.$inferSelect;
+export type NewAppointment = typeof appointments.$inferInsert;
+
 import { relations } from "drizzle-orm";
 
 export const locationsRelations = relations(locations, ({ many }) => ({

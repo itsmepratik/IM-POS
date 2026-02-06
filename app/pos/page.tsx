@@ -1001,7 +1001,6 @@ function POSPageContent() {
     });
     setIsFilterBrandModalOpen(false);
     setSelectedFilters([]);
-    setSelectedFilterType(null);
     if (isMobile) setShowCart(true);
   };
 
