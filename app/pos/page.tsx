@@ -119,6 +119,8 @@ import { OnHoldTicket } from "./components/on-hold-ticket";
 
 // Import the BillComponent
 import { BillComponent } from "./components/bill-component";
+import { SettlementDialog } from "./components/dispute/SettlementDialog";
+import { MiscellaneousDialog } from "./components/dispute/MiscellaneousDialog";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useStaffIDs } from "@/lib/hooks/useStaffIDs";
 import { Vehicle, CustomerData } from "@/app/customers/customer-form";
@@ -760,7 +762,7 @@ function POSPageContent() {
     });
   };
 
-  const handleAddSelectedToCart = () => {
+  const addCurrentSelectionToCart = () => {
     selectedVolumes.forEach((volume) => {
       if (selectedOil) {
         // Construct details string
@@ -775,11 +777,6 @@ function POSPageContent() {
         // Highest volumes don't have bottleType (they're always closed)
         const source = volume.bottleType === "open" ? "OPEN" : "CLOSED";
 
-        // Parse the volume size to get the numeric volume amount
-        // quantity should represent the volume amount (e.g., 1 for 1L, 3 for 3L)
-        const volumeAmount = parseVolumeString(volume.size);
-        const totalVolume = volumeAmount * volume.quantity;
-
         addToCart(
           {
             id: selectedOil.id,
@@ -793,6 +790,10 @@ function POSPageContent() {
         );
       }
     });
+  };
+
+  const handleAddSelectedToCart = () => {
+    addCurrentSelectionToCart();
     setIsVolumeModalOpen(false);
     setSelectedOil(null);
     setSelectedVolumes([]);
@@ -801,7 +802,7 @@ function POSPageContent() {
 
   const handleNextItem = () => {
     // Add current selection to cart
-    handleAddSelectedToCart();
+    addCurrentSelectionToCart();
 
     // Navigate to Filters section and close modal
     setActiveCategory("Filters");
@@ -966,7 +967,7 @@ function POSPageContent() {
     });
   };
 
-  const handleAddSelectedFiltersToCart = () => {
+  const addFiltersToCart = (): boolean => {
     // Final check before bulk add
     let blocked = false;
     selectedFilters.forEach((filter) => {
@@ -985,7 +986,7 @@ function POSPageContent() {
             description: "Some items exceed available stock. Please adjust quantities.",
             variant: "destructive"
         });
-        return;
+        return false;
     }
 
     selectedFilters.forEach((filter) => {
@@ -999,15 +1000,27 @@ function POSPageContent() {
         filter.quantity
       );
     });
-    setIsFilterBrandModalOpen(false);
-    setSelectedFilters([]);
-    if (isMobile) setShowCart(true);
+    return true;
+  };
+
+  const handleAddSelectedFiltersToCart = () => {
+    const success = addFiltersToCart();
+    if (success) {
+      setIsFilterBrandModalOpen(false);
+      setSelectedFilters([]);
+      if (isMobile) setShowCart(true);
+    }
   };
 
   const handleNextFilterItem = () => {
-    handleAddSelectedFiltersToCart();
-    setActiveCategory("Parts");
-    setSearchQuery("");
+    const success = addFiltersToCart();
+    if (success) {
+      setActiveCategory("Parts");
+      setIsFilterBrandModalOpen(false);
+      setSelectedFilters([]);
+      setSearchQuery("");
+      // Do NOT show cart to allow flow to continue
+    }
   };
 
   const clearCart = () => {
@@ -1912,38 +1925,9 @@ function POSPageContent() {
 
   // Settlement modal state
   const [isSettlementModalOpen, setIsSettlementModalOpen] = useState(false);
-  const [settlementReference, setSettlementReference] = useState("");
-  const [isProcessingSettlement, setIsProcessingSettlement] = useState(false);
-  const [settlementStep, setSettlementStep] = useState<
-    "reference" | "id" | "processing"
-  >("reference");
-  const [settlementCashierId, setSettlementCashierId] = useState("");
-  const [settlementCashierError, setSettlementCashierError] = useState<
-    string | null
-  >(null);
-  const [fetchedSettlementCashier, setFetchedSettlementCashier] = useState<{
-    id: string;
-    name: string;
-  } | null>(null);
-  const [settlementError, setSettlementError] = useState<string | null>(null);
 
   // Miscellaneous deduction modal state
   const [isMiscellaneousDialogOpen, setIsMiscellaneousDialogOpen] =
-    useState(false);
-  const [miscellaneousAmount, setMiscellaneousAmount] = useState<number>(0.5);
-  const [miscellaneousStep, setMiscellaneousStep] = useState<
-    "amount" | "id" | "processing"
-  >("amount");
-  const [miscellaneousCashierId, setMiscellaneousCashierId] = useState("");
-  const [miscellaneousCashierError, setMiscellaneousCashierError] = useState<
-    string | null
-  >(null);
-  const [fetchedMiscellaneousCashier, setFetchedMiscellaneousCashier] =
-    useState<{
-      id: string;
-      name: string;
-    } | null>(null);
-  const [isProcessingMiscellaneous, setIsProcessingMiscellaneous] =
     useState(false);
 
   const isMobile = useIsMobile();
@@ -2812,7 +2796,7 @@ function POSPageContent() {
             }}
             onQuantityChange={handleFilterQuantityChange}
             onAddToCart={handleAddSelectedFiltersToCart}
-            onNext={handleNextItem}
+            onNext={handleNextFilterItem}
           />
 
           {/* Clear Cart Confirmation Dialog */}
@@ -4031,667 +4015,16 @@ function POSPageContent() {
       </Dialog>
 
       {/* Settlement Modal */}
-      <Dialog
+      <SettlementDialog
         open={isSettlementModalOpen}
-        onOpenChange={(open) => {
-          setIsSettlementModalOpen(open);
-          if (!open) {
-            // Reset all settlement state when closing
-            setSettlementStep("reference");
-            setSettlementReference("");
-            setSettlementCashierId("");
-            setSettlementCashierError(null);
-            setSettlementError(null);
-            setFetchedSettlementCashier(null);
-            setIsProcessingSettlement(false);
-          }
-        }}
-      >
-        <DialogContent
-          className="w-[90%] max-w-md p-6 rounded-lg"
-          onPointerDownOutside={(e) => e.preventDefault()}
-          onEscapeKeyDown={(e) => e.preventDefault()}
-        >
-          {settlementStep === "reference" && (
-            <>
-              <DialogHeader>
-                <DialogTitle className="text-center text-xl font-semibold">
-                  Settlement
-                </DialogTitle>
-                <p className="text-center text-muted-foreground mt-2 text-sm">
-                  Convert a credited sale into a regular sale
-                </p>
-              </DialogHeader>
-
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <label
-                    htmlFor="settlement-reference"
-                    className="text-sm font-medium"
-                  >
-                    Reference/Bill Number
-                  </label>
-                  <Input
-                    id="settlement-reference"
-                    type="text"
-                    placeholder="Enter reference or bill number"
-                    value={settlementReference}
-                    onChange={(e) => setSettlementReference(e.target.value)}
-                    className="w-full"
-                    autoFocus
-                  />
-                </div>
-              </div>
-
-              <DialogFooter className="flex flex-row gap-3">
-                <Button
-                  variant="outline"
-                  className="flex-1 h-12 text-base"
-                  onClick={() => setIsSettlementModalOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  className="flex-1 h-12 text-base"
-                  onClick={() => {
-                    if (settlementReference.trim()) {
-                      setSettlementStep("id");
-                    }
-                  }}
-                  disabled={!settlementReference.trim()}
-                >
-                  Continue
-                </Button>
-              </DialogFooter>
-            </>
-          )}
-
-          {settlementStep === "id" && !fetchedSettlementCashier && (
-            <>
-              <DialogHeader className="pb-4">
-                <DialogTitle className="text-xl font-semibold text-center">
-                  Enter Cashier ID
-                </DialogTitle>
-                <DialogDescription className="text-center">
-                  Please enter your cashier ID to proceed with settlement.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="flex flex-col items-center">
-                <form
-                  className="flex flex-col items-center w-full"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    const found = staffMembers.find(
-                      (c) => c.id === settlementCashierId
-                    );
-                    if (found) {
-                      setFetchedSettlementCashier(found);
-                      setSettlementCashierError(null);
-                    } else {
-                      setSettlementCashierError(
-                        "Invalid cashier ID. Please try again."
-                      );
-                    }
-                  }}
-                >
-                  <Input
-                    className="text-center text-2xl w-32 mb-2"
-                    value={settlementCashierId}
-                    onChange={(e) => {
-                      setSettlementCashierId(e.target.value.replace(/\D/g, ""));
-                      setSettlementCashierError(null);
-                    }}
-                    maxLength={6}
-                    inputMode="numeric"
-                    type="tel"
-                    pattern="[0-9]*"
-                    autoFocus
-                    placeholder="ID"
-                  />
-                  <Button
-                    className="w-full mt-4"
-                    type="submit"
-                    disabled={settlementCashierId.length === 0}
-                  >
-                    Verify ID
-                  </Button>
-                </form>
-                {(settlementCashierError || settlementError) && (
-                  <div className="text-destructive text-sm mt-2">
-                    {settlementCashierError || settlementError}
-                  </div>
-                )}
-                <Button
-                  variant="outline"
-                  className="w-full mt-4"
-                  onClick={() => setSettlementStep("reference")}
-                >
-                  Back
-                </Button>
-              </div>
-            </>
-          )}
-
-          {settlementStep === "id" && fetchedSettlementCashier && (
-            <>
-              <DialogHeader className="pb-4">
-                <DialogTitle className="text-xl font-semibold text-center">
-                  Confirm Settlement
-                </DialogTitle>
-                <DialogDescription className="text-center">
-                  Welcome, {fetchedSettlementCashier.name}!
-                </DialogDescription>
-              </DialogHeader>
-              <div className="flex flex-col items-center my-4">
-                <div className="text-center space-y-2 mb-4">
-                  <div className="text-sm text-muted-foreground">
-                    Cashier ID: {fetchedSettlementCashier.id}
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    Reference: {settlementReference}
-                  </div>
-                </div>
-
-                {isProcessingSettlement && (
-                  <div className="flex flex-col items-center justify-center gap-4 mb-4 py-4">
-                    <motion.div
-                      animate={{ rotate: 360 }}
-                      transition={{
-                        duration: 1.2,
-                        repeat: Infinity,
-                        ease: "linear",
-                      }}
-                      className="h-12 w-12 border-3 border-primary border-t-transparent rounded-full"
-                    />
-                    <div className="text-center space-y-2">
-                      <h3 className="text-lg font-semibold text-primary">
-                        Processing Settlement
-                      </h3>
-                      <p className="text-muted-foreground text-sm">
-                        Converting credit sale to regular sale...
-                      </p>
-                      <div className="w-full max-w-xs mx-auto">
-                        <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
-                          <motion.div
-                            className="bg-gradient-to-r from-primary to-primary/80 h-2 rounded-full"
-                            initial={{ width: "0%" }}
-                            animate={{ width: "100%" }}
-                            transition={{
-                              duration: 2,
-                              repeat: Infinity,
-                              ease: "easeInOut",
-                            }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex flex-row gap-3 w-full">
-                  <Button
-                    variant="outline"
-                    className="flex-1 h-12 text-base"
-                    onClick={() => {
-                      setFetchedSettlementCashier(null);
-                      setSettlementCashierId("");
-                      setSettlementCashierError(null);
-                    }}
-                    disabled={isProcessingSettlement}
-                  >
-                    Back
-                  </Button>
-                  <Button
-                    className="flex-1 h-12 text-base"
-                    onClick={async () => {
-                      setIsProcessingSettlement(true);
-
-                      try {
-                        // Call the settlement API
-                        const response = await fetch(
-                          "/api/settle-transaction",
-                          {
-                            method: "POST",
-                            headers: {
-                              "Content-Type": "application/json",
-                            },
-                            body: JSON.stringify({
-                              referenceNumber: settlementReference.trim(),
-                              cashierId: fetchedSettlementCashier.id,
-                              paymentMethod: "CASH",
-                            }),
-                          }
-                        );
-
-                        const result = await response.json();
-
-                        if (!response.ok || !result.success) {
-                          throw new Error(result.error || "Settlement failed");
-                        }
-
-                      // Show success toast
-                      toast({
-                        title: "Settlement Processed",
-                        description: `Reference ${settlementReference} has been converted to a regular sale by ${fetchedSettlementCashier.name}.`,
-                      });
-
-                      // Reset and close
-                      setSettlementStep("reference");
-                      setSettlementReference("");
-                      setSettlementCashierId("");
-                      setSettlementCashierError(null);
-                        setSettlementError(null);
-                      setFetchedSettlementCashier(null);
-                      setIsProcessingSettlement(false);
-                      setIsSettlementModalOpen(false);
-                      } catch (error) {
-                        console.error("Settlement error:", error);
-                        const errorMessage = error instanceof Error
-                          ? error.message
-                          : "Failed to process settlement. Please try again.";
-
-                        toast({
-                          title: "Settlement Failed",
-                          description: errorMessage,
-                          variant: "destructive",
-                        });
-
-                        // Set error state to show in modal
-                        setSettlementError(errorMessage);
-                        setIsProcessingSettlement(false);
-
-                        // Go back to cashier ID step for retry
-                        setSettlementStep("id");
-                        setFetchedSettlementCashier(null);
-                        setSettlementCashierId("");
-                      }
-                    }}
-                    disabled={isProcessingSettlement}
-                  >
-                    {isProcessingSettlement ? (
-                      <div className="flex items-center justify-center w-full">
-                        <Spinner className="text-black mr-2" />
-                        Processing...
-                      </div>
-                    ) : (
-                      "Confirm Settlement"
-                    )}
-                  </Button>
-                </div>
-              </div>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
+        onOpenChange={setIsSettlementModalOpen}
+      />
 
       {/* Miscellaneous Deduction Modal */}
-      <Dialog
+      <MiscellaneousDialog
         open={isMiscellaneousDialogOpen}
-        onOpenChange={(open) => {
-          setIsMiscellaneousDialogOpen(open);
-          if (!open) {
-            // Reset all miscellaneous state when closing
-            setMiscellaneousStep("amount");
-            setMiscellaneousAmount(0.5);
-            setMiscellaneousCashierId("");
-            setMiscellaneousCashierError(null);
-            setFetchedMiscellaneousCashier(null);
-            setIsProcessingMiscellaneous(false);
-          }
-        }}
-      >
-        <DialogContent
-          className="w-[90%] max-w-md p-6 rounded-lg"
-          onPointerDownOutside={(e) => e.preventDefault()}
-          onEscapeKeyDown={(e) => e.preventDefault()}
-        >
-          {miscellaneousStep === "amount" && (
-            <>
-              <DialogHeader>
-                <DialogTitle className="text-center text-xl">
-                  Miscellaneous Deduction
-                </DialogTitle>
-                <p className="text-center text-muted-foreground mt-2 text-sm">
-                  Enter the amount to deduct from the transaction
-                </p>
-              </DialogHeader>
-
-              <div className="flex flex-col items-center justify-center py-4">
-                <div className="flex items-center justify-center gap-4 mb-6">
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="h-12 w-12 rounded-full"
-                    onClick={() =>
-                      setMiscellaneousAmount(
-                        Math.max(
-                          0,
-                          Math.round((miscellaneousAmount - 0.5) * 10) / 10
-                        )
-                      )
-                    }
-                  >
-                    <Minus className="h-5 w-5" />
-                  </Button>
-
-                  <div className="relative">
-                    <Input
-                      id="miscellaneous-amount"
-                      type="number"
-                      inputMode="decimal"
-                      className="w-32 text-center text-xl font-medium h-12"
-                      value={miscellaneousAmount}
-                      onChange={(e) => {
-                        const value = parseFloat(e.target.value);
-                        if (!isNaN(value)) {
-                          setMiscellaneousAmount(value);
-                        } else {
-                          setMiscellaneousAmount(0);
-                        }
-                      }}
-                      step="0.5"
-                      min="0"
-                      autoFocus
-                    />
-                  </div>
-
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="h-12 w-12 rounded-full"
-                    onClick={() =>
-                      setMiscellaneousAmount(
-                        Math.round((miscellaneousAmount + 0.5) * 10) / 10
-                      )
-                    }
-                  >
-                    <Plus className="h-5 w-5" />
-                  </Button>
-                </div>
-              </div>
-
-              {/* Quick Select Section */}
-              <div className="w-full mb-3 mt-auto">
-                <p className="text-sm font-medium mb-3 px-2 text-left">
-                  Quick Select
-                </p>
-                <div className="grid grid-cols-4 gap-2 px-2">
-                  <Button
-                    variant="outline"
-                    className="w-full text-sm"
-                    onClick={() => setMiscellaneousAmount(0.5)}
-                  >
-                    0.5
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="w-full text-sm"
-                    onClick={() => setMiscellaneousAmount(1)}
-                  >
-                    1
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="w-full text-sm"
-                    onClick={() => setMiscellaneousAmount(2)}
-                  >
-                    2
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="w-full text-sm"
-                    onClick={() => setMiscellaneousAmount(5)}
-                  >
-                    5
-                  </Button>
-                </div>
-              </div>
-
-              <DialogFooter className="flex flex-row gap-3 px-2">
-                <Button
-                  variant="outline"
-                  className="flex-1 h-12 text-base"
-                  onClick={() => setIsMiscellaneousDialogOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  className="flex-1 h-12 text-base bg-primary hover:bg-primary/90 text-black"
-                  onClick={() => {
-                    if (miscellaneousAmount > 0) {
-                      setMiscellaneousStep("id");
-                    }
-                  }}
-                  disabled={miscellaneousAmount <= 0}
-                >
-                  Continue
-                </Button>
-              </DialogFooter>
-            </>
-          )}
-
-          {miscellaneousStep === "id" && !fetchedMiscellaneousCashier && (
-            <>
-              <DialogHeader className="pb-4">
-                <DialogTitle className="text-xl font-semibold text-center">
-                  Enter Cashier ID
-                </DialogTitle>
-                <DialogDescription className="text-center">
-                  Please enter your cashier ID to proceed with the deduction.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="flex flex-col items-center">
-                <form
-                  className="flex flex-col items-center w-full"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    const found = staffMembers.find(
-                      (c) => c.id === miscellaneousCashierId
-                    );
-                    if (found) {
-                      setFetchedMiscellaneousCashier(found);
-                      setMiscellaneousCashierError(null);
-                    } else {
-                      setMiscellaneousCashierError(
-                        "Invalid cashier ID. Please try again."
-                      );
-                    }
-                  }}
-                >
-                  <Input
-                    className="text-center text-2xl w-32 mb-2"
-                    value={miscellaneousCashierId}
-                    onChange={(e) => {
-                      setMiscellaneousCashierId(
-                        e.target.value.replace(/\D/g, "")
-                      );
-                      setMiscellaneousCashierError(null);
-                    }}
-                    maxLength={6}
-                    inputMode="numeric"
-                    type="tel"
-                    pattern="[0-9]*"
-                    autoFocus
-                    placeholder="ID"
-                  />
-                  <Button
-                    className="w-full mt-4"
-                    type="submit"
-                    disabled={miscellaneousCashierId.length === 0}
-                  >
-                    Verify ID
-                  </Button>
-                </form>
-                {miscellaneousCashierError && (
-                  <div className="text-destructive text-sm mt-2">
-                    {miscellaneousCashierError}
-                  </div>
-                )}
-                <Button
-                  variant="outline"
-                  className="w-full mt-4"
-                  onClick={() => setMiscellaneousStep("amount")}
-                >
-                  Back
-                </Button>
-              </div>
-            </>
-          )}
-
-          {miscellaneousStep === "id" && fetchedMiscellaneousCashier && (
-            <>
-              <DialogHeader className="pb-4">
-                <DialogTitle className="text-xl font-semibold text-center">
-                  Confirm Deduction
-                </DialogTitle>
-                <DialogDescription className="text-center">
-                  Welcome, {fetchedMiscellaneousCashier.name}!
-                </DialogDescription>
-              </DialogHeader>
-              <div className="flex flex-col items-center my-4">
-                <div className="text-center space-y-2 mb-4">
-                  <div className="text-sm text-muted-foreground">
-                    Cashier ID: {fetchedMiscellaneousCashier.id}
-                  </div>
-                  <div className="text-lg font-semibold text-red-600">
-                    Amount to Deduct: OMR {miscellaneousAmount.toFixed(3)}
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    This will create a negative transaction
-                  </div>
-                </div>
-
-                {isProcessingMiscellaneous && (
-                  <div className="flex flex-col items-center justify-center gap-4 mb-4 py-4">
-                    <motion.div
-                      animate={{ rotate: 360 }}
-                      transition={{
-                        duration: 1.2,
-                        repeat: Infinity,
-                        ease: "linear",
-                      }}
-                      className="h-12 w-12 border-3 border-primary border-t-transparent rounded-full"
-                    />
-                    <div className="text-center space-y-2">
-                      <h3 className="text-lg font-semibold text-primary">
-                        Processing Deduction
-                      </h3>
-                      <p className="text-muted-foreground text-sm">
-                        Creating transaction record...
-                      </p>
-                      <div className="w-full max-w-xs mx-auto">
-                        <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
-                          <motion.div
-                            className="bg-gradient-to-r from-primary to-primary/80 h-2 rounded-full"
-                            initial={{ width: "0%" }}
-                            animate={{ width: "100%" }}
-                            transition={{
-                              duration: 2,
-                              repeat: Infinity,
-                              ease: "easeInOut",
-                            }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex flex-row gap-3 w-full">
-                  <Button
-                    variant="outline"
-                    className="flex-1 h-12 text-base"
-                    onClick={() => {
-                      setFetchedMiscellaneousCashier(null);
-                      setMiscellaneousCashierId("");
-                      setMiscellaneousCashierError(null);
-                    }}
-                    disabled={isProcessingMiscellaneous}
-                  >
-                    Back
-                  </Button>
-                  <Button
-                    className="flex-1 h-12 text-base bg-red-600 hover:bg-red-700"
-                    onClick={async () => {
-                      setIsProcessingMiscellaneous(true);
-
-                      try {
-                        // Create a negative transaction for miscellaneous deduction
-                        const response = await fetch(
-                          "/api/transactions/miscellaneous",
-                          {
-                            method: "POST",
-                            headers: {
-                              "Content-Type": "application/json",
-                            },
-                            body: JSON.stringify({
-                              amount: miscellaneousAmount,
-                              cashierId: fetchedMiscellaneousCashier.id,
-                              locationId:
-                                inventoryLocationId || currentBranch?.id || "default-location",
-                              shopId: currentBranch?.id || "default-shop",
-                            }),
-                          }
-                        );
-
-                        if (!response.ok) {
-                          const errorData = await response.json();
-                          throw new Error(
-                            errorData.message || "Failed to process deduction"
-                          );
-                        }
-
-                        const result = await response.json();
-
-                        // Show success toast
-                        toast({
-                          title: "Deduction Processed",
-                          description: `OMR ${miscellaneousAmount.toFixed(
-                            3
-                          )} deducted. Reference: ${result.referenceNumber}`,
-                        });
-
-                        // Reset and close
-                        setMiscellaneousStep("amount");
-                        setMiscellaneousAmount(0.5);
-                        setMiscellaneousCashierId("");
-                        setMiscellaneousCashierError(null);
-                        setFetchedMiscellaneousCashier(null);
-                        setIsProcessingMiscellaneous(false);
-                        setIsMiscellaneousDialogOpen(false);
-                      } catch (error) {
-                        console.error(
-                          "Error processing miscellaneous deduction:",
-                          error
-                        );
-                        toast({
-                          title: "Error",
-                          description:
-                            error instanceof Error
-                              ? error.message
-                              : "Failed to process deduction",
-                          variant: "destructive",
-                        });
-                        setIsProcessingMiscellaneous(false);
-                      }
-                    }}
-                    disabled={isProcessingMiscellaneous}
-                  >
-                    {isProcessingMiscellaneous ? (
-                      <div className="flex items-center justify-center w-full">
-                        <Spinner className="text-black mr-2" />
-                        Processing...
-                      </div>
-                    ) : (
-                      "Confirm Deduction"
-                    )}
-                  </Button>
-                </div>
-              </div>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
+        onOpenChange={setIsMiscellaneousDialogOpen}
+      />
 
       {/* Add Customer Form Dialog */}
       <POSCustomerForm

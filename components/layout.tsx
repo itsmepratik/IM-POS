@@ -53,7 +53,7 @@ export function Layout({ children, pageTitle }: LayoutProps) {
           <h1 className="text-lg font-semibold">{getPageTitle()}</h1>
         </header>
 
-        <div className="flex flex-1 flex-col p-3 pl-[1px] overflow-hidden">
+        <div className="flex flex-1 flex-col p-2 md:p-3 overflow-hidden">
            <main className="flex-1 w-full overflow-auto rounded-2xl bg-white border border-gray-200 p-3">
             {children}
            </main>
