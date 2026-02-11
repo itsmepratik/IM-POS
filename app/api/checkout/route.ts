@@ -243,8 +243,8 @@ export async function POST(req: NextRequest) {
             ${discountAmount.toString()}::numeric,
             ${subtotalBeforeDiscount.toString()}::numeric,
             ${carPlateNumber || null}::text,
-            ${paymentMethod?.toUpperCase() === "MOBILE" ? mobilePaymentAccount : null}::text,
-            ${paymentMethod?.toUpperCase() === "MOBILE" ? mobileNumber : null}::text,
+            ${(paymentMethod?.toUpperCase() === "MOBILE" && mobilePaymentAccount) ? mobilePaymentAccount : null}::text,
+            ${(paymentMethod?.toUpperCase() === "MOBILE" && mobileNumber) ? mobileNumber : null}::text,
             null::text,
             ${JSON.stringify(tradeIns || [])}::jsonb
           ) as data
