@@ -13,13 +13,13 @@ import { ImageErrorFallback } from "@/components/ui/image-error-boundary";
 interface BrandLogoProps {
   brand: string;
   brands?: Brand[]; // Optional brands data for database images
-  fallbackToLocal?: boolean; // Whether to fallback to local images
+  imageUrl?: string | null; // Direct image URL
 }
 
 export function BrandLogo({
   brand,
   brands,
-  fallbackToLocal = true,
+  imageUrl,
 }: BrandLogoProps) {
   const [hasError, setHasError] = React.useState(false);
   const hasLoadedRef = React.useRef(false);
@@ -29,11 +29,12 @@ export function BrandLogo({
     return brands?.find((b) => b.name.toLowerCase() === brand.toLowerCase());
   }, [brands, brand]);
 
-  // Get the image URL from brand data
+  // Get the image URL from brand data or direct prop
   const databaseImageUrl = React.useMemo(() => {
-    if (!brandData?.image_url) return null;
-    return brandData.image_url;
-  }, [brandData]);
+    if (imageUrl) return imageUrl;
+    if (!brandData?.imageUrl) return null;
+    return brandData.imageUrl;
+  }, [brandData, imageUrl]);
 
   // Determine which image source to use
   const imgSrc = React.useMemo(() => {
@@ -51,7 +52,7 @@ export function BrandLogo({
   }, [imgSrc]);
 
   const handleError = React.useCallback(
-    (e?: React.SyntheticEvent<HTMLImageElement, Event>) => {
+    (e?: any) => {
       setHasError(true);
       if (imgSrc) {
         cacheImageInvalid(imgSrc);

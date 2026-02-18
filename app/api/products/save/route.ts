@@ -106,30 +106,8 @@ export async function POST(req: Request) {
       };
 
       // Handle type_id (preferred) or type (legacy)
-      if (body.type_id) {
-        // Validate that type_id belongs to the product's category
-        const finalCategoryId = body.category_id || category?.id;
-        if (finalCategoryId) {
-          const { data: typeData } = await supabase
-            .from("types")
-            .select("category_id")
-            .eq("id", body.type_id)
-            .single();
-
-          if (typeData && typeData.category_id === finalCategoryId) {
-            updateData.type_id = body.type_id;
-            updateData.product_type = null; // Clear legacy field when type_id is set
-          } else {
-            return NextResponse.json(
-              { error: "type_id does not belong to the product's category" },
-              { status: 400 }
-            );
-          }
-        }
-      } else if (body.type) {
-        // Legacy support: use product_type text field
-        updateData.product_type = body.type;
-      }
+      // Logic moved to after product update to handle product_types relation
+      // We no longer write to products.type_id or products.product_type
 
       // Handle brand_id - use brand_id (UUID) to reference brands table
       if (body.brand_id) {
@@ -176,26 +154,8 @@ export async function POST(req: Request) {
       };
 
       // Handle type_id (preferred) or type (legacy)
-      if (body.type_id) {
-        // Validate that type_id belongs to the product's category
-        const { data: typeData } = await supabase
-          .from("types")
-          .select("category_id")
-          .eq("id", body.type_id)
-          .single();
-
-        if (typeData && typeData.category_id === body.category_id) {
-          insertData.type_id = body.type_id;
-        } else {
-          return NextResponse.json(
-            { error: "type_id does not belong to the product's category" },
-            { status: 400 }
-          );
-        }
-      } else if (body.type) {
-        // Legacy support: use product_type text field
-        insertData.product_type = body.type;
-      }
+      // Logic moved to after product insert to handle product_types relation
+      // We no longer write to products.type_id or products.product_type
 
       // Handle brand_id - use brand_id (UUID) to reference brands table
       if (body.brand_id) {
@@ -391,6 +351,62 @@ export async function POST(req: Request) {
       if (insertBatchError) {
         console.error("Error inserting batch:", insertBatchError);
         // Don't fail the entire operation for batch insertion
+      }
+    }
+
+    // 5) Update Product Type (Relation)
+    // We now write to product_types table instead of columns on products table
+    let typeIdToLink: string | null = null;
+
+    if (body.type_id) {
+      typeIdToLink = body.type_id;
+    } else if (body.type) {
+      // Try to resolve legacy text type to a type_id
+      // We need to find a type with this name, preferably in the product's category
+      const { data: typeData } = await supabase
+        .from("types")
+        .select("id")
+        .eq("name", body.type)
+        .eq("category_id", body.category_id || category?.id) // Constrain to category if possible
+        .maybeSingle();
+      
+      if (typeData) {
+        typeIdToLink = typeData.id;
+      } else {
+         // Fallback: try finding type by name globally (if category mismatch)
+         const { data: globalTypeData } = await supabase
+          .from("types")
+          .select("id")
+          .eq("name", body.type)
+          .maybeSingle();
+          
+          if (globalTypeData) {
+            typeIdToLink = globalTypeData.id;
+          }
+      }
+    }
+
+    if (typeIdToLink) {
+      // Upsert into product_types
+      // Since we currently assume 1 main type per product for the UI, we can delete existing and insert new
+      // Or use upsert if we want to add.
+      // For "Save" form behavior, replacing is usually safer behavior to avoid accumulating wrong types.
+      
+      // 1. Delete existing types for this product (to enforce single type behavior for now)
+      // If we support multiple types in UI later, we would adjust this.
+      await supabase.from("product_types").delete().eq("product_id", productId);
+
+      // 2. Insert new type
+      const { error: typeLinkError } = await supabase
+        .from("product_types")
+        .insert({
+          product_id: productId,
+          type_id: typeIdToLink
+        });
+        
+      if (typeLinkError) {
+        console.error("Error linking product type:", typeLinkError);
+        // Continue, don't break flow, but log it.
       }
     }
 

@@ -77,17 +77,17 @@ export async function GET(req: Request) {
         id,
         name,
         brand_id,
-        product_type,
-        type_id,
+        product_types (
+          types (
+            id,
+            name
+          )
+        ),
         image_url,
         low_stock_threshold,
         category_id,
         cost_price,
-        manufacturing_date,
-        types (
-          id,
-          name
-        )
+        manufacturing_date
       `
       )
       .in("id", productIds);
@@ -158,7 +158,7 @@ export async function GET(req: Request) {
         const category = categoryMap.get(product.category_id);
         const isBattery =
           category?.name?.toLowerCase().includes("battery") ||
-          product.product_type?.toLowerCase().includes("battery");
+          product.product_types?.some((pt: any) => pt.types?.name?.toLowerCase().includes("battery"));
         return isBattery;
       });
     }
@@ -178,9 +178,9 @@ export async function GET(req: Request) {
     }
     if (qp.product_type) {
       filteredProducts = filteredProducts.filter((product) =>
-        product.product_type
-          ?.toLowerCase()
-          .includes(qp.product_type!.toLowerCase())
+        product.product_types?.some((pt: any) => 
+          pt.types?.name?.toLowerCase().includes(qp.product_type!.toLowerCase())
+        )
       );
     }
 
@@ -194,7 +194,7 @@ export async function GET(req: Request) {
         name: product.name,
         brand: brand?.name ?? null,
         brand_id: product.brand_id ?? null,
-        product_type: product.product_type ?? null,
+        product_type: product.product_types?.[0]?.types?.name ?? null,
         category: category?.name ?? null,
         category_id: product.category_id ?? null,
         image_url: product.image_url ?? null,

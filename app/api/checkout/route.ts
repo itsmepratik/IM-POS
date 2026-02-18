@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { z } from "zod";
 import {
   getDatabase,
@@ -259,6 +260,11 @@ export async function POST(req: NextRequest) {
         const transactionData = result[0].data as any;
 
         const processingTime = Date.now() - startTime;
+        
+        // Revalidate cache
+        revalidateTag("products");
+        revalidateTag("brands"); // Just in case, though brands strictly shouldn't change in checkout
+        
         return NextResponse.json({
           success: true,
           data: {

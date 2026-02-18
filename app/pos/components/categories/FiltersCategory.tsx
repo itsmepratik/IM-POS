@@ -69,7 +69,7 @@ export function FiltersCategory({
         const brandData = brands.find(
           (b) => b.name.toLowerCase() === brandName.toLowerCase()
         );
-        return brandData?.image_url || null;
+        return brandData?.imageUrl || null;
       })
       .filter((url): url is string => url !== null);
   }, [brands, filterBrands]);

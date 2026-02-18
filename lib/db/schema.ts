@@ -63,7 +63,7 @@ export type NewType = typeof types.$inferInsert;
 export const brands = pgTable("brands", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull().unique(),
-  images: jsonb("images"), // JSONB column to store brand images (URLs, metadata, etc.)
+  imageUrl: text("image_url"),
 });
 
 // Type inference for the brands table
@@ -79,8 +79,8 @@ export const products = pgTable("products", {
   brandId: uuid("brand_id").references(() => brands.id, {
     onDelete: "set null",
   }),
-  typeId: uuid("type_id").references(() => types.id, { onDelete: "set null" }),
-  productType: text("product_type"), // Legacy field, kept for backward compatibility
+  // typeId: uuid("type_id").references(() => types.id, { onDelete: "set null" }),
+  // productType: text("product_type"),
   description: text("description"),
   imageUrl: text("image_url"),
   lowStockThreshold: integer("low_stock_threshold").default(0),
@@ -328,10 +328,10 @@ export const productsRelations = relations(products, ({ one, many }) => ({
     fields: [products.brandId],
     references: [brands.id],
   }),
-  type: one(types, {
-    fields: [products.typeId],
-    references: [types.id],
-  }),
+  // type: one(types, {
+  //   fields: [products.typeId],
+  //   references: [types.id],
+  // }),
   inventory: many(inventory),
   volumes: many(productVolumes),
 }));

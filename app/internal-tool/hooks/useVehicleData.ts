@@ -157,7 +157,11 @@ export const useVehicleData = () => {
       .select(`
         id,
         name,
-        product_type,
+        product_types (
+          types (
+            name
+          )
+        ),
         image_url,
         specification,
         inventory (
@@ -197,7 +201,7 @@ export const useVehicleData = () => {
           id: p.id,
           name: p.name,
           brand: p.brands?.name || "Unknown Brand",
-          type: p.product_type || "Standard",
+          type: p.product_types?.[0]?.types?.name || "Standard",
           pricePerLiter: pricePerLiter,
           stock: p.inventory?.[0]?.total_stock || 0,
           imageUrl: p.image_url,

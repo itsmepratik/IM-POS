@@ -154,7 +154,7 @@ export interface UseDashboardDataReturn {
 
 // === HOOK IMPLEMENTATION ===
 
-export function useDashboardData(): UseDashboardDataReturn {
+export function useDashboardData(initialSalesMetrics?: SalesMetrics): UseDashboardDataReturn {
   const { currentBranch } = useBranch()
   
   // === STATE ===
@@ -172,15 +172,15 @@ export function useDashboardData(): UseDashboardDataReturn {
   const [timeGranularity, setTimeGranularity] = useState<"daily" | "weekly" | "monthly">("daily")
   
   // Loading state
-  const [isLoading, setIsLoading] = useState(true)
-  const [isSalesLoading, setIsSalesLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(!initialSalesMetrics)
+  const [isSalesLoading, setIsSalesLoading] = useState(!initialSalesMetrics)
   const [isProfitLoading, setIsProfitLoading] = useState(true)
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(initialSalesMetrics ? new Date() : null)
   
   // === METRICS STATE ===
   
   // Sales Metrics
-  const [salesMetrics, setSalesMetrics] = useState<SalesMetrics>({
+  const [salesMetrics, setSalesMetrics] = useState<SalesMetrics>(initialSalesMetrics || {
     totalSales: 0,
     previousPeriodSales: 0,
     changePercentage: 0,
@@ -308,7 +308,7 @@ export function useDashboardData(): UseDashboardDataReturn {
     let totalSales = 0
     let previousPeriodSales = 0
     let topProducts: TopProduct[] = []
-    let salesTrend = []
+    let salesTrend: TrendPoint[] = []
     let realTransactionCount = 0
     
     try {

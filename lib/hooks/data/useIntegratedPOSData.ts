@@ -51,8 +51,17 @@ export interface IntegratedPOSData {
 /**
  * Hook for integrated POS data with real-time inventory synchronization
  * @param overrideLocationId - Optional location ID to override the branch context (useful for transfers)
+ * @param config - Optional configuration for initial data hydration
  */
-export function useIntegratedPOSData(overrideLocationId?: string | null): IntegratedPOSData {
+export function useIntegratedPOSData(
+  overrideLocationId?: string | null, 
+  config?: { 
+    initialData?: { 
+      products?: any[]; 
+      brands?: Brand[];
+    } 
+  }
+): IntegratedPOSData {
   const { currentBranch, branchLoadError, inventoryLocationId } = useBranch();
 
   // Use overrideLocationId if provided, otherwise use inventoryLocationId if available (for shop users with shared inventory), otherwise use currentBranch.id
@@ -61,12 +70,14 @@ export function useIntegratedPOSData(overrideLocationId?: string | null): Integr
     : (inventoryLocationId || currentBranch?.id || null);
 
   // Brands state
-  const [brands, setBrands] = useState<Brand[]>([]);
-  const [brandsLoading, setBrandsLoading] = useState(false);
+  const [brands, setBrands] = useState<Brand[]>(config?.initialData?.brands || []);
+  const [brandsLoading, setBrandsLoading] = useState(!config?.initialData?.brands);
   const [brandsError, setBrandsError] = useState<string | null>(null);
 
   // Fetch brands data
   useEffect(() => {
+    if (config?.initialData?.brands) return;
+
     const loadBrands = async () => {
       setBrandsLoading(true);
       setBrandsError(null);
@@ -84,7 +95,7 @@ export function useIntegratedPOSData(overrideLocationId?: string | null): Integr
     };
 
     loadBrands();
-  }, []);
+  }, [config?.initialData?.brands]);
 
 
   const {
@@ -98,7 +109,9 @@ export function useIntegratedPOSData(overrideLocationId?: string | null): Integr
     processSale,
     getProductAvailability,
     refresh,
-  } = useInventoryPOSSync(locationIdForInventory);
+  } = useInventoryPOSSync(locationIdForInventory, {
+    initialData: config?.initialData?.products
+  });
 
   // Transform the POS data to match the expected interface and SORT alphabetically
   const lubricantProducts = [...posData.lubricantProducts].sort((a, b) => 

@@ -211,6 +211,7 @@ export function BranchProvider({ children }: { children: ReactNode }) {
                     // Automatically set branch
                     setCurrentBranch(matchedBranch);
                     localStorage.setItem("selectedBranchId", matchedBranch.id);
+                    document.cookie = `pos_branch_id=${matchedBranch.id}; path=/; max-age=31536000; SameSite=Lax`;
                     
                     // Update state and return early
                     setBranches(dbBranches);
@@ -468,7 +469,10 @@ export function BranchProvider({ children }: { children: ReactNode }) {
       }
 
       setCurrentBranch(branch);
+      setCurrentBranch(branch);
       localStorage.setItem("selectedBranchId", branchId);
+      // Set cookie for Server Component access (1 year expiry)
+      document.cookie = `pos_branch_id=${branchId}; path=/; max-age=31536000; SameSite=Lax`;
 
       toast({
         title: "Location Selected",

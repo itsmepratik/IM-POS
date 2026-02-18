@@ -71,6 +71,7 @@ export type Item = {
   totalOpenVolume?: number; // Total volume in liters from open_bottle_details (for lubricants)
   specification?: string | null;
   types?: Type[]; // Array of associated types
+  bottleStates?: BottleStates;
 };
 
 export type Volume = {
@@ -110,7 +111,7 @@ export type Category = {
 export type Brand = {
   id: string;
   name: string;
-  image_url?: string | null; // Direct image URL column in database
+  imageUrl?: string | null; // Direct image URL column in database
 };
 
 export type Supplier = {
@@ -128,6 +129,18 @@ export type Type = {
 };
 
 // Database service functions
+
+// Helper to trigger revalidation
+const revalidateProducts = async () => {
+    try {
+        await fetch("/api/revalidate?tag=products", { method: "POST" });
+        await fetch("/api/revalidate?tag=brands", { method: "POST" });
+        await fetch("/api/revalidate?tag=categories", { method: "POST" });
+    } catch (e) {
+        console.error("Revalidation failed:", e);
+    }
+};
+
 
 // Fetch items for a specific location
   // Helper function to resolve location ID
@@ -209,8 +222,7 @@ export const fetchInventoryItems = async (
         products!inner (
           id,
           name,
-          product_type,
-          type_id,
+          name,
           description,
           image_url,
           low_stock_threshold,
@@ -223,7 +235,6 @@ export const fetchInventoryItems = async (
           brand_id,
           ${categoryJoin} ( id, name ),
           ${brandJoin} ( id, name ),
-          types ( id, name ),
           product_types (
             types ( id, name, category_id )
           )
@@ -370,11 +381,14 @@ export const fetchInventoryItems = async (
           : product.categories?.name;
           
         const isOilProduct =
-          product?.product_type?.toLowerCase() === "oil" ||
-          product?.product_type?.toLowerCase() === "synthetic" ||
-          product?.product_type?.toLowerCase() === "semi-synthetic" ||
           categoryName === "Lubricants" ||
-          categoryName === "Additives";
+          categoryName === "Additives" ||
+          (product?.product_types?.some((pt: any) => 
+            pt.types?.name?.toLowerCase() === "lubricant" || 
+            pt.types?.name?.toLowerCase() === "synthetic" || 
+            pt.types?.name?.toLowerCase() === "semi-synthetic" ||
+            pt.types?.name?.toLowerCase() === "oil"
+          ));
 
         if (isOilProduct) {
            const { data: volData } = await supabase
@@ -460,7 +474,7 @@ export const fetchInventoryItems = async (
           brand: product?.brands?.name || "Unknown Brand",
           brand_id: product?.brand_id,
           category_id: product?.category_id,
-          type: product?.product_types?.[0]?.types?.name || product?.types?.name || product?.product_type || "Unknown Type", 
+          type: product?.product_types?.[0]?.types?.name || product?.types?.name || "Unknown Type", 
           type_id: product?.type_id,
           type_name: product?.types?.name,
           types: product?.product_types?.map((pt: any) => pt.types).filter(Boolean) || [],
@@ -587,8 +601,7 @@ export const fetchItems = async (
         products!inner (
           id,
           name,
-          product_type,
-          type_id,
+          name,
           description,
           image_url,
           low_stock_threshold,
@@ -604,10 +617,6 @@ export const fetchItems = async (
             name
           ),
           brands (
-            id,
-            name
-          ),
-          types (
             id,
             name
           ),
@@ -649,13 +658,16 @@ export const fetchItems = async (
           ? product.categories[0]?.name
           : product.categories?.name;
 
-        // Determine if this is an oil product based on product_type and category
+        // Determine if this is an oil product based on category and types
         const isOilProduct =
-          product?.product_type?.toLowerCase() === "oil" ||
-          product?.product_type?.toLowerCase() === "synthetic" ||
-          product?.product_type?.toLowerCase() === "semi-synthetic" ||
           categoryName === "Lubricants" ||
-          categoryName === "Additives";
+          categoryName === "Additives" ||
+          (product?.product_types?.some((pt: any) => 
+            pt.types?.name?.toLowerCase() === "lubricant" || 
+            pt.types?.name?.toLowerCase() === "synthetic" || 
+            pt.types?.name?.toLowerCase() === "semi-synthetic" ||
+            pt.types?.name?.toLowerCase() === "oil"
+          ));
 
         // Fetch volumes for oil products
         let volumes: Volume[] = [];
@@ -787,7 +799,7 @@ export const fetchItems = async (
           brand: product.brands?.name || "N/A", // Use brands table via brand_id foreign key
           brand_id: product.brand_id,
           category_id: product.category_id,
-          type: product.types?.name || product.product_type || null, // Prefer type from types table, fallback to product_type
+          type: product.types?.name || (product.product_types && product.product_types[0]?.types?.name) || null,
           type_id: product.type_id || null,
           type_name: product.types?.name || null,
           description: product.description,
@@ -1048,6 +1060,7 @@ export const createItem = async (
           console.error("Error inserting fallback product type:", typeError);
        }
     }
+    await revalidateProducts();
     return await fetchItem(productData.id, locationId);
   } catch (error) {
     console.error("Error in createItem:", error);
@@ -1323,6 +1336,7 @@ export const updateItem = async (
       }
     }
     const updatedItem = await fetchItem(id, locationId);
+    await revalidateProducts();
     return updatedItem;
   } catch (error) {
     console.error("Error in updateItem:", {
@@ -1428,6 +1442,7 @@ export const deleteItem = async (
       }
     }
 
+    await revalidateProducts();
     return true;
   } catch (error) {
     console.error("Error in deleteItem:", error);
@@ -1736,7 +1751,7 @@ export const updateCategoryService = async (
   }
 };
 
-export const deleteCategoryService = async (id: string): Promise<void> => {
+export const deleteCategoryService = async (id: string): Promise<boolean> => {
   try {
     const { error } = await supabase.from("categories").delete().eq("id", id);
 
@@ -1744,6 +1759,8 @@ export const deleteCategoryService = async (id: string): Promise<void> => {
       console.error("Error deleting category:", error);
       throw new Error("Failed to delete category");
     }
+
+    return true;
   } catch (error) {
     console.error("Error in deleteCategoryService:", error);
     throw error;
@@ -1759,16 +1776,17 @@ export const addBrandService = async (
       .from("brands")
       .insert({
         name: brand.name,
-        image_url: brand.image_url || null,
+        image_url: brand.imageUrl || null,
       })
       .select()
       .single();
 
     if (error) {
-      console.error("Error adding brand:", error);
-      throw new Error("Failed to add brand");
+      console.error("Error adding brand:", JSON.stringify(error, null, 2));
+      throw new Error(`Failed to add brand: ${error.message || JSON.stringify(error)}`);
     }
 
+    await revalidateProducts();
     return data;
   } catch (error) {
     console.error("Error in addBrandService:", error);
@@ -1788,9 +1806,9 @@ export const updateBrandService = async (
       dbUpdates.name = updates.name;
     }
 
-    if (updates.image_url !== undefined) {
+    if (updates.imageUrl !== undefined) {
       // Update the image_url column directly
-      dbUpdates.image_url = updates.image_url || null;
+      dbUpdates.image_url = updates.imageUrl || null;
     }
 
     const { data, error } = await supabase
@@ -1801,11 +1819,11 @@ export const updateBrandService = async (
       .single();
 
     if (error) {
-      console.error("Error updating brand:", error);
-      console.error("Error details:", JSON.stringify(error, null, 2));
-      throw new Error("Failed to update brand");
+      console.error("Error updating brand:", JSON.stringify(error, null, 2));
+      throw new Error(`Failed to update brand: ${error.message || JSON.stringify(error)}`);
     }
 
+    await revalidateProducts();
     return data;
   } catch (error) {
     console.error("Error in updateBrandService:", error);
@@ -1813,7 +1831,7 @@ export const updateBrandService = async (
   }
 };
 
-export const deleteBrandService = async (id: string): Promise<void> => {
+export const deleteBrandService = async (id: string): Promise<boolean> => {
   try {
     const { error } = await supabase.from("brands").delete().eq("id", id);
 
@@ -1821,6 +1839,9 @@ export const deleteBrandService = async (id: string): Promise<void> => {
       console.error("Error deleting brand:", error);
       throw new Error("Failed to delete brand");
     }
+
+    await revalidateProducts();
+    return true;
   } catch (error) {
     console.error("Error in deleteBrandService:", error);
     throw error;

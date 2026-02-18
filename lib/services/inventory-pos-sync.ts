@@ -39,6 +39,8 @@ export interface SyncConfig {
   enableRealTimeSync: boolean;
   maxRetries: number;
   retryDelay: number; // milliseconds
+  // Initial Data for hydration
+  initialData?: UnifiedProduct[];
 }
 
 const DEFAULT_SYNC_CONFIG: SyncConfig = {
@@ -70,18 +72,28 @@ export function useInventoryPOSSync(
 ) {
   const finalConfig = { ...DEFAULT_SYNC_CONFIG, ...config };
 
-  const [products, setProducts] = useState<UnifiedProduct[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  // Initialize with provided data if available
+  const [products, setProducts] = useState<UnifiedProduct[]>(
+    config.initialData || []
+  );
+  
+  // If we have initial data, we're not loading initially
+  const [isLoading, setIsLoading] = useState(!config.initialData);
   const [isBackgroundSyncing, setIsBackgroundSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
+  const [lastSyncTime, setLastSyncTime] = useState<Date | null>(
+    config.initialData ? new Date() : null
+  );
   const [syncEvents, setSyncEvents] = useState<SyncEvent[]>([]);
 
   const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const retryCountRef = useRef(0);
   const emptyDataRetryCountRef = useRef(0);
-  const isInitialLoadRef = useRef(true);
+  
+  // If we have initial data, we treat the first "real" sync as a background sync/update
+  // unless strictly specified otherwise.
+  const isInitialLoadRef = useRef(!config.initialData);
 
   // Add sync event
   const addSyncEvent = useCallback((event: Omit<SyncEvent, "timestamp">) => {

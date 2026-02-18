@@ -13,12 +13,14 @@ import {
   isImageCached,
 } from "@/lib/utils/imageCache";
 import { ImageErrorFallback } from "@/components/ui/image-error-boundary";
+import { BrandLogo } from "../brand-logo";
+import { Brand } from "@/lib/services/inventoryService";
 
 interface Product {
   id: number;
   name: string;
   price: number;
-  category: "Filters" | "Parts" | "Additives & Fluids" | "Lubricants";
+  category: "Filters" | "Parts" | "Additives & Fluids" | "Lubricants" | "Batteries";
   availableQuantity: number;
   brand?: string;
   type?: string;
@@ -38,6 +40,7 @@ interface AdditivesFluidsCategoryProps {
   setExpandedBrand: (brand: string | null) => void;
   addToCart: (item: CartItem) => void;
   products: Product[];
+  brands?: Brand[];
   isLoading: boolean;
 }
 
@@ -116,6 +119,7 @@ export function AdditivesFluidsCategory({
   setExpandedBrand,
   addToCart,
   products,
+  brands,
   isLoading,
 }: AdditivesFluidsCategoryProps) {
   const { addPersistentNotification } = useNotification();
@@ -157,7 +161,16 @@ export function AdditivesFluidsCategory({
               setExpandedBrand(expandedBrand === brand ? null : brand)
             }
           >
-            <span className="font-semibold text-lg">{brand}</span>
+            <div className="flex items-center gap-3">
+               <div className="relative w-8 h-8 flex items-center justify-center">
+                 <BrandLogo 
+                   brand={brand} 
+                   brands={brands} 
+                   imageUrl={brands?.find(b => b.name === brand)?.imageUrl} 
+                 />
+               </div>
+                <span className="font-semibold text-lg">{brand}</span>
+            </div>
             {expandedBrand === brand ? (
               <ChevronUp className="h-5 w-5" />
             ) : (

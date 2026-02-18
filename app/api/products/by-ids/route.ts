@@ -36,12 +36,13 @@ export async function GET(req: Request) {
         name,
         brand_id,
         category_id,
-        product_type,
-        categories (
-          id,
-          name
+        product_types (
+          types (
+            id,
+            name
+          )
         ),
-        types (
+        categories (
           id,
           name
         ),
@@ -66,7 +67,7 @@ export async function GET(req: Request) {
       name: p.name,
       brandName: p.brands?.name || "",
       category: p.categories?.name || "",
-      type: p.types?.name || p.product_type || "",
+      type: p.product_types?.[0]?.types?.name || "",
     }));
 
     return NextResponse.json({ products: transformedProducts });

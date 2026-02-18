@@ -41,6 +41,7 @@ import {
 import { useBranch } from "@/lib/contexts/BranchContext";
 import { toast } from "@/components/ui/use-toast";
 import { createClient } from "@/supabase/client";
+import { RealtimeChannel } from "@supabase/supabase-js";
 
 interface ItemsContextType {
   items: Item[];
@@ -171,7 +172,7 @@ export const ItemsProvider = ({
   const [brandMap, setBrandMap] = useState<Map<string, string>>(new Map()); // id -> name
 
   const { currentBranch, inventoryLocationId } = useBranch();
-  const subscriptionRef = useRef<ReturnType<typeof createClient>["channel"] | null>(null);
+  const subscriptionRef = useRef<RealtimeChannel | null>(null);
   const currentLocationIdRef = useRef<string | null>(null);
 
   // Helper function to convert Map to Record
@@ -394,7 +395,6 @@ export const ItemsProvider = ({
       // FIX: Pass location_id as the second argument, not just inside the object
       const newItem = await createItem({
         ...item,
-        location_id: locationIdForInventory,
       }, locationIdForInventory);
       
       if (newItem) {
@@ -484,7 +484,7 @@ export const ItemsProvider = ({
       // If still no location, default to undefined which service might handle or fallback to sanaiya (but at least we tried)
       // Ideally we should warn if strictly needed.
       
-      const updated = await updateItemService(id, updatedItem, locationIdForInventory);
+      const updated = await updateItemService(id, updatedItem, locationIdForInventory || undefined);
       if (updated) {
         setItems((prevItems) =>
           prevItems.map((item) => (item.id === id ? { ...updated } : item))
@@ -543,7 +543,7 @@ export const ItemsProvider = ({
          locationIdForInventory = currentLocationIdRef.current;
       }
 
-      const success = await deleteItemService(id, locationIdForInventory);
+      const success = await deleteItemService(id, locationIdForInventory || undefined);
       if (success) {
         setItems((prevItems) => prevItems.filter((item) => item.id !== id));
         toast({
@@ -784,11 +784,21 @@ export const ItemsProvider = ({
       return null;
     } catch (error) {
       console.error("Error adding brand:", error);
-      toast({
-        title: "Error adding brand",
-        description: "Failed to add the brand. Please try again.",
-        variant: "destructive",
-      });
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      
+      if (errorMessage.includes("duplicate key") || errorMessage.includes("unique constraint")) {
+        toast({
+          title: "Brand already exists",
+          description: `The brand "${brand.name}" already exists.`,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Error adding brand",
+          description: errorMessage,
+          variant: "destructive",
+        });
+      }
       return null;
     }
   };
@@ -982,7 +992,7 @@ export const ItemsProvider = ({
       const newBatch = await addBatchService({
         ...batchData,
         item_id: itemId,
-      }, locationIdForInventory);
+      }, locationIdForInventory || undefined);
 
       if (newBatch) {
         // Refresh items to get updated batch data
@@ -1076,8 +1086,10 @@ export const ItemsProvider = ({
     let totalQuantity = 0;
 
     for (const batch of item.batches) {
-      totalCost += batch.cost_price * batch.current_quantity;
-      totalQuantity += batch.current_quantity;
+      if (batch.cost_price != null && batch.current_quantity != null) {
+        totalCost += batch.cost_price * batch.current_quantity;
+        totalQuantity += batch.current_quantity;
+      }
     }
 
     return totalQuantity > 0 ? totalCost / totalQuantity : 0;

@@ -17,28 +17,11 @@ import {
 import { useImagePreloader } from "@/lib/hooks/useImagePreloader";
 import { ImageErrorFallback } from "@/components/ui/image-error-boundary";
 import { OpenBottleIcon, ClosedBottleIcon } from "@/components/ui/bottle-icons";
+import { BrandLogo } from "../brand-logo";
+import { Brand } from "@/lib/services/inventoryService";
+import { LubricantProduct } from "@/lib/hooks/data/useIntegratedPOSData";
 
-interface LubricantProduct {
-  id: number;
-  brand: string;
-  name: string;
-  basePrice: number;
-  type: string;
-  specification?: string;
-  image?: string;
-  volumes: {
-    size: string;
-    price: number;
-    availableQuantity?: number;
-    bottleStates?: {
-      open: number;
-      closed: number;
-    };
-  }[];
-  hasOpenBottles?: boolean;
-  totalOpenVolume?: number;
-  isAvailable?: boolean;
-}
+
 
 interface LubricantCategoryProps {
   searchQuery?: string;
@@ -47,6 +30,7 @@ interface LubricantCategoryProps {
   onLubricantSelect: (lubricant: LubricantProduct) => void;
   lubricantProducts: LubricantProduct[];
   lubricantBrands: string[];
+  brands?: Brand[];
   isLoading: boolean;
 }
 
@@ -125,6 +109,7 @@ export function LubricantCategory({
   onLubricantSelect,
   lubricantProducts,
   lubricantBrands,
+  brands,
   isLoading,
 }: LubricantCategoryProps) {
   const { addPersistentNotification } = useNotification();
@@ -176,7 +161,16 @@ export function LubricantCategory({
               setExpandedBrand(expandedBrand === brand ? null : brand)
             }
           >
-            <span className="font-semibold text-lg">{brand}</span>
+            <div className="flex items-center gap-3">
+               <div className="relative w-8 h-8 flex items-center justify-center">
+                 <BrandLogo 
+                   brand={brand} 
+                   brands={brands} 
+                   imageUrl={brands?.find(b => b.name === brand)?.imageUrl} 
+                 />
+               </div>
+               <span className="font-semibold text-lg">{brand}</span>
+            </div>
             {expandedBrand === brand ? (
               <ChevronUp className="h-5 w-5" />
             ) : (

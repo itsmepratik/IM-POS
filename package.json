@@ -11,7 +11,7 @@
     "test:run": "vitest run",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
-    "db:generate": "drizzle-kit generate:pg",
+    "db:generate": "drizzle-kit generate",
     "db:migrate": "bun run lib/db/migrate.ts",
     "db:studio": "drizzle-kit studio"
   },

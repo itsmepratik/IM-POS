@@ -54,6 +54,7 @@ export default function BrandModal({ open, onOpenChange }: BrandModalProps) {
     if (!url || typeof url !== "string") return false;
     const trimmed = url.trim();
     if (trimmed === "") return false;
+    if (trimmed.startsWith("data:image/")) return true; // Support Base64 images
     try {
       const urlObj = new URL(trimmed);
       return urlObj.protocol === "http:" || urlObj.protocol === "https:";

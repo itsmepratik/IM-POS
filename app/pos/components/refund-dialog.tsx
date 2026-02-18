@@ -127,9 +127,10 @@ const fetchProductDetails = async (
       .from("products")
       .select(`
         id,
-        product_type,
-        categories(name),
-        types(name)
+        product_types(
+          types(name)
+        ),
+        categories(name)
       `)
       .in("id", productIds);
 
@@ -143,8 +144,8 @@ const fetchProductDetails = async (
     productsData?.forEach((product: any) => {
       productDetailsMap.set(product.id, {
         categoryName: product.categories?.name || null,
-        productType: product.product_type || null,
-        typeName: product.types?.name || null,
+        productType: product.product_types?.[0]?.types?.name || null,
+        typeName: product.product_types?.[0]?.types?.name || null,
       });
     });
 

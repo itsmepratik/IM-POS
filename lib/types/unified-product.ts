@@ -116,6 +116,7 @@ export interface POSLubricantProduct {
   hasOpenBottles?: boolean; // Whether any non-empty open bottles exist
   totalOpenVolume?: number; // Total volume available in open bottles
   specification?: string;
+  category?: "Lubricants"; // Always Lubricants for this type
 }
 
 // POS lubricant volume with stock information
@@ -137,7 +138,8 @@ export const UnifiedProductSchema = z.object({
   categoryName: z.string().nullable().optional(),
   brandId: z.string().uuid().nullable().optional(),
   brandName: z.string().nullable().optional(),
-  productType: z.string().nullable().optional(),
+  productType: z.string().nullable().optional(), // In process of deprecation
+
   types: z.array(z.string()).optional(),
 
   basePrice: z.number().min(0, "Base price must be non-negative"),

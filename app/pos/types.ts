@@ -1,6 +1,6 @@
 import { Product } from "@/lib/hooks/data/useIntegratedPOSData";
 
-export interface CartItem extends Product {
+export interface CartItem extends Omit<Product, "category" | "quantity" | "availableQuantity" | "isAvailable" | "originalId"> {
   quantity: number;
   details?: string;
   uniqueId: string;
@@ -9,6 +9,9 @@ export interface CartItem extends Product {
   category?: string;
   brand?: string;
   type?: string;
+  availableQuantity?: number;
+  isAvailable?: boolean;
+  originalId?: string;
 }
 
 export interface SelectedVolume {
