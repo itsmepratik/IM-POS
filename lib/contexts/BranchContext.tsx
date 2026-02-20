@@ -85,7 +85,7 @@ export function BranchProvider({ children }: { children: ReactNode }) {
   const [userShopDisplayName, setUserShopDisplayName] = useState<string | null>(null);
 
   const supabase = createClient();
-  const { currentUser, isAdmin } = useUser();
+  const { currentUser, isAdmin, isLoading: isLoadingUser } = useUser();
 
 
   // Load branches from database using the fetchBranches service
@@ -403,11 +403,20 @@ export function BranchProvider({ children }: { children: ReactNode }) {
 
   // Load branches and restore selected branch on mount
   useEffect(() => {
-    // Wait for user to be loaded before loading branches
-    if (currentUser !== undefined) {
+    // Wait for user to be loaded before deciding what to do
+    if (isLoadingUser) return;
+
+    if (currentUser) {
       loadBranches();
+    } else {
+      // Clear state when user is logged out
+      setBranches([]);
+      setCurrentBranch(null);
+      setInventoryLocationId(null);
+      setIsBranchLocked(false);
+      setBranchLoadError(false);
     }
-  }, [currentUser]);
+  }, [currentUser, isLoadingUser]);
 
   // Restore selected branch when branches are loaded
   useEffect(() => {

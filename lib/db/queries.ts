@@ -18,14 +18,7 @@ import {
   type VolumeInfo
 } from "@/lib/utils/lubricant-stock-calc";
 
-// Define cache tags as constants
-export const CACHE_TAGS = {
-  products: 'products',
-  brands: 'brands',
-  categories: 'categories',
-  shops: 'shops',
-  dashboard: 'dashboard-metrics',
-};
+import { CACHE_TAGS } from "./cache-tags";
 
 // Revalidation time (seconds) - Default 1 hour
 const REVALIDATE_TIME = 3600;
@@ -35,9 +28,9 @@ export const getCachedBrands = unstable_cache(
     const db = getDatabase();
     return db.select().from(brands).orderBy(brands.name);
   },
-  ['brands-list'],
+  [CACHE_TAGS.BRANDS],
   {
-    tags: [CACHE_TAGS.brands],
+    tags: [CACHE_TAGS.BRANDS],
     revalidate: REVALIDATE_TIME,
   }
 );
@@ -47,12 +40,13 @@ export const getCachedShops = unstable_cache(
     const db = getDatabase();
     return db.select({
       id: shops.id,
-      name: shops.name
+      name: shops.name,
+      locationId: shops.locationId
     }).from(shops).where(eq(shops.isActive, true));
   },
-  ['shops-list'],
+  [CACHE_TAGS.SHOPS],
   {
-    tags: [CACHE_TAGS.shops],
+    tags: [CACHE_TAGS.SHOPS],
     revalidate: REVALIDATE_TIME,
   }
 );
@@ -215,9 +209,9 @@ export const getCachedProducts = async (locationId: string) => {
                 };
             }).filter(Boolean) as CachedProduct[];
         },
-        [`products-${locationId}`],
+        [CACHE_TAGS.products(locationId)],
         {
-            tags: [CACHE_TAGS.products, `products-${locationId}`],
+            tags: [CACHE_TAGS.ALL_PRODUCTS, CACHE_TAGS.products(locationId)],
             revalidate: REVALIDATE_TIME
         }
     )();

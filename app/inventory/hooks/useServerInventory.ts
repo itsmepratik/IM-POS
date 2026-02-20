@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { fetchInventoryItems, Item } from "@/lib/services/inventoryService";
+import { Item } from "@/lib/services/inventoryService";
+import { getInventoryServerAction } from "@/lib/actions/inventory";
 import { useToast } from "@/components/ui/use-toast";
 
 interface UseServerInventoryProps {
@@ -72,7 +73,7 @@ export function useServerInventory({
     if (!silent) setLoading(true);
     // setError(null); // Maybe keep error handling?
     try {
-      const { data, count } = await fetchInventoryItems(
+      const { data, count } = await getInventoryServerAction(
         page,
         limit,
         debouncedSearch,

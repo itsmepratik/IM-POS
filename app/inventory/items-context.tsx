@@ -13,9 +13,6 @@ import {
   Supplier,
   fetchItems,
   fetchItem,
-  createItem,
-  updateItem as updateItemService,
-  deleteItem as deleteItemService,
   fetchCategories,
   fetchBrands,
   fetchSuppliers,
@@ -38,6 +35,11 @@ import {
   fetchTypes,
   type Type,
 } from "../../lib/services/typesService";
+import {
+  createItemAction as createItem,
+  updateItemAction as updateItemService,
+  deleteItemAction as deleteItemService,
+} from "@/lib/actions/mutations";
 import { useBranch } from "@/lib/contexts/BranchContext";
 import { toast } from "@/components/ui/use-toast";
 import { createClient } from "@/supabase/client";

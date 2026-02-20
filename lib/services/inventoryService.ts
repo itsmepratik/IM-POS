@@ -28,7 +28,7 @@ export type Branch = {
   address_line_arabic_2?: string;
   contact_number?: string;
   contact_number_arabic?: string;
-  
+
   // Extended Bill Details
   service_description_en?: string;
   service_description_ar?: string;
@@ -132,49 +132,54 @@ export type Type = {
 
 // Helper to trigger revalidation
 const revalidateProducts = async () => {
-    try {
-        await fetch("/api/revalidate?tag=products", { method: "POST" });
-        await fetch("/api/revalidate?tag=brands", { method: "POST" });
-        await fetch("/api/revalidate?tag=categories", { method: "POST" });
-    } catch (e) {
-        console.error("Revalidation failed:", e);
+  try {
+    if (typeof window !== "undefined") {
+      await fetch("/api/revalidate?tag=products", { method: "POST" });
+      await fetch("/api/revalidate?tag=brands", { method: "POST" });
+      await fetch("/api/revalidate?tag=categories", { method: "POST" });
     }
+  } catch (e) {
+    console.error("Revalidation failed:", e);
+  }
 };
 
-
 // Fetch items for a specific location
-  // Helper function to resolve location ID
-  const resolveLocationId = async (locId: string): Promise<string> => {
-    const uuidRegex =
-      /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
-    
-    // Check known locations first
-    if (locId === "sanaiya") {
-      const { data: location } = await supabase
-        .from("locations")
-        .select("id")
-        .ilike("name", "Sanaiya")
-        .single();
-      if (location) return location.id;
-    } else if (locId === "abu-durus") {
-      const { data: location } = await supabase
-        .from("locations")
-        .select("id")
-        .ilike("name", "Abu Dhurus")
-        .single();
-      if (location) return location.id;
-    } else if (!uuidRegex.test(locId)) {
-      // If it's not a UUID, try to look it up by name
-      const { data: location } = await supabase
-        .from("locations")
-        .select("id")
-        .eq("name", locId)
-        .single();
-      if (location) return location.id;
-    }
-    
-    return locId;
-  };
+// Helper function to resolve location ID
+const resolveLocationId = async (
+  locId: string,
+  customSupabase?: any,
+): Promise<string> => {
+  const sb = customSupabase || supabase;
+  const uuidRegex =
+    /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+
+  // Check known locations first
+  if (locId === "sanaiya") {
+    const { data: location } = await sb
+      .from("locations")
+      .select("id")
+      .ilike("name", "Sanaiya")
+      .single();
+    if (location) return location.id;
+  } else if (locId === "abu-durus") {
+    const { data: location } = await sb
+      .from("locations")
+      .select("id")
+      .ilike("name", "Abu Dhurus")
+      .single();
+    if (location) return location.id;
+  } else if (!uuidRegex.test(locId)) {
+    // If it's not a UUID, try to look it up by name
+    const { data: location } = await sb
+      .from("locations")
+      .select("id")
+      .eq("name", locId)
+      .single();
+    if (location) return location.id;
+  }
+
+  return locId;
+};
 
 // Helper type for stock status
 type StockStatus = "all" | "in-stock" | "low-stock" | "out-of-stock";
@@ -197,18 +202,38 @@ export const fetchInventoryItems = async (
     batteryState?: "new" | "scrap" | "resellable";
     sortBy?: "name" | "price";
     sortOrder?: "asc" | "desc";
-  } = {}
+  } = {},
+  customSupabase?: any,
 ): Promise<{ data: Item[]; count: number }> => {
+  const sb = customSupabase || supabase;
   try {
-    const actualLocationId = await resolveLocationId(locationId);
+    const actualLocationId = await resolveLocationId(locationId, sb);
+
+    // Guard to prevent PostgreSQL 22P02 error (invalid input syntax for type uuid)
+    const isUUID = (str: string) =>
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        str,
+      );
+    if (!isUUID(actualLocationId)) {
+      console.warn(
+        `[fetchInventoryItems] Invalid UUID provided for location_id: ${actualLocationId}. Bailing early.`,
+      );
+      return { data: [], count: 0 };
+    }
 
     // Determine join type based on filters to ensure data is returned correctly
     // When filtering by a child resource, we must use !inner to filter the parent
     // AND to ensure the child data is returned.
-    const categoryJoin = (categoryId && categoryId !== "ALL" && categoryId !== "all") ? "categories!inner" : "categories";
-    const brandJoin = (brandId && brandId !== "ALL" && brandId !== "all" && brandId !== "none") ? "brands!inner" : "brands";
-    
-    let query = supabase
+    const categoryJoin =
+      categoryId && categoryId !== "ALL" && categoryId !== "all"
+        ? "categories!inner"
+        : "categories";
+    const brandJoin =
+      brandId && brandId !== "ALL" && brandId !== "all" && brandId !== "none"
+        ? "brands!inner"
+        : "brands";
+
+    let query = sb
       .from("inventory")
       .select(
         `
@@ -240,17 +265,16 @@ export const fetchInventoryItems = async (
           )
         )
       `,
-        { count: "exact" }
+        { count: "exact" },
       )
       .eq("location_id", actualLocationId);
 
-    // Apply Basic Filters
+    // Basic String Search
     if (search) {
-      query = query.or(`name.ilike.%${search}%,description.ilike.%${search}%`, { foreignTable: "products" });
+      query = query.or(`name.ilike.%${search}%,description.ilike.%${search}%`, {
+        foreignTable: "products",
+      });
     }
-
-    // Helper to check for valid UUID
-    const isUUID = (str: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
 
     if (categoryId && categoryId !== "ALL" && categoryId !== "all") {
       if (isUUID(categoryId)) {
@@ -265,8 +289,8 @@ export const fetchInventoryItems = async (
       if (isUUID(brandId)) {
         query = query.eq("products.brand_id", brandId);
       } else if (brandId === "none") {
-         // Handle "No Brand" case if passed from UI
-         query = query.is("products.brand_id", null);
+        // Handle "No Brand" case if passed from UI
+        query = query.is("products.brand_id", null);
       } else {
         // Filter by brand name
         query = query.eq("products.brands.name", brandId);
@@ -286,20 +310,20 @@ export const fetchInventoryItems = async (
     // Note: 'standard_stock' is the main stock field.
     // Low stock requires comparing standard_stock with products.low_stock_threshold.
     // Supabase standard queries can't easily compare two columns (col A <= col B).
-    // We might need to filter basic stock > 0 checks, but for relative checks (low stock), 
+    // We might need to filter basic stock > 0 checks, but for relative checks (low stock),
     // we might need to rely on RPC or client-side filtering if the dataset after other filters is small enough.
     // HOWEVER, for "Out of Stock" (stock == 0) and "In Stock" (stock > 0), it is easy.
-    
+
     if (filters.showOutOfStockOnly) {
-       query = query.eq("standard_stock", 0);
+      query = query.eq("standard_stock", 0);
     } else if (filters.showInStock) {
-       query = query.gt("standard_stock", 0);
+      query = query.gt("standard_stock", 0);
     } else if (filters.stockStatus === "out-of-stock") {
-       query = query.eq("standard_stock", 0);
+      query = query.eq("standard_stock", 0);
     } else if (filters.stockStatus === "in-stock") {
-       query = query.gt("standard_stock", 0);
+      query = query.gt("standard_stock", 0);
     }
-    
+
     // Battery Filters
     if (filters.showBatteries) {
       query = query.eq("products.is_battery", true);
@@ -309,10 +333,15 @@ export const fetchInventoryItems = async (
     }
 
     // Apply Sorting
-    if (filters.sortBy === 'name') {
-      query = query.order('name', { foreignTable: 'products', ascending: filters.sortOrder === 'asc' });
-    } else if (filters.sortBy === 'price') {
-      query = query.order('selling_price', { ascending: filters.sortOrder === 'asc' });
+    if (filters.sortBy === "name") {
+      query = query.order("name", {
+        foreignTable: "products",
+        ascending: filters.sortOrder === "asc",
+      });
+    } else if (filters.sortBy === "price") {
+      query = query.order("selling_price", {
+        ascending: filters.sortOrder === "asc",
+      });
     } else {
       // Default sort
       query = query.order("id", { ascending: true });
@@ -321,12 +350,14 @@ export const fetchInventoryItems = async (
     // Apply Pagination
     const from = (page - 1) * limit;
     const to = from + limit - 1;
-    
-    const { data: inventoryData, error, count } = await query
-      .range(from, to);
+
+    const { data: inventoryData, error, count } = await query.range(from, to);
 
     if (error) {
-      console.error("Error fetching paginated inventory:", JSON.stringify(error, null, 2));
+      console.error(
+        "Error fetching paginated inventory:",
+        JSON.stringify(error, null, 2),
+      );
       throw error;
     }
 
@@ -335,25 +366,25 @@ export const fetchInventoryItems = async (
     let items: Item[] = await Promise.all(
       (inventoryData || []).map(async (inv: any) => {
         const product = inv.products;
-        
+
         // ... (Existing transformation logic)
         let imageUrl = product.image_url;
         if (imageUrl && !imageUrl.startsWith("http")) {
-           const { data: publicUrlData } = supabase.storage
+          const { data: publicUrlData } = sb.storage
             .from("product-images")
             .getPublicUrl(imageUrl);
-           imageUrl = publicUrlData.publicUrl;
+          imageUrl = publicUrlData.publicUrl;
         }
 
         // Fetch batches for this inventory item
         let batches: Batch[] = [];
         try {
-          const { data: batchData } = await supabase
+          const { data: batchData } = await sb
             .from("batches")
             .select("*")
             .eq("inventory_id", inv.id)
             .order("batch_number", { ascending: true });
-          
+
           if (batchData && batchData.length > 0) {
             batches = batchData.map((b: any) => ({
               id: b.id,
@@ -371,46 +402,52 @@ export const fetchInventoryItems = async (
             }));
           }
         } catch (batchError) {
-          console.error("Error fetching batches for inventory:", inv.id, batchError);
+          console.error(
+            "Error fetching batches for inventory:",
+            inv.id,
+            batchError,
+          );
         }
-        
+
         let volumes: Volume[] = [];
         // Safety check for product and categories
         const categoryName = Array.isArray(product.categories)
           ? product.categories[0]?.name
           : product.categories?.name;
-          
+
         const isOilProduct =
           categoryName === "Lubricants" ||
           categoryName === "Additives" ||
-          (product?.product_types?.some((pt: any) => 
-            pt.types?.name?.toLowerCase() === "lubricant" || 
-            pt.types?.name?.toLowerCase() === "synthetic" || 
-            pt.types?.name?.toLowerCase() === "semi-synthetic" ||
-            pt.types?.name?.toLowerCase() === "oil"
-          ));
+          product?.product_types?.some(
+            (pt: any) =>
+              pt.types?.name?.toLowerCase() === "lubricant" ||
+              pt.types?.name?.toLowerCase() === "synthetic" ||
+              pt.types?.name?.toLowerCase() === "semi-synthetic" ||
+              pt.types?.name?.toLowerCase() === "oil",
+          );
 
         if (isOilProduct) {
-           const { data: volData } = await supabase
-             .from("product_volumes")
-             .select("*")
-             // FIX: Use product_id, not item_id (which doesn't exist and refers to inventory)
-             .eq("product_id", inv.product_id);
-             
-             if (volData) {
-               volumes = volData.map(v => ({
-                 ...v,
-                 item_id: inv.product_id, // Map back to product ID for consistency
-                 size: v.volume_description, // Map DB column to frontend property
-                 price: parseFloat(v.selling_price)
-               }));
-             }
-         }
+          const { data: volData } = await sb
+            .from("product_volumes")
+            .select("*")
+            // FIX: Use product_id, not item_id (which doesn't exist and refers to inventory)
+            .eq("product_id", inv.product_id);
+
+          if (volData) {
+            volumes = volData.map((v) => ({
+              ...v,
+              item_id: inv.product_id, // Map back to product ID for consistency
+              size: v.volume_description, // Map DB column to frontend property
+              price: parseFloat(v.selling_price),
+            }));
+          }
+        }
 
         // Calculate total stock from batches if they exist
-        const batchStock = batches.length > 0 
-          ? batches.reduce((sum, b) => sum + (b.current_quantity || 0), 0)
-          : null;
+        const batchStock =
+          batches.length > 0
+            ? batches.reduce((sum, b) => sum + (b.current_quantity || 0), 0)
+            : null;
 
         // For lubricants, calculate stock correctly using batches and open_bottle_details
         let derivedOpenBottles = inv.open_bottles_stock || 0;
@@ -419,16 +456,16 @@ export const fetchInventoryItems = async (
 
         if (isOilProduct && inv.id) {
           // Fetch open bottle details for lubricants
-          const { data: openBottleRows } = await supabase
+          const { data: openBottleRows } = await sb
             .from("open_bottle_details")
             .select("current_volume")
             .eq("inventory_id", inv.id)
             .eq("is_empty", false);
 
           // Convert volumes to VolumeInfo format for the utility
-          const volumeInfos: VolumeInfo[] = volumes.map(v => ({
+          const volumeInfos: VolumeInfo[] = volumes.map((v) => ({
             size: v.size,
-            price: v.price
+            price: v.price,
           }));
 
           if (batchStock !== null) {
@@ -436,7 +473,7 @@ export const fetchInventoryItems = async (
             const stockResult = calculateLubricantStock(
               batchStock,
               openBottleRows,
-              volumeInfos
+              volumeInfos,
             );
             derivedOpenBottles = stockResult.openBottleCount;
             derivedClosedBottles = stockResult.closedBottleCount;
@@ -445,7 +482,7 @@ export const fetchInventoryItems = async (
             // Fallback to legacy calculation
             const legacyResult = calculateLubricantStockLegacy(
               inv.open_bottles_stock,
-              inv.closed_bottles_stock
+              inv.closed_bottles_stock,
             );
             derivedOpenBottles = legacyResult.openBottleCount;
             derivedClosedBottles = legacyResult.closedBottleCount;
@@ -453,7 +490,7 @@ export const fetchInventoryItems = async (
             if (openBottleRows) {
               totalOpenVolume = openBottleRows.reduce(
                 (sum, b) => sum + (parseFloat(String(b.current_volume)) || 0),
-                0
+                0,
               );
             }
           }
@@ -461,8 +498,12 @@ export const fetchInventoryItems = async (
 
         // Calculate final stock value
         const finalStock = isOilProduct
-          ? (batchStock !== null ? batchStock : (inv.total_stock || inv.standard_stock || 0))
-          : (batchStock !== null ? batchStock : (inv.standard_stock || 0));
+          ? batchStock !== null
+            ? batchStock
+            : inv.total_stock || inv.standard_stock || 0
+          : batchStock !== null
+            ? batchStock
+            : inv.standard_stock || 0;
 
         return {
           id: inv.product_id || product?.id,
@@ -474,10 +515,16 @@ export const fetchInventoryItems = async (
           brand: product?.brands?.name || "Unknown Brand",
           brand_id: product?.brand_id,
           category_id: product?.category_id,
-          type: product?.product_types?.[0]?.types?.name || product?.types?.name || "Unknown Type", 
+          type:
+            product?.product_types?.[0]?.types?.name ||
+            product?.types?.name ||
+            "Unknown Type",
           type_id: product?.type_id,
           type_name: product?.types?.name,
-          types: product?.product_types?.map((pt: any) => pt.types).filter(Boolean) || [],
+          types:
+            product?.product_types
+              ?.map((pt: any) => pt.types)
+              .filter(Boolean) || [],
           description: product?.description,
           isOil: isOilProduct,
           imageUrl: imageUrl,
@@ -495,18 +542,18 @@ export const fetchInventoryItems = async (
           open_bottles_stock: derivedOpenBottles,
           closed_bottles_stock: derivedClosedBottles,
           bottleStates: {
-             open: derivedOpenBottles,
-             closed: derivedClosedBottles
+            open: derivedOpenBottles,
+            closed: derivedClosedBottles,
           },
-          ...(isOilProduct && totalOpenVolume !== undefined && { totalOpenVolume })
+          ...(isOilProduct &&
+            totalOpenVolume !== undefined && { totalOpenVolume }),
         };
-      })
+      }),
     );
-
 
     // Apply strict Low Stock filtering post-fetch if requested
     // Note: This messes up pagination count if we filter AFTER fetching a page.
-    // Ideally we should filter in DB. 
+    // Ideally we should filter in DB.
     // Since we can't easily do `standard_stock <= products.low_stock_threshold` in simple select,
     // we might accept that "Low Stock" filter is approximate or handled by a separate RPC or ignoring it for now if strict server pagination is required.
     // Or, we can use a raw SQL query or check if Drizzle/Supabase supports column comparison.
@@ -517,18 +564,19 @@ export const fetchInventoryItems = async (
     // But for now, let's filter in memory for the requested page.
     // ISSUE: If page 1 has no low stock items because they are on page 5, the user sees empty list.
     // FIX: "Low Stock" filter usually drastically reduces the dataset. We could try fetching ALL low stock items if that filter is active (assuming low stock items are few), or use RPC.
-    
-    // Let's implement post-processing filter for now to match interface, 
+
+    // Let's implement post-processing filter for now to match interface,
     // but warn that complex cross-column filtering affects pagination accuracy without RPC.
     // Assuming user wants speed first.
-    
+
     if (filters.showLowStockOnly || filters.stockStatus === "low-stock") {
-       items = items.filter(i => (i.stock || 0) <= (i.lowStockAlert || 5) && (i.stock || 0) > 0);
-       // We should ideally update 'count' too, but we don't have total count of low stock items without a specific query.
+      items = items.filter(
+        (i) => (i.stock || 0) <= (i.lowStockAlert || 5) && (i.stock || 0) > 0,
+      );
+      // We should ideally update 'count' too, but we don't have total count of low stock items without a specific query.
     }
 
     return { data: items, count: count || 0 };
-
   } catch (err) {
     console.error("fetchInventoryItems failed:", err);
     throw err;
@@ -536,58 +584,26 @@ export const fetchInventoryItems = async (
 };
 
 export const fetchItems = async (
-  locationId: string = "sanaiya"
+  locationId: string = "sanaiya",
+  customSupabase?: any,
 ): Promise<Item[]> => {
+  const sb = customSupabase || supabase;
   try {
-    // Get location ID
-    let actualLocationId = locationId;
+    const actualLocationId = await resolveLocationId(locationId, sb);
 
-    if (!locationId) {
-      throw new Error("Location ID is required for fetchItems");
-    }
-
-    // Check if locationId is a UUID (not a name like "sanaiya")
-    const uuidRegex =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-    if (locationId === "sanaiya" || locationId === "main") {
-      const { data: location } = await supabase
-        .from("locations")
-        .select("id")
-        .eq("name", locationId === "sanaiya" ? "Sanaiya" : "Main Branch")
-        .single();
-
-      if (location) {
-        actualLocationId = location.id;
-      } else {
-        console.warn(
-          "Location lookup failed in fetchItems, using provided locationId:",
-          locationId
-        );
-      }
-    } else if (!uuidRegex.test(locationId)) {
-      // If it's not a UUID and not a known name, try to look it up by name
-      console.warn(
-        "Location ID is not a UUID in fetchItems, attempting lookup:",
-        locationId
+    // Guard to prevent PostgreSQL 22P02 error (invalid input syntax for type uuid)
+    const isUUID = (str: string) =>
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        str,
       );
-      const { data: location } = await supabase
-        .from("locations")
-        .select("id")
-        .eq("name", locationId)
-        .single();
-
-      if (location) {
-        actualLocationId = location.id;
-      } else {
-        console.warn(
-          "Location lookup failed in fetchItems, using provided locationId:",
-          locationId
-        );
-      }
+    if (!isUUID(actualLocationId)) {
+      console.warn(
+        `[fetchItems] Invalid UUID provided for location_id: ${actualLocationId}. Bailing early.`,
+      );
+      return [];
     }
 
-    const { data: inventoryData, error } = await supabase
+    const { data: inventoryData, error } = await sb
       .from("inventory")
       .select(
         `
@@ -628,7 +644,7 @@ export const fetchItems = async (
             )
           )
         )
-      `
+      `,
       )
       .eq("location_id", actualLocationId);
 
@@ -643,7 +659,7 @@ export const fetchItems = async (
         actualLocationId,
       });
       throw new Error(
-        `Failed to fetch inventory for location "${locationId}" (resolved to "${actualLocationId}"): ${error.message || "Unknown error"}`
+        `Failed to fetch inventory for location "${locationId}" (resolved to "${actualLocationId}"): ${error.message || "Unknown error"}`,
       );
     }
     if (inventoryData && inventoryData.length > 0) {
@@ -653,7 +669,7 @@ export const fetchItems = async (
     const items: Item[] = await Promise.all(
       (inventoryData || []).map(async (inv: any) => {
         const product = inv.products;
-        
+
         const categoryName = Array.isArray(product.categories)
           ? product.categories[0]?.name
           : product.categories?.name;
@@ -662,34 +678,35 @@ export const fetchItems = async (
         const isOilProduct =
           categoryName === "Lubricants" ||
           categoryName === "Additives" ||
-          (product?.product_types?.some((pt: any) => 
-            pt.types?.name?.toLowerCase() === "lubricant" || 
-            pt.types?.name?.toLowerCase() === "synthetic" || 
-            pt.types?.name?.toLowerCase() === "semi-synthetic" ||
-            pt.types?.name?.toLowerCase() === "oil"
-          ));
+          product?.product_types?.some(
+            (pt: any) =>
+              pt.types?.name?.toLowerCase() === "lubricant" ||
+              pt.types?.name?.toLowerCase() === "synthetic" ||
+              pt.types?.name?.toLowerCase() === "semi-synthetic" ||
+              pt.types?.name?.toLowerCase() === "oil",
+          );
 
         // Fetch volumes for oil products
         let volumes: Volume[] = [];
         if (isOilProduct) {
-           const { data: volData } = await supabase
-             .from("product_volumes")
-             .select("*")
-             // FIX: Use product_id, not item_id
-             .eq("product_id", inv.product_id);
-             
-             if (volData) {
-               volumes = volData.map(v => ({
-                 ...v,
-                 item_id: inv.product_id, // Map back to product ID
-                 size: v.volume_description,
-                 price: parseFloat(v.selling_price)
-               }));
-             }
+          const { data: volData } = await supabase
+            .from("product_volumes")
+            .select("*")
+            // FIX: Use product_id, not item_id
+            .eq("product_id", inv.product_id);
+
+          if (volData) {
+            volumes = volData.map((v) => ({
+              ...v,
+              item_id: inv.product_id, // Map back to product ID
+              size: v.volume_description,
+              price: parseFloat(v.selling_price),
+            }));
+          }
         }
 
         // Fetch batches using the correct inventory_id
-        const { data: batchData } = await supabase
+        const { data: batchData } = await sb
           .from("batches")
           .select("*")
           .eq("inventory_id", inv.id)
@@ -707,16 +724,17 @@ export const fetchItems = async (
           is_active_batch: batch.is_active_batch,
           created_at: batch.created_at,
           updated_at: batch.updated_at,
-          batch_number: batch.batch_number
+          batch_number: batch.batch_number,
         }));
 
         // For lubricants (oil products), stock = open bottles + closed bottles
         // For non-lubricants, stock = standard stock
         // Update: Prioritize batch stock if batches exist
         // Calculate total stock from batches if they exist
-        const batchStock = batches.length > 0 
-          ? batches.reduce((sum, b) => sum + (b.current_quantity || 0), 0)
-          : null;
+        const batchStock =
+          batches.length > 0
+            ? batches.reduce((sum, b) => sum + (b.current_quantity || 0), 0)
+            : null;
 
         // Use the centralized stock calculation utility for lubricants
         let totalOpenVolume: number = 0;
@@ -724,61 +742,71 @@ export const fetchItems = async (
         let derivedOpenBottles: number = inv.open_bottles_stock || 0;
 
         if (isOilProduct && inv.id) {
-           // Fetch actual open bottles (source of truth for Open Stock)
-           const { data: openBottleRows } = await supabase
+          // Fetch actual open bottles (source of truth for Open Stock)
+          const { data: openBottleRows } = await sb
             .from("open_bottle_details")
             .select("current_volume")
             .eq("inventory_id", inv.id)
             .eq("is_empty", false);
 
-           // Convert volumes to VolumeInfo format for the utility
-           const volumeInfos: VolumeInfo[] = volumes.map(v => ({
-             size: v.size,
-             price: v.price
-           }));
-            
-           if (batchStock !== null) {
-              // Use the centralized stock calculation utility
-              const stockResult = calculateLubricantStock(
-                batchStock,
-                openBottleRows,
-                volumeInfos
+          // Convert volumes to VolumeInfo format for the utility
+          const volumeInfos: VolumeInfo[] = volumes.map((v) => ({
+            size: v.size,
+            price: v.price,
+          }));
+
+          if (batchStock !== null) {
+            // Use the centralized stock calculation utility
+            const stockResult = calculateLubricantStock(
+              batchStock,
+              openBottleRows,
+              volumeInfos,
+            );
+            derivedOpenBottles = stockResult.openBottleCount;
+            derivedClosedBottles = stockResult.closedBottleCount;
+            totalOpenVolume = stockResult.totalOpenVolume;
+
+            // DEBUG: Log stock calculation for lubricants
+            if (
+              product.name?.toLowerCase().includes("5w-30") ||
+              product.name?.toLowerCase().includes("acdelco")
+            ) {
+            }
+          } else {
+            // Fallback for legacy items without batches
+            const legacyResult = calculateLubricantStockLegacy(
+              inv.open_bottles_stock,
+              inv.closed_bottles_stock,
+            );
+            derivedOpenBottles = legacyResult.openBottleCount;
+            derivedClosedBottles = legacyResult.closedBottleCount;
+            // Calculate totalOpenVolume from actual open bottles if available
+            if (openBottleRows) {
+              totalOpenVolume = openBottleRows.reduce(
+                (sum, b) => sum + (parseFloat(String(b.current_volume)) || 0),
+                0,
               );
-              derivedOpenBottles = stockResult.openBottleCount;
-              derivedClosedBottles = stockResult.closedBottleCount;
-              totalOpenVolume = stockResult.totalOpenVolume;
-              
-              // DEBUG: Log stock calculation for lubricants
-              if (product.name?.toLowerCase().includes('5w-30') || product.name?.toLowerCase().includes('acdelco')) {
-              }
-           } else {
-              // Fallback for legacy items without batches
-              const legacyResult = calculateLubricantStockLegacy(
-                inv.open_bottles_stock,
-                inv.closed_bottles_stock
-              );
-              derivedOpenBottles = legacyResult.openBottleCount;
-              derivedClosedBottles = legacyResult.closedBottleCount;
-              // Calculate totalOpenVolume from actual open bottles if available
-              if (openBottleRows) {
-                totalOpenVolume = openBottleRows.reduce(
-                  (sum, b) => sum + (parseFloat(String(b.current_volume)) || 0),
-                  0
-                );
-              }
-              
-              // DEBUG: Log fallback (no batches)
-              if (product.name?.toLowerCase().includes('5w-30') || product.name?.toLowerCase().includes('acdelco')) {
-              }
-           }
+            }
+
+            // DEBUG: Log fallback (no batches)
+            if (
+              product.name?.toLowerCase().includes("5w-30") ||
+              product.name?.toLowerCase().includes("acdelco")
+            ) {
+            }
+          }
         }
 
         // Final Stock Assignment
         // For Oil: Use batchStock (Total Volume) if available, otherwise fallback to legacy logic or volume sum
         // For Others: Use batchStock (Total Units) if available, otherwise standard_stock
         const totalStock = isOilProduct
-          ? (batchStock !== null ? batchStock : (inv.total_stock || (inv.standard_stock || 0)))
-          : (batchStock !== null ? batchStock : (inv.standard_stock || 0));
+          ? batchStock !== null
+            ? batchStock
+            : inv.total_stock || inv.standard_stock || 0
+          : batchStock !== null
+            ? batchStock
+            : inv.standard_stock || 0;
 
         return {
           id: product.id,
@@ -799,7 +827,10 @@ export const fetchItems = async (
           brand: product.brands?.name || "N/A", // Use brands table via brand_id foreign key
           brand_id: product.brand_id,
           category_id: product.category_id,
-          type: product.types?.name || (product.product_types && product.product_types[0]?.types?.name) || null,
+          type:
+            product.types?.name ||
+            (product.product_types && product.product_types[0]?.types?.name) ||
+            null,
           type_id: product.type_id || null,
           type_name: product.types?.name || null,
           description: product.description,
@@ -812,7 +843,11 @@ export const fetchItems = async (
           updated_at: null, // Not available in current schema
           lowStockAlert: product.low_stock_threshold,
           isBattery: product.is_battery || false,
-          batteryState: product.battery_state as "new" | "scrap" | "resellable" | undefined,
+          batteryState: product.battery_state as
+            | "new"
+            | "scrap"
+            | "resellable"
+            | undefined,
           costPrice: product.cost_price
             ? parseFloat(product.cost_price)
             : undefined,
@@ -826,14 +861,16 @@ export const fetchItems = async (
             debug_manufacturingDate_type: typeof product.manufacturing_date,
             debug_manufacturingDate_string: String(product.manufacturing_date),
           }),
-          ...(isOilProduct && totalOpenVolume !== undefined && { totalOpenVolume }),
+          ...(isOilProduct &&
+            totalOpenVolume !== undefined && { totalOpenVolume }),
         };
-      })
+      }),
     );
 
     return items;
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error occurred";
     console.error("Error in fetchItems:", {
       error,
       message: errorMessage,
@@ -842,17 +879,20 @@ export const fetchItems = async (
     });
     // Re-throw the error so callers can handle it appropriately
     console.error("CRITICAL ERROR in fetchItems:", errorMessage, error);
-    throw new Error(`Failed to fetch items for location "${locationId}": ${errorMessage}`);
+    throw new Error(
+      `Failed to fetch items for location "${locationId}": ${errorMessage}`,
+    );
   }
 };
 
 // Fetch a single item
 export const fetchItem = async (
   id: string,
-  locationId: string = "sanaiya"
+  locationId: string = "sanaiya",
+  customSupabase?: any,
 ): Promise<Item | null> => {
   try {
-    const items = await fetchItems(locationId);
+    const items = await fetchItems(locationId, customSupabase);
     return items.find((item) => item.id === id) || null;
   } catch (error) {
     console.error("Error in fetchItem:", error);
@@ -863,48 +903,23 @@ export const fetchItem = async (
 // Create a new item
 export const createItem = async (
   item: Omit<Item, "id" | "created_at" | "updated_at">,
-  locationId: string = "sanaiya"
+  locationId: string = "sanaiya",
+  customSupabase?: any,
 ): Promise<Item | null> => {
+  const sb = customSupabase || supabase;
   try {
-    // Get location ID
-    let actualLocationId = locationId;
+    const actualLocationId = await resolveLocationId(locationId, sb);
 
-    // Check if locationId is a UUID (not a name like "sanaiya")
-    const uuidRegex =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-    if (locationId === "sanaiya" || locationId === "main") {
-      const { data: location } = await supabase
-        .from("locations")
-        .select("id")
-        .eq("name", locationId === "sanaiya" ? "Sanaiya" : "Main Branch")
-        .single();
-
-      if (location) {
-        actualLocationId = location.id;
-      } else {
-        console.warn(
-          "Location lookup failed, using provided locationId:",
-          locationId
-        );
-      }
-    } else if (!uuidRegex.test(locationId)) {
-      // If it's not a UUID and not a known name, try to look it up by name
-      console.warn("Location ID is not a UUID, attempting lookup:", locationId);
-      const { data: location } = await supabase
-        .from("locations")
-        .select("id")
-        .eq("name", locationId)
-        .single();
-
-      if (location) {
-        actualLocationId = location.id;
-      } else {
-        console.warn(
-          "Location lookup failed, using provided locationId:",
-          locationId
-        );
-      }
+    // Guard to prevent PostgreSQL 22P02 error (invalid input syntax for type uuid)
+    const isUUID = (str: string) =>
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        str,
+      );
+    if (!isUUID(actualLocationId)) {
+      console.warn(
+        `[createItem] Invalid UUID provided for location_id: ${actualLocationId}. Bailing early.`,
+      );
+      return null;
     }
 
     // Validate required fields
@@ -917,12 +932,12 @@ export const createItem = async (
     let isBatteryProduct = false;
     if (item.type_id) {
       // Check if type is "Battery" or "Batteries" by querying types table
-      const { data: typeData } = await supabase
+      const { data: typeData } = await sb
         .from("types")
         .select("name")
         .eq("id", item.type_id)
         .single();
-      
+
       if (typeData) {
         const typeName = typeData.name.toLowerCase().trim();
         isBatteryProduct = typeName === "battery" || typeName === "batteries";
@@ -941,24 +956,25 @@ export const createItem = async (
       description: item.description,
       image_url: item.image_url,
       low_stock_threshold: item.lowStockAlert || 0,
-      cost_price:
-        item.costPrice && item.costPrice > 0 ? item.costPrice : null,
+      cost_price: item.costPrice && item.costPrice > 0 ? item.costPrice : null,
       manufacturing_date: item.manufacturingDate,
       is_battery: isBatteryProduct,
-      battery_state: isBatteryProduct ? (item.batteryState || "new") : null,
+      battery_state: isBatteryProduct ? item.batteryState || "new" : null,
       specification: item.specification || null,
     };
 
     // Prefer type_id over type (text) for new products
     if (item.type_id) {
-      productInsert.type_id = item.type_id;
+      // The product table only has product_type (text)
+      // The true type relationship is handled by the product_types junction table
+      productInsert.product_type = null;
     } else if (item.type) {
       // Legacy support: if type_id not provided but type text is, try to find matching type
       // This is for backward compatibility during migration
       productInsert.product_type = item.type;
     }
 
-    const { data: productData, error: productError } = await supabase
+    const { data: productData, error: productError } = await sb
       .from("products")
       .insert(productInsert)
       .select()
@@ -977,7 +993,7 @@ export const createItem = async (
     }
 
     // Create inventory entry
-    const { data: inventoryData, error: inventoryError } = await supabase
+    const { data: inventoryData, error: inventoryError } = await sb
       .from("inventory")
       .insert({
         product_id: productData.id,
@@ -1009,13 +1025,16 @@ export const createItem = async (
 
       // CRITICAL: Rollback product creation to prevent orphan products without inventory
       // This ensures atomicity: either both exist or neither
-      const { error: deleteError } = await supabase
+      const { error: deleteError } = await sb
         .from("products")
         .delete()
         .eq("id", productData.id);
-        
+
       if (deleteError) {
-        console.error("CRITICAL: Failed to rollback product creation!", deleteError);
+        console.error(
+          "CRITICAL: Failed to rollback product creation!",
+          deleteError,
+        );
       }
 
       return null;
@@ -1029,7 +1048,7 @@ export const createItem = async (
         selling_price: vol.price,
       }));
 
-      await supabase.from("product_volumes").insert(volumeInserts);
+      await sb.from("product_volumes").insert(volumeInserts);
     }
 
     // Insert types into product_types junction table
@@ -1039,7 +1058,7 @@ export const createItem = async (
         type_id: type.id,
       }));
 
-      const { error: typesError } = await supabase
+      const { error: typesError } = await sb
         .from("product_types")
         .insert(typeInserts);
 
@@ -1048,20 +1067,18 @@ export const createItem = async (
         // Continue despite error, as product was created
       }
     } else if (productData.type_id) {
-       // Fallback: if types array not provided but type_id is (single select mode), add it to product_types
-       const { error: typeError } = await supabase
-        .from("product_types")
-        .insert({
-          product_id: productData.id,
-          type_id: productData.type_id,
-        });
-        
-       if (typeError) {
-          console.error("Error inserting fallback product type:", typeError);
-       }
+      // Fallback: if types array not provided but type_id is (single select mode), add it to product_types
+      const { error: typeError } = await sb.from("product_types").insert({
+        product_id: productData.id,
+        type_id: productData.type_id,
+      });
+
+      if (typeError) {
+        console.error("Error inserting fallback product type:", typeError);
+      }
     }
     await revalidateProducts();
-    return await fetchItem(productData.id, locationId);
+    return await fetchItem(productData.id, locationId, sb);
   } catch (error) {
     console.error("Error in createItem:", error);
     return null;
@@ -1072,51 +1089,23 @@ export const createItem = async (
 export const updateItem = async (
   id: string,
   updates: Partial<Item>,
-  locationId: string = "sanaiya"
+  locationId: string = "sanaiya",
+  customSupabase?: any,
 ): Promise<Item | null> => {
+  const sb = customSupabase || supabase;
   try {
-    // Get location ID
-    let actualLocationId = locationId;
+    const actualLocationId = await resolveLocationId(locationId, sb);
 
-    // Check if locationId is a UUID (not a name like "sanaiya")
-    const uuidRegex =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-    if (locationId === "sanaiya" || locationId === "main") {
-      const { data: location } = await supabase
-        .from("locations")
-        .select("id")
-        .eq("name", locationId === "sanaiya" ? "Sanaiya" : "Main Branch")
-        .single();
-
-      if (location) {
-        actualLocationId = location.id;
-      } else {
-        console.warn(
-          "Location lookup failed in updateItem, using provided locationId:",
-          locationId
-        );
-      }
-    } else if (!uuidRegex.test(locationId)) {
-      // If it's not a UUID and not a known name, try to look it up by name
-      console.warn(
-        "Location ID is not a UUID in updateItem, attempting lookup:",
-        locationId
+    // Guard to prevent PostgreSQL 22P02 error (invalid input syntax for type uuid)
+    const isUUID = (str: string) =>
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        str,
       );
-      const { data: location } = await supabase
-        .from("locations")
-        .select("id")
-        .eq("name", locationId)
-        .single();
-
-      if (location) {
-        actualLocationId = location.id;
-      } else {
-        console.warn(
-          "Location lookup failed in updateItem, using provided locationId:",
-          locationId
-        );
-      }
+    if (!isUUID(actualLocationId)) {
+      console.warn(
+        `[updateItem] Invalid UUID provided for location_id: ${actualLocationId}. Bailing early.`,
+      );
+      return null;
     }
 
     // Update product
@@ -1128,7 +1117,7 @@ export const updateItem = async (
       productUpdates.brand_id = updates.brand_id;
     // Prefer type_id over type (text)
     if (updates.type_id !== undefined) {
-      productUpdates.type_id = updates.type_id;
+      // The products table does not have type_id, relationship is in product_types table.
       // Clear product_type when type_id is set
       if (updates.type_id) {
         productUpdates.product_type = null;
@@ -1159,7 +1148,7 @@ export const updateItem = async (
     // Note: is_oil column doesn't exist in database, so we skip this update
 
     if (Object.keys(productUpdates).length > 0) {
-      const { error: productError } = await supabase
+      const { error: productError } = await sb
         .from("products")
         .update(productUpdates)
         .eq("id", id);
@@ -1179,12 +1168,19 @@ export const updateItem = async (
     // Update inventory
     const inventoryUpdates: any = {};
     if (updates.stock !== undefined) {
-      const stockNum = typeof updates.stock === 'string' ? Number(updates.stock) : updates.stock;
+      const stockNum =
+        typeof updates.stock === "string"
+          ? Number(updates.stock)
+          : updates.stock;
       inventoryUpdates.standard_stock = isNaN(stockNum) ? 0 : stockNum;
     }
     if (updates.price !== undefined) {
-      const priceNum = typeof updates.price === 'string' ? Number(updates.price) : updates.price;
-      inventoryUpdates.selling_price = !isNaN(priceNum) && priceNum > 0 ? priceNum : null;
+      const priceNum =
+        typeof updates.price === "string"
+          ? Number(updates.price)
+          : updates.price;
+      inventoryUpdates.selling_price =
+        !isNaN(priceNum) && priceNum > 0 ? priceNum : null;
     }
     // Note: is_battery, battery_state columns don't exist in inventory table
     if (updates.bottleStates?.open !== undefined)
@@ -1193,7 +1189,7 @@ export const updateItem = async (
       inventoryUpdates.closed_bottles_stock = updates.bottleStates.closed;
 
     if (Object.keys(inventoryUpdates).length > 0) {
-      const { error: inventoryError } = await supabase
+      const { error: inventoryError } = await sb
         .from("inventory")
         .update(inventoryUpdates)
         .eq("product_id", id)
@@ -1212,12 +1208,9 @@ export const updateItem = async (
     }
 
     // Update volumes if provided (for oil/lubricant products)
-    if (
-      updates.volumes !== undefined &&
-      updates.isOil !== false
-    ) {
+    if (updates.volumes !== undefined && updates.isOil !== false) {
       // Get existing volumes
-      const { data: existingVolumes } = await supabase
+      const { data: existingVolumes } = await sb
         .from("product_volumes")
         .select("id, volume_description")
         .eq("product_id", id);
@@ -1237,34 +1230,34 @@ export const updateItem = async (
         if (!volume.size || volume.size.trim() === "") continue;
 
         const volumeDesc = volume.size;
-        
+
         if (existingVolumeMap.has(volumeDesc)) {
           const ids = existingVolumeMap.get(volumeDesc) || [];
-          
+
           if (ids.length > 0) {
             // Update the first ID
             const primaryId = ids[0];
-            await supabase
+            await sb
               .from("product_volumes")
               .update({
                 selling_price: volume.price,
               })
               .eq("id", primaryId);
-            
+
             processedVolumeIds.add(primaryId);
 
             // Delete duplicates (any IDs after the first one)
             if (ids.length > 1) {
               const duplicateIds = ids.slice(1);
               for (const dupId of duplicateIds) {
-                await supabase.from("product_volumes").delete().eq("id", dupId);
+                await sb.from("product_volumes").delete().eq("id", dupId);
                 processedVolumeIds.add(dupId); // Mark as processed so we don't try to delete again
               }
             }
           }
         } else {
           // Insert new volume
-          await supabase.from("product_volumes").insert({
+          await sb.from("product_volumes").insert({
             product_id: id,
             volume_description: volume.size,
             selling_price: volume.price,
@@ -1276,7 +1269,7 @@ export const updateItem = async (
       for (const ids of existingVolumeMap.values()) {
         for (const volumeId of ids) {
           if (!processedVolumeIds.has(volumeId)) {
-            await supabase.from("product_volumes").delete().eq("id", volumeId);
+            await sb.from("product_volumes").delete().eq("id", volumeId);
           }
         }
       }
@@ -1285,12 +1278,13 @@ export const updateItem = async (
     // Update product types if provided
     if (updates.types !== undefined) {
       // 1. Delete existing relationships
-      const { error: deleteError } = await supabase
+      const { error: deleteError } = await sb
         .from("product_types")
         .delete()
         .eq("product_id", id);
-      
-      if (deleteError) console.error("Error deleting product_types:", deleteError);
+
+      if (deleteError)
+        console.error("Error deleting product_types:", deleteError);
 
       // 2. Insert new relationships
       if (updates.types.length > 0) {
@@ -1299,34 +1293,23 @@ export const updateItem = async (
           type_id: type.id,
         }));
 
-        const { error: insertError } = await supabase.from("product_types").insert(typeInserts);
-        if (insertError) console.error("Error inserting product_types:", insertError);
-        
-        // Also update the legacy/primary type_id on the product for backward compatibility
-        // Use the first type as the primary one
-        if (updates.types.length > 0) {
-           await supabase
-            .from("products")
-            .update({ type_id: updates.types[0].id })
-            .eq("id", id);
-        }
+        const { error: insertError } = await sb
+          .from("product_types")
+          .insert(typeInserts);
+        if (insertError)
+          console.error("Error inserting product_types:", insertError);
+
+        // No longer update type_id on products table because the column doesn't exist
       } else {
-        // If types cleared, clear primary type_id too
-        await supabase
-          .from("products")
-          .update({ type_id: null })
-          .eq("id", id);
+        // No longer update type_id on products table because the column doesn't exist
       }
     } else if (updates.type_id !== undefined) {
       // If updating via single type_id (legacy/simple mode)
       // Sync it to product_types table as well
-      
+
       // 1. Delete existing relationships
-      await supabase
-        .from("product_types")
-        .delete()
-        .eq("product_id", id);
-        
+      await sb.from("product_types").delete().eq("product_id", id);
+
       // 2. Insert new single relationship if not null
       if (updates.type_id) {
         await supabase.from("product_types").insert({
@@ -1335,7 +1318,7 @@ export const updateItem = async (
         });
       }
     }
-    const updatedItem = await fetchItem(id, locationId);
+    const updatedItem = await fetchItem(id, locationId, sb);
     await revalidateProducts();
     return updatedItem;
   } catch (error) {
@@ -1352,55 +1335,27 @@ export const updateItem = async (
 // Delete an item
 export const deleteItem = async (
   id: string,
-  locationId: string = "sanaiya"
+  locationId: string = "sanaiya",
+  customSupabase?: any,
 ): Promise<boolean> => {
+  const sb = customSupabase || supabase;
   try {
-    // Get location ID
-    let actualLocationId = locationId;
+    const actualLocationId = await resolveLocationId(locationId, sb);
 
-    // Check if locationId is a UUID (not a name like "sanaiya")
-    const uuidRegex =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-    if (locationId === "sanaiya" || locationId === "main") {
-      const { data: location } = await supabase
-        .from("locations")
-        .select("id")
-        .eq("name", locationId === "sanaiya" ? "Sanaiya" : "Main Branch")
-        .single();
-
-      if (location) {
-        actualLocationId = location.id;
-      } else {
-        console.warn(
-          "Location lookup failed in deleteItem, using provided locationId:",
-          locationId
-        );
-      }
-    } else if (!uuidRegex.test(locationId)) {
-      // If it's not a UUID and not a known name, try to look it up by name
-      console.warn(
-        "Location ID is not a UUID in deleteItem, attempting lookup:",
-        locationId
+    // Guard to prevent PostgreSQL 22P02 error (invalid input syntax for type uuid)
+    const isUUID = (str: string) =>
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        str,
       );
-      const { data: location } = await supabase
-        .from("locations")
-        .select("id")
-        .eq("name", locationId)
-        .single();
-
-      if (location) {
-        actualLocationId = location.id;
-      } else {
-        console.warn(
-          "Location lookup failed in deleteItem, using provided locationId:",
-          locationId
-        );
-      }
+    if (!isUUID(actualLocationId)) {
+      console.warn(
+        `[deleteItem] Invalid UUID provided for location_id: ${actualLocationId}. Bailing early.`,
+      );
+      return false;
     }
 
     // Delete inventory entry (this will cascade to related tables)
-    const { error: inventoryError } = await supabase
+    const { error: inventoryError } = await sb
       .from("inventory")
       .delete()
       .eq("product_id", id)
@@ -1412,7 +1367,7 @@ export const deleteItem = async (
     }
 
     // Check if product exists in other locations
-    const { data: otherInventory } = await supabase
+    const { data: otherInventory } = await sb
       .from("inventory")
       .select("id")
       .eq("product_id", id);
@@ -1421,7 +1376,7 @@ export const deleteItem = async (
     if (!otherInventory || otherInventory.length === 0) {
       // First, delete any trade-in transactions that reference this product
       // This is necessary because the foreign key constraint is set to RESTRICT
-      const { error: tradeInError } = await supabase
+      const { error: tradeInError } = await sb
         .from("trade_in_transactions")
         .delete()
         .eq("product_id", id);
@@ -1431,7 +1386,7 @@ export const deleteItem = async (
         // Continue anyway - product might not have trade-in records
       }
 
-      const { error: productError } = await supabase
+      const { error: productError } = await sb
         .from("products")
         .delete()
         .eq("id", id);
@@ -1485,7 +1440,6 @@ export const fetchBrands = async (): Promise<Brand[]> => {
 
     // Map the data (image_url is now a direct column)
     const brands = (data || []).map((brand: any) => {
-
       return {
         id: brand.id,
         name: brand.name,
@@ -1512,7 +1466,7 @@ export const fetchSuppliers = async (): Promise<Supplier[]> => {
       // Handle specific case where suppliers table doesn't exist
       if (error.code === "PGRST205" && error.message.includes("suppliers")) {
         console.warn(
-          "Suppliers table not found. Please create the suppliers table in your Supabase dashboard."
+          "Suppliers table not found. Please create the suppliers table in your Supabase dashboard.",
         );
         console.warn(
           "SQL to create table:",
@@ -1526,7 +1480,7 @@ CREATE TABLE IF NOT EXISTS public.suppliers (
   address TEXT,
   created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL,
   updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL
-);`
+);`,
         );
         return [];
       }
@@ -1549,37 +1503,40 @@ CREATE TABLE IF NOT EXISTS public.suppliers (
 };
 
 // Fetch shops (logical business units within locations)
-export const fetchShops = async (): Promise<Array<{
-  id: string;
-  name: string;
-  displayName: string | null;
-  locationId: string;
-  locationName: string;
-  isActive: boolean;
-  company_name: string | null;
-  company_name_arabic: string | null;
-  cr_number: string | null;
-  address_line_1: string | null;
-  address_line_2: string | null;
-  address_line_3: string | null;
-  contact_number: string | null;
-  service_description_en: string | null;
-  service_description_ar: string | null;
-  thank_you_message: string | null;
-  thank_you_message_ar: string | null;
-  contact_number_arabic: string | null;
-  address_line_arabic_1: string | null;
-  address_line_arabic_2: string | null;
-  brand_name: string | null;
-  brand_address: string | null;
-  brand_phones: string | null;
-  brand_whatsapp: string | null;
-  pos_id: string | null;
-}>> => {
+export const fetchShops = async (): Promise<
+  Array<{
+    id: string;
+    name: string;
+    displayName: string | null;
+    locationId: string;
+    locationName: string;
+    isActive: boolean;
+    company_name: string | null;
+    company_name_arabic: string | null;
+    cr_number: string | null;
+    address_line_1: string | null;
+    address_line_2: string | null;
+    address_line_3: string | null;
+    contact_number: string | null;
+    service_description_en: string | null;
+    service_description_ar: string | null;
+    thank_you_message: string | null;
+    thank_you_message_ar: string | null;
+    contact_number_arabic: string | null;
+    address_line_arabic_1: string | null;
+    address_line_arabic_2: string | null;
+    brand_name: string | null;
+    brand_address: string | null;
+    brand_phones: string | null;
+    brand_whatsapp: string | null;
+    pos_id: string | null;
+  }>
+> => {
   try {
     const { data, error } = await supabase
       .from("shops")
-      .select(`
+      .select(
+        `
         id,
         name,
         display_name,
@@ -1609,7 +1566,8 @@ export const fetchShops = async (): Promise<Array<{
           id,
           name
         )
-      `)
+      `,
+      )
       .eq("is_active", true)
       .order("name");
 
@@ -1617,7 +1575,7 @@ export const fetchShops = async (): Promise<Array<{
       console.error("Error fetching shops:", JSON.stringify(error, null, 2));
       return [];
     }
-    
+
     const shops = (data || []).map((shop: any) => ({
       id: shop.id,
       name: shop.name,
@@ -1658,7 +1616,7 @@ export const fetchBranches = async (): Promise<Branch[]> => {
   try {
     // Use shops instead of locations for better semantics
     const shops = await fetchShops();
-        
+
     // Transform shops to Branch format for backward compatibility
     const branches: Branch[] = shops.map((shop) => ({
       id: shop.id,
@@ -1689,7 +1647,7 @@ export const fetchBranches = async (): Promise<Branch[]> => {
 
     // Prioritize Saniya1 as the main branch (first in the list)
     const saniya1Index = branches.findIndex((branch) =>
-      branch.name.toLowerCase().includes("saniya1")
+      branch.name.toLowerCase().includes("saniya1"),
     );
 
     if (saniya1Index > 0) {
@@ -1706,7 +1664,7 @@ export const fetchBranches = async (): Promise<Branch[]> => {
 
 // Category management functions
 export const addCategoryService = async (
-  category: Omit<Category, "id">
+  category: Omit<Category, "id">,
 ): Promise<Category> => {
   try {
     const { data, error } = await supabase
@@ -1729,7 +1687,7 @@ export const addCategoryService = async (
 
 export const updateCategoryService = async (
   id: string,
-  updates: Partial<Category>
+  updates: Partial<Category>,
 ): Promise<Category> => {
   try {
     const { data, error } = await supabase
@@ -1769,7 +1727,7 @@ export const deleteCategoryService = async (id: string): Promise<boolean> => {
 
 // Brand management functions
 export const addBrandService = async (
-  brand: Omit<Brand, "id">
+  brand: Omit<Brand, "id">,
 ): Promise<Brand> => {
   try {
     const { data, error } = await supabase
@@ -1783,7 +1741,9 @@ export const addBrandService = async (
 
     if (error) {
       console.error("Error adding brand:", JSON.stringify(error, null, 2));
-      throw new Error(`Failed to add brand: ${error.message || JSON.stringify(error)}`);
+      throw new Error(
+        `Failed to add brand: ${error.message || JSON.stringify(error)}`,
+      );
     }
 
     await revalidateProducts();
@@ -1796,7 +1756,7 @@ export const addBrandService = async (
 
 export const updateBrandService = async (
   id: string,
-  updates: Partial<Brand>
+  updates: Partial<Brand>,
 ): Promise<Brand> => {
   try {
     // Prepare updates for direct image_url column
@@ -1820,7 +1780,9 @@ export const updateBrandService = async (
 
     if (error) {
       console.error("Error updating brand:", JSON.stringify(error, null, 2));
-      throw new Error(`Failed to update brand: ${error.message || JSON.stringify(error)}`);
+      throw new Error(
+        `Failed to update brand: ${error.message || JSON.stringify(error)}`,
+      );
     }
 
     await revalidateProducts();
@@ -1872,7 +1834,7 @@ export const updateShop = async (
     brand_address: string;
     brand_whatsapp: string;
     pos_id: string;
-  }>
+  }>,
 ): Promise<any> => {
   try {
     const { data, error } = await supabase
@@ -1896,7 +1858,7 @@ export const updateShop = async (
 
 // Supplier management functions
 export const addSupplierService = async (
-  supplier: Omit<Supplier, "id">
+  supplier: Omit<Supplier, "id">,
 ): Promise<Supplier> => {
   try {
     const { data, error } = await supabase
@@ -1930,7 +1892,7 @@ export const addSupplierService = async (
 
 export const updateSupplierService = async (
   id: string,
-  updates: Partial<Supplier>
+  updates: Partial<Supplier>,
 ): Promise<Supplier> => {
   try {
     const { data, error } = await supabase
@@ -1993,7 +1955,7 @@ export const deleteSupplierService = async (id: string): Promise<Supplier> => {
 // Legacy function aliases for backward compatibility
 export const deleteItemService = async (
   id: string,
-  branchId: string
+  branchId: string,
 ): Promise<void> => {
   await deleteItem(id, branchId);
 };
@@ -2008,7 +1970,7 @@ export const addCategory = async (name: string): Promise<Category | null> => {
 
 export const updateCategory = async (
   id: string,
-  updates: Partial<Category>
+  updates: Partial<Category>,
 ): Promise<Category | null> => {
   try {
     return await updateCategoryService(id, updates);
@@ -2036,7 +1998,7 @@ export const addBrand = async (name: string): Promise<Brand | null> => {
 
 export const updateBrand = async (
   id: string,
-  updates: Partial<Brand>
+  updates: Partial<Brand>,
 ): Promise<Brand | null> => {
   try {
     return await updateBrandService(id, updates);
@@ -2057,55 +2019,27 @@ export const deleteBrand = async (id: string): Promise<boolean> => {
 // Batch management functions
 export const addBatch = async (
   batch: Omit<Batch, "id" | "created_at" | "updated_at">,
-  locationId: string = "sanaiya"
+  locationId: string = "sanaiya",
+  customSupabase?: any,
 ): Promise<Batch | null> => {
+  const sb = customSupabase || supabase;
   try {
-    // Get location ID
-    let actualLocationId = locationId;
+    const actualLocationId = await resolveLocationId(locationId, sb);
 
-    // Check if locationId is a UUID (not a name like "sanaiya")
-    const uuidRegex =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-    if (locationId === "sanaiya" || locationId === "main") {
-      const { data: location } = await supabase
-        .from("locations")
-        .select("id")
-        .eq("name", locationId === "sanaiya" ? "Sanaiya" : "Main Branch")
-        .single();
-
-      if (location) {
-        actualLocationId = location.id;
-      } else {
-        console.warn(
-          "Location lookup failed in addBatch, using provided locationId:",
-          locationId
-        );
-      }
-    } else if (!uuidRegex.test(locationId)) {
-      // If it's not a UUID and not a known name, try to look it up by name
-      console.warn(
-        "Location ID is not a UUID in addBatch, attempting lookup:",
-        locationId
+    // Guard to prevent PostgreSQL 22P02 error (invalid input syntax for type uuid)
+    const isUUID = (str: string) =>
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        str,
       );
-      const { data: location } = await supabase
-        .from("locations")
-        .select("id")
-        .eq("name", locationId)
-        .single();
-
-      if (location) {
-        actualLocationId = location.id;
-      } else {
-        console.warn(
-          "Location lookup failed in addBatch, using provided locationId:",
-          locationId
-        );
-      }
+    if (!isUUID(actualLocationId)) {
+      console.warn(
+        `[addBatch] Invalid UUID provided for location_id: ${actualLocationId}. Bailing early.`,
+      );
+      return null;
     }
 
     // Resolve inventory_id
-    const { data: inventoryData, error: inventoryError } = await supabase
+    const { data: inventoryData, error: inventoryError } = await sb
       .from("inventory")
       .select("id")
       .eq("product_id", batch.item_id)
@@ -2117,23 +2051,32 @@ export const addBatch = async (
       throw new Error("Inventory item not found for this product and location");
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await sb
       .from("batches")
       .insert({
         inventory_id: inventoryData.id,
         supplier: batch.supplier_id, // Map supplier_id to supplier column
         purchase_date: batch.purchase_date,
         // expiration_date: batch.expiration_date, // Column does not exist in DB
-        cost_price: batch.cost_price !== undefined && batch.cost_price !== null && !isNaN(Number(batch.cost_price))
-          ? Number(batch.cost_price)
-          : null,
-        quantity_received: batch.initial_quantity !== undefined && batch.initial_quantity !== null && !isNaN(Number(batch.initial_quantity))
-          ? Number(batch.initial_quantity)
-          : 0,
-        stock_remaining: batch.current_quantity !== undefined && batch.current_quantity !== null && !isNaN(Number(batch.current_quantity))
-          ? Number(batch.current_quantity)
-          : 0,
-        batch_number: 0 // logic handling batch number should be db trigger based or explicit
+        cost_price:
+          batch.cost_price !== undefined &&
+          batch.cost_price !== null &&
+          !isNaN(Number(batch.cost_price))
+            ? Number(batch.cost_price)
+            : null,
+        quantity_received:
+          batch.initial_quantity !== undefined &&
+          batch.initial_quantity !== null &&
+          !isNaN(Number(batch.initial_quantity))
+            ? Number(batch.initial_quantity)
+            : 0,
+        stock_remaining:
+          batch.current_quantity !== undefined &&
+          batch.current_quantity !== null &&
+          !isNaN(Number(batch.current_quantity))
+            ? Number(batch.current_quantity)
+            : 0,
+        batch_number: 0, // logic handling batch number should be db trigger based or explicit
       })
       .select()
       .single();
@@ -2155,7 +2098,7 @@ export const addBatch = async (
       is_active_batch: data.is_active_batch, // Map
       created_at: data.created_at,
       updated_at: data.updated_at,
-      batch_number: data.batch_number
+      batch_number: data.batch_number,
     };
   } catch (error) {
     console.error("Error in addBatch:", error);
@@ -2165,7 +2108,7 @@ export const addBatch = async (
 
 export const updateBatch = async (
   id: string,
-  updates: Partial<Batch>
+  updates: Partial<Batch>,
 ): Promise<Batch | null> => {
   try {
     const batchUpdates: any = {};
@@ -2212,7 +2155,7 @@ export const updateBatch = async (
       is_active_batch: data.is_active_batch, // Map
       created_at: data.created_at,
       updated_at: data.updated_at,
-      batch_number: data.batch_number
+      batch_number: data.batch_number,
     };
   } catch (error) {
     console.error("Error in updateBatch:", error);
@@ -2241,7 +2184,7 @@ export const createInitialBatchForInventory = async (
   inventoryId: string,
   costPrice: number,
   initialStock: number,
-  supplier?: string
+  supplier?: string,
 ): Promise<Batch | null> => {
   try {
     if (initialStock <= 0) {
@@ -2287,10 +2230,12 @@ export const createInitialBatchForInventory = async (
 };
 
 // Cleanup old exhausted batches (keep last N)
-export const cleanupOldBatches = async (keepCount: number = 5): Promise<number> => {
+export const cleanupOldBatches = async (
+  keepCount: number = 5,
+): Promise<number> => {
   try {
-    const { data, error } = await supabase.rpc('cleanup_old_batches', { 
-      p_keep_count: keepCount 
+    const { data, error } = await supabase.rpc("cleanup_old_batches", {
+      p_keep_count: keepCount,
     });
 
     if (error) {
@@ -2307,7 +2252,7 @@ export const cleanupOldBatches = async (keepCount: number = 5): Promise<number> 
 
 // Fetch all batches for a specific inventory item
 export const fetchBatchesForInventory = async (
-  inventoryId: string
+  inventoryId: string,
 ): Promise<Batch[]> => {
   try {
     const { data, error } = await supabase
@@ -2340,4 +2285,3 @@ export const fetchBatchesForInventory = async (
     return [];
   }
 };
-
