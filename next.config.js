@@ -9,8 +9,15 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
   experimental: {
-    cpus: 1,
-    workerThreads: false,
+    // Only limit CPUs during build to prevent VPS freeze; runtime is unrestricted
+    cpus:
+      process.env.NODE_ENV === "production" && !process.env.NEXT_RUNTIME
+        ? 1
+        : undefined,
+    workerThreads:
+      process.env.NODE_ENV === "production" && !process.env.NEXT_RUNTIME
+        ? false
+        : undefined,
   },
   /**experimental: {
     forceSwcTransforms: true,
