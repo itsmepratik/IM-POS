@@ -15,6 +15,7 @@ COPY . .
 
 # Next.js telemetry is opted out
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_OPTIONS="--max-old-space-size=1531"
 
 # Run the build
 RUN bun run build
