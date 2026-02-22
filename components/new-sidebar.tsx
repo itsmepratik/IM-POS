@@ -31,13 +31,6 @@ import {
   Wrench,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import {
   Accordion,
@@ -177,14 +170,14 @@ export function Sidebar({
       className={cn(
         "fixed inset-y-0 left-0 z-50 flex w-full flex-col bg-background transition-all duration-300 lg:w-auto",
         isCollapsed ? "lg:w-14" : "lg:w-56",
-        className
+        className,
       )}
     >
       <div className="flex flex-col h-full">
         <div
           className={cn(
             "flex h-14 items-center px-3",
-            isCollapsed ? "justify-center" : "justify-between px-4"
+            isCollapsed ? "justify-center" : "justify-between px-4",
           )}
         >
           {!isCollapsed ? (
@@ -248,7 +241,7 @@ export function Sidebar({
                       "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground whitespace-nowrap",
                       pathname === item.href &&
                         "bg-accent text-accent-foreground shadow-sm ring-1 ring-muted-foreground/30",
-                      isCollapsed && "justify-center px-2"
+                      isCollapsed && "justify-center px-2",
                     )}
                     title={isCollapsed ? item.title : undefined}
                   >
@@ -289,7 +282,7 @@ export function Sidebar({
                             className={cn(
                               "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground whitespace-nowrap",
                               pathname === item.href &&
-                                "bg-accent text-accent-foreground shadow-sm ring-1 ring-muted-foreground/30"
+                                "bg-accent text-accent-foreground shadow-sm ring-1 ring-muted-foreground/30",
                             )}
                           >
                             <span className="flex-shrink-0">{item.icon}</span>
@@ -310,7 +303,7 @@ export function Sidebar({
                   className={cn(
                     "flex items-center justify-center rounded-md p-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
                     pathname.startsWith("/inventory") &&
-                      "bg-accent text-accent-foreground"
+                      "bg-accent text-accent-foreground",
                   )}
                   title="Inventory"
                 >
@@ -347,7 +340,7 @@ export function Sidebar({
                             className={cn(
                               "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground whitespace-nowrap",
                               pathname === item.href &&
-                                "bg-accent text-accent-foreground"
+                                "bg-accent text-accent-foreground",
                             )}
                           >
                             <span className="flex-shrink-0">{item.icon}</span>
@@ -371,7 +364,7 @@ export function Sidebar({
                       pathname === "/transfer" ||
                       pathname === "/transfer-2" ||
                       pathname === "/restock-orders") &&
-                      "bg-accent text-accent-foreground"
+                      "bg-accent text-accent-foreground",
                   )}
                   title="Orders"
                 >
@@ -389,7 +382,7 @@ export function Sidebar({
               "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground whitespace-nowrap mb-2",
               pathname === "/notifications" &&
                 "bg-accent text-accent-foreground",
-              isCollapsed && "justify-center px-2"
+              isCollapsed && "justify-center px-2",
             )}
             title={isCollapsed ? "Notifications" : undefined}
           >
@@ -416,42 +409,40 @@ function ProfileMenu({ isCollapsed }: { isCollapsed: boolean }) {
   const router = useRouter();
   const [darkMode, setDarkMode] = React.useState(false);
   const [isLoggingOut, setIsLoggingOut] = React.useState(false);
+  const [isOpen, setIsOpen] = React.useState(false);
+  const menuRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const handleSettingsClick = () => {
+    setIsOpen(false);
     router.push("/settings");
   };
 
   const handleLogout = async () => {
-    console.log("🚀 LOGOUT BUTTON CLICKED - handleLogout called");
-    if (isLoggingOut) {
-      console.log("⏸️ Already logging out, ignoring...");
-      return;
-    }
+    if (isLoggingOut) return;
 
-    console.log("🔄 Setting isLoggingOut to true");
     setIsLoggingOut(true);
+    setIsOpen(false);
+
     try {
-      console.log("📤 Starting logout process - calling signOut()...");
       await signOut();
-      console.log("✅ Sign out completed, navigating to login...");
-
-      await new Promise((resolve) => setTimeout(resolve, 100));
-
-      console.log("🔄 Calling router.replace('/login')");
       router.replace("/login");
 
       setTimeout(() => {
         if (window.location.pathname !== "/login") {
-          console.log(
-            "⚠️ Router didn't navigate, forcing window.location.href..."
-          );
           window.location.href = "/login";
-        } else {
-          console.log("✅ Successfully navigated to /login");
         }
       }, 500);
     } catch (error) {
-      console.error("❌ Logout error:", error);
       router.replace("/login");
       setTimeout(() => {
         if (window.location.pathname !== "/login") {
@@ -467,42 +458,85 @@ function ProfileMenu({ isCollapsed }: { isCollapsed: boolean }) {
     setDarkMode(!darkMode);
   };
 
-  if (isCollapsed) {
-    return (
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" className="h-9 w-9 rounded-full p-0">
-            <Avatar className="h-8 w-8">
-              <AvatarImage
-                src={"/avatars/01.svg"}
-                alt={currentUser?.name || "User"}
-              />
-              <AvatarFallback>
-                {currentUser?.name ? currentUser.name.charAt(0) : "U"}
-              </AvatarFallback>
-            </Avatar>
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent
-          className="w-[15.5rem] max-w-full sm:w-[13.3rem] sm:ml-[2px] rounded-xl border-2 p-2 !z-[99999]"
-          align="end"
+  const buttonContent = isCollapsed ? (
+    <Button
+      variant="ghost"
+      className="h-9 w-9 rounded-full p-0"
+      onClick={() => setIsOpen(!isOpen)}
+    >
+      <Avatar className="h-8 w-8">
+        <AvatarImage
+          src={"/avatars/01.svg"}
+          alt={currentUser?.name || "User"}
+        />
+        <AvatarFallback>
+          {currentUser?.name ? currentUser.name.charAt(0) : "U"}
+        </AvatarFallback>
+      </Avatar>
+    </Button>
+  ) : (
+    <Button
+      variant="ghost"
+      className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-sm transition-colors hover:bg-accent"
+      onClick={() => setIsOpen(!isOpen)}
+    >
+      <Avatar className="h-8 w-8">
+        <AvatarImage
+          src={"/avatars/01.svg"}
+          alt={currentUser?.name || "User"}
+        />
+        <AvatarFallback>
+          {currentUser?.name ? currentUser.name.charAt(0) : "U"}
+        </AvatarFallback>
+      </Avatar>
+      <div className="flex-1 overflow-hidden text-left">
+        <div className="font-medium truncate">
+          {currentUser?.name || "Admin User"}
+        </div>
+        <div className="truncate text-xs text-muted-foreground">
+          {currentUser?.role || "admin"}
+        </div>
+      </div>
+    </Button>
+  );
+
+  return (
+    <div className="relative" ref={menuRef}>
+      {buttonContent}
+
+      {isOpen && (
+        <div
+          className="absolute bottom-full mb-2 w-[15.5rem] max-w-full sm:w-[13.3rem] sm:ml-[2px] rounded-xl border z-[99999] bg-popover text-popover-foreground shadow-md transition-all p-2 flex flex-col gap-1"
+          style={
+            isCollapsed
+              ? {
+                  left: "100%",
+                  marginLeft: "1rem",
+                  bottom: "0",
+                  marginBottom: "0",
+                }
+              : { left: "0" }
+          }
         >
-          <DropdownMenuItem className="rounded-lg py-2">
+          <button
+            className="w-full flex cursor-pointer select-none items-center rounded-lg px-2 py-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50"
+            onClick={() => setIsOpen(false)}
+          >
             <User className="mr-2 h-5 w-5 stroke-[1.5]" />
             <span>Profile</span>
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            className="rounded-lg py-2"
-            onAction={handleSettingsClick}
+          </button>
+
+          <button
+            className="w-full flex cursor-pointer select-none items-center rounded-lg px-2 py-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50"
+            onClick={handleSettingsClick}
           >
             <Settings className="mr-2 h-5 w-5 stroke-[1.5]" />
             <span>Settings</span>
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            className="rounded-lg py-2 flex items-center justify-between"
-            onAction={() => {
-              toggleDarkMode();
-            }}
+          </button>
+
+          <button
+            className="w-full flex cursor-pointer select-none items-center justify-between rounded-lg px-2 py-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50"
+            onClick={toggleDarkMode}
           >
             <div className="flex items-center">
               {darkMode ? (
@@ -513,91 +547,20 @@ function ProfileMenu({ isCollapsed }: { isCollapsed: boolean }) {
               <span>Dark Mode</span>
             </div>
             <Switch checked={darkMode} onCheckedChange={toggleDarkMode} />
-          </DropdownMenuItem>
-          <DropdownMenuSeparator className="my-2" />
-          <DropdownMenuItem
-            className="rounded-lg py-2"
-            onAction={() => {
-              console.log("🔵 onAction triggered!");
-              handleLogout();
-            }}
-            isDisabled={isLoggingOut || isLoading}
+          </button>
+
+          <div className="h-px bg-muted my-1" />
+
+          <button
+            className="w-full flex cursor-pointer select-none items-center rounded-lg px-2 py-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50"
+            onClick={handleLogout}
+            disabled={isLoggingOut || isLoading}
           >
             <LogOut className="mr-2 h-5 w-5 stroke-[1.5]" />
             <span>{isLoggingOut ? "Logging out..." : "Log out"}</span>
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    );
-  }
-
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-sm transition-colors hover:bg-accent"
-        >
-          <Avatar className="h-8 w-8">
-            <AvatarImage
-              src={"/avatars/01.svg"}
-              alt={currentUser?.name || "User"}
-            />
-            <AvatarFallback>
-              {currentUser?.name ? currentUser.name.charAt(0) : "U"}
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex-1 overflow-hidden text-left">
-            <div className="font-medium truncate">
-              {currentUser?.name || "Admin User"}
-            </div>
-            <div className="truncate text-xs text-muted-foreground">
-              {currentUser?.role || "admin"}
-            </div>
-          </div>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent
-        className="w-[15.5rem] max-w-full sm:w-[13.3rem] sm:ml-[2px] rounded-xl border-2 p-2 z-[999]"
-        align="end"
-      >
-        <DropdownMenuItem className="rounded-lg py-2">
-          <User className="mr-2 h-5 w-5 stroke-[1.5]" />
-          <span>Profile</span>
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          className="rounded-lg py-2"
-          onAction={handleSettingsClick}
-        >
-          <Settings className="mr-2 h-5 w-5 stroke-[1.5]" />
-          <span>Settings</span>
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          className="rounded-lg py-2 flex items-center justify-between"
-          onAction={() => {
-            toggleDarkMode();
-          }}
-        >
-          <div className="flex items-center">
-            {darkMode ? (
-              <Moon className="mr-2 h-5 w-5 stroke-[1.5]" />
-            ) : (
-              <Sun className="mr-2 h-5 w-5 stroke-[1.5]" />
-            )}
-            <span>Dark Mode</span>
-          </div>
-          <Switch checked={darkMode} onCheckedChange={toggleDarkMode} />
-        </DropdownMenuItem>
-        <DropdownMenuSeparator className="my-2" />
-        <DropdownMenuItem
-          className="rounded-lg py-2"
-          onAction={handleLogout}
-          isDisabled={isLoggingOut || isLoading}
-        >
-          <LogOut className="mr-2 h-5 w-5 stroke-[1.5]" />
-          <span>{isLoggingOut ? "Logging out..." : "Log out"}</span>
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
