@@ -1,7 +1,0 @@
-lib/services/inventoryService.ts:const revalidateProducts = async () => {
-lib/services/inventoryService.ts:    await revalidateProducts();
-lib/services/inventoryService.ts:    await revalidateProducts();
-lib/services/inventoryService.ts:    await revalidateProducts();
-lib/services/inventoryService.ts:    await revalidateProducts();
-lib/services/inventoryService.ts:    await revalidateProducts();
-lib/services/inventoryService.ts:    await revalidateProducts();
