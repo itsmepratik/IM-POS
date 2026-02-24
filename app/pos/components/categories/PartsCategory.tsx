@@ -3,7 +3,7 @@
 import React, { useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { ChevronDown, ChevronUp } from "lucide-react";
-import { BrandCard } from "../shared/BrandCard";
+import { BrandCard } from "../brand-card";
 import { Brand } from "@/lib/services/inventoryService";
 import { useImagePreloader } from "@/lib/hooks/useImagePreloader";
 import { POSProduct } from "@/lib/types/unified-product";

@@ -1,11 +1,23 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+} from "react";
 import { CartItem } from "../types";
 
 interface CartContextType {
   cart: CartItem[];
-  addToCart: (items: CartItem[]) => void;
+  addToCart: (
+    itemOrProduct: CartItem[] | { id: number; name: string; price: number },
+    details?: string,
+    quantity?: number,
+    source?: string,
+    bottleType?: string,
+  ) => void;
   removeFromCart: (uniqueId: string) => void;
   updateQuantity: (uniqueId: string, quantity: number) => void;
   clearCart: () => void;
@@ -44,13 +56,45 @@ export function CartProvider({ children }: CartProviderProps) {
     }
   }, [cart, isInitialized]);
 
-  const addToCart = (items: CartItem[]) => {
+  const addToCart = (
+    itemOrProduct: CartItem[] | { id: number; name: string; price: number },
+    details?: string,
+    quantity?: number,
+    source?: string,
+    bottleType?: string,
+  ) => {
+    // Support both signatures:
+    // 1. Array: addToCart(CartItem[])
+    // 2. Single item: addToCart(product, details?, quantity?, source?, bottleType?)
+    let items: CartItem[];
+
+    if (Array.isArray(itemOrProduct)) {
+      items = itemOrProduct;
+    } else {
+      // Build a CartItem from the legacy single-item signature
+      const product = itemOrProduct;
+      const qty = quantity ?? 1;
+      const uniqueId = `${product.id}-${details || ""}-${source || ""}-${bottleType || ""}-${Date.now()}`;
+      items = [
+        {
+          id: product.id,
+          name: product.name,
+          price: product.price,
+          quantity: qty,
+          details: details || "",
+          uniqueId,
+          source: source as "OPEN" | "CLOSED" | undefined,
+          bottleType: bottleType as "open" | "closed" | undefined,
+        } as CartItem,
+      ];
+    }
+
     setCart((prevCart) => {
       const newCart = [...prevCart];
 
       items.forEach((newItem) => {
         const existingIndex = newCart.findIndex(
-          (item) => item.uniqueId === newItem.uniqueId
+          (item) => item.uniqueId === newItem.uniqueId,
         );
 
         if (existingIndex >= 0) {
@@ -71,7 +115,7 @@ export function CartProvider({ children }: CartProviderProps) {
 
   const removeFromCart = (uniqueId: string) => {
     setCart((prevCart) =>
-      prevCart.filter((item) => item.uniqueId !== uniqueId)
+      prevCart.filter((item) => item.uniqueId !== uniqueId),
     );
   };
 
@@ -83,8 +127,8 @@ export function CartProvider({ children }: CartProviderProps) {
 
     setCart((prevCart) =>
       prevCart.map((item) =>
-        item.uniqueId === uniqueId ? { ...item, quantity } : item
-      )
+        item.uniqueId === uniqueId ? { ...item, quantity } : item,
+      ),
     );
   };
 
@@ -124,6 +168,3 @@ export function useCart() {
   }
   return context;
 }
-
-
-
