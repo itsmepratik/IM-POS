@@ -18,6 +18,20 @@ const nextConfig = {
       process.env.NODE_ENV === "production" && !process.env.NEXT_RUNTIME
         ? false
         : undefined,
+    staleTimes: {
+      dynamic: 30, // 30 seconds for dynamic routes
+      static: 180, // 3 minutes for static routes
+    },
+    optimizePackageImports: [
+      "@phosphor-icons/react",
+      "lucide-react",
+      "recharts",
+      "date-fns",
+      "framer-motion",
+      "@radix-ui/react-accordion",
+      "@radix-ui/react-dialog",
+      "@radix-ui/react-select",
+    ],
   },
   /**experimental: {
     forceSwcTransforms: true,

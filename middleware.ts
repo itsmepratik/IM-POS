@@ -16,28 +16,29 @@ export async function middleware(request: NextRequest) {
         },
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value, options }) =>
-            request.cookies.set(name, value)
+            request.cookies.set(name, value),
           );
           supabaseResponse = NextResponse.next({
             request,
           });
           cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
+            supabaseResponse.cookies.set(name, value, options),
           );
         },
       },
-    }
+    },
   );
 
   // Do not run code between createServerClient and
   // supabase.auth.getUser(). A simple mistake could make it very hard to debug
   // issues with users being randomly logged out.
 
-  // IMPORTANT: DO NOT REMOVE auth.getUser()
-
+  // Fast path: validate JWT locally without network round-trip
+  // IMPORTANT: DO NOT REMOVE auth.getSession()
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
+    data: { session },
+  } = await supabase.auth.getSession();
+  const user = session?.user ?? null;
 
   if (
     !user &&
@@ -63,18 +64,22 @@ export async function middleware(request: NextRequest) {
       try {
         const { data: roleData, error } = await supabase.rpc(
           "get_user_role_for_middleware",
-          { user_id: user.id }
+          { user_id: user.id },
         );
         if (!error && roleData) {
           userRole = roleData;
         } else {
-          userRole = user.email === "admin@hnsautomotive.com" ? "admin" : "shop";
+          userRole =
+            user.email === "admin@hnsautomotive.com" ? "admin" : "shop";
         }
       } catch (error) {
         console.error("Error getting user role in middleware:", error);
         userRole = user.email === "admin@hnsautomotive.com" ? "admin" : "shop";
       }
-      supabaseResponse.cookies.set("user_role", userRole, { maxAge: 300, path: "/" });
+      supabaseResponse.cookies.set("user_role", userRole, {
+        maxAge: 300,
+        path: "/",
+      });
     }
 
     const pathname = request.nextUrl.pathname;

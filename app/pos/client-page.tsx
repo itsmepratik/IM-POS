@@ -103,19 +103,47 @@ import {
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 
+import dynamic from "next/dynamic";
 // Import the RefundDialog component
-import { RefundDialog, WarrantyDialog } from "./components/refund-dialog";
-import { ImportDialog } from "./components/import-dialog";
+const RefundDialog = dynamic(
+  () => import("./components/refund-dialog").then((mod) => mod.RefundDialog),
+  { ssr: false },
+);
+const WarrantyDialog = dynamic(
+  () => import("./components/refund-dialog").then((mod) => mod.WarrantyDialog),
+  { ssr: false },
+);
+const ImportDialog = dynamic(
+  () => import("./components/import-dialog").then((mod) => mod.ImportDialog),
+  { ssr: false },
+);
 import { customerService } from "@/lib/services/customerService";
 import {
   useIntegratedPOSData,
   LubricantProduct,
   Product,
 } from "@/lib/hooks/data/useIntegratedPOSData";
-import { FilterModal } from "./components/modals/filter-modal";
-import { PartsModal } from "./components/modals/parts-modal";
-import { TradeInDialog } from "./components/modals/trade-in-dialog";
-import { VolumeModal } from "./components/modals/VolumeModal";
+const FilterModal = dynamic(
+  () =>
+    import("./components/modals/filter-modal").then((mod) => mod.FilterModal),
+  { ssr: false },
+);
+const PartsModal = dynamic(
+  () => import("./components/modals/parts-modal").then((mod) => mod.PartsModal),
+  { ssr: false },
+);
+const TradeInDialog = dynamic(
+  () =>
+    import("./components/modals/trade-in-dialog").then(
+      (mod) => mod.TradeInDialog,
+    ),
+  { ssr: false },
+);
+const VolumeModal = dynamic(
+  () =>
+    import("./components/modals/VolumeModal").then((mod) => mod.VolumeModal),
+  { ssr: false },
+);
 import { BrandCard } from "./components/brand-card";
 import { BrandLogo } from "./components/brand-logo";
 import { OnHoldTicket } from "./components/on-hold-ticket";
@@ -150,16 +178,74 @@ import { Numpad } from "./components/Numpad";
 import { POSCustomerForm } from "./components/POSCustomerForm";
 
 // Extracted dialog components
-import { BottleTypeDialog } from "./components/modals/BottleTypeDialog";
-import { CheckoutModal } from "./components/modals/CheckoutModal";
-import { CashierDialog } from "./components/modals/CashierDialog";
-import { SuccessDialog } from "./components/modals/SuccessDialog";
-import { ReceiptPreviewDialog } from "./components/modals/ReceiptPreviewDialog";
-import { DiscountDialog } from "./components/modals/DiscountDialog";
-import { DisputeDialog } from "./components/modals/DisputeDialog";
-import { LaborDialog } from "./components/modals/LaborDialog";
-import { CustomerSuccessDialog } from "./components/modals/CustomerSuccessDialog";
-import { ClearCartConfirm } from "./components/modals/ClearCartConfirm";
+const BottleTypeDialog = dynamic(
+  () =>
+    import("./components/modals/BottleTypeDialog").then(
+      (mod) => mod.BottleTypeDialog,
+    ),
+  { ssr: false },
+);
+const CheckoutModal = dynamic(
+  () =>
+    import("./components/modals/CheckoutModal").then(
+      (mod) => mod.CheckoutModal,
+    ),
+  { ssr: false },
+);
+const CashierDialog = dynamic(
+  () =>
+    import("./components/modals/CashierDialog").then(
+      (mod) => mod.CashierDialog,
+    ),
+  { ssr: false },
+);
+const SuccessDialog = dynamic(
+  () =>
+    import("./components/modals/SuccessDialog").then(
+      (mod) => mod.SuccessDialog,
+    ),
+  { ssr: false },
+);
+const ReceiptPreviewDialog = dynamic(
+  () =>
+    import("./components/modals/ReceiptPreviewDialog").then(
+      (mod) => mod.ReceiptPreviewDialog,
+    ),
+  { ssr: false },
+);
+const DiscountDialog = dynamic(
+  () =>
+    import("./components/modals/DiscountDialog").then(
+      (mod) => mod.DiscountDialog,
+    ),
+  { ssr: false },
+);
+const DisputeDialog = dynamic(
+  () =>
+    import("./components/modals/DisputeDialog").then(
+      (mod) => mod.DisputeDialog,
+    ),
+  { ssr: false },
+);
+const LaborDialog = dynamic(
+  () =>
+    import("./components/modals/LaborDialog").then((mod) => mod.LaborDialog),
+  { ssr: false },
+);
+const CustomerSuccessDialog = dynamic(
+  () =>
+    import("./components/modals/CustomerSuccessDialog").then(
+      (mod) => mod.CustomerSuccessDialog,
+    ),
+  { ssr: false },
+);
+const ClearCartConfirm = dynamic(
+  () =>
+    import("./components/modals/ClearCartConfirm").then(
+      (mod) => mod.ClearCartConfirm,
+    ),
+  { ssr: false },
+);
 import { POSLoadingBar } from "./components/POSLoadingBar";
 
 // Extracted cart panel components

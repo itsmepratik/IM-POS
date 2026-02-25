@@ -91,53 +91,6 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="orientation" content="portrait" />
         <link rel="apple-touch-icon" href="/favicon.ico" />
-
-        <style
-          suppressHydrationWarning
-          dangerouslySetInnerHTML={{
-            __html: `
-          /* Apply fullscreen adjustments for standalone mode */
-          @media all and (display-mode: standalone) {
-            html, body {
-              height: 100%;
-              width: 100%;
-              margin: 0;
-              padding: 0;
-            }
-            
-            /* Ensure content within the app is scrollable */
-            #app-root {
-              height: 100%;
-              width: 100%;
-              overflow: auto;
-              -webkit-overflow-scrolling: touch;
-            }
-          }
-          
-          /* Formula 1 font adjustments */
-          body {
-            letter-spacing: -0.02em;
-            font-feature-settings: "kern" 1, "liga" 1;
-          }
-          
-          h1, h2, h3, h4, h5, h6 {
-            letter-spacing: -0.03em;
-            font-weight: 700;
-          }
-          
-          /* Reduce the boldness appearance */
-          b, strong {
-            font-weight: 700;
-          }
-          
-          /* Adjust button text */
-          button, .button {
-            letter-spacing: -0.01em;
-            font-weight: 400;
-          }
-        `,
-          }}
-        />
       </head>
       <body
         className={`${formula1.variable} ${formula1Wide.variable} ${inter.variable} font-sans antialiased`}

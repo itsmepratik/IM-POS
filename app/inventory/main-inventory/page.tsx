@@ -48,7 +48,17 @@ import {
 } from "lucide-react";
 import { ItemsProvider, useItems, type Item } from "../items-context";
 import { useServerInventory } from "../hooks/useServerInventory";
-import { ItemModal } from "../item-modal";
+import dynamic from "next/dynamic";
+import { ItemModalProps } from "../components/item-modal/types";
+
+// Lazy load the heavy ItemModal
+const ItemModal = dynamic(
+  () =>
+    import("../item-modal").then(
+      (mod) => mod.ItemModal as React.ComponentType<ItemModalProps>,
+    ),
+  { ssr: false },
+);
 import { CategoryModal } from "../category-modal";
 import {
   AlertDialog,
@@ -114,299 +124,295 @@ const getBatchFifoPosition = (batchIndex: number, totalBatches: number) => {
 
 // Memoize the mobile item card component
 const MobileItemCard = ({
-    item,
-    onEdit,
-    onDelete,
-    onDuplicate,
-  }: {
-    item: Item;
-    onEdit: (item: Item) => void;
-    onDelete: (id: string) => void;
-    onDuplicate: (id: string) => void;
-  }) => {
-    const [showDetails, setShowDetails] = useState(false);
-    const [imageError, setImageError] = useState(false);
-    const { calculateAverageCost } = useItems();
+  item,
+  onEdit,
+  onDelete,
+  onDuplicate,
+}: {
+  item: Item;
+  onEdit: (item: Item) => void;
+  onDelete: (id: string) => void;
+  onDuplicate: (id: string) => void;
+}) => {
+  const [showDetails, setShowDetails] = useState(false);
+  const [imageError, setImageError] = useState(false);
+  const { calculateAverageCost } = useItems();
 
-    const handleImageError = useCallback(() => {
-      setImageError(true);
-    }, []);
+  const handleImageError = useCallback(() => {
+    setImageError(true);
+  }, []);
 
-    // Memoize expensive calculations
-    const avgCost = useMemo(
-      () => calculateAverageCost(item.id),
-      [item.id, calculateAverageCost]
-    );
-    const batchCount = useMemo(() => item.batches?.length || 0, [item.batches]);
+  // Memoize expensive calculations
+  const avgCost = useMemo(
+    () => calculateAverageCost(item.id),
+    [item.id, calculateAverageCost],
+  );
+  const batchCount = useMemo(() => item.batches?.length || 0, [item.batches]);
 
-    // Calculate profit margin
-    const margin = useMemo(() => {
-      if (!item.batches || item.batches.length === 0 || item.price <= 0)
-        return null;
+  // Calculate profit margin
+  const margin = useMemo(() => {
+    if (!item.batches || item.batches.length === 0 || item.price <= 0)
+      return null;
 
-      if (avgCost <= 0) return null;
+    if (avgCost <= 0) return null;
 
-      const marginPercentage = ((item.price - avgCost) / item.price) * 100;
-      return Math.round(marginPercentage * 100) / 100; // Round to 2 decimals
-    }, [item.batches, item.price, avgCost]);
+    const marginPercentage = ((item.price - avgCost) / item.price) * 100;
+    return Math.round(marginPercentage * 100) / 100; // Round to 2 decimals
+  }, [item.batches, item.price, avgCost]);
 
-    return (
-      <Card className="relative overflow-hidden">
-        <CardContent className="p-4">
-          <div className="flex items-start justify-between gap-4">
-            <div className="relative w-16 h-16 rounded-md border overflow-hidden bg-muted shrink-0">
-              {!imageError && (item.imageUrl || item.image_url) ? (
-                <Image
-                  src={(item.imageUrl || item.image_url) as string}
-                  alt={item.name}
-                  fill
-                  sizes="64px"
-                  className="object-contain p-1"
-                  onError={handleImageError as unknown as () => void}
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center">
-                  <ImageIcon className="w-6 h-6 text-muted-foreground" />
-                </div>
-              )}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <h3 className="font-medium whitespace-normal break-words pr-2">{item.name}</h3>
-                  {item.brand && (
-                    <p className="text-sm text-muted-foreground">
-                      {item.brand}
-                    </p>
-                  )}
-                  {item.isOil && item.bottleStates && (
-                    <div className="flex flex-wrap gap-2 mt-1">
-                      {item.bottleStates.open > 0 && (
-                        <OpenBottleBadge count={item.bottleStates.open} />
-                      )}
-                      {item.bottleStates.closed > 0 && (
-                        <ClosedBottleBadge count={item.bottleStates.closed} />
-                      )}
-                    </div>
-                  )}
-                </div>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="h-8 w-8 p-0">
-                      <MoreVertical className="h-4 w-4" />
-                      <span className="sr-only">Open menu</span>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => onEdit(item)}>
-                      Edit item
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => onDuplicate(item.id)}>
-                      Duplicate
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      className="text-destructive"
-                      onClick={() => onDelete(item.id)}
-                    >
-                      Delete item
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+  return (
+    <Card className="relative overflow-hidden">
+      <CardContent className="p-4">
+        <div className="flex items-start justify-between gap-4">
+          <div className="relative w-16 h-16 rounded-md border overflow-hidden bg-muted shrink-0">
+            {!imageError && (item.imageUrl || item.image_url) ? (
+              <Image
+                src={(item.imageUrl || item.image_url) as string}
+                alt={item.name}
+                fill
+                sizes="64px"
+                className="object-contain p-1"
+                onError={handleImageError as unknown as () => void}
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                <ImageIcon className="w-6 h-6 text-muted-foreground" />
               </div>
-              <div className="text-sm text-muted-foreground mt-1">
-                Category: {item.category}
-              </div>
-              <div className="mt-2 flex flex-wrap items-center gap-2">
-                <Badge variant="secondary">{item.category}</Badge>
-                {item.specification && (
-                  <Badge
-                    variant="outline"
-                    className="border-blue-200 bg-blue-50 text-blue-700"
-                  >
-                    {item.specification}
-                  </Badge>
+            )}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <h3 className="font-medium whitespace-normal break-words pr-2">
+                  {item.name}
+                </h3>
+                {item.brand && (
+                  <p className="text-sm text-muted-foreground">{item.brand}</p>
+                )}
+                {item.isOil && item.bottleStates && (
+                  <div className="flex flex-wrap gap-2 mt-1">
+                    {item.bottleStates.open > 0 && (
+                      <OpenBottleBadge count={item.bottleStates.open} />
+                    )}
+                    {item.bottleStates.closed > 0 && (
+                      <ClosedBottleBadge count={item.bottleStates.closed} />
+                    )}
+                  </div>
                 )}
               </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="h-8 w-8 p-0">
+                    <MoreVertical className="h-4 w-4" />
+                    <span className="sr-only">Open menu</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => onEdit(item)}>
+                    Edit item
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => onDuplicate(item.id)}>
+                    Duplicate
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="text-destructive"
+                    onClick={() => onDelete(item.id)}
+                  >
+                    Delete item
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+            <div className="text-sm text-muted-foreground mt-1">
+              Category: {item.category}
+            </div>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <Badge variant="secondary">{item.category}</Badge>
+              {item.specification && (
+                <Badge
+                  variant="outline"
+                  className="border-blue-200 bg-blue-50 text-blue-700"
+                >
+                  {item.specification}
+                </Badge>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-4 space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Stock:</span>
+              <span className="font-medium">{item.stock ?? 0}</span>
+            </div>
+            <div className="text-base font-bold text-[#6d6d6d]">
+              OMR {item.price.toFixed(2)}
             </div>
           </div>
 
-          <div className="mt-4 space-y-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">Stock:</span>
-                <span className="font-medium">{item.stock ?? 0}</span>
-              </div>
-              <div className="text-base font-bold text-[#6d6d6d]">
-                OMR {item.price.toFixed(2)}
-              </div>
-            </div>
+          {showDetails && (
+            <>
+              <div className="mt-3 pt-3 border-t">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-sm font-medium">Details</div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-xs"
+                    onClick={() => setShowDetails(false)}
+                  >
+                    Hide
+                  </Button>
+                </div>
 
-            {showDetails && (
-              <>
-                <div className="mt-3 pt-3 border-t">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="text-sm font-medium">Details</div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 px-2 text-xs"
-                      onClick={() => setShowDetails(false)}
-                    >
-                      Hide
-                    </Button>
-                  </div>
+                <div className="space-y-2 text-sm">
+                  {avgCost > 0 && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Avg Cost:</span>
+                      <span>OMR {avgCost.toFixed(2)}</span>
+                    </div>
+                  )}
 
-                  <div className="space-y-2 text-sm">
-                    {avgCost > 0 && (
-                      <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground">Avg Cost:</span>
-                        <span>OMR {avgCost.toFixed(2)}</span>
-                      </div>
-                    )}
+                  {margin !== null && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Margin:</span>
+                      <span
+                        className={
+                          margin < 30 ? "text-red-500" : "text-green-500"
+                        }
+                      >
+                        {margin.toFixed(1)}%
+                      </span>
+                    </div>
+                  )}
 
-                    {margin !== null && (
-                      <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground">Margin:</span>
-                        <span
-                          className={
-                            margin < 30 ? "text-red-500" : "text-green-500"
-                          }
-                        >
-                          {margin.toFixed(1)}%
-                        </span>
-                      </div>
-                    )}
+                  {batchCount > 0 && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Batches:</span>
+                      <span>{batchCount}</span>
+                    </div>
+                  )}
 
-                    {batchCount > 0 && (
-                      <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground">Batches:</span>
-                        <span>{batchCount}</span>
-                      </div>
-                    )}
-
-                    {item.volumes && item.volumes.length > 0 && (
-                      <div className="mt-2">
-                        <div className="text-muted-foreground mb-1">
-                          Volumes:
-                        </div>
-                        <div className="grid gap-1">
-                          {item.volumes.map(
-                            (
-                              volume: { size: string; price: number },
-                              index: number
-                            ) => (
-                              <div
-                                key={index}
-                                className="flex justify-between text-xs"
-                              >
-                                <span>{volume.size}</span>
-                                <span>OMR {volume.price.toFixed(2)}</span>
-                              </div>
-                            )
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    {item.batches && item.batches.length > 0 && (
-                      <div className="mt-2">
-                        <div className="text-muted-foreground mb-1">
-                          Batch Details (FIFO):
-                        </div>
-                        <div className="grid gap-1">
-                          {item.batches.map((batch, index) => (
+                  {item.volumes && item.volumes.length > 0 && (
+                    <div className="mt-2">
+                      <div className="text-muted-foreground mb-1">Volumes:</div>
+                      <div className="grid gap-1">
+                        {item.volumes.map(
+                          (
+                            volume: { size: string; price: number },
+                            index: number,
+                          ) => (
                             <div
                               key={index}
                               className="flex justify-between text-xs"
                             >
-                              <span>
-                                {batch.purchase_date
-                                  ? batch.purchase_date.substring(0, 10)
-                                  : "-"}{" "}
-                                ({batch.current_quantity ?? 0}/
-                                {batch.initial_quantity ?? 0})
-                              </span>
-                              <span>
-                                {getBatchFifoPosition(
-                                  index,
-                                  item.batches?.length || 0
-                                )}
-                              </span>
+                              <span>{volume.size}</span>
+                              <span>OMR {volume.price.toFixed(2)}</span>
                             </div>
-                          ))}
-                        </div>
+                          ),
+                        )}
                       </div>
-                    )}
+                    </div>
+                  )}
 
-                    {/* Types */}
-                    {((item.types && item.types.length > 0) || item.type) && (
-                      <div className="mt-2 text-left">
-                        <div className="text-muted-foreground mb-1">
-                          Types:
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          {item.types && item.types.length > 0 ? (
-                            item.types.map((t) => (
-                              <Badge key={t.id} variant="outline">{t.name}</Badge>
+                  {item.batches && item.batches.length > 0 && (
+                    <div className="mt-2">
+                      <div className="text-muted-foreground mb-1">
+                        Batch Details (FIFO):
+                      </div>
+                      <div className="grid gap-1">
+                        {item.batches.map((batch, index) => (
+                          <div
+                            key={index}
+                            className="flex justify-between text-xs"
+                          >
+                            <span>
+                              {batch.purchase_date
+                                ? batch.purchase_date.substring(0, 10)
+                                : "-"}{" "}
+                              ({batch.current_quantity ?? 0}/
+                              {batch.initial_quantity ?? 0})
+                            </span>
+                            <span>
+                              {getBatchFifoPosition(
+                                index,
+                                item.batches?.length || 0,
+                              )}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Types */}
+                  {((item.types && item.types.length > 0) || item.type) && (
+                    <div className="mt-2 text-left">
+                      <div className="text-muted-foreground mb-1">Types:</div>
+                      <div className="flex flex-wrap gap-2">
+                        {item.types && item.types.length > 0
+                          ? item.types.map((t) => (
+                              <Badge key={t.id} variant="outline">
+                                {t.name}
+                              </Badge>
                             ))
-                          ) : (
-                             item.type && <Badge variant="outline">{item.type}</Badge>
-                          )}
-                        </div>
+                          : item.type && (
+                              <Badge variant="outline">{item.type}</Badge>
+                            )}
                       </div>
-                    )}
+                    </div>
+                  )}
 
-                    {item.isOil && item.bottleStates && (
-                      <div className="mt-2">
-                        <div className="text-muted-foreground mb-1">
-                          Inventory:
+                  {item.isOil && item.bottleStates && (
+                    <div className="mt-2">
+                      <div className="text-muted-foreground mb-1">
+                        Inventory:
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="flex items-center justify-between p-1.5 rounded-md bg-red-50 border border-red-200">
+                          <span className="text-xs text-red-800 flex items-center gap-1">
+                            <OpenBottleIcon className="h-3 w-3" />
+                            Open:
+                          </span>
+                          <span className="font-medium text-red-800">
+                            {item.bottleStates.open}
+                          </span>
                         </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className="flex items-center justify-between p-1.5 rounded-md bg-red-50 border border-red-200">
-                            <span className="text-xs text-red-800 flex items-center gap-1">
-                              <OpenBottleIcon className="h-3 w-3" />
-                              Open:
-                            </span>
-                            <span className="font-medium text-red-800">
-                              {item.bottleStates.open}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between p-1.5 rounded-md bg-green-50 border border-green-200">
-                            <span className="text-xs font-medium text-green-800 flex items-center gap-1">
-                              <ClosedBottleIcon className="h-3 w-3" />
-                              Closed:
-                            </span>
-                            <span className="font-medium text-green-800">
-                              {item.bottleStates.closed}
-                            </span>
-                          </div>
+                        <div className="flex items-center justify-between p-1.5 rounded-md bg-green-50 border border-green-200">
+                          <span className="text-xs font-medium text-green-800 flex items-center gap-1">
+                            <ClosedBottleIcon className="h-3 w-3" />
+                            Closed:
+                          </span>
+                          <span className="font-medium text-green-800">
+                            {item.bottleStates.closed}
+                          </span>
                         </div>
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
-              </>
-            )}
+              </div>
+            </>
+          )}
 
-            <div className="flex justify-end pt-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-xs"
-                onClick={() => setShowDetails(!showDetails)}
-              >
-                {showDetails ? "Hide Details" : "Show Details"}
-              </Button>
-            </div>
+          <div className="flex justify-end pt-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-xs"
+              onClick={() => setShowDetails(!showDetails)}
+            >
+              {showDetails ? "Hide Details" : "Show Details"}
+            </Button>
           </div>
-        </CardContent>
-      </Card>
-    );
-  };
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
 MobileItemCard.displayName = "MobileItemCard";
-
-
 
 const DeleteConfirmDialog = memo(
   ({
@@ -426,8 +432,8 @@ const DeleteConfirmDialog = memo(
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the item
-              from the inventory.
+              This action cannot be undone. This will permanently delete the
+              item from the inventory.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -453,7 +459,7 @@ const DeleteConfirmDialog = memo(
         </AlertDialogContent>
       </AlertDialog>
     );
-  }
+  },
 );
 DeleteConfirmDialog.displayName = "DeleteConfirmDialog";
 
@@ -479,19 +485,19 @@ const TableRow = memo(
     const activeBatchCost = useMemo(() => {
       if (!item.batches || item.batches.length === 0) return 0;
       // Find the active batch, or fallback to the first one available
-      const activeBatch = item.batches.find(b => b.is_active_batch) || item.batches[0];
+      const activeBatch =
+        item.batches.find((b) => b.is_active_batch) || item.batches[0];
       return activeBatch?.cost_price || 0;
     }, [item.batches]);
     const batchCount = useMemo(() => item.batches?.length || 0, [item.batches]);
 
     // Calculate profit margin
 
-
     return (
       <tr
         className={cn(
           "border-b hover:bg-muted/30 transition-colors text-sm",
-          isSelected && "bg-muted/50"
+          isSelected && "bg-muted/50",
         )}
       >
         <td className="h-16 px-4 text-left align-middle">
@@ -544,24 +550,38 @@ const TableRow = memo(
         </td>
         <td className="h-16 px-4 text-left align-middle">
           {activeBatchCost > 0 ? (
-            <span className="font-medium text-muted-foreground">OMR {activeBatchCost.toFixed(3)}</span>
+            <span className="font-medium text-muted-foreground">
+              OMR {activeBatchCost.toFixed(3)}
+            </span>
           ) : (
             <span className="text-muted-foreground">N/A</span>
           )}
         </td>
         <td className="h-16 px-4 text-left align-middle">
-          <span className="font-medium text-emerald-600">OMR {item.price.toFixed(3)}</span>
+          <span className="font-medium text-emerald-600">
+            OMR {item.price.toFixed(3)}
+          </span>
         </td>
         <td className="h-16 px-4 text-left align-middle">
           {item.isOil && item.bottleStates ? (
             <div className="flex items-center gap-4">
-              <div className="flex items-center gap-1.5 text-muted-foreground" title="Open Bottles">
+              <div
+                className="flex items-center gap-1.5 text-muted-foreground"
+                title="Open Bottles"
+              >
                 <OpenBottleIcon className="h-4 w-4 text-orange-500" />
-                <span className="font-medium text-foreground">{item.bottleStates.open}</span>
+                <span className="font-medium text-foreground">
+                  {item.bottleStates.open}
+                </span>
               </div>
-              <div className="flex items-center gap-1.5 text-muted-foreground" title="Sealed Bottles">
+              <div
+                className="flex items-center gap-1.5 text-muted-foreground"
+                title="Sealed Bottles"
+              >
                 <ClosedBottleIcon className="h-4 w-4 text-primary" />
-                <span className="font-medium text-foreground">{item.bottleStates.closed}</span>
+                <span className="font-medium text-foreground">
+                  {item.bottleStates.closed}
+                </span>
               </div>
             </div>
           ) : (
@@ -574,14 +594,16 @@ const TableRow = memo(
             <div className="flex gap-2">
               <Badge
                 variant="outline"
-                  className="bg-[#d5f365]/20 text-[#4a5200] border-[#d5f365]/50 gap-1"
+                className="bg-[#d5f365]/20 text-[#4a5200] border-[#d5f365]/50 gap-1"
               >
                 <Box className="h-3.5 w-3.5" />
                 Batches: {batchCount}
               </Badge>
             </div>
           ) : (
-            <span className="text-muted-foreground text-xs italic">No batches</span>
+            <span className="text-muted-foreground text-xs italic">
+              No batches
+            </span>
           )}
         </td>
         <td className="h-12 px-4 text-right align-middle">
@@ -610,7 +632,7 @@ const TableRow = memo(
         </td>
       </tr>
     );
-  }
+  },
 );
 TableRow.displayName = "TableRow";
 
@@ -642,7 +664,7 @@ function MobileView({
   stockStatus,
   setStockStatus,
   resetFilters,
-  
+
   // Pagination
   currentPage,
   setCurrentPage,
@@ -694,11 +716,11 @@ function MobileView({
   const [isPending, startTransition] = useTransition();
 
   const [editingItem, setEditingItem] = useState<Item | undefined>(undefined);
-  
+
   // Local state for counts (approximate or 0 for now as server doesn't return them without specific query)
   const outOfStockCount = 0;
   const lowStockCount = 0;
-  
+
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -734,7 +756,7 @@ function MobileView({
       setEditingItem(item);
       setItemModalOpen(true);
     },
-    [setEditingItem]
+    [setEditingItem],
   );
 
   // Handle modal state changes
@@ -745,7 +767,7 @@ function MobileView({
         setEditingItem(undefined);
       }
     },
-    [setEditingItem]
+    [setEditingItem],
   );
 
   // Handle low stock click
@@ -816,7 +838,7 @@ function MobileView({
     (e: React.ChangeEvent<HTMLInputElement>) => {
       startTransition(() => setSearchQuery(e.target.value));
     },
-    [setSearchQuery]
+    [setSearchQuery],
   );
 
   // Handle category change
@@ -824,7 +846,7 @@ function MobileView({
     (value: string) => {
       startTransition(() => setSelectedCategory(value));
     },
-    [setSelectedCategory]
+    [setSelectedCategory],
   );
 
   // Handle brand change
@@ -832,7 +854,7 @@ function MobileView({
     (value: string) => {
       startTransition(() => setSelectedBrand(value));
     },
-    [setSelectedBrand]
+    [setSelectedBrand],
   );
 
   // Handle show in stock change
@@ -846,7 +868,7 @@ function MobileView({
         }
       });
     },
-    [setShowInStock, setShowLowStockOnly, setShowOutOfStockOnly]
+    [setShowInStock, setShowLowStockOnly, setShowOutOfStockOnly],
   );
 
   // Handle min price change
@@ -855,7 +877,7 @@ function MobileView({
       const val = parseFloat(e.target.value);
       setMinPrice(isNaN(val) ? undefined : val);
     },
-    [setMinPrice]
+    [setMinPrice],
   );
 
   // Handle max price change
@@ -864,7 +886,7 @@ function MobileView({
       const val = parseFloat(e.target.value);
       setMaxPrice(isNaN(val) ? undefined : val);
     },
-    [setMaxPrice]
+    [setMaxPrice],
   );
 
   // Handle clear all filters
@@ -901,13 +923,22 @@ function MobileView({
         {/* Buttons row below search */}
         <div className="flex items-center gap-2 justify-between">
           <div className="flex items-center gap-2 pl-1">
-            <Button onClick={openAddItemModal} variant="chonky" size="sm" className="overflow-visible">
+            <Button
+              onClick={openAddItemModal}
+              variant="chonky"
+              size="sm"
+              className="overflow-visible"
+            >
               <Plus className="h-4 w-4 mr-1" />
               Add
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="shrink-0 rounded-[12px] pl-6">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0 rounded-[12px] pl-6"
+                >
                   More Options
                   <ChevronDown className="h-4 w-4 ml-1" />
                 </Button>
@@ -1014,7 +1045,6 @@ function MobileView({
                   </SelectContent>
                 </Select>
               </ClientOnly>
-
             </div>
 
             <div className="space-y-4 pt-2">
@@ -1035,7 +1065,6 @@ function MobileView({
                   </SelectContent>
                 </Select>
               </ClientOnly>
-
             </div>
 
             {/* Stock Options */}
@@ -1137,24 +1166,21 @@ function MobileView({
       {showBatteries && (
         <div className="flex items-center gap-2 pb-2">
           <span className="text-sm font-medium">State:</span>
-          <BatteryStateSwitch
-            value={batteryState}
-            onChange={setBatteryState}
-          />
+          <BatteryStateSwitch value={batteryState} onChange={setBatteryState} />
         </div>
       )}
 
       <div className="space-y-2">
         {!isLoading &&
           filteredItems.map((item) => (
-              <MobileItemCard
-                key={item.id}
-                item={item}
-                onEdit={openEditItemModal}
-                onDelete={(id) => setItemToDelete(id)}
-                onDuplicate={handleDuplicate}
-              />
-            ))}
+            <MobileItemCard
+              key={item.id}
+              item={item}
+              onEdit={openEditItemModal}
+              onDelete={(id) => setItemToDelete(id)}
+              onDuplicate={handleDuplicate}
+            />
+          ))}
         {isLoading && (
           <div className="text-center py-8">
             <div className="flex flex-col items-center justify-center gap-3">
@@ -1195,8 +1221,8 @@ function MobileView({
         onOpenChange={handleItemModalOpenChange}
         item={editingItem}
         onItemUpdated={(item) => {
-            updateLocalItem(item);
-            refresh(true); // Silent refresh
+          updateLocalItem(item);
+          refresh(true); // Silent refresh
         }}
       />
       <CategoryModal
@@ -1247,7 +1273,7 @@ interface DesktopViewProps {
   stockStatus: any;
   setStockStatus: (s: any) => void;
   resetFilters: () => void;
-  
+
   // Pagination
   currentPage: number;
   setCurrentPage: (p: number) => void;
@@ -1293,7 +1319,7 @@ function DesktopView({
   stockStatus,
   setStockStatus,
   resetFilters,
-  
+
   // Pagination
   currentPage,
   setCurrentPage,
@@ -1308,12 +1334,12 @@ function DesktopView({
   sortOrder,
   setSortOrder,
   refresh,
-  updateLocalItem
+  updateLocalItem,
 }: DesktopViewProps) {
   const [isPending, startTransition] = useTransition();
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [editingItem, setEditingItem] = useState<Item | undefined>(undefined);
-  
+
   // Counts (approximate)
   const outOfStockCount = 0;
   const lowStockCount = 0;
@@ -1334,18 +1360,20 @@ function DesktopView({
   const handleCancelDelete = () => {
     setItemToDelete(null);
   };
-  
+
   const toggleItemSelection = useCallback((id: string) => {
-    setSelectedItems(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+    setSelectedItems((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id],
+    );
   }, []);
 
   const toggleAllSelection = useCallback(() => {
-     if (filteredItems.length === 0) return;
-     if (selectedItems.length === filteredItems.length) {
-       setSelectedItems([]);
-     } else {
-       setSelectedItems(filteredItems.map(i => i.id));
-     }
+    if (filteredItems.length === 0) return;
+    if (selectedItems.length === filteredItems.length) {
+      setSelectedItems([]);
+    } else {
+      setSelectedItems(filteredItems.map((i) => i.id));
+    }
   }, [filteredItems, selectedItems]);
 
   const [itemModalOpen, setItemModalOpen] = useState(false);
@@ -1366,7 +1394,7 @@ function DesktopView({
       setEditingItem(item);
       setItemModalOpen(true);
     },
-    [setEditingItem]
+    [setEditingItem],
   );
 
   // Handle modal state changes
@@ -1377,7 +1405,7 @@ function DesktopView({
         setEditingItem(undefined);
       }
     },
-    [setEditingItem]
+    [setEditingItem],
   );
 
   // Handle low stock click
@@ -1466,7 +1494,7 @@ function DesktopView({
       const val = parseFloat(e.target.value);
       setMinPrice(isNaN(val) ? undefined : val);
     },
-    [setMinPrice]
+    [setMinPrice],
   );
 
   // Handle max price change
@@ -1475,7 +1503,7 @@ function DesktopView({
       const val = parseFloat(e.target.value);
       setMaxPrice(isNaN(val) ? undefined : val);
     },
-    [setMaxPrice]
+    [setMaxPrice],
   );
 
   // Handle search input change
@@ -1483,7 +1511,7 @@ function DesktopView({
     (e: React.ChangeEvent<HTMLInputElement>) => {
       startTransition(() => setSearchQuery(e.target.value));
     },
-    [setSearchQuery]
+    [setSearchQuery],
   );
 
   // Handle category change
@@ -1491,7 +1519,7 @@ function DesktopView({
     (value: string) => {
       startTransition(() => setSelectedCategory(value));
     },
-    [setSelectedCategory]
+    [setSelectedCategory],
   );
 
   // Handle brand change
@@ -1499,7 +1527,7 @@ function DesktopView({
     (value: string) => {
       startTransition(() => setSelectedBrand(value));
     },
-    [setSelectedBrand]
+    [setSelectedBrand],
   );
 
   // Handle show in stock change
@@ -1513,7 +1541,7 @@ function DesktopView({
         }
       });
     },
-    [setShowInStock, setShowLowStockOnly, setShowOutOfStockOnly]
+    [setShowInStock, setShowLowStockOnly, setShowOutOfStockOnly],
   );
 
   const areAllSelected =
@@ -1572,7 +1600,7 @@ function DesktopView({
           </DropdownMenu>
 
           <Button onClick={openAddItemModal} variant="chonky">
-            <Plus className="h-4 w-4 mr-1"/>
+            <Plus className="h-4 w-4 mr-1" />
             Add Item
           </Button>
           <ExportButton items={filteredItems} />
@@ -1627,31 +1655,55 @@ function DesktopView({
             </div>
           )}
         </div>
-        
+
         <div className="flex items-center gap-2 ml-auto">
-             <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="h-8 gap-1 rounded-[12px]">
-                  <ArrowUpDown className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">Sort</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem onClick={() => { setSortBy('name'); setSortOrder('asc'); }}>
-                  Name (A-Z)
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => { setSortBy('name'); setSortOrder('desc'); }}>
-                  Name (Z-A)
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => { setSortBy('price'); setSortOrder('asc'); }}>
-                  Price (Low-High)
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => { setSortBy('price'); setSortOrder('desc'); }}>
-                  Price (High-Low)
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 gap-1 rounded-[12px]"
+              >
+                <ArrowUpDown className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Sort</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem
+                onClick={() => {
+                  setSortBy("name");
+                  setSortOrder("asc");
+                }}
+              >
+                Name (A-Z)
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => {
+                  setSortBy("name");
+                  setSortOrder("desc");
+                }}
+              >
+                Name (Z-A)
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => {
+                  setSortBy("price");
+                  setSortOrder("asc");
+                }}
+              >
+                Price (Low-High)
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => {
+                  setSortBy("price");
+                  setSortOrder("desc");
+                }}
+              >
+                Price (High-Low)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
@@ -1892,16 +1944,16 @@ function DesktopView({
               ) : (
                 <>
                   {filteredItems.map((item) => (
-                      <TableRow
-                        key={item.id}
-                        item={item}
-                        isSelected={selectedItems.includes(item.id)}
-                        onToggle={toggleItemSelection}
-                        onEdit={openEditItemModal}
-                        onDelete={(id) => setItemToDelete(id)}
-                        onDuplicate={handleDuplicate}
-                      />
-                    ))}
+                    <TableRow
+                      key={item.id}
+                      item={item}
+                      isSelected={selectedItems.includes(item.id)}
+                      onToggle={toggleItemSelection}
+                      onEdit={openEditItemModal}
+                      onDelete={(id) => setItemToDelete(id)}
+                      onDuplicate={handleDuplicate}
+                    />
+                  ))}
 
                   {filteredItems.length === 0 && (
                     <tr>
@@ -1942,8 +1994,8 @@ function DesktopView({
         onOpenChange={handleItemModalOpenChange}
         item={editingItem}
         onItemUpdated={(item) => {
-            updateLocalItem(item);
-            refresh(true); // Silent refresh
+          updateLocalItem(item);
+          refresh(true); // Silent refresh
         }}
       />
       <CategoryModal
@@ -1969,15 +2021,15 @@ function DesktopView({
 
 function ItemsPageContent() {
   const { currentUser } = useUser();
-  
+
   // Use server-side inventory hook
   const serverInventory = useServerInventory({
-      initialLimit: 10
+    initialLimit: 10,
   });
-  
+
   // Use global items context for categories, etc.
   const { categories, brands, deleteItem, duplicateItem } = useItems();
-  
+
   const commonProps = {
     filteredItems: serverInventory.items,
     categories,
@@ -2007,21 +2059,21 @@ function ItemsPageContent() {
     batteryState: serverInventory.batteryState,
     setBatteryState: serverInventory.setBatteryState,
     resetFilters: serverInventory.resetFilters,
-    
+
     // Pagination
     currentPage: serverInventory.page,
     setCurrentPage: serverInventory.setPage,
     itemsPerPage: serverInventory.limit,
     totalCount: serverInventory.totalCount,
-    
+
     // Actions wrapper
     handleDelete: async (id: string) => {
-        await deleteItem(id);
-        serverInventory.refresh();
+      await deleteItem(id);
+      serverInventory.refresh();
     },
     handleDuplicate: async (id: string) => {
-        await duplicateItem(id);
-        serverInventory.refresh();
+      await duplicateItem(id);
+      serverInventory.refresh();
     },
     refresh: serverInventory.refresh,
     updateLocalItem: serverInventory.updateLocalItem,

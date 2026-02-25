@@ -11,8 +11,8 @@ import { CartProvider } from "./context/CartContext";
 import { Suspense } from "react";
 import { POSLoadingBar } from "./components/POSLoadingBar";
 
-// Ensure dynamic rendering to read cookies and auth headers
-export const dynamic = "force-dynamic";
+// Export removed; we want Next.js to use route caching where possible.
+// Cookies and headers will naturally make this route dynamic per-request.
 
 export default async function POSPage() {
   const cookieStore = await cookies();

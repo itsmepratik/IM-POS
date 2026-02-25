@@ -38,7 +38,17 @@ import {
   ArrowUpDown,
 } from "lucide-react";
 import { ItemsProvider, useItems, type Item } from "../items-context";
-import { ItemModal } from "../item-modal";
+import dynamic from "next/dynamic";
+import { ItemModalProps } from "../components/item-modal/types";
+
+// Lazy load the heavy ItemModal
+const ItemModal = dynamic(
+  () =>
+    import("../item-modal").then(
+      (mod) => mod.ItemModal as React.ComponentType<ItemModalProps>,
+    ),
+  { ssr: false },
+);
 import { toast } from "@/components/ui/use-toast";
 import { CategoryModal } from "../category-modal";
 import { useUser } from "@/lib/contexts/UserContext";
@@ -66,7 +76,12 @@ import { OpenBottleIcon, ClosedBottleIcon } from "@/components/ui/bottle-icons";
 import BrandModal from "../brand-modal";
 import { useBranchInventory } from "./hooks/useBranchInventory";
 import { useServerInventory } from "../hooks/useServerInventory";
-import { BRANCH_SHOPS, getAllBranchShops, DEFAULT_BRANCH, type BranchShop } from "./branchConfig";
+import {
+  BRANCH_SHOPS,
+  getAllBranchShops,
+  DEFAULT_BRANCH,
+  type BranchShop,
+} from "./branchConfig";
 import ExportButton from "../export-button";
 import { BatteryStateSwitch } from "../components/battery-state-switch";
 import { TradeInsModal } from "../components/trade-ins-modal";
@@ -272,7 +287,7 @@ const MobileItemCard = memo(
         </CardContent>
       </Card>
     );
-  }
+  },
 );
 MobileItemCard.displayName = "MobileItemCard";
 
@@ -298,7 +313,9 @@ function MobileView({
   const [showLowStockOnly, setShowLowStockOnly] = useState(false);
   const [showOutOfStockOnly, setShowOutOfStockOnly] = useState(false);
   // Default to the provided selectedBranch's location
-  const [branchLocationId, setBranchLocationId] = useState(selectedBranch.locationId);
+  const [branchLocationId, setBranchLocationId] = useState(
+    selectedBranch.locationId,
+  );
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("All");
@@ -615,23 +632,23 @@ function MobileView({
         </SheetContent>
       </Sheet>
       <CategoryModal
-          open={isCategoryModalOpen}
-          onOpenChange={setIsCategoryModalOpen}
-        />
-        <BrandModal open={isBrandModalOpen} onOpenChange={setIsBrandModalOpen} />
-        <TradeInsModal
-          isOpen={isTradeInsModalOpen}
-          onClose={() => setIsTradeInsModalOpen(false)}
-        />
+        open={isCategoryModalOpen}
+        onOpenChange={setIsCategoryModalOpen}
+      />
+      <BrandModal open={isBrandModalOpen} onOpenChange={setIsBrandModalOpen} />
+      <TradeInsModal
+        isOpen={isTradeInsModalOpen}
+        onClose={() => setIsTradeInsModalOpen(false)}
+      />
     </div>
   );
 }
 
-
-
 // Container Component - Managers State and Context
 function BranchInventoryManager() {
-  const [selectedLocationId, setSelectedLocationId] = useState(DEFAULT_BRANCH.locationId);
+  const [selectedLocationId, setSelectedLocationId] = useState(
+    DEFAULT_BRANCH.locationId,
+  );
 
   return (
     <BranchProvider>
@@ -639,9 +656,9 @@ function BranchInventoryManager() {
         overrideLocationId={selectedLocationId}
         skipFetchingItems={true} // Match Main Inventory: Skip context fetching, let useServerInventory handle it
       >
-        <BranchInventoryContent 
-            selectedLocationId={selectedLocationId}
-            onLocationIdChange={setSelectedLocationId}
+        <BranchInventoryContent
+          selectedLocationId={selectedLocationId}
+          onLocationIdChange={setSelectedLocationId}
         />
       </ItemsProvider>
     </BranchProvider>
@@ -649,49 +666,72 @@ function BranchInventoryManager() {
 }
 
 // Inner component that runs INSIDE ItemsProvider
-function BranchInventoryContent({ 
-  selectedLocationId, 
-  onLocationIdChange 
-}: { 
-  selectedLocationId: string, 
-  onLocationIdChange: (id: string) => void 
+function BranchInventoryContent({
+  selectedLocationId,
+  onLocationIdChange,
+}: {
+  selectedLocationId: string;
+  onLocationIdChange: (id: string) => void;
 }) {
-  const { addItem, updateItem, deleteItem, duplicateItem, categories, brands, refetchItems } = useItems();
+  const {
+    addItem,
+    updateItem,
+    deleteItem,
+    duplicateItem,
+    categories,
+    brands,
+    refetchItems,
+  } = useItems();
   const [isClient, setIsClient] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  
+
   // Use useServerInventory hook (Same as Main Inventory Page)
   // This handles data fetching, pagination, sorting, and filtering
   const {
-      items: branchItems,
-      loading: isLoading,
-      // Pagination
-      page, setPage,
-      limit, setLimit,
-      totalCount,
-      // Filters
-      search: searchQuery, setSearch: setSearchQuery,
-      categoryId: selectedCategory, setCategoryId: setSelectedCategory,
-      brandId: brandFilter, setBrandId: setBrandFilter,
-      // Advanced Filters
-      minPrice, setMinPrice,
-      maxPrice, setMaxPrice,
-      // Filter variables
-      stockStatus, setStockStatus,
-      showLowStockOnly, setShowLowStockOnly,
-      showOutOfStockOnly, setShowOutOfStockOnly,
-      showInStock, setShowInStock,
-      showBatteries, setShowBatteries, // NEW
-      batteryState, setBatteryState, // NEW
-      sortBy, setSortBy, // NEW
-      sortOrder, setSortOrder, // NEW
-      // Actions
-      refresh,
-      updateLocalItem,
-      resetFilters
+    items: branchItems,
+    loading: isLoading,
+    // Pagination
+    page,
+    setPage,
+    limit,
+    setLimit,
+    totalCount,
+    // Filters
+    search: searchQuery,
+    setSearch: setSearchQuery,
+    categoryId: selectedCategory,
+    setCategoryId: setSelectedCategory,
+    brandId: brandFilter,
+    setBrandId: setBrandFilter,
+    // Advanced Filters
+    minPrice,
+    setMinPrice,
+    maxPrice,
+    setMaxPrice,
+    // Filter variables
+    stockStatus,
+    setStockStatus,
+    showLowStockOnly,
+    setShowLowStockOnly,
+    showOutOfStockOnly,
+    setShowOutOfStockOnly,
+    showInStock,
+    setShowInStock,
+    showBatteries,
+    setShowBatteries, // NEW
+    batteryState,
+    setBatteryState, // NEW
+    sortBy,
+    setSortBy, // NEW
+    sortOrder,
+    setSortOrder, // NEW
+    // Actions
+    refresh,
+    updateLocalItem,
+    resetFilters,
   } = useServerInventory({
-      locationId: selectedLocationId,
-      initialLimit: 50
+    locationId: selectedLocationId,
+    initialLimit: 50,
   });
 
   // UI States
@@ -703,44 +743,50 @@ function BranchInventoryContent({
   const [editingItem, setEditingItem] = useState<Item | undefined>(undefined);
 
   // Derived state for the selected branch object
-  const selectedBranch = useMemo(() => 
-      getAllBranchShops().find(b => b.locationId === selectedLocationId) || DEFAULT_BRANCH, 
-  [selectedLocationId]);
+  const selectedBranch = useMemo(
+    () =>
+      getAllBranchShops().find((b) => b.locationId === selectedLocationId) ||
+      DEFAULT_BRANCH,
+    [selectedLocationId],
+  );
 
   const handleBranchChange = (locationId: string) => {
     onLocationIdChange(locationId);
-    // Reset page and filters on branch change (useServerInventory handles this via useEffect on locationId change? 
+    // Reset page and filters on branch change (useServerInventory handles this via useEffect on locationId change?
     // actually useServerInventory useEffect depends on locationId, so it auto-refreshes)
   };
-  
+
   // Handle Item Updates (Add/Edit)
-  const handleItemUpdated = useCallback(async (updatedItem?: Item) => {
-    // 1. Refresh Context (for brands/categories consistency)
-    await refetchItems(); 
-    
-    // 2. Update Local List (Optimistic or Refresh)
-    if (updatedItem) {
+  const handleItemUpdated = useCallback(
+    async (updatedItem?: Item) => {
+      // 1. Refresh Context (for brands/categories consistency)
+      await refetchItems();
+
+      // 2. Update Local List (Optimistic or Refresh)
+      if (updatedItem) {
         updateLocalItem(updatedItem);
-    }
-    refresh(true); // Silent refresh from server
-  }, [refetchItems, updateLocalItem, refresh]);
+      }
+      refresh(true); // Silent refresh from server
+    },
+    [refetchItems, updateLocalItem, refresh],
+  );
 
   // Handle Delete
   const handleDeleteItem = async (id: string) => {
-      try {
-          await deleteItem(id);
-          refresh(); // Refresh list after delete
-          toast({ title: "Item deleted successfully" });
-      } catch (error) {
-          console.error("Failed to delete item:", error);
-          toast({ title: "Failed to delete item", variant: "destructive" });
-      }
+    try {
+      await deleteItem(id);
+      refresh(); // Refresh list after delete
+      toast({ title: "Item deleted successfully" });
+    } catch (error) {
+      console.error("Failed to delete item:", error);
+      toast({ title: "Failed to delete item", variant: "destructive" });
+    }
   };
 
   // Actions for Mobile View
   const handleEdit = (item: Item) => {
-      setEditingItem(item);
-      setIsModalOpen(true);
+    setEditingItem(item);
+    setIsModalOpen(true);
   };
 
   // Check viewport
@@ -764,25 +810,25 @@ function BranchInventoryContent({
       setIsModalOpen(open);
       if (!open) setEditingItem(undefined); // use undefined to match ItemModal props type
     },
-    [setIsModalOpen, setEditingItem]
+    [setIsModalOpen, setEditingItem],
   );
-  
+
   if (!isClient) return null;
 
   return (
-      <div className="w-full h-full">
-        {isMobile ? (
-          <MobileView
-            items={branchItems}
-            isLoading={isLoading}
-            selectedBranch={selectedBranch}
-            handleDeleteItem={handleDeleteItem}
-            onBranchChange={handleBranchChange}
-            onItemUpdated={() => handleItemUpdated()}
-          />
-        ) : (
-          <div className="space-y-6">
-            <div className="flex justify-between">
+    <div className="w-full h-full">
+      {isMobile ? (
+        <MobileView
+          items={branchItems}
+          isLoading={isLoading}
+          selectedBranch={selectedBranch}
+          handleDeleteItem={handleDeleteItem}
+          onBranchChange={handleBranchChange}
+          onItemUpdated={() => handleItemUpdated()}
+        />
+      ) : (
+        <div className="space-y-6">
+          <div className="flex justify-between">
             <div className="w-[300px]">
               <Select
                 value={selectedLocationId}
@@ -792,12 +838,19 @@ function BranchInventoryContent({
                   <div className="flex items-center gap-2">
                     <Store className="h-4 w-4 text-muted-foreground" />
                     <SelectValue placeholder="Select Branch" />
-                    {process.env.NODE_ENV === 'development' && <span className="text-xs text-muted-foreground opacity-50">({selectedLocationId.slice(0,4)})</span>}
+                    {process.env.NODE_ENV === "development" && (
+                      <span className="text-xs text-muted-foreground opacity-50">
+                        ({selectedLocationId.slice(0, 4)})
+                      </span>
+                    )}
                   </div>
                 </SelectTrigger>
                 <SelectContent>
                   {getAllBranchShops().map((branch) => (
-                    <SelectItem key={branch.locationId} value={branch.locationId}>
+                    <SelectItem
+                      key={branch.locationId}
+                      value={branch.locationId}
+                    >
                       {branch.displayName}
                     </SelectItem>
                   ))}
@@ -828,28 +881,44 @@ function BranchInventoryContent({
                 >
                   <Filter className="h-4 w-4" />
                 </Button>
-                
+
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="outline" className="rounded-[12px] pl-6" size="sm">
+                    <Button
+                      variant="outline"
+                      className="rounded-[12px] pl-6"
+                      size="sm"
+                    >
                       More Options
                       <ChevronDown className="h-4 w-4 ml-1" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent placement="bottom end" className="w-40">
-                    <DropdownMenuItem onAction={() => setIsCategoryModalOpen(true)}>
+                    <DropdownMenuItem
+                      onAction={() => setIsCategoryModalOpen(true)}
+                    >
                       Categories
                     </DropdownMenuItem>
-                    <DropdownMenuItem onAction={() => setIsBrandModalOpen(true)}>
+                    <DropdownMenuItem
+                      onAction={() => setIsBrandModalOpen(true)}
+                    >
                       Brands
                     </DropdownMenuItem>
-                    <DropdownMenuItem onAction={() => setIsTradeInsModalOpen(true)}>
+                    <DropdownMenuItem
+                      onAction={() => setIsTradeInsModalOpen(true)}
+                    >
                       Trade-ins
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
 
-                <Button onClick={() => { setEditingItem(undefined); setIsModalOpen(true); }} variant="chonky">
+                <Button
+                  onClick={() => {
+                    setEditingItem(undefined);
+                    setIsModalOpen(true);
+                  }}
+                  variant="chonky"
+                >
                   <Plus className="h-4 w-4 mr-1" />
                   Add Item
                 </Button>
@@ -859,25 +928,35 @@ function BranchInventoryContent({
 
             <div className="flex items-center gap-2">
               <div className="text-sm text-muted-foreground">
-                {branchItems.length} {branchItems.length === 1 ? "item" : "items"} found
+                {branchItems.length}{" "}
+                {branchItems.length === 1 ? "item" : "items"} found
               </div>
-             
+
               {showLowStockOnly && (
-                <Badge variant="outline" className="bg-amber-100 border-amber-300 text-amber-700 flex items-center gap-1">
+                <Badge
+                  variant="outline"
+                  className="bg-amber-100 border-amber-300 text-amber-700 flex items-center gap-1"
+                >
                   <AlertCircle className="h-3 w-3" />
                   Low Stock Only
                 </Badge>
               )}
               {showOutOfStockOnly && (
-                 <Badge variant="outline" className="bg-red-100 border-red-300 text-red-700 flex items-center gap-1">
-                   <PackageX className="h-3 w-3" />
-                   Out of Stock Only
-                 </Badge>
+                <Badge
+                  variant="outline"
+                  className="bg-red-100 border-red-300 text-red-700 flex items-center gap-1"
+                >
+                  <PackageX className="h-3 w-3" />
+                  Out of Stock Only
+                </Badge>
               )}
 
               <div className="flex gap-4 items-center ml-6">
                 <div className="flex items-center gap-2">
-                  <label htmlFor="showBatteriesBranch" className="text-sm font-medium cursor-pointer">
+                  <label
+                    htmlFor="showBatteriesBranch"
+                    className="text-sm font-medium cursor-pointer"
+                  >
                     Show batteries:
                   </label>
                   <Checkbox
@@ -897,26 +976,50 @@ function BranchInventoryContent({
                 )}
               </div>
 
-               <div className="flex items-center gap-2 ml-auto">
-                 <DropdownMenu>
+              <div className="flex items-center gap-2 ml-auto">
+                <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" className="h-8 gap-1 rounded-[12px]">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 gap-1 rounded-[12px]"
+                    >
                       <ArrowUpDown className="h-3.5 w-3.5" />
                       <span className="hidden sm:inline">Sort</span>
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-48">
-                    <DropdownMenuItem onClick={() => { setSortBy('name'); setSortOrder('asc'); }}>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        setSortBy("name");
+                        setSortOrder("asc");
+                      }}
+                    >
                       Name (A-Z)
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => { setSortBy('name'); setSortOrder('desc'); }}>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        setSortBy("name");
+                        setSortOrder("desc");
+                      }}
+                    >
                       Name (Z-A)
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => { setSortBy('price'); setSortOrder('asc'); }}>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        setSortBy("price");
+                        setSortOrder("asc");
+                      }}
+                    >
                       Price (Low-High)
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => { setSortBy('price'); setSortOrder('desc'); }}>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        setSortBy("price");
+                        setSortOrder("desc");
+                      }}
+                    >
                       Price (High-Low)
                     </DropdownMenuItem>
                   </DropdownMenuContent>
@@ -1003,13 +1106,13 @@ function BranchInventoryContent({
             </div>
           )}
 
-      {/* Desktop Table View */}
+          {/* Desktop Table View */}
           {!isLoading && (
-             <div className="rounded-md border bg-white">
+            <div className="rounded-md border bg-white">
               <div className="relative w-full overflow-auto">
                 <table className="w-full caption-bottom text-sm">
                   <thead className="[&_tr]:border-b">
-                     <tr className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
+                    <tr className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
                       <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground min-w-[300px]">
                         Item
                       </th>
@@ -1039,10 +1142,14 @@ function BranchInventoryContent({
                   <tbody className="[&_tr:last-child]:border-0">
                     {branchItems.map((item) => {
                       // Get active batch cost price
-                      const activeBatchCost = item.batches && item.batches.length > 0 
-                        ? (item.batches.find(b => b.is_active_batch) || item.batches[0])?.cost_price || 0
-                        : 0; // Or fall back to item.costPrice if available
-                      
+                      const activeBatchCost =
+                        item.batches && item.batches.length > 0
+                          ? (
+                              item.batches.find((b) => b.is_active_batch) ||
+                              item.batches[0]
+                            )?.cost_price || 0
+                          : 0; // Or fall back to item.costPrice if available
+
                       const batchCount = item.batches?.length || 0;
 
                       return (
@@ -1066,7 +1173,9 @@ function BranchInventoryContent({
                                 )}
                               </div>
                               <div className="flex flex-col">
-                                <span className="font-medium line-clamp-2">{item.name}</span>
+                                <span className="font-medium line-clamp-2">
+                                  {item.name}
+                                </span>
                                 <span className="text-xs text-muted-foreground">
                                   {item.brand || "-"}
                                 </span>
@@ -1080,11 +1189,15 @@ function BranchInventoryContent({
                           </td>
                           <td className="p-4 align-middle">
                             <div className="flex items-center gap-2">
-                              <span className={cn(
-                                "font-medium",
-                                (item.stock || 0) <= (item.lowStockAlert || 5) && "text-amber-600",
-                                (item.stock || 0) === 0 && "text-red-600"
-                              )}>
+                              <span
+                                className={cn(
+                                  "font-medium",
+                                  (item.stock || 0) <=
+                                    (item.lowStockAlert || 5) &&
+                                    "text-amber-600",
+                                  (item.stock || 0) === 0 && "text-red-600",
+                                )}
+                              >
                                 {item.stock || 0}
                               </span>
                             </div>
@@ -1095,7 +1208,9 @@ function BranchInventoryContent({
                                 OMR {activeBatchCost.toFixed(3)}
                               </span>
                             ) : (
-                              <span className="text-muted-foreground text-xs">N/A</span>
+                              <span className="text-muted-foreground text-xs">
+                                N/A
+                              </span>
                             )}
                           </td>
                           <td className="p-4 align-middle">
@@ -1106,17 +1221,29 @@ function BranchInventoryContent({
                           <td className="p-4 align-middle">
                             {item.isOil && item.bottleStates ? (
                               <div className="flex items-center gap-4">
-                                <div className="flex items-center gap-1.5 text-muted-foreground" title="Open Bottles">
+                                <div
+                                  className="flex items-center gap-1.5 text-muted-foreground"
+                                  title="Open Bottles"
+                                >
                                   <OpenBottleIcon className="h-4 w-4 text-orange-500" />
-                                  <span className="font-medium text-foreground">{item.bottleStates.open}</span>
+                                  <span className="font-medium text-foreground">
+                                    {item.bottleStates.open}
+                                  </span>
                                 </div>
-                                <div className="flex items-center gap-1.5 text-muted-foreground" title="Sealed Bottles">
+                                <div
+                                  className="flex items-center gap-1.5 text-muted-foreground"
+                                  title="Sealed Bottles"
+                                >
                                   <ClosedBottleIcon className="h-4 w-4 text-primary" />
-                                  <span className="font-medium text-foreground">{item.bottleStates.closed}</span>
+                                  <span className="font-medium text-foreground">
+                                    {item.bottleStates.closed}
+                                  </span>
                                 </div>
                               </div>
                             ) : (
-                              <span className="text-muted-foreground text-xs">N/A</span>
+                              <span className="text-muted-foreground text-xs">
+                                N/A
+                              </span>
                             )}
                           </td>
                           <td className="p-4 align-middle">
@@ -1129,7 +1256,9 @@ function BranchInventoryContent({
                                 Batches: {batchCount}
                               </Badge>
                             ) : (
-                              <span className="text-muted-foreground text-xs italic">No batches</span>
+                              <span className="text-muted-foreground text-xs italic">
+                                No batches
+                              </span>
                             )}
                           </td>
                           <td className="p-4 align-middle text-right">

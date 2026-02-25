@@ -264,20 +264,76 @@ div.space-y-1 {
 /* Ensure 3D shadows are visible for specific buttons */
 .dispute-button,
 .cart-button {
-  box-shadow: 0 5px 0 #d1d5db, 0 6px 10px rgba(0, 0, 0, 0.1),
+  box-shadow:
+    0 5px 0 #d1d5db,
+    0 6px 10px rgba(0, 0, 0, 0.1),
     inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
 }
 
 .dispute-button:hover,
 .cart-button:hover {
   transform: translateY(-2px);
-  box-shadow: 0 7px 0 #d1d5db, 0 8px 12px rgba(0, 0, 0, 0.15),
+  box-shadow:
+    0 7px 0 #d1d5db,
+    0 8px 12px rgba(0, 0, 0, 0.15),
     inset 0 1px 0 rgba(255, 255, 255, 0.4) !important;
 }
 
 .dispute-button:active,
 .cart-button:active {
   transform: translateY(3px);
-  box-shadow: 0 2px 0 #d1d5db, 0 3px 5px rgba(0, 0, 0, 0.1),
+  box-shadow:
+    0 2px 0 #d1d5db,
+    0 3px 5px rgba(0, 0, 0, 0.1),
     inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+}
+
+/* Apply fullscreen adjustments for standalone mode */
+@media all and (display-mode: standalone) {
+  html,
+  body {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Ensure content within the app is scrollable */
+  #app-root {
+    height: 100%;
+    width: 100%;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* Formula 1 font adjustments */
+body {
+  letter-spacing: -0.02em;
+  font-feature-settings:
+    "kern" 1,
+    "liga" 1;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  letter-spacing: -0.03em;
+  font-weight: 700;
+}
+
+/* Reduce the boldness appearance */
+b,
+strong {
+  font-weight: 700;
+}
+
+/* Adjust button text */
+button,
+.button {
+  letter-spacing: -0.01em;
+  font-weight: 400;
 }
