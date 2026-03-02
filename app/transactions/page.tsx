@@ -171,38 +171,38 @@ const TransactionCard = memo(
                     transaction.type === "refund"
                       ? "text-red-500"
                       : transaction.type === "expense"
-                      ? "text-purple-600"
-                      : transaction.type === "credit"
-                      ? "text-blue-600"
-                      : transaction.type === "on-hold"
-                      ? "text-yellow-600"
-                      : transaction.type === "stock-transfer"
-                      ? "text-blue-600"
-                      : transaction.type === "warranty-claim"
-                      ? "text-cyan-600"
-                      : transaction.type === "on-hold-paid" ||
-                        transaction.type === "credit-paid"
-                      ? "text-green-600"
-                      : "text-green-500"
+                        ? "text-purple-600"
+                        : transaction.type === "credit"
+                          ? "text-blue-600"
+                          : transaction.type === "on-hold"
+                            ? "text-yellow-600"
+                            : transaction.type === "stock-transfer"
+                              ? "text-blue-600"
+                              : transaction.type === "warranty-claim"
+                                ? "text-cyan-600"
+                                : transaction.type === "on-hold-paid" ||
+                                    transaction.type === "credit-paid"
+                                  ? "text-green-600"
+                                  : "text-green-500"
                   }`}
                 >
                   {transaction.type === "refund"
                     ? "Refund"
                     : transaction.type === "warranty-claim"
-                    ? "Warranty Claim"
-                    : transaction.type === "expense"
-                    ? "Expense"
-                    : transaction.type === "credit"
-                    ? "Credit"
-                    : transaction.type === "on-hold"
-                    ? "On Hold"
-                    : transaction.type === "stock-transfer"
-                    ? "Stock Transfer"
-                    : transaction.type === "on-hold-paid"
-                    ? "On-Hold Paid"
-                    : transaction.type === "credit-paid"
-                    ? "Credit Paid"
-                    : "Sale"}
+                      ? "Warranty Claim"
+                      : transaction.type === "expense"
+                        ? "Expense"
+                        : transaction.type === "credit"
+                          ? "Credit"
+                          : transaction.type === "on-hold"
+                            ? "On Hold"
+                            : transaction.type === "stock-transfer"
+                              ? "Stock Transfer"
+                              : transaction.type === "on-hold-paid"
+                                ? "On-Hold Paid"
+                                : transaction.type === "credit-paid"
+                                  ? "Credit Paid"
+                                  : "Sale"}
                 </span>
                 <span className="text-sm sm:text-base text-muted-foreground">
                   {transaction.time || transaction.date}
@@ -221,19 +221,19 @@ const TransactionCard = memo(
                   transaction.type === "refund"
                     ? "text-red-500"
                     : transaction.type === "expense"
-                    ? "text-purple-600"
-                    : transaction.type === "credit"
-                    ? "text-blue-600"
-                    : transaction.type === "on-hold"
-                    ? "text-yellow-600"
-                    : transaction.type === "stock-transfer"
-                    ? "text-blue-600"
-                    : transaction.type === "warranty-claim"
-                    ? "text-cyan-600"
-                    : transaction.type === "on-hold-paid" ||
-                      transaction.type === "credit-paid"
-                    ? "text-green-600"
-                    : "text-green-500"
+                      ? "text-purple-600"
+                      : transaction.type === "credit"
+                        ? "text-blue-600"
+                        : transaction.type === "on-hold"
+                          ? "text-yellow-600"
+                          : transaction.type === "stock-transfer"
+                            ? "text-blue-600"
+                            : transaction.type === "warranty-claim"
+                              ? "text-cyan-600"
+                              : transaction.type === "on-hold-paid" ||
+                                  transaction.type === "credit-paid"
+                                ? "text-green-600"
+                                : "text-green-500"
                 }`}
               >
                 <div className="flex flex-col items-end">
@@ -310,14 +310,16 @@ const TransactionCard = memo(
                     </span>
                   </div>
                 )}
-                {(transaction.type === "on-hold" || transaction.carPlateNumber) && transaction.carPlateNumber && (
-                  <div>
-                    <span className="text-muted-foreground">Car Plate:</span>
-                    <span className="ml-1.5 sm:ml-2.5 font-medium">
-                      {transaction.carPlateNumber}
-                    </span>
-                  </div>
-                )}
+                {(transaction.type === "on-hold" ||
+                  transaction.carPlateNumber) &&
+                  transaction.carPlateNumber && (
+                    <div>
+                      <span className="text-muted-foreground">Car Plate:</span>
+                      <span className="ml-1.5 sm:ml-2.5 font-medium">
+                        {transaction.carPlateNumber}
+                      </span>
+                    </div>
+                  )}
                 {transaction.notes && (
                   <div>
                     <span className="text-muted-foreground">Notes:</span>
@@ -344,7 +346,7 @@ const TransactionCard = memo(
         </div>
       </Card>
     );
-  }
+  },
 );
 TransactionCard.displayName = "TransactionCard";
 
@@ -355,49 +357,49 @@ function FixedSalesCard({
   transaction: TransactionDisplay | null;
 }) {
   return (
-      <div
-        className={`flex flex-row justify-between p-4 sm:p-5 border shadow-md rounded-md ${
-          !transaction
-            ? "bg-gray-600"
-            : transaction.type === "refund"
+    <div
+      className={`flex flex-row justify-between p-4 sm:p-5 border shadow-md rounded-md ${
+        !transaction
+          ? "bg-gray-600"
+          : transaction.type === "refund"
             ? "bg-red-500"
             : transaction.type === "expense"
-            ? "bg-purple-600"
-            : transaction.type === "credit"
-            ? "bg-blue-600"
-            : transaction.type === "on-hold"
-            ? "bg-yellow-600"
-            : transaction.type === "stock-transfer"
-            ? "bg-blue-600"
-            : transaction.type === "warranty-claim"
-            ? "bg-cyan-600"
-            : transaction.type === "on-hold-paid" ||
-              transaction.type === "credit-paid"
-            ? "bg-green-600"
-            : "bg-green-600"
-        }`}
-      >
+              ? "bg-purple-600"
+              : transaction.type === "credit"
+                ? "bg-blue-600"
+                : transaction.type === "on-hold"
+                  ? "bg-yellow-600"
+                  : transaction.type === "stock-transfer"
+                    ? "bg-blue-600"
+                    : transaction.type === "warranty-claim"
+                      ? "bg-cyan-600"
+                      : transaction.type === "on-hold-paid" ||
+                          transaction.type === "credit-paid"
+                        ? "bg-green-600"
+                        : "bg-green-600"
+      }`}
+    >
       <div className="flex flex-col text-white">
         <div className="text-lg sm:text-xl font-semibold">
           {!transaction
             ? "No transactions"
             : transaction.type === "refund"
-            ? "Refund"
-            : transaction.type === "expense"
-            ? "Expense"
-            : transaction.type === "credit"
-            ? "Credit"
-            : transaction.type === "on-hold"
-            ? "On Hold"
-            : transaction.type === "stock-transfer"
-            ? "Stock Transfer"
-            : transaction.type === "warranty-claim"
-            ? "Warranty Claim"
-            : transaction.type === "on-hold-paid"
-            ? "On-Hold Paid"
-            : transaction.type === "credit-paid"
-            ? "Credit Paid"
-            : "Sale"}
+              ? "Refund"
+              : transaction.type === "expense"
+                ? "Expense"
+                : transaction.type === "credit"
+                  ? "Credit"
+                  : transaction.type === "on-hold"
+                    ? "On Hold"
+                    : transaction.type === "stock-transfer"
+                      ? "Stock Transfer"
+                      : transaction.type === "warranty-claim"
+                        ? "Warranty Claim"
+                        : transaction.type === "on-hold-paid"
+                          ? "On-Hold Paid"
+                          : transaction.type === "credit-paid"
+                            ? "Credit Paid"
+                            : "Sale"}
         </div>
         {transaction && (
           <div className="text-sm sm:text-base opacity-90 mt-1 sm:mt-1.5">
@@ -425,13 +427,19 @@ function Receipt({ transaction }: { transaction: TransactionDisplay | null }) {
 
   // This component is only used as a fallback when receipt generation fails
   // In normal operation, receipts are generated from items_sold in handleViewReceipt
-  const receiptItems: Array<{ id: string; name: string; quantity: number; price: string }> = [];
-  
+  const receiptItems: Array<{
+    id: string;
+    name: string;
+    quantity: number;
+    price: string;
+  }> = [];
+
   // Try to extract item count from transaction.items if available
-  const itemCount = transaction.items && transaction.items.length > 0 
-    ? Number(transaction.items[0].split(" ")[0]) || 0 
-    : 0;
-  
+  const itemCount =
+    transaction.items && transaction.items.length > 0
+      ? Number(transaction.items[0].split(" ")[0]) || 0
+      : 0;
+
   // Generate placeholder items only if we have an item count
   if (itemCount > 0) {
     for (let i = 0; i < Math.min(itemCount, 10); i++) {
@@ -461,12 +469,12 @@ function Receipt({ transaction }: { transaction: TransactionDisplay | null }) {
   // Calculate subtotal after discount
   const subtotalAfterDiscount = subtotalBeforeDiscount - discountAmount;
 
-  // Calculate tax (5%) on subtotal after discount
-  const tax = subtotalAfterDiscount * 0.05;
-
   // Calculate total
-  const total = subtotalAfterDiscount + tax;
-  const totalItemQuantity = receiptItems.reduce((sum, item) => sum + item.quantity, 0);
+  const total = subtotalAfterDiscount;
+  const totalItemQuantity = receiptItems.reduce(
+    (sum, item) => sum + item.quantity,
+    0,
+  );
 
   // Format receipt number from transaction reference
   const receiptNumber = transaction.reference.substring(0, 8);
@@ -622,7 +630,6 @@ function Receipt({ transaction }: { transaction: TransactionDisplay | null }) {
                 <h2>H Automotives</h2>
                 <p>Saham, Sultanate of Oman</p>
                 <p>Ph: 92510750 | 26856848</p>
-                <p>VATIN: OM1100006980</p>
               </div>
               
               <div class="receipt-info">
@@ -652,7 +659,7 @@ function Receipt({ transaction }: { transaction: TransactionDisplay | null }) {
                         parseFloat(item.price) * item.quantity
                       ).toFixed(2)}</td>
                     </tr>
-                  `
+                  `,
                     )
                     .join("")}
                 </tbody>
@@ -664,22 +671,18 @@ function Receipt({ transaction }: { transaction: TransactionDisplay | null }) {
                     <td>Subtotal</td>
                     <td class="total-amount">OMR ${subtotalBeforeDiscount.toFixed(2)}</td>
                   </tr>
-                  ${discountAmount > 0 ? `
+                  ${
+                    discountAmount > 0
+                      ? `
                   <tr class="discount-row">
                     <td>Discount${discountType === "percentage" ? ` (${discountValue}%)` : ""}</td>
                     <td class="total-amount">-OMR ${discountAmount.toFixed(2)}</td>
                   </tr>
-                  ` : ""}
+                  `
+                      : ""
+                  }
                   <tr>
-                    <td>Total w/o VAT</td>
-                    <td class="total-amount">OMR ${subtotalAfterDiscount.toFixed(2)}</td>
-                  </tr>
-                  <tr>
-                    <td>VAT (5%)</td>
-                    <td class="total-amount">OMR ${tax.toFixed(2)}</td>
-                  </tr>
-                  <tr>
-                    <td class="total-label">Total with VAT</td>
+                    <td class="total-label">Total</td>
                     <td class="total-amount">OMR ${total.toFixed(2)}</td>
                   </tr>
                 </table>
@@ -718,7 +721,7 @@ function Receipt({ transaction }: { transaction: TransactionDisplay | null }) {
         // as mobile browsers handle print differently
         if (
           !/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-            navigator.userAgent
+            navigator.userAgent,
           )
         ) {
           printWindow.close();
@@ -734,8 +737,9 @@ function Receipt({ transaction }: { transaction: TransactionDisplay | null }) {
         {receiptItems.length === 0 && (
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
             <p className="text-sm text-yellow-800">
-              <strong>Note:</strong> Receipt details could not be loaded. This is a fallback view.
-              Please try viewing the receipt again, or contact support if the issue persists.
+              <strong>Note:</strong> Receipt details could not be loaded. This
+              is a fallback view. Please try viewing the receipt again, or
+              contact support if the issue persists.
             </p>
           </div>
         )}
@@ -748,7 +752,6 @@ function Receipt({ transaction }: { transaction: TransactionDisplay | null }) {
             <h3 className="font-bold text-lg">H Automotives</h3>
             <p className="text-xs text-gray-500">Saham, Sultanate of Oman</p>
             <p className="text-xs text-gray-500">Ph: 92510750 | 26856848</p>
-            <p className="text-xs text-gray-500">VATIN: OM1100006980</p>
           </div>
 
           <div className="border-t border-b border-dashed py-2 my-2">
@@ -792,21 +795,14 @@ function Receipt({ transaction }: { transaction: TransactionDisplay | null }) {
             {discountAmount > 0 && (
               <div className="flex justify-between text-xs text-green-600 font-semibold">
                 <span>
-                  Discount{discountType === "percentage" ? ` (${discountValue}%)` : ""}
+                  Discount
+                  {discountType === "percentage" ? ` (${discountValue}%)` : ""}
                 </span>
                 <span>-OMR {discountAmount.toFixed(2)}</span>
               </div>
             )}
-            <div className="flex justify-between text-xs">
-              <span>Total w/o VAT</span>
-              <span>OMR {subtotalAfterDiscount.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between text-xs">
-              <span>VAT (5%)</span>
-              <span>OMR {tax.toFixed(2)}</span>
-            </div>
             <div className="flex justify-between text-sm font-bold mt-1">
-              <span>Total with VAT</span>
+              <span>Total</span>
               <span>OMR {total.toFixed(2)}</span>
             </div>
           </div>
@@ -826,7 +822,9 @@ function Receipt({ transaction }: { transaction: TransactionDisplay | null }) {
               <p dir="rtl">شكراً للتسوق معنا</p>
             </div>
             <div className="text-center pt-2 mt-2 border-t border-dashed">
-              <p className="font-medium">WhatsApp {brand?.whatsapp || ""} for latest offers</p>
+              <p className="font-medium">
+                WhatsApp {brand?.whatsapp || ""} for latest offers
+              </p>
               <p className="font-mono mt-1">{receiptNumber}</p>
             </div>
           </div>
@@ -866,17 +864,14 @@ export default function TransactionsPage() {
         // Use fetchShops instead of fetchBranches to get shops
         const { fetchShops } = await import("@/lib/services/inventoryService");
         const allShops = await fetchShops();
-        
+
         // Transform shops to store format
         const shopStores = allShops.map((shop) => ({
           id: shop.id,
           name: shop.displayName || shop.name,
         }));
 
-        setStores([
-          { id: "all-stores", name: "All Stores" },
-          ...shopStores,
-        ]);
+        setStores([{ id: "all-stores", name: "All Stores" }, ...shopStores]);
       } catch (error) {
         console.error("Error loading stores:", error);
         // Fallback to default stores with actual shop UUIDs
@@ -949,7 +944,7 @@ export default function TransactionsPage() {
   // Calculate date range for API based on selectedPeriod and custom date selection
   const dateRange = useMemo(() => {
     const today = new Date();
-    
+
     // If custom date range is selected, use that
     if (date?.from) {
       const start = startOfDay(date.from);
@@ -959,7 +954,7 @@ export default function TransactionsPage() {
         endDate: format(end, "yyyy-MM-dd'T'HH:mm:ss"),
       };
     }
-    
+
     // Otherwise, calculate based on selectedPeriod
     switch (selectedPeriod) {
       case "today": {
@@ -1019,7 +1014,7 @@ export default function TransactionsPage() {
     if (date.to) {
       return `${format(date.from, "MMM d")} - ${format(
         date.to,
-        "MMM d, yyyy"
+        "MMM d, yyyy",
       )}`;
     }
     return format(date.from, "MMM d, yyyy");
@@ -1047,7 +1042,7 @@ export default function TransactionsPage() {
 
       // Use stored notes if available, otherwise compute from transaction type
       let computedNotes: string | undefined;
-      
+
       if (t.notes) {
         // Use stored notes (preferred for stock transfers and other special cases)
         computedNotes = t.notes;
@@ -1087,34 +1082,34 @@ export default function TransactionsPage() {
           t.type === "REFUND"
             ? "refunded"
             : t.type === "EXPENSE"
-            ? "expensed"
-            : t.type === "ON_HOLD"
-            ? "on-hold"
-            : t.type === "ON_HOLD_PAID"
-            ? "completed"
-            : t.type === "CREDIT_PAID"
-            ? "completed"
-            : t.type === "STOCK_TRANSFER"
-            ? "transferred"
-            : "completed",
+              ? "expensed"
+              : t.type === "ON_HOLD"
+                ? "on-hold"
+                : t.type === "ON_HOLD_PAID"
+                  ? "completed"
+                  : t.type === "CREDIT_PAID"
+                    ? "completed"
+                    : t.type === "STOCK_TRANSFER"
+                      ? "transferred"
+                      : "completed",
         type:
           t.type === "REFUND"
             ? "refund"
             : t.type === "EXPENSE"
-            ? "expense"
-            : t.type === "CREDIT"
-            ? "credit"
-            : t.type === "ON_HOLD"
-            ? "on-hold"
-            : t.type === "ON_HOLD_PAID"
-            ? "on-hold-paid"
-            : t.type === "CREDIT_PAID"
-            ? "credit-paid"
-            : t.type === "STOCK_TRANSFER"
-            ? "stock-transfer"
-            : t.type === "WARRANTY_CLAIM"
-            ? "warranty-claim"
-            : "sale",
+              ? "expense"
+              : t.type === "CREDIT"
+                ? "credit"
+                : t.type === "ON_HOLD"
+                  ? "on-hold"
+                  : t.type === "ON_HOLD_PAID"
+                    ? "on-hold-paid"
+                    : t.type === "CREDIT_PAID"
+                      ? "credit-paid"
+                      : t.type === "STOCK_TRANSFER"
+                        ? "stock-transfer"
+                        : t.type === "WARRANTY_CLAIM"
+                          ? "warranty-claim"
+                          : "sale",
         items: [`${t.items_sold?.length || 0} items`],
         customerName: customerName, // Use customer name from joined data
         reference: t.reference_number,
@@ -1145,14 +1140,14 @@ export default function TransactionsPage() {
       transactions = transactions.filter((transaction) => {
         // Find the original API transaction to get created_at timestamp
         const apiTransaction = apiTransactions.find(
-          (t) => t.id === transaction.id
+          (t) => t.id === transaction.id,
         );
         if (!apiTransaction) return true;
-        
+
         // Get the transaction hour from created_at
         const transactionDate = new Date(apiTransaction.created_at);
         const hour = transactionDate.getHours();
-        
+
         if (timeOfDay === "morning") {
           // Morning: 5:00 AM to 4:59 PM (5:00 to 16:59)
           return hour >= 5 && hour < 17;
@@ -1167,7 +1162,7 @@ export default function TransactionsPage() {
     // Apply cashier filter
     if (selectedCashier && selectedCashier !== "all-cashiers") {
       transactions = transactions.filter(
-        (transaction) => transaction.cashier === selectedCashier
+        (transaction) => transaction.cashier === selectedCashier,
       );
     }
 
@@ -1188,7 +1183,14 @@ export default function TransactionsPage() {
         transaction.amount.toString().includes(query)
       );
     });
-  }, [getTransactions, searchQuery, selectedCashier, selectedPeriod, timeOfDay, apiTransactions]);
+  }, [
+    getTransactions,
+    searchQuery,
+    selectedCashier,
+    selectedPeriod,
+    timeOfDay,
+    apiTransactions,
+  ]);
 
   // Calculate total credit (total amount considering sale as positive and refund as negative)
   const totalCredit = useMemo(() => {
@@ -1274,7 +1276,8 @@ export default function TransactionsPage() {
       const tx = data.transaction;
 
       // Check transaction type
-      const isWarrantyClaim = tx.type === "WARRANTY_CLAIM" || transaction.type === "warranty-claim";
+      const isWarrantyClaim =
+        tx.type === "WARRANTY_CLAIM" || transaction.type === "warranty-claim";
 
       // Fetch product names and category/type for items_sold
       // Extract productIds, handling both string and number formats, and normalize to strings
@@ -1284,31 +1287,41 @@ export default function TransactionsPage() {
           // Normalize to string for consistent lookup
           return id ? String(id) : null;
         })
-        .filter((id: string | null) => id && id !== "9999" && id !== "null" && id !== "undefined");
+        .filter(
+          (id: string | null) =>
+            id && id !== "9999" && id !== "null" && id !== "undefined",
+        );
 
       let productNamesMap = new Map<string, string>();
-      let productInfoMap = new Map<string, { category: string; type: string }>(); // Store full product info for battery detection
+      let productInfoMap = new Map<
+        string,
+        { category: string; type: string }
+      >(); // Store full product info for battery detection
       if (productIds.length > 0) {
         try {
           // Fetch products via API route to avoid client-side Supabase issues
-          const productsResponse = await fetch(`/api/products/by-ids?ids=${encodeURIComponent(JSON.stringify(productIds))}`);
-          
+          const productsResponse = await fetch(
+            `/api/products/by-ids?ids=${encodeURIComponent(JSON.stringify(productIds))}`,
+          );
+
           if (productsResponse.ok) {
             const productsData = await productsResponse.json();
             const products = productsData.products || [];
-            
+
             products.forEach((p: any) => {
               const normalizedId = String(p.id);
               const brandName = (p.brandName || "").trim();
               let productName = (p.name || "").trim();
-              
+
               // Remove product ID if it's prepended to the name
               if (productName && normalizedId) {
                 const nameLower = productName.toLowerCase();
                 const idLower = normalizedId.toLowerCase();
-                
+
                 if (nameLower.startsWith(idLower)) {
-                  const afterId = productName.substring(normalizedId.length).trim();
+                  const afterId = productName
+                    .substring(normalizedId.length)
+                    .trim();
                   if (afterId.length > 0 && /^[\s\-_:]/.test(afterId)) {
                     productName = afterId.replace(/^[\s\-_:]+/, "").trim();
                   } else if (afterId.length === 0) {
@@ -1316,7 +1329,7 @@ export default function TransactionsPage() {
                   }
                 }
               }
-              
+
               // Remove volume descriptions/details in parentheses (e.g., "(1L (closed bottle))")
               // Iteratively remove parentheses content until no parentheses remain
               let previousName = "";
@@ -1325,16 +1338,18 @@ export default function TransactionsPage() {
                 // Remove outermost parentheses and their content
                 productName = productName.replace(/\s*\([^()]*\)/g, "").trim();
               }
-              
+
               // Remove any existing brand name from the beginning to avoid duplicates
               if (brandName && productName) {
                 const brandLower = brandName.toLowerCase();
                 const nameLower = productName.toLowerCase();
-                
+
                 // Check if product name starts with brand name (case-insensitive)
                 if (nameLower.startsWith(brandLower)) {
                   // Remove brand name and any separator that follows
-                  const afterBrand = productName.substring(brandName.length).trim();
+                  const afterBrand = productName
+                    .substring(brandName.length)
+                    .trim();
                   if (afterBrand.length > 0 && /^[\s\-]/.test(afterBrand)) {
                     productName = afterBrand.replace(/^[\s\-]+/, "").trim();
                   } else if (afterBrand.length === 0) {
@@ -1343,7 +1358,7 @@ export default function TransactionsPage() {
                   }
                 }
               }
-              
+
               // Format: Brand first, then product name
               let formattedName: string;
               if (brandName && productName) {
@@ -1355,15 +1370,18 @@ export default function TransactionsPage() {
               } else {
                 formattedName = `Product ${normalizedId}`;
               }
-              
+
               productNamesMap.set(normalizedId, formattedName);
-              productInfoMap.set(normalizedId, { 
-                category: p.category || "", 
-                type: p.type || "" 
+              productInfoMap.set(normalizedId, {
+                category: p.category || "",
+                type: p.type || "",
               });
             });
           } else {
-            console.error("Failed to fetch products:", await productsResponse.text());
+            console.error(
+              "Failed to fetch products:",
+              await productsResponse.text(),
+            );
           }
         } catch (err) {
           console.error("Error fetching product names:", err);
@@ -1375,7 +1393,7 @@ export default function TransactionsPage() {
       const cart = (tx.items_sold || []).map((item: any, index: number) => {
         // Normalize productId to string for consistent lookup
         const productId = String(item.productId || item.product_id || "");
-        
+
         // Get product name from map, with proper fallback
         let productName: string;
         if (productId === "9999" || productId === "") {
@@ -1384,26 +1402,31 @@ export default function TransactionsPage() {
           // Ensure we're using normalized productId for lookup
           const normalizedProductId = String(productId).trim();
           productName = productNamesMap.get(normalizedProductId);
-          
+
           if (!productName) {
             // Debug: log when product name is not found
-            console.warn(`Product name not found for productId: ${normalizedProductId}`, {
-              availableIds: Array.from(productNamesMap.keys()),
-              itemData: item
-            });
-            
+            console.warn(
+              `Product name not found for productId: ${normalizedProductId}`,
+              {
+                availableIds: Array.from(productNamesMap.keys()),
+                itemData: item,
+              },
+            );
+
             // Fallback: try to extract name from item if available
             productName = item.name || item.productName;
-            
+
             // If we got a name from item, clean it
             if (productName) {
               // Clean the name if it contains the product ID
               if (productName.includes(normalizedProductId)) {
-                productName = productName.replace(new RegExp(normalizedProductId, "gi"), "").trim();
+                productName = productName
+                  .replace(new RegExp(normalizedProductId, "gi"), "")
+                  .trim();
                 productName = productName.replace(/^[\s\-_:]+/, "").trim();
               }
             }
-            
+
             // Final fallback
             if (!productName || productName === normalizedProductId) {
               productName = `Product ${normalizedProductId}`;
@@ -1416,9 +1439,11 @@ export default function TransactionsPage() {
         uniqueIdToProductIdMap.set(uniqueId, productId);
 
         const rawDetails = item.volumeDescription || item.volume_description;
-        const finalDetails = (rawDetails && rawDetails.trim().toLowerCase() !== productName.trim().toLowerCase()) 
-          ? rawDetails 
-          : undefined;
+        const finalDetails =
+          rawDetails &&
+          rawDetails.trim().toLowerCase() !== productName.trim().toLowerCase()
+            ? rawDetails
+            : undefined;
 
         return {
           id: index + 1,
@@ -1436,7 +1461,8 @@ export default function TransactionsPage() {
 
         // Filter out discount items
         const actualProductItems = cart.filter(
-          (item) => !item.name.toLowerCase().includes("discount on old battery")
+          (item) =>
+            !item.name.toLowerCase().includes("discount on old battery"),
         );
 
         if (actualProductItems.length === 0) return false;
@@ -1452,11 +1478,13 @@ export default function TransactionsPage() {
           // Get productId from mapping
           const productId = uniqueIdToProductIdMap.get(item.uniqueId);
           if (!productId) return false;
-          
+
           const productInfo = productInfoMap.get(productId);
           if (!productInfo) return false;
-          
-          return productInfo.category === "Parts" && isBatteryType(productInfo.type);
+
+          return (
+            productInfo.category === "Parts" && isBatteryType(productInfo.type)
+          );
         });
       };
 
@@ -1477,7 +1505,8 @@ export default function TransactionsPage() {
       }
 
       // Parse discount
-      let discount: { type: "percentage" | "amount"; value: number } | null = null;
+      let discount: { type: "percentage" | "amount"; value: number } | null =
+        null;
       if (tx.discount_type && tx.discount_amount) {
         discount = {
           type: tx.discount_type as "percentage" | "amount",
@@ -1495,7 +1524,11 @@ export default function TransactionsPage() {
           billNumber: tx.reference_number || transaction.reference,
           currentDate,
           currentTime,
-          customerName: tx.customers?.name || tx.car_plate_number || transaction.customerName || "Guest",
+          customerName:
+            tx.customers?.name ||
+            tx.car_plate_number ||
+            transaction.customerName ||
+            "Guest",
           cashier: cashierName,
           appliedDiscount: discount,
           appliedTradeInAmount: undefined, // TODO: Calculate from trade-in transactions if needed
@@ -1656,7 +1689,7 @@ export default function TransactionsPage() {
                     size="default"
                     className={cn(
                       "w-[240px] justify-start text-left font-normal",
-                      !date && "text-muted-foreground"
+                      !date && "text-muted-foreground",
                     )}
                   >
                     <CalendarRange className="mr-2 h-4 w-4" />
@@ -1804,8 +1837,8 @@ export default function TransactionsPage() {
               {selectedTransaction?.type === "refund"
                 ? "Refund"
                 : selectedTransaction?.type === "expense"
-                ? "Expense"
-                : "Sale"}{" "}
+                  ? "Expense"
+                  : "Sale"}{" "}
               Receipt
             </DialogTitle>
             <Button
@@ -1823,7 +1856,10 @@ export default function TransactionsPage() {
       </Dialog>
 
       {/* Receipt Preview Dialog - Using ReceiptComponent from POS */}
-      <Dialog open={isReceiptPreviewOpen} onOpenChange={setIsReceiptPreviewOpen}>
+      <Dialog
+        open={isReceiptPreviewOpen}
+        onOpenChange={setIsReceiptPreviewOpen}
+      >
         <DialogContent className="w-[95%] max-w-[520px] p-4 rounded-lg max-h-[90vh] overflow-auto">
           <DialogHeader>
             <DialogTitle className="text-center text-xl">
@@ -1854,7 +1890,9 @@ export default function TransactionsPage() {
         <DialogContent className="w-[95%] max-w-[520px] p-4 rounded-lg max-h-[90vh] overflow-auto">
           <DialogHeader>
             <DialogTitle className="text-center text-xl">
-              {billTransactionData?.isWarrantyClaim ? "Warranty Claim Certificate" : "Battery Bill Preview"}
+              {billTransactionData?.isWarrantyClaim
+                ? "Warranty Claim Certificate"
+                : "Battery Bill Preview"}
             </DialogTitle>
           </DialogHeader>
 

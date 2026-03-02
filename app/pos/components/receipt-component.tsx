@@ -67,7 +67,7 @@ export const ReceiptComponent = ({
   const handlePrint = useCallback(() => {
     const subtotal = cart.reduce(
       (sum, item) => sum + item.price * item.quantity,
-      0
+      0,
     );
 
     const discountAmount = localDiscount
@@ -76,9 +76,7 @@ export const ReceiptComponent = ({
         : Math.min(localDiscount.value, subtotal)
       : 0;
 
-    // Calculate VAT (5%)
-    const vat = (subtotal - discountAmount) * 0.05;
-    const total = subtotal - discountAmount + vat;
+    const total = subtotal - discountAmount;
 
     const htmlContent = `
       <!DOCTYPE html>
@@ -256,21 +254,27 @@ export const ReceiptComponent = ({
                     <td class="description" colspan="4">${(() => {
                       // Clean up name by removing bottle info if present
                       let cleanName = item.name
-                        .replace(/\s*\(?(\d+(\.\d+)?[Ll])\s+(open|closed)\s+bottle\)?/i, "") // Remove "(1L closed bottle)" or similar
+                        .replace(
+                          /\s*\(?(\d+(\.\d+)?[Ll])\s+(open|closed)\s+bottle\)?/i,
+                          "",
+                        ) // Remove "(1L closed bottle)" or similar
                         .replace(/\s*\(?(open|closed)\s+bottle\)?/i, "") // Remove "(open bottle)" etc
                         .trim();
-                      
+
                       // Clean up details similarly
-                      let cleanDetails = item.details 
+                      let cleanDetails = item.details
                         ? item.details
-                            .replace(/\s*\(?(\d+(\.\d+)?[Ll])\s+(open|closed)\s+bottle\)?/i, "$1") // Keep size e.g. "1L"
+                            .replace(
+                              /\s*\(?(\d+(\.\d+)?[Ll])\s+(open|closed)\s+bottle\)?/i,
+                              "$1",
+                            ) // Keep size e.g. "1L"
                             .replace(/\s*\(?(open|closed)\s+bottle\)?/i, "")
                             .trim()
                         : "";
-                      
+
                       // Combine carefully
                       if (cleanDetails && !cleanName.includes(cleanDetails)) {
-                         return `${cleanName} (${cleanDetails})`;
+                        return `${cleanName} (${cleanDetails})`;
                       }
                       return cleanName;
                     })()}</td>
@@ -285,7 +289,7 @@ export const ReceiptComponent = ({
                     <td class="qty">(x${item.quantity})</td>
                     <td class="amount">${(item.price * item.quantity).toFixed(3)}</td>
                   </tr>
-                `
+                `,
                   )
                   .join("")}
               </tbody>
@@ -294,7 +298,7 @@ export const ReceiptComponent = ({
             <div class="receipt-summary">
               <table>
                 <tr>
-                  <td>Total w/o VAT</td>
+                  <td class="total-label">Subtotal</td>
                   <td class="total-amount">OMR ${subtotal.toFixed(3)}</td>
                 </tr>
                 ${
@@ -311,12 +315,8 @@ export const ReceiptComponent = ({
                     : ""
                 }
                 <tr>
-                  <td>VAT (5%)</td>
-                  <td class="total-amount">OMR ${vat.toFixed(3)}</td>
-                </tr>
-                <tr>
-                  <td class="total-label">Total with VAT</td>
-                  <td class="total-amount">OMR ${total.toFixed(3)}</td>
+                  <td class="total-label" style="border-top: 1px solid #000; padding-top: 5px;">Total</td>
+                  <td class="total-amount" style="border-top: 1px solid #000; padding-top: 5px; font-size: 14px;">OMR ${total.toFixed(3)}</td>
                 </tr>
               </table>
             </div>
@@ -324,7 +324,7 @@ export const ReceiptComponent = ({
             <div class="receipt-footer">
               <p>Number of Items: ${cart.reduce(
                 (sum, item) => sum + item.quantity,
-                0
+                0,
               )}</p>
               <p>Payment Method: ${
                 paymentMethod.charAt(0).toUpperCase() + paymentMethod.slice(1)
@@ -364,7 +364,7 @@ export const ReceiptComponent = ({
         // as mobile browsers handle print differently
         if (
           !/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-            navigator.userAgent
+            navigator.userAgent,
           )
         ) {
           printWindow.close();
@@ -388,7 +388,7 @@ export const ReceiptComponent = ({
 
   const subtotal = cart.reduce(
     (sum, item) => sum + item.price * item.quantity,
-    0
+    0,
   );
 
   const discountAmount = localDiscount
@@ -397,9 +397,7 @@ export const ReceiptComponent = ({
       : Math.min(localDiscount.value, subtotal)
     : 0;
 
-  // Calculate VAT (5%)
-  const vat = (subtotal - discountAmount) * 0.05;
-  const total = subtotal - discountAmount + vat;
+  const total = subtotal - discountAmount;
   const itemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   const getFormattedPaymentMethod = (method: string) => {
@@ -463,30 +461,39 @@ export const ReceiptComponent = ({
             </div>
 
             {cart.map((item, index) => (
-              <div key={item.uniqueId} className="grid grid-cols-12 gap-1 mb-1 text-foreground">
+              <div
+                key={item.uniqueId}
+                className="grid grid-cols-12 gap-1 mb-1 text-foreground"
+              >
                 <span className="col-span-1">{index + 1}</span>
                 <span className="col-span-2">(x{item.quantity})</span>
                 <span className="col-span-5 break-words">
                   {(() => {
-                      // Clean up name by removing bottle info if present
-                      let cleanName = item.name
-                        .replace(/\s*\(?(\d+(\.\d+)?[Ll])\s+(open|closed)\s+bottle\)?/i, "") // Remove "(1L closed bottle)" or similar
-                        .replace(/\s*\(?(open|closed)\s+bottle\)?/i, "") // Remove "(open bottle)" etc
-                        .trim();
-                      
-                      // Clean up details similarly
-                      let cleanDetails = item.details 
-                        ? item.details
-                            .replace(/\s*\(?(\d+(\.\d+)?[Ll])\s+(open|closed)\s+bottle\)?/i, "$1") // Keep size e.g. "1L"
-                            .replace(/\s*\(?(open|closed)\s+bottle\)?/i, "")
-                            .trim()
-                        : "";
-                      
-                      // Combine carefully
-                      if (cleanDetails && !cleanName.includes(cleanDetails)) {
-                         return `${cleanName} (${cleanDetails})`;
-                      }
-                      return cleanName;
+                    // Clean up name by removing bottle info if present
+                    let cleanName = item.name
+                      .replace(
+                        /\s*\(?(\d+(\.\d+)?[Ll])\s+(open|closed)\s+bottle\)?/i,
+                        "",
+                      ) // Remove "(1L closed bottle)" or similar
+                      .replace(/\s*\(?(open|closed)\s+bottle\)?/i, "") // Remove "(open bottle)" etc
+                      .trim();
+
+                    // Clean up details similarly
+                    let cleanDetails = item.details
+                      ? item.details
+                          .replace(
+                            /\s*\(?(\d+(\.\d+)?[Ll])\s+(open|closed)\s+bottle\)?/i,
+                            "$1",
+                          ) // Keep size e.g. "1L"
+                          .replace(/\s*\(?(open|closed)\s+bottle\)?/i, "")
+                          .trim()
+                      : "";
+
+                    // Combine carefully
+                    if (cleanDetails && !cleanName.includes(cleanDetails)) {
+                      return `${cleanName} (${cleanDetails})`;
+                    }
+                    return cleanName;
                   })()}
                 </span>
                 <span className="col-span-2 text-right">
@@ -501,7 +508,7 @@ export const ReceiptComponent = ({
 
           <div className="border-t border-dashed pt-2 mb-3">
             <div className="flex justify-between text-[11px] sm:text-xs">
-              <span>Total w/o VAT</span>
+              <span className="font-medium">Subtotal</span>
               <span>OMR {subtotal.toFixed(3)}</span>
             </div>
             {localDiscount && (
@@ -569,6 +576,3 @@ export const ReceiptComponent = ({
     </motion.div>
   );
 };
-
-
-

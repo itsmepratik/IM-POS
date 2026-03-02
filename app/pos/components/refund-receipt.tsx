@@ -72,7 +72,7 @@ export const RefundReceipt: React.FC<RefundReceiptProps> = ({
   const isOnlyBatteryItems = items.every(
     (item) =>
       item.name.toLowerCase().includes("battery") ||
-      (item.uniqueId && item.uniqueId.includes("battery"))
+      (item.uniqueId && item.uniqueId.includes("battery")),
   );
 
   // Format item name with details
@@ -115,15 +115,14 @@ export const RefundReceipt: React.FC<RefundReceiptProps> = ({
     return "other";
   };
 
-  // Calculate subtotal (same as refund amount, but we'll use it for VAT calculation)
-  const subtotal = refundAmount / 1.05; // Remove 5% VAT
-  const vat = refundAmount - subtotal; // 5% of subtotal
+  // Calculate subtotal
+  const subtotal = refundAmount;
 
   // Generate HTML for print window with product type-specific formatting
   const generateReceiptHTML = () => {
     // Filter out discount items from display
     const displayItems = items.filter(
-      (item) => !item.name.toLowerCase().includes("discount")
+      (item) => !item.name.toLowerCase().includes("discount"),
     );
 
     return `
@@ -208,7 +207,7 @@ export const RefundReceipt: React.FC<RefundReceiptProps> = ({
                 <tr class="row-top">
                   <td class="sno">${index + 1}</td>
                   <td class="description" colspan="4">${formatItemName(
-                    item
+                    item,
                   )}</td>
                   <td class="price" style="display:none;"></td>
                   <td class="qty" style="display:none;"></td>
@@ -220,10 +219,10 @@ export const RefundReceipt: React.FC<RefundReceiptProps> = ({
                   <td class="price">${item.price.toFixed(3)}</td>
                   <td class="qty">(x${item.quantity})</td>
                   <td class="amount">${(item.price * item.quantity).toFixed(
-                    3
+                    3,
                   )}</td>
                 </tr>
-              `
+              `,
                 )
                 .join("")}
             </tbody>
@@ -234,13 +233,13 @@ export const RefundReceipt: React.FC<RefundReceiptProps> = ({
           <div class="receipt-summary">
             <table>
               <tr>
-                <td>Total w/o VAT</td>
+                <td class="total-label">Subtotal</td>
                 <td class="total-amount">OMR ${subtotal.toFixed(3)}</td>
               </tr>
               <tr>
                 <td class="total-label">TOTAL REFUND</td>
-                <td class="total-amount" style="color: #D9534F;">OMR ${refundAmount.toFixed(
-                  3
+                <td class="total-amount" style="color: #D9534F; font-size: 14px; border-top: 1px solid #000; padding-top: 5px;">OMR ${refundAmount.toFixed(
+                  3,
                 )}</td>
               </tr>
             </table>
@@ -249,7 +248,7 @@ export const RefundReceipt: React.FC<RefundReceiptProps> = ({
           <div class="receipt-footer">
             <p>Number of Items: ${displayItems.reduce(
               (sum, item) => sum + item.quantity,
-              0
+              0,
             )}</p>
             ${cashier ? `<p>Cashier: ${cashier}</p>` : ""}
             <p>Thank you for shopping with us.</p>
@@ -281,7 +280,7 @@ export const RefundReceipt: React.FC<RefundReceiptProps> = ({
              try { window.focus(); window.print(); } catch (e) { }
            }, 300);
          };
-       <\/script></body>`
+       <\/script></body>`,
     );
 
     printWindow.document.open();
@@ -308,7 +307,7 @@ export const RefundReceipt: React.FC<RefundReceiptProps> = ({
 
   // Filter out discount items from preview display
   const displayItems = items.filter(
-    (item) => !item.name.toLowerCase().includes("discount")
+    (item) => !item.name.toLowerCase().includes("discount"),
   );
 
   // Calculate the number of items
@@ -393,10 +392,10 @@ export const RefundReceipt: React.FC<RefundReceiptProps> = ({
 
         <div className="border-t border-dashed pt-2 mb-3">
           <div className="flex justify-between text-xs">
-            <span>Total w/o VAT</span>
+            <span className="font-medium">Subtotal</span>
             <span>OMR {subtotal.toFixed(3)}</span>
           </div>
-          <div className="flex justify-between text-xs font-bold text-red-600">
+          <div className="flex justify-between text-sm font-bold text-red-600 border-t border-solid border-red-200 mt-1 pt-1">
             <span>Total Refund</span>
             <span>OMR {refundAmount.toFixed(3)}</span>
           </div>

@@ -10,7 +10,7 @@ import { parseVolumeString } from "@/lib/utils/volume-parser";
 
 interface UseLubricantVolumeProps {
   addToCart: (
-    product: { id: number; name: string; price: number },
+    product: { id: number; name: string; price: number; brand?: string },
     details?: string,
     quantity?: number,
     source?: string,
@@ -239,7 +239,7 @@ export function useLubricantVolume({
               };
 
               const alertParams = createLubricantVolumeAlert({
-                productId: selectedOil.id,
+                productId: selectedOil.id.toString(),
                 productName: selectedOil.name,
                 availableVolume: availableVolume,
                 attemptedVolume: newTotal,
@@ -281,7 +281,12 @@ export function useLubricantVolume({
         const source = volume.bottleType === "open" ? "OPEN" : "CLOSED";
 
         addToCart(
-          { id: selectedOil.id, name: fullDisplayName, price: volume.price },
+          {
+            id: selectedOil.id,
+            name: selectedOil.name, // Pass the original name, CartContext will handle brand prepending
+            price: volume.price,
+            brand: selectedOil.brand,
+          },
           details,
           volume.quantity,
           source,

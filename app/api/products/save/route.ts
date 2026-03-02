@@ -64,7 +64,7 @@ export async function POST(req: Request) {
       if (categoryError || !categoryData) {
         return NextResponse.json(
           { error: "Invalid category_id" },
-          { status: 400 }
+          { status: 400 },
         );
       }
       category = categoryData;
@@ -80,7 +80,7 @@ export async function POST(req: Request) {
       if (productError || !existingProduct) {
         return NextResponse.json(
           { error: "Product not found" },
-          { status: 404 }
+          { status: 404 },
         );
       }
 
@@ -89,7 +89,7 @@ export async function POST(req: Request) {
     } else {
       return NextResponse.json(
         { error: "category_id is required for new products" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -140,7 +140,7 @@ export async function POST(req: Request) {
         console.error("Error hint:", updateError.hint);
         return NextResponse.json(
           { error: `Failed to update product: ${updateError.message}` },
-          { status: 500 }
+          { status: 500 },
         );
       }
     } else {
@@ -180,7 +180,7 @@ export async function POST(req: Request) {
         console.error("Error creating product:", insertError);
         return NextResponse.json(
           { error: "Failed to create product" },
-          { status: 500 }
+          { status: 500 },
         );
       }
       productId = insertedProduct.id;
@@ -200,8 +200,11 @@ export async function POST(req: Request) {
     };
 
     if (isLubricant) {
-      invValues.open_bottles_stock = body.open_bottles_stock ?? 0;
-      invValues.closed_bottles_stock = body.closed_bottles_stock ?? 0;
+      const open = body.open_bottles_stock ?? 0;
+      const closed = body.closed_bottles_stock ?? 0;
+      invValues.open_bottles_stock = open;
+      invValues.closed_bottles_stock = closed;
+      invValues.standard_stock = open + closed;
       invValues.selling_price = null; // Prices are in product_volumes for lubricants
     } else {
       invValues.standard_stock = body.standard_stock ?? 0;
@@ -222,7 +225,7 @@ export async function POST(req: Request) {
         console.error("Error updating inventory:", updateInvError);
         return NextResponse.json(
           { error: "Failed to update inventory" },
-          { status: 500 }
+          { status: 500 },
         );
       }
       inventoryId = existingInv.id;
@@ -238,7 +241,7 @@ export async function POST(req: Request) {
         console.error("Error creating inventory:", insertInvError);
         return NextResponse.json(
           { error: "Failed to create inventory" },
-          { status: 500 }
+          { status: 500 },
         );
       }
       inventoryId = insertedInv.id;
@@ -247,7 +250,6 @@ export async function POST(req: Request) {
     // 3) Lubricant volumes upsert - now with proper upsert logic
 
     if (isLubricant && body.volumes && body.volumes.length > 0) {
-
       // Get existing volumes to determine what to update/insert/delete
       const { data: existingVolumes, error: fetchVolumesError } = await supabase
         .from("product_volumes")
@@ -258,7 +260,7 @@ export async function POST(req: Request) {
         console.error("❌ Error fetching existing volumes:", fetchVolumesError);
         return NextResponse.json(
           { error: "Failed to fetch existing volumes" },
-          { status: 500 }
+          { status: 500 },
         );
       }
 
@@ -290,7 +292,7 @@ export async function POST(req: Request) {
               console.error("❌ Error updating volume:", updateError);
               return NextResponse.json(
                 { error: "Failed to update product volume" },
-                { status: 500 }
+                { status: 500 },
               );
             }
           } else {
@@ -309,7 +311,7 @@ export async function POST(req: Request) {
             console.error("❌ Error inserting volume:", insertError);
             return NextResponse.json(
               { error: "Failed to insert product volume" },
-              { status: 500 }
+              { status: 500 },
             );
           }
         }
@@ -369,20 +371,20 @@ export async function POST(req: Request) {
         .eq("name", body.type)
         .eq("category_id", body.category_id || category?.id) // Constrain to category if possible
         .maybeSingle();
-      
+
       if (typeData) {
         typeIdToLink = typeData.id;
       } else {
-         // Fallback: try finding type by name globally (if category mismatch)
-         const { data: globalTypeData } = await supabase
+        // Fallback: try finding type by name globally (if category mismatch)
+        const { data: globalTypeData } = await supabase
           .from("types")
           .select("id")
           .eq("name", body.type)
           .maybeSingle();
-          
-          if (globalTypeData) {
-            typeIdToLink = globalTypeData.id;
-          }
+
+        if (globalTypeData) {
+          typeIdToLink = globalTypeData.id;
+        }
       }
     }
 
@@ -391,7 +393,7 @@ export async function POST(req: Request) {
       // Since we currently assume 1 main type per product for the UI, we can delete existing and insert new
       // Or use upsert if we want to add.
       // For "Save" form behavior, replacing is usually safer behavior to avoid accumulating wrong types.
-      
+
       // 1. Delete existing types for this product (to enforce single type behavior for now)
       // If we support multiple types in UI later, we would adjust this.
       await supabase.from("product_types").delete().eq("product_id", productId);
@@ -401,9 +403,9 @@ export async function POST(req: Request) {
         .from("product_types")
         .insert({
           product_id: productId,
-          type_id: typeIdToLink
+          type_id: typeIdToLink,
         });
-        
+
       if (typeLinkError) {
         console.error("Error linking product type:", typeLinkError);
         // Continue, don't break flow, but log it.

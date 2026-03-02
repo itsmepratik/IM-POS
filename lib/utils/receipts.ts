@@ -65,19 +65,12 @@ export function generateThermalReceipt(data: ReceiptData): string {
   const POS_ID = posId || DEFAULT_COMPANY_INFO.brand.posId || "A0054";
 
   // Calculate subtotal from items if not provided
-  const subtotal = subtotalBeforeDiscount ?? items.reduce(
-    (sum, item) => sum + item.sellingPrice * item.quantity,
-    0
-  );
+  const subtotal =
+    subtotalBeforeDiscount ??
+    items.reduce((sum, item) => sum + item.sellingPrice * item.quantity, 0);
 
   // Calculate discount amount
   const discountAmount = discount?.amount || 0;
-
-  // Calculate VAT (5%)
-  const vat = (subtotal - discountAmount) * 0.05;
-
-  // Calculate total with VAT
-  const total = parseFloat(totalAmount);
 
   // Calculate total item quantity
   const totalItemQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
@@ -286,7 +279,7 @@ export function generateThermalReceipt(data: ReceiptData): string {
                 <td class="qty">(x${item.quantity})</td>
                 <td class="amount">${(item.sellingPrice * item.quantity).toFixed(3)}</td>
               </tr>
-            `
+            `,
               )
               .join("")}
           </tbody>
@@ -295,7 +288,7 @@ export function generateThermalReceipt(data: ReceiptData): string {
         <div class="receipt-summary">
           <table>
             <tr>
-              <td>Total w/o VAT</td>
+              <td class="total-label">Subtotal</td>
               <td class="total-amount">OMR ${subtotal.toFixed(3)}</td>
             </tr>
             ${
@@ -312,12 +305,8 @@ export function generateThermalReceipt(data: ReceiptData): string {
                 : ""
             }
             <tr>
-              <td>VAT (5%)</td>
-              <td class="total-amount">OMR ${vat.toFixed(3)}</td>
-            </tr>
-            <tr>
-              <td class="total-label">Total with VAT</td>
-              <td class="total-amount">OMR ${total.toFixed(3)}</td>
+              <td class="total-label" style="border-top: 1px solid #000; padding-top: 5px;">Total</td>
+              <td class="total-amount" style="border-top: 1px solid #000; padding-top: 5px; font-size: 14px;">OMR ${totalAmount}</td>
             </tr>
           </table>
         </div>
@@ -361,12 +350,11 @@ export function generateBatteryBill(data: ReceiptData): string {
     time,
     carPlateNumber,
   } = data;
-  
+
   // Calculate subtotal from items if not provided
-  const subtotal = subtotalBeforeDiscount ?? items.reduce(
-    (sum, item) => sum + item.sellingPrice * item.quantity,
-    0
-  );
+  const subtotal =
+    subtotalBeforeDiscount ??
+    items.reduce((sum, item) => sum + item.sellingPrice * item.quantity, 0);
 
   return `
     <!DOCTYPE html>
@@ -491,7 +479,7 @@ export function generateBatteryBill(data: ReceiptData): string {
               item.sellingPrice * item.quantity
             ).toFixed(3)}</span>
           </div>
-        `
+        `,
           )
           .join("")}
         
@@ -509,10 +497,10 @@ export function generateBatteryBill(data: ReceiptData): string {
                   tradeIn.quantity
                 }</span>
                 <span class="item-price">-OMR ${tradeIn.tradeInValue.toFixed(
-                  3
+                  3,
                 )}</span>
               </div>
-            `
+            `,
               )
               .join("")}
           </div>
@@ -520,8 +508,9 @@ export function generateBatteryBill(data: ReceiptData): string {
             : ""
         }
         
-        ${discount && discount.amount > 0
-          ? `
+        ${
+          discount && discount.amount > 0
+            ? `
           <div class="separator"></div>
           <div class="discount">
             <h4>Discount Applied:</h4>
@@ -535,37 +524,40 @@ export function generateBatteryBill(data: ReceiptData): string {
             </div>
           </div>
         `
-          : ""
+            : ""
         }
       </div>
       
       <div class="total">
-        ${discount && discount.amount > 0 || (tradeIns && tradeIns.length > 0)
-          ? `
+        ${
+          (discount && discount.amount > 0) || (tradeIns && tradeIns.length > 0)
+            ? `
         <div class="summary-row">
           <span>Subtotal:</span>
           <span>OMR ${subtotal.toFixed(3)}</span>
         </div>
-        ${discount && discount.amount > 0
-          ? `
+        ${
+          discount && discount.amount > 0
+            ? `
         <div class="summary-row" style="color: #15803d;">
           <span>Discount ${discount.type === "percentage" ? `(${discount.value}%)` : ""}:</span>
           <span>-OMR ${discount.amount.toFixed(3)}</span>
         </div>
         `
-          : ""
+            : ""
         }
-        ${tradeIns && tradeIns.length > 0
-          ? `
+        ${
+          tradeIns && tradeIns.length > 0
+            ? `
         <div class="summary-row">
           <span>Trade-in:</span>
           <span>-OMR ${tradeIns.reduce((sum, ti) => sum + ti.tradeInValue, 0).toFixed(3)}</span>
         </div>
         `
-          : ""
+            : ""
         }
         `
-          : ""
+            : ""
         }
         <div class="item" style="margin-top: 10px; border-top: 2px solid #000; padding-top: 10px;">
           <span><strong>TOTAL AMOUNT:</strong></span>

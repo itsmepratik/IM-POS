@@ -7,7 +7,7 @@ import { useToast } from "@/components/ui/use-toast";
 interface UseFiltersProps {
   products: Product[];
   addToCart: (
-    product: { id: number; name: string; price: number },
+    product: { id: number; name: string; price: number; brand?: string },
     details?: string,
     quantity?: number,
     source?: string,
@@ -40,7 +40,13 @@ export function useFilters({
     null,
   );
   const [selectedFilters, setSelectedFilters] = useState<
-    Array<{ id: number; name: string; price: number; quantity: number }>
+    Array<{
+      id: number;
+      name: string;
+      price: number;
+      quantity: number;
+      brand?: string;
+    }>
   >([]);
 
   /** Get filter products by type */
@@ -85,7 +91,7 @@ export function useFilters({
             f.id === filter.id ? { ...f, quantity: f.quantity + 1 } : f,
           );
         }
-        return [...prev, { ...filter, quantity: 1 }];
+        return [...prev, { ...filter, quantity: 1, brand: filter.brand }];
       });
     },
     [toast, calculateCartCount],
@@ -155,6 +161,7 @@ export function useFilters({
           id: filter.id,
           name: filter.name,
           price: filter.price,
+          brand: filter.brand,
         },
         undefined,
         filter.quantity,

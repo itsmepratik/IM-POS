@@ -499,8 +499,8 @@ export const fetchInventoryItems = async (
         // Calculate final stock value
         const finalStock = isOilProduct
           ? batchStock !== null
-            ? batchStock
-            : inv.total_stock || inv.standard_stock || 0
+            ? batchStock + derivedOpenBottles
+            : inv.standard_stock || 0
           : batchStock !== null
             ? batchStock
             : inv.standard_stock || 0;
@@ -802,8 +802,8 @@ export const fetchItems = async (
         // For Others: Use batchStock (Total Units) if available, otherwise standard_stock
         const totalStock = isOilProduct
           ? batchStock !== null
-            ? batchStock
-            : inv.total_stock || inv.standard_stock || 0
+            ? batchStock + derivedOpenBottles
+            : inv.standard_stock || 0
           : batchStock !== null
             ? batchStock
             : inv.standard_stock || 0;

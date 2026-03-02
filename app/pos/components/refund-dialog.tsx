@@ -26,7 +26,14 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Search, ArrowLeft, Check, AlertCircle, Printer, X } from "lucide-react";
+import {
+  Search,
+  ArrowLeft,
+  Check,
+  AlertCircle,
+  Printer,
+  X,
+} from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
@@ -74,7 +81,7 @@ interface RefundDialogProps {
 // Helper function to parse items_sold from transaction
 // Helper function to fetch product names by IDs from Supabase directly
 const fetchProductNames = async (
-  productIds: string[]
+  productIds: string[],
 ): Promise<Map<string, string>> => {
   if (productIds.length === 0) return new Map();
 
@@ -113,8 +120,17 @@ const fetchProductNames = async (
 
 // Helper function to fetch product details with category and type for battery validation
 const fetchProductDetails = async (
-  productIds: string[]
-): Promise<Map<string, { categoryName: string | null; productType: string | null; typeName: string | null }>> => {
+  productIds: string[],
+): Promise<
+  Map<
+    string,
+    {
+      categoryName: string | null;
+      productType: string | null;
+      typeName: string | null;
+    }
+  >
+> => {
   if (productIds.length === 0) return new Map();
 
   try {
@@ -125,13 +141,15 @@ const fetchProductDetails = async (
     // Query products table with category and type information
     const { data: productsData, error } = await supabase
       .from("products")
-      .select(`
+      .select(
+        `
         id,
         product_types(
           types(name)
         ),
         categories(name)
-      `)
+      `,
+      )
       .in("id", productIds);
 
     if (error) {
@@ -157,7 +175,6 @@ const fetchProductDetails = async (
 };
 
 async function parseTransactionItems(items: any[]): Promise<CartItem[]> {
-
   // Extract product IDs that need name lookup
   const productIds = items
     .map((item: any) => {
@@ -185,7 +202,7 @@ async function parseTransactionItems(items: any[]): Promise<CartItem[]> {
     // This is critical for matching during refunds
     const volumeDescription = item.volumeDescription || item.volume_description;
     const fetchedName = productNameMap.get(productId);
-    
+
     // Priority: volumeDescription > name > productName > fetchedName
     // For lubricants, volumeDescription is usually "Product Name - Size" (e.g., "Shell 20W-50 - 1L")
     const itemName =
@@ -199,7 +216,7 @@ async function parseTransactionItems(items: any[]): Promise<CartItem[]> {
     const itemPrice = item.price || item.sellingPrice || 0;
     const itemQuantity = item.quantity || 1;
     const itemId = item.id || item.productId || index;
-    
+
     // Preserve original productId for matching purposes
     const originalProductId = item.productId || item.product_id || item.id;
 
@@ -261,7 +278,8 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
     email?: string;
     phone?: string;
   } | null>(null);
-  const [refundReferenceNumber, setRefundReferenceNumber] = useState<string>("");
+  const [refundReferenceNumber, setRefundReferenceNumber] =
+    useState<string>("");
 
   // Calculate refund amount
   const refundAmount =
@@ -285,8 +303,8 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
       // Call the transactions API to find the receipt
       const response = await fetch(
         `/api/transactions/fetch?referenceNumber=${encodeURIComponent(
-          receiptNumber.trim()
-        )}`
+          receiptNumber.trim(),
+        )}`,
       );
 
       const data = await response.json();
@@ -296,7 +314,7 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
         throw new Error(
           data.details ||
             data.error ||
-            `Failed to fetch transaction: ${response.statusText}`
+            `Failed to fetch transaction: ${response.statusText}`,
         );
       }
 
@@ -314,7 +332,7 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
 
       // Convert the transaction to Receipt format for the UI
       const parsedItems = await parseTransactionItems(
-        transaction.items_sold || []
+        transaction.items_sold || [],
       );
       const receiptData: Receipt = {
         receiptNumber: transaction.reference_number,
@@ -366,7 +384,7 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
     setSelectedItems((prev) =>
       prev.includes(uniqueId)
         ? prev.filter((id) => id !== uniqueId)
-        : [...prev, uniqueId]
+        : [...prev, uniqueId],
     );
     // Clear error when user changes item selection
     if (refundError) {
@@ -419,30 +437,30 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
             price: item.price,
             quantity: item.quantity,
           };
-          
+
           // If the item has a productId field (from original transaction), preserve it
           // This helps the backend match items correctly
           if ((item as any).productId) {
             refundItem.productId = (item as any).productId;
           }
-          
+
           // CRITICAL: Preserve volumeDescription for lubricant products
           // This ensures the backend can match lubricant items correctly
           if ((item as any).volumeDescription) {
             refundItem.volumeDescription = (item as any).volumeDescription;
           }
-          
+
           // Also preserve details if it contains volume info
           if (item.details && !refundItem.volumeDescription) {
             refundItem.volumeDescription = item.details;
           }
-          
+
           return refundItem;
         });
 
       const refundAmount = selectedRefundItems.reduce(
         (sum, item) => sum + item.price * item.quantity,
-        0
+        0,
       );
 
       // Close cashier dialog first to show main dialog loading state
@@ -479,7 +497,8 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
 
       if (!response.ok) {
         // Extract error details from response
-        const errorMessage = result.details || result.error || "Failed to process refund";
+        const errorMessage =
+          result.details || result.error || "Failed to process refund";
         throw new Error(errorMessage);
       }
 
@@ -487,7 +506,7 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
       toast({
         title: "Refund Processed Successfully",
         description: `Refund of OMR ${refundAmount.toFixed(
-          3
+          3,
         )} has been recorded. Reference: ${result.refund.referenceNumber}`,
       });
 
@@ -499,45 +518,55 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
 
       // CRITICAL: Change step back from "processing" FIRST so error Alert can render
       // This must happen BEFORE setting error state
-      
+
       // Extract detailed error message
       let errorTitle = "Refund Failed";
       let errorDescription = "Failed to process refund. Please try again.";
       let isCriticalError = false;
       let itemName = "Unknown Item";
-      
+
       // Extract item name from selected items if available
       if (currentReceipt && selectedItems.length > 0) {
-        const firstSelectedItem = currentReceipt.items.find(item => selectedItems.includes(item.uniqueId));
+        const firstSelectedItem = currentReceipt.items.find((item) =>
+          selectedItems.includes(item.uniqueId),
+        );
         if (firstSelectedItem) {
           itemName = firstSelectedItem.name;
         }
       }
-      
+
       if (error instanceof Error) {
         errorDescription = error.message;
-        
+
         // Check for specific error types
-        if (error.message.includes("already been refunded") || 
-            error.message.includes("Item already refunded") ||
-            error.message.includes("already fully refunded") ||
-            error.message.includes("already been partially refunded")) {
+        if (
+          error.message.includes("already been refunded") ||
+          error.message.includes("Item already refunded") ||
+          error.message.includes("already fully refunded") ||
+          error.message.includes("already been partially refunded")
+        ) {
           errorTitle = "Item Already Refunded";
           errorDescription = error.message;
-          
+
           // Extract item name from error message if available
           const itemMatch = error.message.match(/Item "([^"]+)"/);
           if (itemMatch) {
             itemName = itemMatch[1];
           }
-        } else if (error.message.includes("Invalid location ID") || error.message.includes("Invalid shop ID")) {
+        } else if (
+          error.message.includes("Invalid location ID") ||
+          error.message.includes("Invalid shop ID")
+        ) {
           errorTitle = "Invalid Configuration";
           errorDescription = error.message;
           isCriticalError = true;
         } else if (error.message.includes("Invalid cashier ID")) {
           errorTitle = "Invalid Cashier";
           errorDescription = error.message;
-        } else if (error.message.includes("not found") || error.message.includes("Item not found")) {
+        } else if (
+          error.message.includes("not found") ||
+          error.message.includes("Item not found")
+        ) {
           errorTitle = "Item Not Found";
           errorDescription = error.message;
           isCriticalError = true;
@@ -570,7 +599,7 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
         // For other errors (already refunded, etc.), go back to confirm step
         // Change step first, then set error in next tick to ensure UI updates
         setStep("confirm");
-        
+
         // Set error state in next tick to ensure confirm step renders first
         setTimeout(() => {
           setRefundError({
@@ -591,21 +620,20 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
 
       // Create and show persistent notification (EXACTLY like open bottle notifications)
       // This replicates the exact pattern used in app/pos/page.tsx for lubricant volume alerts
-      
+
       const alertParams = createRefundErrorAlert({
         itemName: itemName,
         errorMessage: errorDescription,
         originalReferenceNumber: currentReceipt?.receiptNumber,
         refundAmount: refundAmount,
       });
-      
+
       // Override title for better visibility
       alertParams.title = errorTitle;
-      
+
       // Call exactly like open bottle notifications - fire and forget with catch
       addPersistentNotification(alertParams)
-        .then(() => {
-        })
+        .then(() => {})
         .catch((error) => {
           console.error("❌ Error creating persistent notification:", error);
           console.error("❌ Error stack:", error?.stack);
@@ -652,14 +680,14 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
       const tradeInItems = currentReceipt.items.filter(
         (item) =>
           selectedItems.includes(item.uniqueId) &&
-          item.name.toLowerCase().includes("discount on old battery")
+          item.name.toLowerCase().includes("discount on old battery"),
       );
 
       if (tradeInItems.length > 0) {
         // Calculate total trade-in amount (absolute value of negative prices)
         const calculatedTradeInAmount = tradeInItems.reduce(
           (sum, item) => sum + Math.abs(item.price * item.quantity),
-          0
+          0,
         );
         setTradeInAmount(calculatedTradeInAmount);
       } else {
@@ -673,7 +701,7 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
     // Get the selected items for the refund
     const selectedRefundItems =
       currentReceipt?.items.filter((item) =>
-        selectedItems.includes(item.uniqueId)
+        selectedItems.includes(item.uniqueId),
       ) || [];
 
     const printWindow = window.open("", "_blank");
@@ -683,16 +711,18 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
     }
     // Build thermal-style HTML to match previewed RefundReceipt
     const displayItems = selectedRefundItems.filter(
-      (item) => !item.name.toLowerCase().includes("discount")
+      (item) => !item.name.toLowerCase().includes("discount"),
     );
     const itemCount = displayItems.reduce(
       (sum, item) => sum + item.quantity,
-      0
+      0,
     );
-    const subtotal = refundAmount / 1.05; // remove 5% VAT if any
-    const refundId = refundReferenceNumber || `R${Math.floor(Math.random() * 10000)
-      .toString()
-      .padStart(4, "0")}`; // Fallback only if state missing (shouldn't happen)
+    const subtotal = refundAmount;
+    const refundId =
+      refundReferenceNumber ||
+      `R${Math.floor(Math.random() * 10000)
+        .toString()
+        .padStart(4, "0")}`; // Fallback only if state missing (shouldn't happen)
 
     const htmlContent = `
       <!DOCTYPE html>
@@ -761,7 +791,7 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
             }</span></p>
             <p><span>Date: ${format(
               new Date(),
-              "dd/MM/yyyy"
+              "dd/MM/yyyy",
             )}</span><span>Time: ${format(new Date(), "HH:mm:ss")}</span></p>
             ${
               customerName
@@ -801,10 +831,10 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
                   <td class="price">${item.price.toFixed(3)}</td>
                   <td class="qty">(x${item.quantity})</td>
                   <td class="amount">${(item.price * item.quantity).toFixed(
-                    3
+                    3,
                   )}</td>
                 </tr>
-              `
+              `,
                 )
                 .join("")}
             </tbody>
@@ -813,13 +843,13 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
           <div class="receipt-summary">
             <table>
               <tr>
-                <td>Total w/o VAT</td>
+                <td class="total-label">Subtotal</td>
                 <td class="total-amount">OMR ${subtotal.toFixed(3)}</td>
               </tr>
               <tr>
                 <td class="total-label">TOTAL REFUND</td>
-                <td class="total-amount" style="color:#D9534F;">OMR ${refundAmount.toFixed(
-                  3
+                <td class="total-amount" style="color:#D9534F; font-size: 14px; border-top: 1px solid #000; padding-top: 5px;">OMR ${refundAmount.toFixed(
+                  3,
                 )}</td>
               </tr>
             </table>
@@ -855,7 +885,7 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
              try { window.focus(); window.print(); } catch (e) { }
            }, 300);
          };
-       <\/script></body>`
+       <\/script></body>`,
     );
 
     printWindow.document.open();
@@ -870,7 +900,7 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
       setTimeout(() => {
         const dialogContent = document.querySelector(".DialogContent");
         const contentContainer = document.querySelector(
-          ".flex-1.overflow-y-auto"
+          ".flex-1.overflow-y-auto",
         );
         if (dialogContent) {
           dialogContent.scrollTop = 0;
@@ -1063,7 +1093,7 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
                               className={cn(
                                 "p-4 flex items-center gap-3 cursor-pointer hover:bg-muted/50 transition-colors",
                                 selectedItems.includes(item.uniqueId) &&
-                                  "bg-muted"
+                                  "bg-muted",
                               )}
                               onClick={() => toggleItemSelection(item.uniqueId)}
                             >
@@ -1125,7 +1155,10 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
                   >
                     {/* Display error if refund failed */}
                     {refundError && (
-                      <Alert variant="destructive" className="mb-4 animate-in slide-in-from-top-2 relative border-2 border-red-500 bg-red-50 dark:bg-red-950">
+                      <Alert
+                        variant="destructive"
+                        className="mb-4 animate-in slide-in-from-top-2 relative border-2 border-red-500 bg-red-50 dark:bg-red-950"
+                      >
                         <div className="flex items-start gap-3 pr-8">
                           <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
                           <div className="flex-1">
@@ -1379,17 +1412,18 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
                             <RefundReceipt
                               items={
                                 currentReceipt?.items.filter((item) =>
-                                  selectedItems.includes(item.uniqueId)
+                                  selectedItems.includes(item.uniqueId),
                                 ) || []
                               }
                               items={
                                 currentReceipt?.items.filter((item) =>
-                                  selectedItems.includes(item.uniqueId)
+                                  selectedItems.includes(item.uniqueId),
                                 ) || []
                               }
-                              receiptNumber={refundReferenceNumber || `R${
-                                currentReceipt?.receiptNumber || ""
-                              }`}
+                              receiptNumber={
+                                refundReferenceNumber ||
+                                `R${currentReceipt?.receiptNumber || ""}`
+                              }
                               originalReceiptNumber={
                                 currentReceipt?.receiptNumber || ""
                               }
@@ -1559,7 +1593,7 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
           <div
             className={cn(
               "flex flex-col items-center py-2",
-              isProcessingRefund && "opacity-50 pointer-events-none"
+              isProcessingRefund && "opacity-50 pointer-events-none",
             )}
           >
             <Input
@@ -1623,7 +1657,7 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
               <AlertDialogAction
                 onClick={() => {
                   const found = staffMembers.find(
-                    (c) => c.id === enteredCashierId
+                    (c) => c.id === enteredCashierId,
                   );
                   if (found) {
                     setFetchedCashier(found);
@@ -1702,7 +1736,9 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
       .reduce((sum, item) => sum + item.price * item.quantity, 0) || 0;
 
   // Validate if a transaction contains only battery products
-  const validateBatteryTransaction = async (items: any[]): Promise<{
+  const validateBatteryTransaction = async (
+    items: any[],
+  ): Promise<{
     isValid: boolean;
     error?: string;
   }> => {
@@ -1744,7 +1780,8 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
     if (!isValid) {
       return {
         isValid: false,
-        error: "Warranty claims are only available for battery purchases. This transaction contains non-battery items.",
+        error:
+          "Warranty claims are only available for battery purchases. This transaction contains non-battery items.",
       };
     }
 
@@ -1767,8 +1804,8 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
       // Call the transactions API to find the receipt
       const response = await fetch(
         `/api/transactions/fetch?referenceNumber=${encodeURIComponent(
-          receiptNumber.trim()
-        )}`
+          receiptNumber.trim(),
+        )}`,
       );
 
       const data = await response.json();
@@ -1778,7 +1815,7 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
         throw new Error(
           data.details ||
             data.error ||
-            `Failed to fetch transaction: ${response.statusText}`
+            `Failed to fetch transaction: ${response.statusText}`,
         );
       }
 
@@ -1796,13 +1833,15 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
 
       // Validate that this is a battery-only transaction
       const validation = await validateBatteryTransaction(
-        transaction.items_sold || []
+        transaction.items_sold || [],
       );
 
       if (!validation.isValid) {
         toast({
           title: "Invalid Transaction Type",
-          description: validation.error || "This transaction is not eligible for warranty claims.",
+          description:
+            validation.error ||
+            "This transaction is not eligible for warranty claims.",
           variant: "destructive",
           duration: 5000,
         });
@@ -1811,7 +1850,7 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
 
       // Convert the transaction to Receipt format for the UI
       const parsedItems = await parseTransactionItems(
-        transaction.items_sold || []
+        transaction.items_sold || [],
       );
       const receiptData: Receipt = {
         receiptNumber: transaction.reference_number,
@@ -1864,7 +1903,7 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
     setSelectedItems((prev) =>
       prev.includes(uniqueId)
         ? prev.filter((id) => id !== uniqueId)
-        : [...prev, uniqueId]
+        : [...prev, uniqueId],
     );
   };
 
@@ -1898,14 +1937,15 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
     if (!currentBranch) {
       toast({
         title: "Branch Required",
-        description: "Please select a branch before processing the warranty claim.",
+        description:
+          "Please select a branch before processing the warranty claim.",
         variant: "destructive",
       });
       return;
     }
 
     const shopId = currentBranch.id;
-    
+
     // Get locationId - prefer inventoryLocationId, otherwise fetch from shop
     let locationId = inventoryLocationId;
     if (!locationId && shopId) {
@@ -1920,10 +1960,12 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
         }
       } catch (error) {
         console.error("Error fetching shop location:", error);
-        throw new Error("Could not determine location. Please ensure a branch is selected.");
+        throw new Error(
+          "Could not determine location. Please ensure a branch is selected.",
+        );
       }
     }
-    
+
     if (!locationId) {
       throw new Error("Location ID is required. Please select a branch.");
     }
@@ -1983,7 +2025,7 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
         throw new Error(
           result.error ||
             result.details ||
-            "Failed to process warranty claim. Please try again."
+            "Failed to process warranty claim. Please try again.",
         );
       }
 
@@ -2072,7 +2114,7 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
         printWindow.print();
         if (
           !/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-            navigator.userAgent
+            navigator.userAgent,
           )
         ) {
           // Don't auto-close on mobile devices
@@ -2085,17 +2127,16 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
     if (warrantyBillRef.current) {
       warrantyBillRef.current.print();
     } else {
-        // Fallback if ref is not available (should not happen if visible)
-       console.error("Print ref not available");
-       toast({
-          title: "Print Error",
-          description: "Could not access warranty bill for printing. Please try closing giving it a moment.",
-          variant: "destructive"
-       });
+      // Fallback if ref is not available (should not happen if visible)
+      console.error("Print ref not available");
+      toast({
+        title: "Print Error",
+        description:
+          "Could not access warranty bill for printing. Please try closing giving it a moment.",
+        variant: "destructive",
+      });
     }
   };
-
-
 
   // Scroll to top when showing the receipt
   useEffect(() => {
@@ -2104,7 +2145,7 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
       setTimeout(() => {
         const dialogContent = document.querySelector(".DialogContent");
         const contentContainer = document.querySelector(
-          ".flex-1.overflow-y-auto"
+          ".flex-1.overflow-y-auto",
         );
         if (dialogContent) {
           dialogContent.scrollTop = 0;
@@ -2119,7 +2160,7 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-[95%] max-w-[600px] h-auto max-h-[85vh] rounded-lg flex flex-col overflow-hidden text-sm sm:text-base">
+        <DialogContent className="w-[95%] max-w-[600px] h-auto max-h-[85vh] rounded-lg flex flex-col overflow-hidden text-sm sm:text-base">
           <DialogHeader className="p-0 bg-background shrink-0 pb-6">
             <DialogTitle className="text-lg sm:text-xl flex items-center gap-2">
               {step !== "search" && step !== "processing" && (
@@ -2297,7 +2338,7 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
                               className={cn(
                                 "p-4 flex items-center gap-3 cursor-pointer hover:bg-muted/50 transition-colors",
                                 selectedItems.includes(item.uniqueId) &&
-                                  "bg-muted"
+                                  "bg-muted",
                               )}
                               onClick={() => toggleItemSelection(item.uniqueId)}
                             >
@@ -2504,11 +2545,15 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
                             ref={warrantyBillRef}
                             cart={
                               currentReceipt?.items.filter((item) =>
-                                selectedItems.includes(item.uniqueId)
+                                selectedItems.includes(item.uniqueId),
                               ) || []
                             }
-                            billNumber={warrantyClaimTransaction?.referenceNumber || 
-                              `WBX${Math.floor(Math.random() * 10000).toString().padStart(4, "0")}`}
+                            billNumber={
+                              warrantyClaimTransaction?.referenceNumber ||
+                              `WBX${Math.floor(Math.random() * 10000)
+                                .toString()
+                                .padStart(4, "0")}`
+                            }
                             currentDate={format(new Date(), "dd/MM/yyyy")}
                             currentTime={format(new Date(), "HH:mm:ss")}
                             customerName={customerName || ""}
@@ -2537,7 +2582,10 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
             )}
             {step === "select" && (
               <div className="flex gap-2 sm:gap-3 w-full justify-end flex-wrap">
-                <Button variant="chonky-secondary" onClick={() => setStep("search")}>
+                <Button
+                  variant="chonky-secondary"
+                  onClick={() => setStep("search")}
+                >
                   Back
                 </Button>
                 <Button onClick={handleProceedToConfirm} variant="chonky">
@@ -2547,7 +2595,10 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
             )}
             {step === "confirm" && (
               <div className="flex gap-2 sm:gap-3 w-full justify-end flex-wrap">
-                <Button variant="chonky-secondary" onClick={() => setStep("select")}>
+                <Button
+                  variant="chonky-secondary"
+                  onClick={() => setStep("select")}
+                >
                   Back
                 </Button>
                 <Button
@@ -2594,14 +2645,30 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
                     >
                       Back
                     </Button>
-                    <Button onClick={handlePrint} className="flex-1 gap-2" variant="chonky-secondary">
+                    <Button
+                      onClick={handlePrint}
+                      className="flex-1 gap-2"
+                      variant="chonky-secondary"
+                    >
                       <Printer className="h-4 w-4" /> Print Warranty Bill
                     </Button>
-                    <Button onClick={handleCloseDialog} variant="chonky" className="flex-1">Done</Button>
+                    <Button
+                      onClick={handleCloseDialog}
+                      variant="chonky"
+                      className="flex-1"
+                    >
+                      Done
+                    </Button>
                   </div>
                 )}
                 {!showRefundReceipt && (
-                  <Button onClick={handleCloseDialog} variant="chonky" className="flex-1">Done</Button>
+                  <Button
+                    onClick={handleCloseDialog}
+                    variant="chonky"
+                    className="flex-1"
+                  >
+                    Done
+                  </Button>
                 )}
               </div>
             )}
@@ -2626,7 +2693,10 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
           <AlertDialogFooter className="flex-wrap gap-y-2">
             <div className="flex gap-2 sm:gap-3 w-full justify-end flex-wrap">
               <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={handleConfirmClaim} className={cn(buttonVariants({ variant: "chonky" }))}>
+              <AlertDialogAction
+                onClick={handleConfirmClaim}
+                className={cn(buttonVariants({ variant: "chonky" }))}
+              >
                 Confirm
               </AlertDialogAction>
             </div>
@@ -2687,7 +2757,7 @@ export function WarrantyDialog({ isOpen, onClose }: RefundDialogProps) {
               <AlertDialogAction
                 onClick={() => {
                   const found = staffMembers.find(
-                    (c) => c.id === enteredCashierId.trim()
+                    (c) => c.id === enteredCashierId.trim(),
                   );
                   if (found) {
                     // Ensure we use the staff_id text (found.id) not UUID

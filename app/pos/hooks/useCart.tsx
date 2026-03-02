@@ -12,13 +12,11 @@ export function useCart() {
 export function calculateCartTotals(cart: CartItem[]) {
   const subtotal = cart.reduce(
     (total, item) => total + item.price * item.quantity,
-    0
+    0,
   );
 
-  // Apply 5% VAT (this is just an example - adjust according to local regulations)
-  const vatRate = 0.05;
-  const vatAmount = subtotal * vatRate;
-  const total = subtotal + vatAmount;
+  const vatAmount = 0;
+  const total = subtotal;
 
   return {
     subtotal,
@@ -43,6 +41,3 @@ export function getCartSummary(cart: CartItem[]) {
     ...totals,
   };
 }
-
-
-

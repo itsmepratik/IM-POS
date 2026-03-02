@@ -20,7 +20,12 @@ interface Product {
   id: number;
   name: string;
   price: number;
-  category: "Filters" | "Parts" | "Additives & Fluids" | "Lubricants" | "Batteries";
+  category:
+    | "Filters"
+    | "Parts"
+    | "Additives & Fluids"
+    | "Lubricants"
+    | "Batteries";
   availableQuantity: number;
   brand?: string;
   type?: string;
@@ -32,6 +37,7 @@ interface CartItem {
   id: number;
   name: string;
   price: number;
+  brand?: string;
 }
 
 interface AdditivesFluidsCategoryProps {
@@ -66,11 +72,11 @@ function AdditiveFluidImage({
       if (imageUrl) {
         cacheImageInvalid(imageUrl);
       }
-      if (e && 'currentTarget' in e) {
+      if (e && "currentTarget" in e) {
         e.currentTarget.onerror = null;
       }
     },
-    [imageUrl]
+    [imageUrl],
   );
 
   const handleLoad = React.useCallback(() => {
@@ -93,10 +99,7 @@ function AdditiveFluidImage({
 
   return (
     <div className="w-12 h-12 flex-shrink-0 relative rounded-md overflow-hidden bg-muted/80">
-      <ImageErrorFallback
-        onError={handleError}
-        className="w-full h-full"
-      >
+      <ImageErrorFallback onError={handleError} className="w-full h-full">
         <Image
           src={imageUrl}
           alt={productName}
@@ -130,10 +133,10 @@ export function AdditivesFluidsCategory({
       new Set(
         products
           .filter((p) => p.category === "Additives & Fluids")
-          .map((p) => p.brand || "Other") // Use "Other" for undefined brands
-      )
+          .map((p) => p.brand || "Other"), // Use "Other" for undefined brands
+      ),
     ).filter((brand) =>
-      brand.toLowerCase().includes(searchQuery.toLowerCase())
+      brand.toLowerCase().includes(searchQuery.toLowerCase()),
     );
   }, [products, searchQuery]);
 
@@ -162,14 +165,14 @@ export function AdditivesFluidsCategory({
             }
           >
             <div className="flex items-center gap-3">
-               <div className="relative w-8 h-8 flex items-center justify-center">
-                 <BrandLogo 
-                   brand={brand} 
-                   brands={brands} 
-                   imageUrl={brands?.find(b => b.name === brand)?.imageUrl} 
-                 />
-               </div>
-                <span className="font-semibold text-lg">{brand}</span>
+              <div className="relative w-8 h-8 flex items-center justify-center">
+                <BrandLogo
+                  brand={brand}
+                  brands={brands}
+                  imageUrl={brands?.find((b) => b.name === brand)?.imageUrl}
+                />
+              </div>
+              <span className="font-semibold text-lg">{brand}</span>
             </div>
             {expandedBrand === brand ? (
               <ChevronUp className="h-5 w-5" />
@@ -183,73 +186,80 @@ export function AdditivesFluidsCategory({
                 .filter(
                   (p) =>
                     p.category === "Additives & Fluids" &&
-                    (p.brand || "Other") === brand // Handle null/undefined brands
+                    (p.brand || "Other") === brand, // Handle null/undefined brands
                 )
                 .map((product) => {
                   const available = product.availableQuantity ?? 0;
                   const isOutOfStock = available <= 0;
-                  
+
                   return (
-                  <Button
-                    key={product.id}
-                    variant="outline"
-                    disabled={false} // Always clickable to show notification
-                    className={`border-2 rounded-[18px] flex flex-col items-center justify-between p-4 h-auto min-h-[150px] transition-all overflow-hidden relative ${
-                        isOutOfStock 
-                        ? "opacity-60 bg-muted/50" 
-                        : "hover:shadow-md"
-                    }`}
-                    onClick={() => {
+                    <Button
+                      key={product.id}
+                      variant="outline"
+                      disabled={false} // Always clickable to show notification
+                      className={`border-2 rounded-[18px] flex flex-col items-center justify-between p-4 h-auto min-h-[150px] transition-all overflow-hidden relative ${
+                        isOutOfStock
+                          ? "opacity-60 bg-muted/50"
+                          : "hover:shadow-md"
+                      }`}
+                      onClick={() => {
                         if (isOutOfStock) {
-                               addPersistentNotification({
-                                 type: "error",
-                                 title: "Out of Stock",
-                                 message: `${product.name} is currently out of stock.`,
-                                 category: "stock"
-                               });
-                               return;
+                          addPersistentNotification({
+                            type: "error",
+                            title: "Out of Stock",
+                            message: `${product.name} is currently out of stock.`,
+                            category: "stock",
+                          });
+                          return;
                         }
                         addToCart({
                           id: product.id,
                           name: product.name,
                           price: product.price,
+                          brand: product.brand,
                         });
-                    }}
-                  >
-                    {/* Stock Badge - REMOVED per user request */}
-                    
-                    {/* Product image with fallback to icon */}
-                    <div className="mb-3 relative">
-                      <AdditiveFluidImage
-                        imageUrl={product.imageUrl}
-                        productName={product.name}
-                      />
-                      {/* Out of Stock Overlay - Matches Lubricant Style */}
-                      {isOutOfStock && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-[1px] rounded-md z-1">
-                            <Badge variant="destructive" className="text-[10px]">Out of Stock</Badge>
+                      }}
+                    >
+                      {/* Stock Badge - REMOVED per user request */}
+
+                      {/* Product image with fallback to icon */}
+                      <div className="mb-3 relative">
+                        <AdditiveFluidImage
+                          imageUrl={product.imageUrl}
+                          productName={product.name}
+                        />
+                        {/* Out of Stock Overlay - Matches Lubricant Style */}
+                        {isOutOfStock && (
+                          <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-[1px] rounded-md z-1">
+                            <Badge
+                              variant="destructive"
+                              className="text-[10px]"
+                            >
+                              Out of Stock
+                            </Badge>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Product information with proper text handling */}
+                      <div className="w-full flex flex-col items-center space-y-2">
+                        {/* Product name with line clamping */}
+                        <div className="text-center w-full">
+                          <p className="text-sm font-medium line-clamp-2 leading-tight">
+                            {product.name}
+                          </p>
                         </div>
-                       )}
-                    </div>
 
-                    {/* Product information with proper text handling */}
-                    <div className="w-full flex flex-col items-center space-y-2">
-                      {/* Product name with line clamping */}
-                      <div className="text-center w-full">
-                        <p className="text-sm font-medium line-clamp-2 leading-tight">
-                          {product.name}
-                        </p>
+                        {/* Price with consistent formatting */}
+                        <div className="mt-auto">
+                          <span className="font-medium text-[clamp(0.75rem,1.5vw,0.85rem)] text-[#6d6d6d]">
+                            OMR {product.price.toFixed(3)}
+                          </span>
+                        </div>
                       </div>
-
-                      {/* Price with consistent formatting */}
-                      <div className="mt-auto">
-                        <span className="font-medium text-[clamp(0.75rem,1.5vw,0.85rem)] text-[#6d6d6d]">
-                          OMR {product.price.toFixed(3)}
-                        </span>
-                      </div>
-                    </div>
-                  </Button>
-                )})}
+                    </Button>
+                  );
+                })}
             </div>
           )}
         </div>

@@ -2079,7 +2079,7 @@ const ReceiptComponent = ({
             <div class="receipt-summary">
               <table>
                 <tr>
-                  <td>Total w/o VAT</td>
+                  <td class="total-label">Subtotal</td>
                   <td class="total-amount">OMR ${subtotal.toFixed(3)}</td>
                 </tr>
                 ${
@@ -2098,12 +2098,8 @@ const ReceiptComponent = ({
                     : "<!-- No discount applied -->"
                 }
                 <tr>
-                  <td>VAT</td>
-                  <td class="total-amount">OMR ${vat.toFixed(3)}</td>
-                </tr>
-                <tr>
-                  <td class="total-label">Total with VAT</td>
-                  <td class="total-amount">OMR ${total.toFixed(3)}</td>
+                  <td class="total-label" style="border-top: 1px solid #000; padding-top: 5px;">TOTAL</td>
+                  <td class="total-amount" style="border-top: 1px solid #000; padding-top: 5px;">OMR ${total.toFixed(3)}</td>
                 </tr>
               </table>
             </div>
@@ -2303,7 +2299,7 @@ const ReceiptComponent = ({
 
             <div className="border-t border-dashed pt-2 mb-3">
               <div className="flex justify-between text-[11px] sm:text-xs">
-                <span>Total w/o VAT</span>
+                <span>Subtotal</span>
                 <span>OMR {subtotal.toFixed(3)}</span>
               </div>
               {localDiscount && (
@@ -2317,7 +2313,7 @@ const ReceiptComponent = ({
                   <span>- OMR {discountAmount.toFixed(3)}</span>
                 </div>
               )}
-              <div className="flex justify-between text-[11px] sm:text-xs font-bold">
+              <div className="flex justify-between text-[11px] sm:text-xs font-bold border-t pt-1">
                 <span>Total</span>
                 <span>OMR {total.toFixed(3)}</span>
               </div>

@@ -12,7 +12,9 @@ import { CartItem } from "../types";
 interface CartContextType {
   cart: CartItem[];
   addToCart: (
-    itemOrProduct: CartItem[] | { id: number; name: string; price: number },
+    itemOrProduct:
+      | CartItem[]
+      | { id: number; name: string; price: number; brand?: string },
     details?: string,
     quantity?: number,
     source?: string,
@@ -57,7 +59,9 @@ export function CartProvider({ children }: CartProviderProps) {
   }, [cart, isInitialized]);
 
   const addToCart = (
-    itemOrProduct: CartItem[] | { id: number; name: string; price: number },
+    itemOrProduct:
+      | CartItem[]
+      | { id: number; name: string; price: number; brand?: string },
     details?: string,
     quantity?: number,
     source?: string,
@@ -74,12 +78,27 @@ export function CartProvider({ children }: CartProviderProps) {
       // Build a CartItem from the legacy single-item signature
       const product = itemOrProduct;
       const qty = quantity ?? 1;
+      const brand = product.brand || "";
+      let finalName = product.name;
+
+      // Handle brand name concatenation and prevent double-brand issue
+      if (brand) {
+        const brandLower = brand.toLowerCase().trim();
+        const nameLower = finalName.toLowerCase().trim();
+
+        // If the name doesn't already start with or contain the brand name as a word
+        if (!nameLower.includes(brandLower)) {
+          finalName = `${brand} ${finalName}`;
+        }
+      }
+
       const uniqueId = `${product.id}-${details || ""}-${source || ""}-${bottleType || ""}-${Date.now()}`;
       items = [
         {
           id: product.id,
-          name: product.name,
+          name: finalName,
           price: product.price,
+          brand: brand,
           quantity: qty,
           details: details || "",
           uniqueId,

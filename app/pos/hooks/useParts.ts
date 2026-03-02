@@ -7,7 +7,7 @@ import { useToast } from "@/components/ui/use-toast";
 interface UsePartsProps {
   products: Product[];
   addToCart: (
-    product: { id: number; name: string; price: number },
+    product: { id: number; name: string; price: number; brand?: string },
     details?: string,
     quantity?: number,
     source?: string,
@@ -38,7 +38,13 @@ export function useParts({
     null,
   );
   const [selectedParts, setSelectedParts] = useState<
-    Array<{ id: number; name: string; price: number; quantity: number }>
+    Array<{
+      id: number;
+      name: string;
+      price: number;
+      quantity: number;
+      brand?: string;
+    }>
   >([]);
 
   /** Get parts products by type */
@@ -52,7 +58,7 @@ export function useParts({
 
   /** Handle clicking a part product */
   const handlePartClick = useCallback(
-    (part: { id: number; name: string; price: number }) => {
+    (part: { id: number; name: string; price: number; brand?: string }) => {
       // Check initial stock
       const product = products.find((p) => p.id === part.id);
       if (product && product.availableQuantity <= 0) {
@@ -84,7 +90,7 @@ export function useParts({
             p.id === part.id ? { ...p, quantity: p.quantity + 1 } : p,
           );
         }
-        return [...prev, { ...part, quantity: 1 }];
+        return [...prev, { ...part, quantity: 1, brand: part.brand }];
       });
     },
     [products, toast, calculateCartCount],
@@ -153,6 +159,7 @@ export function useParts({
           id: part.id,
           name: part.name,
           price: part.price,
+          brand: part.brand,
         },
         undefined,
         part.quantity,
