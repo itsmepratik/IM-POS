@@ -1,0 +1,10 @@
+{
+  "success": false,
+  "error": {
+    "code": "42804",
+    "details": "Returned type timestamp with time zone does not match expected type date in column 13.",
+    "hint": null,
+    "message": "structure of query does not match function result type"
+  },
+  "data": null
+}

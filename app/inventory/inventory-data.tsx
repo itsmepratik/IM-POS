@@ -6,7 +6,8 @@ import { toast } from "@/components/ui/use-toast";
 const LOW_STOCK_THRESHOLD = 5;
 
 export const useInventoryData = () => {
-  const { items, categories, brands, deleteItem, duplicateItem, isLoading } = useItems();
+  const { items, categories, brands, deleteItem, duplicateItem, isLoading } =
+    useItems();
 
   // Search and filter states
   const [searchQuery, setSearchQuery] = useState("");
@@ -70,18 +71,8 @@ export const useInventoryData = () => {
   // Filter items based on all filters
   const filteredItems = useMemo(() => {
     return items.filter((item) => {
-      // Search filter
-      const matchesSearch =
-        debouncedSearchQuery === "" ||
-        item.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
-        (item.brand &&
-          item.brand
-            .toLowerCase()
-            .includes(debouncedSearchQuery.toLowerCase())) ||
-        (item.category &&
-          item.category
-            .toLowerCase()
-            .includes(debouncedSearchQuery.toLowerCase()));
+      // NOTE: Search filter is handled by the server (semantic search), so we don't
+      // double-filter here anymore.
 
       // Category filter
       const matchesCategory =
@@ -147,7 +138,6 @@ export const useInventoryData = () => {
       }
 
       return (
-        matchesSearch &&
         matchesCategory &&
         matchesBrand &&
         matchesBottleState &&
@@ -192,7 +182,9 @@ export const useInventoryData = () => {
   // Handle item selection
   const toggleItemSelection = useCallback((id: string) => {
     setSelectedItems((prev) =>
-      prev.includes(id) ? prev.filter((itemId) => itemId !== id) : [...prev, id]
+      prev.includes(id)
+        ? prev.filter((itemId) => itemId !== id)
+        : [...prev, id],
     );
   }, []);
 
@@ -212,8 +204,6 @@ export const useInventoryData = () => {
   const handleAddItem = useCallback(() => {
     setEditingItem(undefined);
   }, []);
-
-
 
   const handleDeleteClick = useCallback((id: string) => {
     setItemToDelete(id);
@@ -274,7 +264,7 @@ export const useInventoryData = () => {
         description: "A copy of the item has been created.",
       });
     },
-    [duplicateItem]
+    [duplicateItem],
   );
 
   return {

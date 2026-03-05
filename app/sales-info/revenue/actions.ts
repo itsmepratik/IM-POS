@@ -1,170 +1,311 @@
-'use server'
+"use server";
 
-import { createClient } from "@/supabase/server"
+import { getDatabase } from "@/lib/db/client";
+import {
+  transactions,
+  shops,
+  products,
+  types,
+  categories,
+  brands,
+  locations,
+} from "@/lib/db/schema";
+import { inArray, desc, eq, and, gte, lte } from "drizzle-orm";
 
 export interface SaleVariant {
-  size: string
-  quantity: number
-  unitPrice: number
-  totalSales: number
+  size: string;
+  quantity: number;
+  unitPrice: number;
+  totalSales: number;
 }
 
 export interface SaleItem {
-  name: string
-  category: "fluid" | "part" | "service"
-  quantity: number
-  unitPrice: number
-  totalSales: number
-  storeId: string
-  variants?: SaleVariant[]
+  name: string;
+  category: "fluid" | "part" | "service";
+  quantity: number;
+  unitPrice: number;
+  totalSales: number;
+  storeId: string;
+  storeName?: string;
+  variants?: SaleVariant[];
 }
 
 export interface Store {
-  id: string
-  name: string
+  id: string;
+  name: string;
 }
 
-export async function getRevenueData() {
-  const supabase = await createClient()
+export async function getRevenueData(
+  startDate?: Date | string,
+  endDate?: Date | string,
+) {
+  try {
+    const db = getDatabase();
 
-  // Fetch basic data
-  const { data: stores } = await supabase.from('shops').select('id, name')
-  const { data: products } = await supabase.from('products').select('id, name, type_id')
-  const { data: types } = await supabase.from('types').select('id, name, category_id')
-  const { data: categories } = await supabase.from('categories').select('id, name')
+    // Fetch basic data
+    const allShops = await db
+      .select({
+        id: shops.id,
+        name: shops.name,
+        displayName: shops.displayName,
+        locationId: shops.locationId,
+      })
+      .from(shops);
+    const allLocations = await db
+      .select({ id: locations.id, name: locations.name })
+      .from(locations);
+    const allProducts = await db
+      .select({
+        id: products.id,
+        name: products.name,
+        categoryId: products.categoryId,
+        brandId: products.brandId,
+      })
+      .from(products);
+    const allCategories = await db
+      .select({ id: categories.id, name: categories.name })
+      .from(categories);
+    const allBrands = await db
+      .select({ id: brands.id, name: brands.name })
+      .from(brands);
 
-  // Get start of today (00:00:00)
-  const startOfDay = new Date()
-  startOfDay.setHours(0, 0, 0, 0)
-  
-  // Fetch transactions
-  // Filter for SALE type transactions created today
-  const { data: transactions } = await supabase
-    .from('transactions')
-    .select('items_sold, shop_id, discount_amount, subtotal_before_discount')
-    .eq('type', 'SALE')
-    .gte('created_at', startOfDay.toISOString())
+    // Build map for stores
+    const shopMap = new Map<string, string>();
+    const locMap = new Map<string, string>();
+    const locToShopMap = new Map<string, string>();
 
-  if (!transactions || !products || !types || !categories || !stores) {
-    return { items: [], stores: [] }
-  }
+    allShops.forEach((s) => {
+      shopMap.set(s.id, s.displayName || s.name || "Unknown Shop");
+      if (s.locationId) locToShopMap.set(s.locationId, s.id);
+    });
+    allLocations.forEach((l) => locMap.set(l.id, l.name));
 
-  // Create lookups
-  const productMap = new Map(products.map(p => [p.id, p]))
-  const typeMap = new Map(types.map(t => [t.id, t]))
-  const categoryMap = new Map(categories.map(c => [c.id, c.name]))
-  
-  // Helper to get category name for a product
-  const getCategoryName = (productId: string): "fluid" | "part" | "service" => {
-    const product = productMap.get(productId)
-    if (!product) return 'part' // default
+    // Build map for products
+    const productMap = new Map(allProducts.map((p) => [p.id, p]));
+    const categoryMap = new Map(allCategories.map((c) => [c.id, c.name]));
+    const brandMap = new Map(allBrands.map((b) => [b.id, b.name]));
 
-    // Try to get category from relationships first
-    let catName: string | undefined
-    const type = typeMap.get(product.type_id)
-    if (type) {
-      catName = categoryMap.get(type.category_id)
+    // Build Conditions
+    const conditions = [eq(transactions.type, "SALE")];
+
+    if (startDate) {
+      const strStart =
+        typeof startDate === "string" && startDate.length === 10
+          ? `${startDate}T00:00:00`
+          : startDate;
+      const sDate = new Date(strStart);
+      conditions.push(gte(transactions.createdAt, sDate));
+    } else {
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
+      conditions.push(gte(transactions.createdAt, startOfDay));
     }
-    
-    if (catName) {
-      const lower = catName.toLowerCase()
-      if (lower.includes('fluid') || lower.includes('oil') || lower.includes('lubricant') || lower.includes('additive')) return 'fluid'
-      if (lower.includes('part') || lower.includes('filter')) return 'part'
-      if (lower.includes('service')) return 'service'
+
+    if (endDate) {
+      const strEnd =
+        typeof endDate === "string" && endDate.length === 10
+          ? `${endDate}T00:00:00`
+          : endDate;
+      const endOfDay = new Date(strEnd);
+      endOfDay.setHours(23, 59, 59, 999);
+      conditions.push(lte(transactions.createdAt, endOfDay));
     }
 
-    // Fallback: Check product name if category lookup failed
-    const lowerName = product.name.toLowerCase()
-    // Match common viscosity patterns (e.g., 0w-20, 5w30), oil, layout, etc.
-    if (/\d+w-?\d+/i.test(lowerName) || lowerName.includes('oil') || lowerName.includes('fluid') || lowerName.includes('lubricant')) {
-        return 'fluid'
-    }
-    
-    return 'part'
-  }
+    const txs = await db
+      .select({
+        itemsSold: transactions.itemsSold,
+        shopId: transactions.shopId,
+        locationId: transactions.locationId,
+        discountAmount: transactions.discountAmount,
+        subtotalBeforeDiscount: transactions.subtotalBeforeDiscount,
+      })
+      .from(transactions)
+      .where(and(...conditions));
 
-  // Aggregate data
-  const itemMap = new Map<string, SaleItem>()
+    // Helper to get category name for a product
+    const getCategoryName = (
+      productId: string,
+    ): "fluid" | "part" | "service" => {
+      const product = productMap.get(productId);
+      if (!product) return "part";
 
-  transactions.forEach(tx => {
-    const storeId = tx.shop_id || 'all-stores' // Fallback if null, though likely not null
-    const items = tx.items_sold as any[] // cast jsonb
+      const catName = categoryMap.get(product.categoryId);
 
-    if (Array.isArray(items)) {
-      // Calculate Discount Ratio
-      let discountRatio = 1;
-      const discountAmount = Number(tx.discount_amount) || 0;
-      
-      if (discountAmount > 0) {
-          let subtotal = Number(tx.subtotal_before_discount);
-          // Fallback: Calculate subtotal from items if missing in DB
-          if (!subtotal || isNaN(subtotal) || subtotal === 0) {
-              subtotal = items.reduce((sum, i) => sum + (Number(i.sellingPrice) || 0) * (Number(i.quantity) || 0), 0);
-          }
-          
-          if (subtotal > 0) {
-              discountRatio = Math.max(0, (subtotal - discountAmount) / subtotal);
-          }
+      if (catName) {
+        const lower = catName.toLowerCase();
+        if (
+          lower.includes("fluid") ||
+          lower.includes("oil") ||
+          lower.includes("lubricant") ||
+          lower.includes("additive")
+        )
+          return "fluid";
+        if (lower.includes("part") || lower.includes("filter")) return "part";
+        if (lower.includes("service") || lower.includes("labor"))
+          return "service";
       }
 
-      items.forEach(item => {
-        const productId = item.productId
-        const product = productMap.get(productId)
-        const name = product ? product.name : (item.name || 'Unknown Item') // Use item.name if available in JSON as fallback
-        const category = getCategoryName(productId)
-        const quantity = Number(item.quantity) || 0
-        const price = Number(item.sellingPrice) || 0
-        // Determine variant info if available (e.g. volumeDescription)
-        const variantName = item.volumeDescription || item.size || null
+      const lowerName = product.name.toLowerCase();
+      if (
+        /\d+w-?\d+/i.test(lowerName) ||
+        lowerName.includes("oil") ||
+        lowerName.includes("fluid") ||
+        lowerName.includes("lubricant")
+      ) {
+        return "fluid";
+      }
 
-        // Key combines name, store, and category to ensure uniqueness
-        const key = `${name}-${storeId}`
+      return "part";
+    };
 
-        if (!itemMap.has(key)) {
+    // Aggregate data
+    const itemMap = new Map<string, SaleItem>();
+
+    txs.forEach((tx: any) => {
+      let finalStoreName = "Unknown Shop";
+      let finalStoreId = "all-stores";
+
+      const txLocId = tx.locationId;
+      const txStoreId = tx.shopId;
+
+      if (txStoreId && shopMap.has(txStoreId)) {
+        finalStoreName = shopMap.get(txStoreId)!;
+        finalStoreId = txStoreId;
+      } else if (txLocId && locToShopMap.has(txLocId)) {
+        const linkedShopId = locToShopMap.get(txLocId)!;
+        finalStoreName = shopMap.get(linkedShopId)!;
+        finalStoreId = linkedShopId;
+      } else if (txLocId && locMap.has(txLocId)) {
+        finalStoreName = locMap.get(txLocId)!;
+        finalStoreId = `loc-${txLocId}`;
+      }
+
+      const items = tx.itemsSold as any[];
+
+      if (Array.isArray(items)) {
+        let discountRatio = 1;
+        const discountAmount = Number(tx.discountAmount) || 0;
+
+        if (discountAmount > 0) {
+          let subtotal = Number(tx.subtotalBeforeDiscount);
+          if (!subtotal || isNaN(subtotal) || subtotal === 0) {
+            subtotal = items.reduce(
+              (sum, i) =>
+                sum + (Number(i.sellingPrice) || 0) * (Number(i.quantity) || 0),
+              0,
+            );
+          }
+          if (subtotal > 0) {
+            discountRatio = Math.max(0, (subtotal - discountAmount) / subtotal);
+          }
+        }
+
+        items.forEach((item) => {
+          const productId = item.productId;
+          const product = productMap.get(productId);
+
+          let category = getCategoryName(productId);
+
+          const brandName = product?.brandId
+            ? brandMap.get(product.brandId)
+            : "";
+          const productName = product ? product.name : "";
+
+          let displayTitle = "Unknown Item";
+          if (brandName && productName) {
+            displayTitle = `${brandName} ${productName}`;
+          } else if (productName) {
+            displayTitle = productName;
+          } else if (item.name) {
+            displayTitle = item.name;
+          } else if (item.volumeDescription) {
+            displayTitle = item.volumeDescription;
+          } else {
+            displayTitle = `Unknown Item (${productId || "No ID"})`;
+          }
+
+          if (
+            productId === "9999" ||
+            displayTitle.toLowerCase().includes("labor") ||
+            displayTitle.toLowerCase().includes("service")
+          ) {
+            category = "service";
+          }
+
+          const quantity = Number(item.quantity) || 0;
+          const price = Number(item.sellingPrice) || 0;
+          const variantName = item.volumeDescription || item.size || null;
+
+          const key = `${displayTitle}-${finalStoreId}`;
+
+          if (!itemMap.has(key)) {
             itemMap.set(key, {
-                name,
-                category,
-                quantity: 0,
-                unitPrice: price, 
-                totalSales: 0,
-                storeId,
-                variants: []
-            })
-        }
+              name: displayTitle,
+              category,
+              quantity: 0,
+              unitPrice: price,
+              totalSales: 0,
+              storeId: finalStoreId,
+              storeName: finalStoreName,
+              variants: [],
+            });
+          }
 
-        const entry = itemMap.get(key)!
-        const revenue = (quantity * price) * discountRatio; // Apply discount
+          const entry = itemMap.get(key)!;
+          const revenue = quantity * price * discountRatio;
 
-        entry.quantity += quantity
-        entry.totalSales += revenue
-        // Update average unit price
-        if (entry.quantity > 0) {
-            entry.unitPrice = entry.totalSales / entry.quantity
-        }
+          entry.quantity += quantity;
+          entry.totalSales += revenue;
+          if (entry.quantity > 0) {
+            entry.unitPrice = entry.totalSales / entry.quantity;
+          }
 
-        if (variantName) {
-            let variant = entry.variants?.find(v => v.size === variantName)
+          if (variantName) {
+            let variant = entry.variants?.find((v) => v.size === variantName);
             if (!variant) {
-                if (!entry.variants) entry.variants = []
-                variant = { size: variantName, quantity: 0, unitPrice: price, totalSales: 0 }
-                entry.variants.push(variant)
+              if (!entry.variants) entry.variants = [];
+              variant = {
+                size: variantName,
+                quantity: 0,
+                unitPrice: price,
+                totalSales: 0,
+              };
+              entry.variants.push(variant);
             }
-            variant.quantity += quantity
-            variant.totalSales += revenue
+            variant.quantity += quantity;
+            variant.totalSales += revenue;
             if (variant.quantity > 0) {
-                variant.unitPrice = variant.totalSales / variant.quantity
+              variant.unitPrice = variant.totalSales / variant.quantity;
             }
-        }
-      })
-    }
-  })
+          }
+        });
+      }
+    });
 
-  // Format stores list to match expected format primarily, adding 'All Stores' is handled in UI or here?
-  // UI likely handles "All Stores" selection logic, but the list of available stores comes from here.
-  const formattedStores = stores.map(s => ({ id: s.id, name: s.name }))
+    const uniqueStoresMap = new Map<string, Store>();
+    allShops.forEach((s) => {
+      uniqueStoresMap.set(s.id, { id: s.id, name: s.displayName || s.name });
+    });
+    // Add locations that don't have shops just in case
+    allLocations.forEach((l) => {
+      const locId = `loc-${l.id}`;
+      // Note: the select options are built from this.
+      if (
+        !uniqueStoresMap.has(l.id) &&
+        !Array.from(locToShopMap.keys()).includes(l.id)
+      ) {
+        uniqueStoresMap.set(locId, { id: locId, name: l.name });
+      }
+    });
 
-  return {
-    items: Array.from(itemMap.values()),
-    stores: formattedStores
+    return {
+      items: Array.from(itemMap.values()),
+      stores: Array.from(uniqueStoresMap.values()),
+    };
+  } catch (error: any) {
+    console.error("Error in getRevenueData:", error);
+    throw new Error(
+      error.message || "Unknown error occurred inside getRevenueData",
+    );
   }
 }

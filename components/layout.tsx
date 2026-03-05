@@ -3,11 +3,13 @@
 import { useRouter, usePathname } from "next/navigation";
 import type React from "react";
 import { useUser } from "@/lib/contexts/UserContext";
-import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
+import {
+  SidebarProvider,
+  SidebarInset,
+  SidebarTrigger,
+} from "@/components/ui/sidebar";
 import { AppSidebar } from "./app-sidebar";
 import { Separator } from "@/components/ui/separator";
-
-
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -54,19 +56,11 @@ export function Layout({ children, pageTitle }: LayoutProps) {
         </header>
 
         <div className="flex flex-1 flex-col p-2 md:p-3 overflow-hidden">
-           <main className="flex-1 w-full overflow-auto rounded-2xl bg-white border border-gray-200 p-3">
+          <main className="flex-1 w-full overflow-auto rounded-2xl bg-white border border-gray-200 p-3">
             {children}
-           </main>
-           
-           <footer className="w-full py-4 px-4 md:px-6 lg:px-8 mt-auto">
-            <div className="text-center text-sm text-gray-600">
-              © 2025 Developed by Pratik. All rights reserved. Version: 15.5.0
-            </div>
-          </footer>
+          </main>
         </div>
       </SidebarInset>
     </SidebarProvider>
   );
 }
-
-

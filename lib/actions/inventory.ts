@@ -41,9 +41,8 @@ export async function getInventoryServerAction(
 
   // Create a stable string representation for the cache key
   const filterStr = JSON.stringify(filters || {});
-  // Use a string key instead of a hash for easier debugging
-  // Changed "p" to "v2-p" to bust any previously poisoned cache where batches were empty
-  const cacheKeyStr = `v2-p${page}-l${limit}-s${search}-c${categoryId}-b${brandId}-f${filterStr}`;
+  // Changed to "v5-p" to bust cache after fixing the batteryState bug
+  const cacheKeyStr = `v5-p${page}-l${limit}-s${search}-c${categoryId}-b${brandId}-f${filterStr}`;
 
   const getCachedData = unstable_cache(
     async () => {

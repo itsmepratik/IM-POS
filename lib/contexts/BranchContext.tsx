@@ -21,7 +21,7 @@ export type DbBranch = {
   email: string | null;
   is_active: boolean;
   created_at: string;
-  
+
   // Bill Header Details (Added for dynamic bill customization)
   company_name?: string;
   company_name_arabic?: string;
@@ -33,7 +33,7 @@ export type DbBranch = {
   address_line_arabic_2?: string;
   contact_number?: string;
   contact_number_arabic?: string;
-  
+
   // Extended Bill Details
   service_description_en?: string;
   service_description_ar?: string;
@@ -45,7 +45,6 @@ export type DbBranch = {
   brand_whatsapp?: string;
   pos_id?: string;
 };
-
 
 interface BranchContextType {
   branches: DbBranch[];
@@ -80,13 +79,16 @@ export function BranchProvider({ children }: { children: ReactNode }) {
   const [currentBranch, setCurrentBranch] = useState<DbBranch | null>(null);
   const [isLoadingBranches, setIsLoadingBranches] = useState(true);
   const [branchLoadError, setBranchLoadError] = useState(false);
-  const [inventoryLocationId, setInventoryLocationId] = useState<string | null>(null);
+  const [inventoryLocationId, setInventoryLocationId] = useState<string | null>(
+    null,
+  );
   const [isBranchLocked, setIsBranchLocked] = useState(false);
-  const [userShopDisplayName, setUserShopDisplayName] = useState<string | null>(null);
+  const [userShopDisplayName, setUserShopDisplayName] = useState<string | null>(
+    null,
+  );
 
   const supabase = createClient();
   const { currentUser, isAdmin, isLoading: isLoadingUser } = useUser();
-
 
   // Load branches from database using the fetchBranches service
   const loadBranches = async () => {
@@ -95,7 +97,6 @@ export function BranchProvider({ children }: { children: ReactNode }) {
       shop_id: string | null;
       role: string;
       is_admin: boolean;
-      shop_location_id?: string | null;
     } | null = null;
 
     try {
@@ -104,13 +105,12 @@ export function BranchProvider({ children }: { children: ReactNode }) {
 
       // Fetch current user's profile to check for shop assignment
 
-
       // Fetch current user's profile to check for shop assignment
       if (currentUser) {
         try {
           const { data: profileData, error: profileError } = await supabase
             .from("user_profiles")
-            .select("shop_id, role, is_admin, shop_location_id")
+            .select("shop_id, role, is_admin")
             .eq("id", currentUser.id)
             .single();
 
@@ -138,7 +138,7 @@ export function BranchProvider({ children }: { children: ReactNode }) {
           email: null,
           is_active: shop.isActive,
           created_at: new Date().toISOString(),
-          
+
           // Map new extended fields
           company_name: shop.company_name || undefined,
           company_name_arabic: shop.company_name_arabic || undefined,
@@ -163,76 +163,86 @@ export function BranchProvider({ children }: { children: ReactNode }) {
 
         // PRIORITY 1: Check for email pattern matching (e.g. sanaiya1@hnsautomotive.com)
         // This overrides everything else if matched
-        if (currentUser?.email && currentUser.email.endsWith("@hnsautomotive.com")) {
-            const emailParts = currentUser.email.split("@");
-            if (emailParts.length > 0) {
-                const potentialShopName = emailParts[0].toLowerCase();
-                
-                // Try to find a matching shop
-                // We check if the shop name matches, or if it's contained in the shop name
-                // e.g. "sanaiya1" matches "Sanaiya1" or "Al Ain Sanaiya 1"
-                const matchedBranch = dbBranches.find(b => 
-                    b.name.toLowerCase().replace(/\s+/g, '') === potentialShopName ||
-                    b.name.toLowerCase().includes(potentialShopName) ||
-                    // Handle edge cases like 'saniya1' in email vs 'sanaiya1' in DB if needed, 
-                    // but for now strict partial match is safer.
-                    (potentialShopName === 'saniya1' && b.name.toLowerCase().includes('sanaiya1')) ||
-                     (potentialShopName === 'saniya2' && b.name.toLowerCase().includes('sanaiya2'))
-                );
+        if (
+          currentUser?.email &&
+          currentUser.email.endsWith("@hnsautomotive.com")
+        ) {
+          const emailParts = currentUser.email.split("@");
+          if (emailParts.length > 0) {
+            const potentialShopName = emailParts[0].toLowerCase();
 
-                // Admin override check inside this block to ensure admins with matching emails aren't locked if we don't want them to be.
-                // But requirement says "basically all the shop accounts locked to their shops".
-                // If I am "sanaiya1@hnsautomotive.com", I should be locked to Sanaiya1. 
-                // Admin role usually comes from user_profiles. 
-                // Let's assume if you have a specific shop email, you ARE that shop's user, regardless of other roles, 
-                // UNLESS you are explicitly global admin.
-                // Let's check admin status just in case to avoid locking a super admin who happens to have a shop-like email?
-                // Actually, the user request says 'shops like sanaiya1 will be preselected and locked'.
-                // So if I am admin but my email is sanaiya1@..., I probably still want to be locked?
-                // No, admin should be able to switch.
-                // Let's check if the user is ACTUALLY an admin role in DB.
-                
-                const isRealAdmin = userProfile?.role === 'admin' || userProfile?.is_admin === true || isAdmin();
+            // Try to find a matching shop
+            // We check if the shop name matches, or if it's contained in the shop name
+            // e.g. "sanaiya1" matches "Sanaiya1" or "Al Ain Sanaiya 1"
+            const matchedBranch = dbBranches.find(
+              (b) =>
+                b.name.toLowerCase().replace(/\s+/g, "") ===
+                  potentialShopName ||
+                b.name.toLowerCase().includes(potentialShopName) ||
+                // Handle edge cases like 'saniya1' in email vs 'sanaiya1' in DB if needed,
+                // but for now strict partial match is safer.
+                (potentialShopName === "saniya1" &&
+                  b.name.toLowerCase().includes("sanaiya1")) ||
+                (potentialShopName === "saniya2" &&
+                  b.name.toLowerCase().includes("sanaiya2")),
+            );
 
-                if (matchedBranch && !isRealAdmin) {
-                    
-                    // Filter branches to show only assigned shop
-                    dbBranches = dbBranches.filter((b) => b.id === matchedBranch.id);
-                    
-                    // Lock branch selection
-                    setIsBranchLocked(true);
-                    
-                    // Set inventory location ID from shop's location_id
-                    const assignedShop = shops.find((s) => s.id === matchedBranch.id);
-                    if (assignedShop) {
-                        setInventoryLocationId(assignedShop.locationId);
-                    }
+            // Admin override check inside this block to ensure admins with matching emails aren't locked if we don't want them to be.
+            // But requirement says "basically all the shop accounts locked to their shops".
+            // If I am "sanaiya1@hnsautomotive.com", I should be locked to Sanaiya1.
+            // Admin role usually comes from user_profiles.
+            // Let's assume if you have a specific shop email, you ARE that shop's user, regardless of other roles,
+            // UNLESS you are explicitly global admin.
+            // Let's check admin status just in case to avoid locking a super admin who happens to have a shop-like email?
+            // Actually, the user request says 'shops like sanaiya1 will be preselected and locked'.
+            // So if I am admin but my email is sanaiya1@..., I probably still want to be locked?
+            // No, admin should be able to switch.
+            // Let's check if the user is ACTUALLY an admin role in DB.
 
-                    // Automatically set branch
-                    setCurrentBranch(matchedBranch);
-                    localStorage.setItem("selectedBranchId", matchedBranch.id);
-                    document.cookie = `pos_branch_id=${matchedBranch.id}; path=/; max-age=31536000; SameSite=Lax`;
-                    
-                    // Update state and return early
-                    setBranches(dbBranches);
-                    setBranchLoadError(false);
-                    setIsLoadingBranches(false);
-                    return;
-                }
+            const isRealAdmin =
+              userProfile?.role === "admin" ||
+              userProfile?.is_admin === true ||
+              isAdmin();
+
+            if (matchedBranch && !isRealAdmin) {
+              // Filter branches to show only assigned shop
+              dbBranches = dbBranches.filter((b) => b.id === matchedBranch.id);
+
+              // Lock branch selection
+              setIsBranchLocked(true);
+
+              // Set inventory location ID from shop's location_id
+              const assignedShop = shops.find((s) => s.id === matchedBranch.id);
+              if (assignedShop) {
+                setInventoryLocationId(assignedShop.locationId);
+              }
+
+              // Automatically set branch
+              setCurrentBranch(matchedBranch);
+              localStorage.setItem("selectedBranchId", matchedBranch.id);
+              document.cookie = `pos_branch_id=${matchedBranch.id}; path=/; max-age=31536000; SameSite=Lax`;
+
+              // Update state and return early
+              setBranches(dbBranches);
+              setBranchLoadError(false);
+              setIsLoadingBranches(false);
+              return;
             }
+          }
         }
 
         // Check if user is admin - moved up to be accessible in scope
-        const userIsAdmin = userProfile?.is_admin || userProfile?.role === "admin" || isAdmin();
+        const userIsAdmin =
+          userProfile?.is_admin || userProfile?.role === "admin" || isAdmin();
 
         // If user is shop and has shop_id, filter and lock branches
         if (!userIsAdmin && userProfile?.shop_id) {
           // Filter branches to show only assigned shop
           dbBranches = dbBranches.filter((b) => b.id === userProfile!.shop_id);
-          
+
           // Lock branch selection
           setIsBranchLocked(true);
-          
+
           // Set inventory location ID from shop's location_id
           const assignedShop = shops.find((s) => s.id === userProfile!.shop_id);
           if (assignedShop) {
@@ -240,12 +250,14 @@ export function BranchProvider({ children }: { children: ReactNode }) {
           }
 
           // Automatically set branch to shop_id
-          const assignedBranch = dbBranches.find((b) => b.id === userProfile!.shop_id);
+          const assignedBranch = dbBranches.find(
+            (b) => b.id === userProfile!.shop_id,
+          );
           if (assignedBranch) {
             setCurrentBranch(assignedBranch);
             localStorage.setItem("selectedBranchId", assignedBranch.id);
           }
-          
+
           setBranchLoadError(false);
           return;
         } else {
@@ -257,50 +269,54 @@ export function BranchProvider({ children }: { children: ReactNode }) {
 
         // FOR ADMINS: Always default to Sanaiya1, ignore localStorage
         if (userIsAdmin) {
-            const saniya1Branch = dbBranches.find((b) =>
-              b.name.toLowerCase().includes("saniya1") || b.name.toLowerCase().includes("sanaiya1")
-            );
-            const defaultBranch = saniya1Branch || dbBranches[0];
-            
-            // Validate that we are actually switching or setting
-            if (!currentBranch || currentBranch.id !== defaultBranch.id) {
-                 setCurrentBranch(defaultBranch);
-                 // We DON'T load from localStorage for admins to ensure strict default
-                 // But we DO update localStorage so if they reload, it's consistent until they leave? 
-                 // Wait, requirement is "always on sanaiya1 by default".
-                 // So we should OVERWRITE localStorage with Sanaiya1 ID.
-                 localStorage.setItem("selectedBranchId", defaultBranch.id);
-            }
-            
-            // Set inventory location from shop's location_id
-            const defaultShop = shops.find((s) => s.id === defaultBranch.id);
-            if (defaultShop) {
-              setInventoryLocationId(defaultShop.locationId);
-            }
-            setBranchLoadError(false);
-            return;
+          const saniya1Branch = dbBranches.find(
+            (b) =>
+              b.name.toLowerCase().includes("saniya1") ||
+              b.name.toLowerCase().includes("sanaiya1"),
+          );
+          const defaultBranch = saniya1Branch || dbBranches[0];
+
+          // Validate that we are actually switching or setting
+          if (!currentBranch || currentBranch.id !== defaultBranch.id) {
+            setCurrentBranch(defaultBranch);
+            // We DON'T load from localStorage for admins to ensure strict default
+            // But we DO update localStorage so if they reload, it's consistent until they leave?
+            // Wait, requirement is "always on sanaiya1 by default".
+            // So we should OVERWRITE localStorage with Sanaiya1 ID.
+            localStorage.setItem("selectedBranchId", defaultBranch.id);
+          }
+
+          // Set inventory location from shop's location_id
+          const defaultShop = shops.find((s) => s.id === defaultBranch.id);
+          if (defaultShop) {
+            setInventoryLocationId(defaultShop.locationId);
+          }
+          setBranchLoadError(false);
+          return;
         }
 
         // FOR NON-ADMINS (who are not shop locked? Should not happen based on logic, but fallback)
         const savedBranchId = localStorage.getItem("selectedBranchId");
-        const savedBranch = savedBranchId ? dbBranches.find((b) => b.id === savedBranchId) : null;
-        
+        const savedBranch = savedBranchId
+          ? dbBranches.find((b) => b.id === savedBranchId)
+          : null;
+
         if (savedBranch) {
-           setCurrentBranch(savedBranch);
-             // Ensure inventory location is set correctly
+          setCurrentBranch(savedBranch);
+          // Ensure inventory location is set correctly
           const savedShop = shops.find((s) => s.id === savedBranch.id);
           if (savedShop) {
             setInventoryLocationId(savedShop.locationId);
           }
         } else {
-             // Default to first
-            const defaultBranch = dbBranches[0];
-            setCurrentBranch(defaultBranch);
-            localStorage.setItem("selectedBranchId", defaultBranch.id);
-             const defaultShop = shops.find((s) => s.id === defaultBranch.id);
-            if (defaultShop) {
-              setInventoryLocationId(defaultShop.locationId);
-            }
+          // Default to first
+          const defaultBranch = dbBranches[0];
+          setCurrentBranch(defaultBranch);
+          localStorage.setItem("selectedBranchId", defaultBranch.id);
+          const defaultShop = shops.find((s) => s.id === defaultBranch.id);
+          if (defaultShop) {
+            setInventoryLocationId(defaultShop.locationId);
+          }
         }
 
         setBranchLoadError(false);
@@ -351,33 +367,34 @@ export function BranchProvider({ children }: { children: ReactNode }) {
       ];
 
       console.warn("⚠️ Using fallback branch data with valid UUIDs");
-      
+
       // Check if user is admin again for fallback scope
-      const isUserAdmin = userProfile?.is_admin || userProfile?.role === "admin" || isAdmin();
+      const isUserAdmin =
+        userProfile?.is_admin || userProfile?.role === "admin" || isAdmin();
 
       // Filter out Sanaiya from fallback branches for admin users
       let filteredFallbackBranches = fallbackBranches;
       if (isUserAdmin) {
-        filteredFallbackBranches = fallbackBranches.filter((b) => 
-          b.name.toLowerCase().trim() !== "sanaiya"
+        filteredFallbackBranches = fallbackBranches.filter(
+          (b) => b.name.toLowerCase().trim() !== "sanaiya",
         );
       }
-      
+
       setBranches(filteredFallbackBranches);
 
       // Set Saniya1 as default if none selected (for admin) or shop location (for shop users)
       if (!currentBranch) {
         if (isUserAdmin) {
           const saniya1Fallback = filteredFallbackBranches.find((b) =>
-            b.name.toLowerCase().includes("saniya1")
+            b.name.toLowerCase().includes("saniya1"),
           );
           const defaultBranch = saniya1Fallback || filteredFallbackBranches[0];
           setCurrentBranch(defaultBranch);
           localStorage.setItem("selectedBranchId", defaultBranch.id);
-        } else if (userProfile?.shop_location_id) {
+        } else if (userProfile?.shop_id) {
           // For shop users, use their assigned shop location
-          const shopBranch = filteredFallbackBranches.find((b) => 
-            b.id === userProfile?.shop_location_id
+          const shopBranch = filteredFallbackBranches.find(
+            (b) => b.id === userProfile?.shop_id,
           );
           if (shopBranch) {
             setCurrentBranch(shopBranch);
@@ -420,24 +437,24 @@ export function BranchProvider({ children }: { children: ReactNode }) {
 
   // Restore selected branch when branches are loaded
   useEffect(() => {
-    // Only restore for non-admin users who aren't shop users (edge case)? 
+    // Only restore for non-admin users who aren't shop users (edge case)?
     // Actually, logic inside loadBranches handles the enforcement for Admins.
     // So we just need to make sure this effect doesn't override it.
-    
+
     // We can rely on 'currentBranch' being set by loadBranches for admins.
     // If currentBranch is already set, we don't need to do anything.
     if (!currentBranch && branches.length > 0) {
-        const savedBranchId = localStorage.getItem("selectedBranchId");
-        if (savedBranchId) {
-             const userIsAdmin = currentUser?.role === "admin" || isAdmin();
-             // If Admin, loadBranches should have already handled it. If we are here, something is odd, 
-             // but let's respect the loadBranches logic which doesn't rely on this effect for the enforcement.
-             // Actually, if we are strictly enforcing Sanaiya1 for admins, we should NOT restore from local storage here if admin.
-             
-             if (!userIsAdmin) {
-                  selectBranch(savedBranchId);
-             }
+      const savedBranchId = localStorage.getItem("selectedBranchId");
+      if (savedBranchId) {
+        const userIsAdmin = currentUser?.role === "admin" || isAdmin();
+        // If Admin, loadBranches should have already handled it. If we are here, something is odd,
+        // but let's respect the loadBranches logic which doesn't rely on this effect for the enforcement.
+        // Actually, if we are strictly enforcing Sanaiya1 for admins, we should NOT restore from local storage here if admin.
+
+        if (!userIsAdmin) {
+          selectBranch(savedBranchId);
         }
+      }
     }
   }, [branches, currentBranch, currentUser, isAdmin]); // Run when branches are loaded
 
@@ -448,7 +465,8 @@ export function BranchProvider({ children }: { children: ReactNode }) {
       if (!userIsAdmin) {
         toast({
           title: "Access Denied",
-          description: "You don't have permission to change locations. Please contact an administrator.",
+          description:
+            "You don't have permission to change locations. Please contact an administrator.",
           variant: "destructive",
         });
         console.warn("⚠️ Shop user attempted to change branch while locked");
@@ -464,7 +482,8 @@ export function BranchProvider({ children }: { children: ReactNode }) {
         // Fetch shop to get location_id
         const fetchShopLocation = async () => {
           try {
-            const { fetchShops } = await import("@/lib/services/inventoryService");
+            const { fetchShops } =
+              await import("@/lib/services/inventoryService");
             const shops = await fetchShops();
             const selectedShop = shops.find((s) => s.id === branchId);
             if (selectedShop) {
@@ -524,7 +543,7 @@ export function BranchProvider({ children }: { children: ReactNode }) {
       branchLoadError,
       inventoryLocationId,
       isBranchLocked,
-    ]
+    ],
   );
 
   return (

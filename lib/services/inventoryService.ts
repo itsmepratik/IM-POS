@@ -221,144 +221,198 @@ export const fetchInventoryItems = async (
       return { data: [], count: 0 };
     }
 
-    // Determine join type based on filters to ensure data is returned correctly
-    // When filtering by a child resource, we must use !inner to filter the parent
-    // AND to ensure the child data is returned.
-    const categoryJoin =
-      categoryId && categoryId !== "ALL" && categoryId !== "all"
-        ? "categories!inner"
-        : "categories";
-    const brandJoin =
-      brandId && brandId !== "ALL" && brandId !== "all" && brandId !== "none"
-        ? "brands!inner"
-        : "brands";
+    // Determine if we should use the new RPC for search or standard query
+    let inventoryData: any[] = [];
+    let count = 0;
 
-    let query = sb
-      .from("inventory")
-      .select(
-        `
-        id,
-        product_id,
-        standard_stock,
-        selling_price,
-        open_bottles_stock,
-        closed_bottles_stock,
-        total_stock,
-        products!inner (
-          id,
-          name,
-          name,
-          description,
-          image_url,
-          low_stock_threshold,
-          cost_price,
-          manufacturing_date,
-          is_battery,
-          battery_state,
-          specification,
-          category_id,
-          brand_id,
-          ${categoryJoin} ( id, name ),
-          ${brandJoin} ( id, name ),
-          product_types (
-            types ( id, name, category_id )
-          )
-        )
-      `,
-        { count: "exact" },
-      )
-      .eq("location_id", actualLocationId);
-
-    // Basic String Search
-    if (search) {
-      query = query.or(`name.ilike.%${search}%,description.ilike.%${search}%`, {
-        foreignTable: "products",
-      });
-    }
-
-    if (categoryId && categoryId !== "ALL" && categoryId !== "all") {
-      if (isUUID(categoryId)) {
-        query = query.eq("products.category_id", categoryId);
-      } else {
-        // Filter by category name
-        query = query.eq("products.categories.name", categoryId);
-      }
-    }
-
-    if (brandId && brandId !== "ALL" && brandId !== "all") {
-      if (isUUID(brandId)) {
-        query = query.eq("products.brand_id", brandId);
-      } else if (brandId === "none") {
-        // Handle "No Brand" case if passed from UI
-        query = query.is("products.brand_id", null);
-      } else {
-        // Filter by brand name
-        query = query.eq("products.brands.name", brandId);
-      }
-    }
-
-    // Apply Advanced Filters
-    if (filters.minPrice !== undefined && filters.minPrice !== null) {
-      query = query.gte("selling_price", filters.minPrice);
-    }
-
-    if (filters.maxPrice !== undefined && filters.maxPrice !== null) {
-      query = query.lte("selling_price", filters.maxPrice);
-    }
-
-    // Stock Filters
-    // Note: 'standard_stock' is the main stock field.
-    // Low stock requires comparing standard_stock with products.low_stock_threshold.
-    // Supabase standard queries can't easily compare two columns (col A <= col B).
-    // We might need to filter basic stock > 0 checks, but for relative checks (low stock),
-    // we might need to rely on RPC or client-side filtering if the dataset after other filters is small enough.
-    // HOWEVER, for "Out of Stock" (stock == 0) and "In Stock" (stock > 0), it is easy.
-
-    if (filters.showOutOfStockOnly) {
-      query = query.eq("standard_stock", 0);
-    } else if (filters.showInStock) {
-      query = query.gt("standard_stock", 0);
-    } else if (filters.stockStatus === "out-of-stock") {
-      query = query.eq("standard_stock", 0);
-    } else if (filters.stockStatus === "in-stock") {
-      query = query.gt("standard_stock", 0);
-    }
-
-    // Battery Filters
-    if (filters.showBatteries) {
-      query = query.eq("products.is_battery", true);
-      if (filters.batteryState) {
-        query = query.eq("products.battery_state", filters.batteryState);
-      }
-    }
-
-    // Apply Sorting
-    if (filters.sortBy === "name") {
-      query = query.order("name", {
-        foreignTable: "products",
-        ascending: filters.sortOrder === "asc",
-      });
-    } else if (filters.sortBy === "price") {
-      query = query.order("selling_price", {
-        ascending: filters.sortOrder === "asc",
-      });
-    } else {
-      // Default sort
-      query = query.order("id", { ascending: true });
-    }
-
-    // Apply Pagination
-    const from = (page - 1) * limit;
-    const to = from + limit - 1;
-
-    const { data: inventoryData, error, count } = await query.range(from, to);
-
-    if (error) {
-      console.error(
-        "Error fetching paginated inventory:",
-        JSON.stringify(error, null, 2),
+    if (search && search.trim() !== "") {
+      console.log(
+        `[fetchInventoryItems] Calling search_inventory_items_v2 with query: "${search}"`,
       );
-      throw error;
+      // Use the Enhanced Search RPC v2
+      const { data: rpcData, error: rpcError } = await sb.rpc(
+        "search_inventory_items_v2",
+        {
+          p_search_query: search,
+          p_location_id: actualLocationId,
+          p_category_id:
+            categoryId && categoryId !== "ALL" && categoryId !== "all"
+              ? isUUID(categoryId)
+                ? categoryId
+                : null
+              : null,
+          p_brand_id:
+            brandId &&
+            brandId !== "ALL" &&
+            brandId !== "all" &&
+            brandId !== "none"
+              ? isUUID(brandId)
+                ? brandId
+                : null
+              : null,
+          p_min_price: filters.minPrice ?? null,
+          p_max_price: filters.maxPrice ?? null,
+          p_stock_status: filters.stockStatus || "all",
+          p_is_battery: filters.showBatteries || null,
+          p_battery_state: filters.showBatteries
+            ? filters.batteryState || null
+            : null,
+          p_limit: limit,
+          p_offset: (page - 1) * limit,
+        },
+      );
+
+      if (rpcError) {
+        console.error("Error calling search_inventory_items_v2:", rpcError);
+        throw rpcError;
+      }
+      console.log(
+        `[fetchInventoryItems] search_inventory_items_v2 returned ${rpcData?.length || 0} items`,
+      );
+
+      // Map RPC output to match the format expected by the transformation logic below
+      inventoryData = (rpcData || []).map((row: any) => ({
+        id: row.inventory_id,
+        product_id: row.product_id,
+        standard_stock: row.standard_stock,
+        selling_price: row.selling_price,
+        open_bottles_stock: row.open_bottles_stock,
+        closed_bottles_stock: row.closed_bottles_stock,
+        total_stock: row.total_stock,
+        products: {
+          id: row.product_id,
+          name: row.product_name,
+          description: row.product_description,
+          image_url: row.product_image_url,
+          low_stock_threshold: row.product_low_stock_threshold,
+          cost_price: row.product_cost_price,
+          manufacturing_date: row.product_manufacturing_date,
+          is_battery: row.product_is_battery,
+          battery_state: row.product_battery_state,
+          specification: row.product_specification,
+          category_id: row.category_id,
+          brand_id: row.brand_id,
+          categories: { id: row.category_id, name: row.category_name },
+          brands: { id: row.brand_id, name: row.brand_name },
+          product_types: [], // Initialize to avoid crashes in .some() checks
+        },
+      }));
+      count = rpcData?.[0]?.total_count || 0;
+    } else {
+      // Standard fetch logic for no-search scenarios
+      // Determine join type based on filters to ensure data is returned correctly
+      const categoryJoin =
+        categoryId && categoryId !== "ALL" && categoryId !== "all"
+          ? "categories!inner"
+          : "categories";
+      const brandJoin =
+        brandId && brandId !== "ALL" && brandId !== "all" && brandId !== "none"
+          ? "brands!inner"
+          : "brands";
+
+      let query = sb
+        .from("inventory")
+        .select(
+          `
+          id,
+          product_id,
+          standard_stock,
+          selling_price,
+          open_bottles_stock,
+          closed_bottles_stock,
+          total_stock,
+          products!inner (
+            id,
+            name,
+            name,
+            description,
+            image_url,
+            low_stock_threshold,
+            cost_price,
+            manufacturing_date,
+            is_battery,
+            battery_state,
+            specification,
+            category_id,
+            brand_id,
+            ${categoryJoin} ( id, name ),
+            ${brandJoin} ( id, name ),
+            product_types (
+              types ( id, name, category_id )
+            )
+          )
+        `,
+          { count: "exact" },
+        )
+        .eq("location_id", actualLocationId);
+
+      if (categoryId && categoryId !== "ALL" && categoryId !== "all") {
+        if (isUUID(categoryId)) {
+          query = query.eq("products.category_id", categoryId);
+        } else {
+          query = query.eq("products.categories.name", categoryId);
+        }
+      }
+
+      if (brandId && brandId !== "ALL" && brandId !== "all") {
+        if (isUUID(brandId)) {
+          query = query.eq("products.brand_id", brandId);
+        } else if (brandId === "none") {
+          query = query.is("products.brand_id", null);
+        } else {
+          query = query.eq("products.brands.name", brandId);
+        }
+      }
+
+      if (filters.minPrice !== undefined && filters.minPrice !== null) {
+        query = query.gte("selling_price", filters.minPrice);
+      }
+      if (filters.maxPrice !== undefined && filters.maxPrice !== null) {
+        query = query.lte("selling_price", filters.maxPrice);
+      }
+
+      if (filters.showOutOfStockOnly) {
+        query = query.eq("standard_stock", 0);
+      } else if (filters.showInStock) {
+        query = query.gt("standard_stock", 0);
+      } else if (filters.stockStatus === "out-of-stock") {
+        query = query.eq("standard_stock", 0);
+      } else if (filters.stockStatus === "in-stock") {
+        query = query.gt("standard_stock", 0);
+      }
+
+      if (filters.showBatteries) {
+        query = query.eq("products.is_battery", true);
+        if (filters.batteryState) {
+          query = query.eq("products.battery_state", filters.batteryState);
+        }
+      }
+
+      if (filters.sortBy === "name") {
+        query = query.order("name", {
+          foreignTable: "products",
+          ascending: filters.sortOrder === "asc",
+        });
+      } else if (filters.sortBy === "price") {
+        query = query.order("selling_price", {
+          ascending: filters.sortOrder === "asc",
+        });
+      } else {
+        query = query.order("id", { ascending: true });
+      }
+
+      const from = (page - 1) * limit;
+      const to = from + limit - 1;
+
+      const {
+        data,
+        error: fetchErr,
+        count: fetchCount,
+      } = await query.range(from, to);
+      if (fetchErr) throw fetchErr;
+
+      inventoryData = data || [];
+      count = fetchCount || 0;
     }
 
     // Client-side filtering for complex logic that Supabase query can't easily handle
@@ -434,7 +488,7 @@ export const fetchInventoryItems = async (
             .eq("product_id", inv.product_id);
 
           if (volData) {
-            volumes = volData.map((v) => ({
+            volumes = volData.map((v: any) => ({
               ...v,
               item_id: inv.product_id, // Map back to product ID for consistency
               size: v.volume_description, // Map DB column to frontend property
@@ -463,7 +517,7 @@ export const fetchInventoryItems = async (
             .eq("is_empty", false);
 
           // Convert volumes to VolumeInfo format for the utility
-          const volumeInfos: VolumeInfo[] = volumes.map((v) => ({
+          const volumeInfos: VolumeInfo[] = volumes.map((v: any) => ({
             size: v.size,
             price: v.price,
           }));
@@ -489,7 +543,8 @@ export const fetchInventoryItems = async (
             // Calculate totalOpenVolume from actual open bottles if available
             if (openBottleRows) {
               totalOpenVolume = openBottleRows.reduce(
-                (sum, b) => sum + (parseFloat(String(b.current_volume)) || 0),
+                (sum: any, b: any) =>
+                  sum + (parseFloat(String(b.current_volume)) || 0),
                 0,
               );
             }
@@ -750,7 +805,7 @@ export const fetchItems = async (
             .eq("is_empty", false);
 
           // Convert volumes to VolumeInfo format for the utility
-          const volumeInfos: VolumeInfo[] = volumes.map((v) => ({
+          const volumeInfos: VolumeInfo[] = volumes.map((v: any) => ({
             size: v.size,
             price: v.price,
           }));
@@ -783,7 +838,8 @@ export const fetchItems = async (
             // Calculate totalOpenVolume from actual open bottles if available
             if (openBottleRows) {
               totalOpenVolume = openBottleRows.reduce(
-                (sum, b) => sum + (parseFloat(String(b.current_volume)) || 0),
+                (sum: any, b: any) =>
+                  sum + (parseFloat(String(b.current_volume)) || 0),
                 0,
               );
             }

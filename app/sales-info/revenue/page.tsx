@@ -30,14 +30,8 @@ interface SaleItem {
   totalSales: number;
   variants?: SaleItemVariant[];
   storeId: string;
+  storeName?: string;
 }
-
-const stores = [
-  { id: "all-stores", name: "All Stores" },
-  { id: "store1", name: "Main (Sanaya)" },
-  { id: "store2", name: "Hafith" },
-  { id: "store3", name: "Abu-Dhurus" },
-];
 
 // Memoize the mobile item card component
 const MobileItemCard = memo(
@@ -103,7 +97,7 @@ const MobileItemCard = memo(
         </div>
       </Card>
     );
-  }
+  },
 );
 MobileItemCard.displayName = "MobileItemCard";
 
@@ -120,7 +114,7 @@ const DesktopView = memo(
   }) => {
     const totalSales = useMemo(
       () => salesData.reduce((sum, item) => sum + item.totalSales, 0),
-      [salesData]
+      [salesData],
     );
 
     return (
@@ -164,7 +158,7 @@ const DesktopView = memo(
                     </span>
                   </td>
                   <td className="px-6 py-4">
-                    {stores.find((store) => store.id === item.storeId)?.name}
+                    {item.storeName || item.storeId}
                   </td>
                   <td className="px-6 py-4 text-right">
                     {item.quantity} units
@@ -214,7 +208,7 @@ const DesktopView = memo(
         </table>
       </div>
     );
-  }
+  },
 );
 DesktopView.displayName = "DesktopView";
 
@@ -231,7 +225,7 @@ const MobileView = memo(
   }) => {
     const totalSales = useMemo(
       () => salesData.reduce((sum, item) => sum + item.totalSales, 0),
-      [salesData]
+      [salesData],
     );
 
     return (
@@ -251,7 +245,7 @@ const MobileView = memo(
         </Card>
       </div>
     );
-  }
+  },
 );
 MobileView.displayName = "MobileView";
 
@@ -261,7 +255,16 @@ export default function RevenuePage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
 
-  const { items, stores, isLoading } = useSalesInfo();
+  // Date range state
+  const [startDate, setStartDate] = useState<Date | undefined>(
+    new Date(new Date().setDate(1)),
+  ); // Start of current month
+  const [endDate, setEndDate] = useState<Date | undefined>(new Date());
+
+  const { items, stores, isLoading, error } = useSalesInfo({
+    startDate,
+    endDate,
+  });
 
   // Filter items based on selected store, category, and search query
   const filteredItems = items.filter((item) => {
@@ -278,11 +281,11 @@ export default function RevenuePage() {
   // Calculate totals
   const totalSales = filteredItems.reduce(
     (sum, item) => sum + item.totalSales,
-    0
+    0,
   );
   const totalQuantity = filteredItems.reduce(
     (sum, item) => sum + item.quantity,
-    0
+    0,
   );
   const averagePrice = totalSales / totalQuantity;
 
@@ -311,12 +314,21 @@ export default function RevenuePage() {
     setExpandedItems((prev) =>
       prev.includes(itemName)
         ? prev.filter((name) => name !== itemName)
-        : [...prev, itemName]
+        : [...prev, itemName],
     );
   }, []);
 
   // Lazy load the view based on viewport
   const CurrentView = useMemo(() => {
+    if (error) {
+      return (
+        <div className="p-10 text-center text-red-500">
+          <p className="font-semibold mb-2">Failed to load revenue data</p>
+          <p className="text-sm">{error.message}</p>
+        </div>
+      );
+    }
+
     if (isMobileView) {
       return (
         <MobileView
@@ -333,7 +345,7 @@ export default function RevenuePage() {
         toggleItem={toggleItem}
       />
     );
-  }, [isMobileView, filteredItems, expandedItems, toggleItem]);
+  }, [isMobileView, filteredItems, expandedItems, toggleItem, error]);
 
   return (
     <Layout>
@@ -348,18 +360,46 @@ export default function RevenuePage() {
         <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:justify-between">
           <h2 className="text-lg font-semibold">Items Sold</h2>
           {hasMounted ? (
-            <Select value={selectedStore} onValueChange={setSelectedStore}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Select store" />
-              </SelectTrigger>
-              <SelectContent>
-                {stores.map((store) => (
-                  <SelectItem key={store.id} value={store.id}>
-                    {store.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="flex gap-4 flex-col md:flex-row md:items-center">
+              <Select value={selectedStore} onValueChange={setSelectedStore}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Select store" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all-stores">All Stores</SelectItem>
+                  {stores.map((store) => (
+                    <SelectItem key={store.id} value={store.id}>
+                      {store.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* Basic HTML Date Pickers for Simplicity & Robustness */}
+              <div className="flex gap-2 items-center">
+                <input
+                  type="date"
+                  className="border rounded p-2 text-sm"
+                  value={startDate ? startDate.toISOString().split("T")[0] : ""}
+                  onChange={(e) =>
+                    setStartDate(
+                      e.target.value ? new Date(e.target.value) : undefined,
+                    )
+                  }
+                />
+                <span className="text-gray-500">to</span>
+                <input
+                  type="date"
+                  className="border rounded p-2 text-sm"
+                  value={endDate ? endDate.toISOString().split("T")[0] : ""}
+                  onChange={(e) =>
+                    setEndDate(
+                      e.target.value ? new Date(e.target.value) : undefined,
+                    )
+                  }
+                />
+              </div>
+            </div>
           ) : (
             <div className="w-[180px] h-10" /> /* Placeholder to maintain layout */
           )}
@@ -370,4 +410,3 @@ export default function RevenuePage() {
     </Layout>
   );
 }
-

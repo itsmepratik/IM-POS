@@ -11,6 +11,7 @@ import React, {
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DebouncedSearchInput } from "@/components/ui/debounced-search-input";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
@@ -1508,8 +1509,8 @@ function DesktopView({
 
   // Handle search input change
   const handleSearchChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      startTransition(() => setSearchQuery(e.target.value));
+    (value: string) => {
+      startTransition(() => setSearchQuery(value));
     },
     [setSearchQuery],
   );
@@ -1551,14 +1552,12 @@ function DesktopView({
     <div className="space-y-4 pt-3 pb-4">
       <div className="flex items-center gap-2">
         <div className="relative flex-1 min-w-0">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <ClientOnly>
-            <Input
-              type="search"
-              placeholder="Search items..."
-              className="pl-9 pr-4 w-full rounded-[2.0625rem] border border-gray-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20"
+            <DebouncedSearchInput
               value={searchQuery}
               onChange={handleSearchChange}
+              placeholder="Search items..."
+              debounceMs={500}
             />
           </ClientOnly>
         </div>

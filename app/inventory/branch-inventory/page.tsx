@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useCallback, memo } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DebouncedSearchInput } from "@/components/ui/debounced-search-input";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
@@ -340,20 +341,9 @@ function MobileView({
     }
   }, [selectedBranch]);
 
-  // Filter items based on search and stock filters
+  // Filter items based on stock filters (search is handled by the server now)
   const filteredItems = useMemo(() => {
     return items.filter((item) => {
-      // Search filter
-      const matchesSearch =
-        searchQuery === "" ||
-        item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (item.brand &&
-          item.brand.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (item.sku &&
-          item.sku.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (item.category &&
-          item.category.toLowerCase().includes(searchQuery.toLowerCase()));
-
       // Low stock filter
       const matchesLowStock = showLowStockOnly
         ? (item.stock ?? 0) > 0 &&
@@ -365,14 +355,11 @@ function MobileView({
         ? (item.stock ?? 0) === 0
         : true;
 
-      return (
-        matchesSearch &&
-        (showLowStockOnly || showOutOfStockOnly
-          ? matchesLowStock && matchesOutOfStock
-          : true)
-      );
+      return showLowStockOnly || showOutOfStockOnly
+        ? matchesLowStock && matchesOutOfStock
+        : true;
     });
-  }, [items, searchQuery, showLowStockOnly, showOutOfStockOnly]);
+  }, [items, showLowStockOnly, showOutOfStockOnly]);
 
   const handleAddItem = () => {
     setEditingItem(null);
@@ -862,13 +849,11 @@ function BranchInventoryContent({
           <div className="space-y-4">
             <div className="flex items-center gap-2">
               <div className="relative flex-1 min-w-0">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  type="search"
-                  placeholder="Search items..."
-                  className="pl-9 pr-4 w-full rounded-[2.0625rem] border border-gray-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20"
+                <DebouncedSearchInput
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(val) => setSearchQuery(val)}
+                  placeholder="Search items..."
+                  debounceMs={500}
                 />
               </div>
 
