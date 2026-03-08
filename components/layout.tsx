@@ -49,14 +49,14 @@ export function Layout({ children, pageTitle }: LayoutProps) {
     <SidebarProvider>
       <AppSidebar />
       <SidebarInset>
-        <header className="flex h-16 shrink-0 items-center gap-2 border-b bg-background px-4 md:hidden">
+        <header className="flex h-16 shrink-0 items-center gap-2 border-b bg-background px-4 md:hidden print:hidden">
           <SidebarTrigger className="-ml-1" />
           <Separator orientation="vertical" className="mr-2 h-4" />
           <h1 className="text-lg font-semibold">{getPageTitle()}</h1>
         </header>
 
-        <div className="flex flex-1 flex-col p-2 md:p-3 overflow-hidden">
-          <main className="flex-1 w-full overflow-auto rounded-2xl bg-white border border-gray-200 p-3">
+        <div className="flex flex-1 flex-col p-2 md:p-3 overflow-hidden print:p-0 print:overflow-visible">
+          <main className="flex-1 w-full overflow-auto rounded-2xl bg-white border border-gray-200 p-3 print:border-none print:m-0 print:p-0 print:rounded-none print:overflow-visible">
             {children}
           </main>
         </div>

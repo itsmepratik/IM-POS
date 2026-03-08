@@ -337,3 +337,24 @@ button,
   letter-spacing: -0.01em;
   font-weight: 400;
 }
+
+/* Print Specific Styles */
+@media print {
+  ::-webkit-scrollbar {
+    display: none !important;
+  }
+  * {
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+  }
+  html,
+  body,
+  main,
+  div,
+  section {
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+}
