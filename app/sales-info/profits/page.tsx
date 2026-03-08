@@ -606,97 +606,16 @@ export default function ProfitsPage() {
             <h1 className="text-2xl font-semibold">Detailed Profits Report</h1>
           </div>
         </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="hidden sm:flex">
-                  <Settings2 className="mr-2 h-4 w-4" />
-                  Columns
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-[150px]">
-                {availableColumns.map((column) => (
-                  <DropdownMenuCheckboxItem
-                    key={column.id}
-                    className="capitalize"
-                    checked={visibleColumns[column.id]}
-                    onAction={() => toggleColumn(column.id)}
-                  >
-                    {column.label}
-                  </DropdownMenuCheckboxItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            <ExportButtons
-              className="hidden sm:flex"
-              data={filteredItems}
-              filename="Profits_Report"
-              reportName="Profits Data"
-              mapDataFn={(data) => {
-                const flatRows: any[] = [];
-                data.forEach((item: ProfitItem) => {
-                  if (
-                    item.category === "fluid" &&
-                    item.variants &&
-                    item.variants.length > 0
-                  ) {
-                    item.variants.forEach((variant) => {
-                      const row: any = {
-                        "Item Name": item.name,
-                        "Variant/Size": variant.size,
-                      };
-                      if (visibleColumns.shop) row["Shop"] = item.storeName;
-                      if (visibleColumns.quantity)
-                        row["Quantity"] = variant.quantity;
-                      if (visibleColumns.unitCost)
-                        row["Unit Cost"] = variant.unitCost.toFixed(3);
-                      if (visibleColumns.unitPrice)
-                        row["Unit Price"] = variant.unitPrice.toFixed(3);
-                      if (visibleColumns.revenue)
-                        row["Revenue"] = variant.totalSales.toFixed(3);
-                      if (visibleColumns.cost)
-                        row["Cost"] = variant.totalCost.toFixed(3);
-                      if (visibleColumns.profit)
-                        row["Net Profit"] = variant.profit.toFixed(3);
-                      if (visibleColumns.margin)
-                        row["Margin (%)"] = variant.profitMargin.toFixed(1);
-                      flatRows.push(row);
-                    });
-                  } else {
-                    const row: any = {
-                      "Item Name": item.name,
-                      "Variant/Size": "N/A",
-                    };
-                    if (visibleColumns.shop) row["Shop"] = item.storeName;
-                    if (visibleColumns.quantity)
-                      row["Quantity"] = item.quantity;
-                    if (visibleColumns.unitCost)
-                      row["Unit Cost"] = item.unitCost.toFixed(3);
-                    if (visibleColumns.unitPrice)
-                      row["Unit Price"] = item.unitPrice.toFixed(3);
-                    if (visibleColumns.revenue)
-                      row["Revenue"] = item.totalSales.toFixed(3);
-                    if (visibleColumns.cost)
-                      row["Cost"] = item.totalCost.toFixed(3);
-                    if (visibleColumns.profit)
-                      row["Net Profit"] = item.profit.toFixed(3);
-                    if (visibleColumns.margin)
-                      row["Margin (%)"] = item.profitMargin.toFixed(1);
-                    flatRows.push(row);
-                  }
-                });
-                return flatRows;
-              }}
-            />
-          </div>
-        </div>
 
         <div className="flex flex-col xl:flex-row gap-4 xl:justify-between xl:items-end print:hidden mt-4">
           <div className="flex gap-4 flex-col md:flex-row md:items-center w-full xl:w-auto">
             {hasMounted && (
               <>
                 <div className="flex gap-2 items-center justify-between md:justify-start w-full md:w-auto">
-                  <Select value={selectedStore} onValueChange={setSelectedStore}>
+                  <Select
+                    value={selectedStore}
+                    onValueChange={setSelectedStore}
+                  >
                     <SelectTrigger className="w-[180px] md:w-[200px] flex-1 md:flex-none">
                       <SelectValue placeholder="Select store" />
                     </SelectTrigger>
@@ -708,11 +627,15 @@ export default function ProfitsPage() {
                       ))}
                     </SelectContent>
                   </Select>
-                  
+
                   <div className="flex md:hidden items-center gap-2">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="outline" size="sm" className="h-8 w-8 px-0">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 w-8 px-0"
+                        >
                           <Settings2 className="h-4 w-4" />
                           <span className="sr-only">Columns</span>
                         </Button>
@@ -747,13 +670,15 @@ export default function ProfitsPage() {
                                 "Item Name": item.name,
                                 "Variant/Size": variant.size,
                               };
-                              if (visibleColumns.shop) row["Shop"] = item.storeName;
+                              if (visibleColumns.shop)
+                                row["Shop"] = item.storeName;
                               if (visibleColumns.quantity)
                                 row["Quantity"] = variant.quantity;
                               if (visibleColumns.unitCost)
                                 row["Unit Cost"] = variant.unitCost.toFixed(3);
                               if (visibleColumns.unitPrice)
-                                row["Unit Price"] = variant.unitPrice.toFixed(3);
+                                row["Unit Price"] =
+                                  variant.unitPrice.toFixed(3);
                               if (visibleColumns.revenue)
                                 row["Revenue"] = variant.totalSales.toFixed(3);
                               if (visibleColumns.cost)
@@ -761,7 +686,8 @@ export default function ProfitsPage() {
                               if (visibleColumns.profit)
                                 row["Net Profit"] = variant.profit.toFixed(3);
                               if (visibleColumns.margin)
-                                row["Margin (%)"] = variant.profitMargin.toFixed(1);
+                                row["Margin (%)"] =
+                                  variant.profitMargin.toFixed(1);
                               flatRows.push(row);
                             });
                           } else {
@@ -769,8 +695,10 @@ export default function ProfitsPage() {
                               "Item Name": item.name,
                               "Variant/Size": "N/A",
                             };
-                            if (visibleColumns.shop) row["Shop"] = item.storeName;
-                            if (visibleColumns.quantity) row["Quantity"] = item.quantity;
+                            if (visibleColumns.shop)
+                              row["Shop"] = item.storeName;
+                            if (visibleColumns.quantity)
+                              row["Quantity"] = item.quantity;
                             if (visibleColumns.unitCost)
                               row["Unit Cost"] = item.unitCost.toFixed(3);
                             if (visibleColumns.unitPrice)
@@ -819,7 +747,11 @@ export default function ProfitsPage() {
                   <div className="hidden md:flex items-center gap-2">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="outline" size="sm" className="hidden sm:flex">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="hidden sm:flex"
+                        >
                           <Settings2 className="mr-2 h-4 w-4" />
                           Columns
                         </Button>
@@ -856,13 +788,15 @@ export default function ProfitsPage() {
                                 "Item Name": item.name,
                                 "Variant/Size": variant.size,
                               };
-                              if (visibleColumns.shop) row["Shop"] = item.storeName;
+                              if (visibleColumns.shop)
+                                row["Shop"] = item.storeName;
                               if (visibleColumns.quantity)
                                 row["Quantity"] = variant.quantity;
                               if (visibleColumns.unitCost)
                                 row["Unit Cost"] = variant.unitCost.toFixed(3);
                               if (visibleColumns.unitPrice)
-                                row["Unit Price"] = variant.unitPrice.toFixed(3);
+                                row["Unit Price"] =
+                                  variant.unitPrice.toFixed(3);
                               if (visibleColumns.revenue)
                                 row["Revenue"] = variant.totalSales.toFixed(3);
                               if (visibleColumns.cost)
@@ -870,7 +804,8 @@ export default function ProfitsPage() {
                               if (visibleColumns.profit)
                                 row["Net Profit"] = variant.profit.toFixed(3);
                               if (visibleColumns.margin)
-                                row["Margin (%)"] = variant.profitMargin.toFixed(1);
+                                row["Margin (%)"] =
+                                  variant.profitMargin.toFixed(1);
                               flatRows.push(row);
                             });
                           } else {
@@ -878,7 +813,8 @@ export default function ProfitsPage() {
                               "Item Name": item.name,
                               "Variant/Size": "N/A",
                             };
-                            if (visibleColumns.shop) row["Shop"] = item.storeName;
+                            if (visibleColumns.shop)
+                              row["Shop"] = item.storeName;
                             if (visibleColumns.quantity)
                               row["Quantity"] = item.quantity;
                             if (visibleColumns.unitCost)
