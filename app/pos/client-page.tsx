@@ -106,11 +106,29 @@ import { Spinner } from "@/components/ui/spinner";
 import dynamic from "next/dynamic";
 // Import the RefundDialog component
 const RefundDialog = dynamic(
-  () => import("./components/refund-dialog").then((mod) => mod.RefundDialog),
+  () =>
+    import("./components/dispute/RefundDialog").then((mod) => mod.RefundDialog),
   { ssr: false },
 );
 const WarrantyDialog = dynamic(
-  () => import("./components/refund-dialog").then((mod) => mod.WarrantyDialog),
+  () =>
+    import("./components/dispute/WarrantyDialog").then(
+      (mod) => mod.WarrantyDialog,
+    ),
+  { ssr: false },
+);
+const SettlementDialog = dynamic(
+  () =>
+    import("./components/dispute/SettlementDialog").then(
+      (mod) => mod.SettlementDialog,
+    ),
+  { ssr: false },
+);
+const MiscellaneousDialog = dynamic(
+  () =>
+    import("./components/dispute/MiscellaneousDialog").then(
+      (mod) => mod.MiscellaneousDialog,
+    ),
   { ssr: false },
 );
 const ImportDialog = dynamic(
@@ -150,8 +168,6 @@ import { OnHoldTicket } from "./components/on-hold-ticket";
 
 // Import the BillComponent
 import { BillComponent } from "./components/bill-component";
-import { SettlementDialog } from "./components/dispute/SettlementDialog";
-import { MiscellaneousDialog } from "./components/dispute/MiscellaneousDialog";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useStaffIDs } from "@/lib/hooks/useStaffIDs";
 import { Vehicle, CustomerData } from "@/app/customers/customer-form";
@@ -246,7 +262,6 @@ const ClearCartConfirm = dynamic(
     ),
   { ssr: false },
 );
-import { POSLoadingBar } from "./components/POSLoadingBar";
 
 // Extracted cart panel components
 import { DesktopCart } from "./components/cart/DesktopCart";
@@ -620,16 +635,61 @@ export function POSClient({ initialData }: { initialData?: any }) {
 
   const updateQuantity = useCallback(
     (productId: number, newQuantity: number, uniqueId?: string) => {
+      const item = uniqueId
+        ? cart.find((i) => i.uniqueId === uniqueId)
+        : cart.find((i) => i.id === productId);
+
+      if (!item) return false;
+
+      // Check stock limit when increasing quantity
+      if (newQuantity > item.quantity) {
+        const additionalQuantity = newQuantity - item.quantity;
+        const product = products.find((p) => p.id === productId);
+
+        if (product) {
+          const currentInCart = calculateCartCount(productId);
+          const available =
+            product.availableQuantity !== undefined
+              ? product.availableQuantity
+              : 9999;
+
+          if (currentInCart + additionalQuantity > available) {
+            toast({
+              title: "Stock Limit Reached",
+              description: `Only ${available} available. You already have ${currentInCart} in cart.`,
+              variant: "destructive",
+            });
+            return false;
+          }
+        } else {
+          // For lubricants
+          const avail = getProductAvailability(item.id);
+          if (avail && !avail.canSell) {
+            toast({
+              title: "Stock Limit Reached",
+              description: avail.errorMessage || "Not enough stock available.",
+              variant: "destructive",
+            });
+            return false;
+          }
+        }
+      }
+
       if (uniqueId) {
         contextUpdateQuantity(uniqueId, newQuantity);
       } else {
-        const item = cart.find((i) => i.id === productId);
-        if (item) {
-          contextUpdateQuantity(item.uniqueId, newQuantity);
-        }
+        contextUpdateQuantity(item.uniqueId, newQuantity);
       }
+      return true;
     },
-    [contextUpdateQuantity, cart],
+    [
+      contextUpdateQuantity,
+      cart,
+      products,
+      calculateCartCount,
+      getProductAvailability,
+      toast,
+    ],
   );
 
   const addToCart = useCallback(
@@ -850,11 +910,6 @@ export function POSClient({ initialData }: { initialData?: any }) {
   // handleAddCustomer, handleSkipCustomerForm — provided by useCheckout hook
 
   // ✅ CONDITIONAL RENDERING AFTER ALL HOOKS (React Rules of Hooks)
-  // Show bar loader only when still loading AND zero products available
-  // (if server pre-fetched initialData, products.length > 0 so this is skipped)
-  if (isLoading && products.length === 0 && lubricantProducts.length === 0) {
-    return <POSLoadingBar />;
-  }
 
   // Show error state if there's a database error
   if (error) {

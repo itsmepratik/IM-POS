@@ -1,10 +1,17 @@
 "use client";
 
-import React, { useRef, useCallback, useEffect, useState } from "react";
+import React, {
+  useRef,
+  useCallback,
+  useEffect,
+  useState,
+  Fragment,
+} from "react";
 import { Printer } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { useCompanyInfo } from "@/lib/hooks/useCompanyInfo";
+import { generateBarcodeHTML } from "@/lib/utils/barcodeGenerator";
 
 // Define the structure for refund items
 interface RefundItem {
@@ -62,11 +69,18 @@ export const RefundReceipt: React.FC<RefundReceiptProps> = ({
 }) => {
   const receiptRef = useRef<HTMLDivElement>(null);
   const [isClient, setIsClient] = useState(false);
+  const [barcodeHtml, setBarcodeHtml] = useState<string>("");
   const { brand } = useCompanyInfo();
 
   useEffect(() => {
     setIsClient(true);
   }, []);
+
+  useEffect(() => {
+    if (receiptNumber) {
+      generateBarcodeHTML(receiptNumber).then(setBarcodeHtml);
+    }
+  }, [receiptNumber]);
 
   // Determine if this is a receipt with only battery items
   const isOnlyBatteryItems = items.every(
@@ -298,7 +312,7 @@ export const RefundReceipt: React.FC<RefundReceiptProps> = ({
     cashier,
     refundAmount,
     subtotal,
-    vat,
+    barcodeHtml,
   ]);
 
   if (!isClient) {
@@ -320,95 +334,160 @@ export const RefundReceipt: React.FC<RefundReceiptProps> = ({
       transition={{ duration: 0.5 }}
       className="w-full"
     >
-      <div
-        className="bg-white border rounded-lg p-4 w-full max-w-[300px] mx-auto"
-        ref={receiptRef}
-      >
-        {/* Receipt Preview */}
-        <div className="text-center mb-2">
-          <h3 className="font-bold text-lg">{brand.name}</h3>
-          <p className="text-xs text-gray-500">
-            {brand.addressLines.join(" ")}
-          </p>
-          <p className="text-xs text-gray-500">
-            Ph: {brand.phones.join(" | ")}
-          </p>
-        </div>
-
-        <div className="border-t border-b border-dashed py-1 mb-3">
-          <p className="text-xs font-medium text-center text-red-600 uppercase">
-            Refund Receipt
-          </p>
-          <div className="flex justify-between text-xs">
-            <span className="font-medium">Refund: {receiptNumber}</span>
-          </div>
-          <div className="flex justify-between text-xs">
-            <span>Original Invoice: {originalReceiptNumber}</span>
-          </div>
-          <div className="flex justify-between text-xs">
-            <span>Date: {currentDate}</span>
-            <span>Time: {currentTime}</span>
-          </div>
-          {customerName && (
-            <div className="text-xs">
-              <span>Customer: {customerName}</span>
+      <div className="max-h-[55vh] md:max-h-[65vh] overflow-auto mb-4 bg-muted/30 rounded-xl p-4 sm:p-6 flex justify-center items-start border inner-shadow-sm">
+        <div
+          className="bg-white w-full max-w-[380px] shrink-0 font-sans text-black mx-auto overflow-hidden relative"
+          style={{
+            boxShadow:
+              "rgba(0, 0, 0, 0.1) 0px 4px 6px -1px, rgba(0, 0, 0, 0.06) 0px 2px 4px -1px, rgba(0, 0, 0, 0.05) 0px 0px 0px 1px",
+          }}
+          ref={receiptRef}
+        >
+          <div
+            className="p-[5mm] px-[2mm]"
+            style={{ fontFamily: "sans-serif" }}
+          >
+            {/* Receipt Preview */}
+            <div className="text-center mb-2.5">
+              <h1 className="font-bold text-[16px] leading-[1.2] m-0 tracking-tight text-black">
+                {brand.name}
+              </h1>
+              <p className="text-[12px] m-0 mt-[2px] text-[#555] leading-[1.2]">
+                {brand.addressLines.join(" ")}
+              </p>
+              <p className="text-[12px] m-0 mt-[2px] text-[#555] leading-[1.2]">
+                Ph: {brand.phones.join(" | ")}
+              </p>
             </div>
-          )}
-        </div>
 
-        <div className="text-xs mb-3">
-          <div className="grid grid-cols-12 gap-1 font-medium mb-1">
-            <span className="col-span-1">#</span>
-            <span className="col-span-9">Description</span>
-            <span className="col-span-1 text-right">Price</span>
-            <span className="col-span-1 text-right">Qty</span>
-            <span className="col-span-1 text-right">Amt</span>
-          </div>
+            <div className="border-t border-dashed border-black my-[5px]"></div>
 
-          {displayItems.map((item, index) => (
-            <div key={item.uniqueId} className="mb-1">
-              <div className="grid grid-cols-12 gap-1">
-                <span className="col-span-1">{index + 1}</span>
-                <span className="col-span-11 break-words">
-                  {formatItemName(item)}
-                </span>
-              </div>
-              <div className="grid grid-cols-12 gap-1">
-                <span className="col-span-1"></span>
-                <span className="col-span-9"></span>
-                <span className="col-span-1 text-right">
-                  {item.price.toFixed(3)}
-                </span>
-                <span className="col-span-1 text-right">
-                  (x{item.quantity})
-                </span>
-                <span className="col-span-1 text-right">
-                  {(item.price * item.quantity).toFixed(3)}
-                </span>
-              </div>
+            <div className="text-center font-bold my-[10px] text-[13px] text-[#D9534F] uppercase">
+              REFUND RECEIPT
             </div>
-          ))}
-        </div>
 
-        <div className="border-t border-dashed pt-2 mb-3">
-          <div className="flex justify-between text-xs">
-            <span className="font-medium">Subtotal</span>
-            <span>OMR {subtotal.toFixed(3)}</span>
-          </div>
-          <div className="flex justify-between text-sm font-bold text-red-600 border-t border-solid border-red-200 mt-1 pt-1">
-            <span>Total Refund</span>
-            <span>OMR {refundAmount.toFixed(3)}</span>
-          </div>
-        </div>
+            <div className="text-[12px] my-[5px]">
+              <p className="m-0 my-[2px] flex justify-between items-center text-black">
+                <span>Refund: {receiptNumber}</span>
+              </p>
+              <p className="m-0 my-[2px] flex justify-between items-center text-black">
+                <span>Original Invoice: {originalReceiptNumber}</span>
+              </p>
+              <p className="m-0 my-[2px] flex justify-between items-center text-black">
+                <span>Date: {currentDate}</span>
+                <span>Time: {currentTime}</span>
+              </p>
+              {customerName && (
+                <p className="m-0 my-[2px] flex justify-start items-center text-black">
+                  Customer: {customerName}
+                </p>
+              )}
+            </div>
 
-        <div className="text-center text-xs border-t border-dashed pt-2">
-          <p>Number of Items: {itemCount}</p>
-          {cashier && <p>Cashier: {cashier}</p>}
-          <p>Thank you for shopping with us.</p>
-          <p className="text-xs text-right text-gray-600">شكراً للتسوق معنا</p>
-          <p className="font-medium mt-2">
-            WhatsApp {brand.whatsapp || ""} for latest offers
-          </p>
+            <div className="border-t border-dashed border-black my-[5px]"></div>
+
+            <table
+              className="w-full my-[10px] table-fixed text-[12px] border-collapse text-black"
+              style={{ wordWrap: "break-word" }}
+            >
+              <thead>
+                <tr>
+                  <th className="text-left font-normal pb-[5px] w-[20px]">#</th>
+                  <th className="text-left font-normal pb-[5px]">
+                    Description
+                  </th>
+                  <th className="text-right font-normal pb-[5px] w-[44px]">
+                    Price
+                  </th>
+                  <th className="text-center font-normal pb-[5px] w-[24px] pl-[8px] pr-[3px]">
+                    Qty
+                  </th>
+                  <th className="text-right font-normal pb-[5px] w-[64px] pl-[21px]">
+                    Amt
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {displayItems.map((item, index) => (
+                  <Fragment key={item.uniqueId}>
+                    <tr>
+                      <td className="align-top pb-0 text-black">{index + 1}</td>
+                      <td className="align-top pb-0 text-black" colSpan={4}>
+                        {formatItemName(item)}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="pt-0"></td>
+                      <td className="pt-0"></td>
+                      <td className="align-top text-right text-black pt-0 pb-0 whitespace-nowrap tabular-nums">
+                        {item.price.toFixed(3)}
+                      </td>
+                      <td className="align-top text-center text-black pt-0 pb-0 whitespace-nowrap pl-[8px] pr-[3px] tabular-nums">
+                        (x{item.quantity})
+                      </td>
+                      <td className="align-top text-right text-black pt-0 pb-0 whitespace-nowrap pl-[21px] tabular-nums">
+                        {(item.price * item.quantity).toFixed(3)}
+                      </td>
+                    </tr>
+                  </Fragment>
+                ))}
+              </tbody>
+            </table>
+
+            <div className="border-t border-dashed border-black my-[5px]"></div>
+
+            <div className="mt-[10px] pt-[5px]">
+              <table className="w-full">
+                <tbody>
+                  <tr>
+                    <td className="font-bold text-[12px] py-[2px] text-black">
+                      Subtotal
+                    </td>
+                    <td className="font-bold text-right text-[12px] py-[2px] text-black tabular-nums">
+                      OMR {subtotal.toFixed(3)}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="font-bold text-[12px] py-[2px] text-black">
+                      TOTAL REFUND
+                    </td>
+                    <td className="font-bold text-right text-[#D9534F] py-[2px] text-[14px] border-t border-black pt-[5px] tabular-nums">
+                      OMR {refundAmount.toFixed(3)}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div className="mt-[10px] text-center text-[12px] border-t border-dashed border-black pt-[5px] text-black">
+              <p className="m-0 my-[3px]">Number of Items: {itemCount}</p>
+              {cashier && <p className="m-0 my-[3px]">Cashier: {cashier}</p>}
+              <p className="m-0 my-[3px]">Thank you for shopping with us.</p>
+              <p className="m-0 my-[2px] text-[11px]" dir="rtl">
+                شكراً للتسوق معنا
+              </p>
+              <p className="font-bold mt-[6px] m-0">
+                WhatsApp {brand.whatsapp || ""} for latest offers
+              </p>
+            </div>
+
+            {barcodeHtml && (
+              <div
+                className="flex justify-center mt-[15px] mb-[5px]"
+                dangerouslySetInnerHTML={{ __html: barcodeHtml }}
+              />
+            )}
+          </div>
+
+          {/* Jagged bottom edge representation */}
+          <div className="absolute bottom-0 left-0 w-full h-[6px] overflow-hidden opacity-20 flex">
+            {Array.from({ length: 60 }).map((_, i) => (
+              <div
+                key={i}
+                className="w-[8px] h-[8px] bg-gray-300 transform rotate-45 translate-y-[4px] -ml-[4px]"
+              ></div>
+            ))}
+          </div>
         </div>
       </div>
 

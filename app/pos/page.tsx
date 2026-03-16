@@ -9,7 +9,6 @@ import { getDatabase } from "@/lib/db/client";
 import { CategoryProvider } from "./context/CategoryContext";
 import { CartProvider } from "./context/CartContext";
 import { Suspense } from "react";
-import { POSLoadingBar } from "./components/POSLoadingBar";
 
 // Export removed; we want Next.js to use route caching where possible.
 // Cookies and headers will naturally make this route dynamic per-request.
@@ -49,7 +48,7 @@ export default async function POSPage() {
   return (
     <CategoryProvider initialCategory="Lubricants">
       <CartProvider>
-        <Suspense fallback={<POSLoadingBar />}>
+        <Suspense fallback={null}>
           <POSClient
             initialData={{
               brands: brandsData,

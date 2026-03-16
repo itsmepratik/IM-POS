@@ -25,6 +25,8 @@ export const shops = pgTable("shops", {
     .references(() => locations.id, { onDelete: "restrict" }),
   displayName: text("display_name"),
   posId: text("pos_id"),
+  shopCode: text("shop_code").default("01"),
+  zipCode: text("zip_code").default("319"),
   brandWhatsapp: text("brand_whatsapp"), // Whatsapp number for the shop/brand
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
@@ -53,7 +55,7 @@ export const types = pgTable(
   },
   (table) => ({
     uniqueCategoryType: unique().on(table.categoryId, table.name),
-  })
+  }),
 );
 
 // Type inference for types table
@@ -70,114 +72,142 @@ export const brands = pgTable("brands", {
 export type Brand = typeof brands.$inferSelect;
 export type NewBrand = typeof brands.$inferInsert;
 
-export const products = pgTable("products", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  name: text("name").notNull(),
-  categoryId: uuid("category_id")
-    .notNull()
-    .references(() => categories.id, { onDelete: "restrict" }),
-  brandId: uuid("brand_id").references(() => brands.id, {
-    onDelete: "set null",
+export const products = pgTable(
+  "products",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    categoryId: uuid("category_id")
+      .notNull()
+      .references(() => categories.id, { onDelete: "restrict" }),
+    brandId: uuid("brand_id").references(() => brands.id, {
+      onDelete: "set null",
+    }),
+    // typeId: uuid("type_id").references(() => types.id, { onDelete: "set null" }),
+    // productType: text("product_type"),
+    description: text("description"),
+    imageUrl: text("image_url"),
+    lowStockThreshold: integer("low_stock_threshold").default(0),
+    costPrice: numeric("cost_price"),
+    manufacturingDate: timestamp("manufacturing_date", { withTimezone: true }),
+    isBattery: boolean("is_battery").default(false),
+    batteryState: text("battery_state"), // 'new', 'scrap', 'resellable'
+  },
+  (table) => ({
+    categoryIdIdx: index("products_category_idx").on(table.categoryId),
   }),
-  // typeId: uuid("type_id").references(() => types.id, { onDelete: "set null" }),
-  // productType: text("product_type"),
-  description: text("description"),
-  imageUrl: text("image_url"),
-  lowStockThreshold: integer("low_stock_threshold").default(0),
-  costPrice: numeric("cost_price"),
-  manufacturingDate: timestamp("manufacturing_date", { withTimezone: true }),
-  isBattery: boolean("is_battery").default(false),
-  batteryState: text("battery_state"), // 'new', 'scrap', 'resellable'
-}, (table) => ({
-  categoryIdIdx: index("products_category_idx").on(table.categoryId),
-}));
+);
 
-export const productVolumes = pgTable("product_volumes", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  productId: uuid("product_id")
-    .notNull()
-    .references(() => products.id, { onDelete: "cascade" }),
-  volumeDescription: text("volume_description").notNull(),
-  sellingPrice: numeric("selling_price").notNull(),
-}, (table) => ({
-  productIdIdx: index("product_volumes_product_idx").on(table.productId),
-}));
-
-export const inventory = pgTable("inventory", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  productId: uuid("product_id")
-    .notNull()
-    .references(() => products.id, { onDelete: "restrict" }),
-  locationId: uuid("location_id")
-    .notNull()
-    .references(() => locations.id, { onDelete: "restrict" }),
-
-  // Generic product stock
-  standardStock: integer("standard_stock").default(0),
-  sellingPrice: numeric("selling_price"),
-
-  // Lubricant-specific stock
-  openBottlesStock: integer("open_bottles_stock").default(0),
-  closedBottlesStock: integer("closed_bottles_stock").default(0),
-
-  // Generated total stock
-  totalStock: integer("total_stock").generatedAlwaysAs(
-    sql`COALESCE("standard_stock", 0) + COALESCE("open_bottles_stock", 0) + COALESCE("closed_bottles_stock", 0)`
-  ),
-}, (table) => ({
-  productLocationIdx: index("inventory_product_location_idx").on(table.productId, table.locationId),
-}));
-
-export const batches = pgTable("batches", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  inventoryId: uuid("inventory_id")
-    .notNull()
-    .references(() => inventory.id, { onDelete: "cascade" }),
-  costPrice: numeric("cost_price").notNull(),
-  quantityReceived: integer("quantity_received").notNull(),
-  stockRemaining: integer("stock_remaining").notNull(),
-  supplier: text("supplier"),
-  purchaseDate: timestamp("purchase_date", { withTimezone: true }).defaultNow(),
-  isActiveBatch: boolean("is_active_batch").default(false),
-  batchNumber: integer("batch_number").default(1),
-}, (table) => ({
-  inventoryActiveIdx: index("batches_inventory_active_idx").on(table.inventoryId, table.isActiveBatch),
-}));
-
-export const transactions = pgTable("transactions", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  referenceNumber: text("reference_number").notNull().unique(),
-  locationId: uuid("location_id")
-    .notNull()
-    .references(() => locations.id, { onDelete: "restrict" }),
-  shopId: uuid("shop_id").references(() => shops.id, {
-    onDelete: "restrict",
+export const productVolumes = pgTable(
+  "product_volumes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id, { onDelete: "cascade" }),
+    volumeDescription: text("volume_description").notNull(),
+    sellingPrice: numeric("selling_price").notNull(),
+  },
+  (table) => ({
+    productIdIdx: index("product_volumes_product_idx").on(table.productId),
   }),
-  cashierId: uuid("cashier_id").references(() => staff.id, {
-    onDelete: "set null",
-  }), // Foreign key to staff.id (UUID)
-  type: text("type").notNull(), // 'SALE' | 'REFUND' | 'WARRANTY_CLAIM' | 'CREDIT' | 'ON_HOLD'
-  totalAmount: numeric("total_amount").notNull(),
-  itemsSold: jsonb("items_sold").$type<unknown[]>(),
-  paymentMethod: text("payment_method"),
-  carPlateNumber: text("car_plate_number"), // For 'on hold' transactions
-  mobilePaymentAccount: text("mobile_payment_account"), // Account used for mobile payment (Adanan or Forman)
-  mobileNumber: text("mobile_number"), // Mobile number used for the transaction
-  receiptHtml: text("receipt_html"),
-  batteryBillHtml: text("battery_bill_html"),
-  originalReferenceNumber: text("original_reference_number"),
-  customerId: uuid("customer_id").references(() => customers.id, {
-    onDelete: "set null",
-  }), // Link to customers table
-  notes: text("notes"), // Additional notes (e.g., stock transfer details, special instructions)
-  discountType: text("discount_type"), // Type of discount: "percentage" or "amount"
-  discountValue: numeric("discount_value"), // Discount percentage (0-100) or fixed amount in OMR
-  discountAmount: numeric("discount_amount"), // Calculated discount amount in OMR
-  subtotalBeforeDiscount: numeric("subtotal_before_discount"), // Original subtotal before discount
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
-}, (table) => ({
-  referenceNumberIdx: index("transactions_ref_idx").on(table.referenceNumber),
-}));
+);
+
+export const inventory = pgTable(
+  "inventory",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id, { onDelete: "restrict" }),
+    locationId: uuid("location_id")
+      .notNull()
+      .references(() => locations.id, { onDelete: "restrict" }),
+
+    // Generic product stock
+    standardStock: integer("standard_stock").default(0),
+    sellingPrice: numeric("selling_price"),
+
+    // Lubricant-specific stock
+    openBottlesStock: integer("open_bottles_stock").default(0),
+    closedBottlesStock: integer("closed_bottles_stock").default(0),
+
+    // Generated total stock
+    totalStock: integer("total_stock").generatedAlwaysAs(
+      sql`COALESCE("standard_stock", 0) + COALESCE("open_bottles_stock", 0) + COALESCE("closed_bottles_stock", 0)`,
+    ),
+  },
+  (table) => ({
+    productLocationIdx: index("inventory_product_location_idx").on(
+      table.productId,
+      table.locationId,
+    ),
+  }),
+);
+
+export const batches = pgTable(
+  "batches",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    inventoryId: uuid("inventory_id")
+      .notNull()
+      .references(() => inventory.id, { onDelete: "cascade" }),
+    costPrice: numeric("cost_price").notNull(),
+    quantityReceived: integer("quantity_received").notNull(),
+    stockRemaining: integer("stock_remaining").notNull(),
+    supplier: text("supplier"),
+    purchaseDate: timestamp("purchase_date", {
+      withTimezone: true,
+    }).defaultNow(),
+    isActiveBatch: boolean("is_active_batch").default(false),
+    batchNumber: integer("batch_number").default(1),
+  },
+  (table) => ({
+    inventoryActiveIdx: index("batches_inventory_active_idx").on(
+      table.inventoryId,
+      table.isActiveBatch,
+    ),
+  }),
+);
+
+export const transactions = pgTable(
+  "transactions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    referenceNumber: text("reference_number").notNull().unique(),
+    locationId: uuid("location_id")
+      .notNull()
+      .references(() => locations.id, { onDelete: "restrict" }),
+    shopId: uuid("shop_id").references(() => shops.id, {
+      onDelete: "restrict",
+    }),
+    cashierId: uuid("cashier_id").references(() => staff.id, {
+      onDelete: "set null",
+    }), // Foreign key to staff.id (UUID)
+    type: text("type").notNull(), // 'SALE' | 'REFUND' | 'WARRANTY_CLAIM' | 'CREDIT' | 'ON_HOLD'
+    totalAmount: numeric("total_amount").notNull(),
+    itemsSold: jsonb("items_sold").$type<unknown[]>(),
+    paymentMethod: text("payment_method"),
+    carPlateNumber: text("car_plate_number"), // For 'on hold' transactions
+    mobilePaymentAccount: text("mobile_payment_account"), // Account used for mobile payment (Adanan or Forman)
+    mobileNumber: text("mobile_number"), // Mobile number used for the transaction
+    receiptHtml: text("receipt_html"),
+    batteryBillHtml: text("battery_bill_html"),
+    originalReferenceNumber: text("original_reference_number"),
+    customerId: uuid("customer_id").references(() => customers.id, {
+      onDelete: "set null",
+    }), // Link to customers table
+    notes: text("notes"), // Additional notes (e.g., stock transfer details, special instructions)
+    discountType: text("discount_type"), // Type of discount: "percentage" or "amount"
+    discountValue: numeric("discount_value"), // Discount percentage (0-100) or fixed amount in OMR
+    discountAmount: numeric("discount_amount"), // Calculated discount amount in OMR
+    subtotalBeforeDiscount: numeric("subtotal_before_discount"), // Original subtotal before discount
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  },
+  (table) => ({
+    referenceNumberIdx: index("transactions_ref_idx").on(table.referenceNumber),
+  }),
+);
 
 export const tradeInPrices = pgTable(
   "trade_in_prices",
@@ -191,7 +221,7 @@ export const tradeInPrices = pgTable(
   },
   (table) => ({
     uniqueSizeCondition: unique().on(table.size, table.condition),
-  })
+  }),
 );
 
 export const tradeInTransactions = pgTable("trade_in_transactions", {
@@ -233,18 +263,25 @@ export const customerVehicles = pgTable("customer_vehicles", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
 
-export const openBottleDetails = pgTable("open_bottle_details", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  inventoryId: uuid("inventory_id")
-    .notNull()
-    .references(() => inventory.id, { onDelete: "cascade" }),
-  initialVolume: numeric("initial_volume").notNull(),
-  currentVolume: numeric("current_volume").notNull(),
-  openedAt: timestamp("opened_at", { withTimezone: true }).defaultNow(),
-  isEmpty: boolean("is_empty").default(false),
-}, (table) => ({
-  inventoryEmptyIdx: index("open_bottle_details_inventory_empty_idx").on(table.inventoryId, table.isEmpty),
-}));
+export const openBottleDetails = pgTable(
+  "open_bottle_details",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    inventoryId: uuid("inventory_id")
+      .notNull()
+      .references(() => inventory.id, { onDelete: "cascade" }),
+    initialVolume: numeric("initial_volume").notNull(),
+    currentVolume: numeric("current_volume").notNull(),
+    openedAt: timestamp("opened_at", { withTimezone: true }).defaultNow(),
+    isEmpty: boolean("is_empty").default(false),
+  },
+  (table) => ({
+    inventoryEmptyIdx: index("open_bottle_details_inventory_empty_idx").on(
+      table.inventoryId,
+      table.isEmpty,
+    ),
+  }),
+);
 
 export const referenceNumberCounters = pgTable("reference_number_counters", {
   prefix: text("prefix").primaryKey(),
@@ -273,7 +310,9 @@ export const appointments = pgTable("appointments", {
   customerPhone: text("customer_phone").notNull(),
   customerEmail: text("customer_email"),
   serviceType: text("service_type").notNull(),
-  appointmentDate: timestamp("appointment_date", { withTimezone: true }).notNull(),
+  appointmentDate: timestamp("appointment_date", {
+    withTimezone: true,
+  }).notNull(),
   status: text("status").notNull().default("pending"),
   notes: text("notes"),
   vehicleMake: text("vehicle_make"),
@@ -362,24 +401,27 @@ export const batchesRelations = relations(batches, ({ one }) => ({
   }),
 }));
 
-export const transactionsRelations = relations(transactions, ({ one, many }) => ({
-  location: one(locations, {
-    fields: [transactions.locationId],
-    references: [locations.id],
+export const transactionsRelations = relations(
+  transactions,
+  ({ one, many }) => ({
+    location: one(locations, {
+      fields: [transactions.locationId],
+      references: [locations.id],
+    }),
+    shop: one(shops, {
+      fields: [transactions.shopId],
+      references: [shops.id],
+    }),
+    cashier: one(staff, {
+      fields: [transactions.cashierId],
+      references: [staff.id],
+    }),
+    customer: one(customers, {
+      fields: [transactions.customerId],
+      references: [customers.id],
+    }),
   }),
-  shop: one(shops, {
-    fields: [transactions.shopId],
-    references: [shops.id],
-  }),
-  cashier: one(staff, {
-    fields: [transactions.cashierId],
-    references: [staff.id],
-  }),
-  customer: one(customers, {
-    fields: [transactions.customerId],
-    references: [customers.id],
-  }),
-}));
+);
 
 export const staffRelations = relations(staff, ({ many }) => ({
   transactions: many(transactions),

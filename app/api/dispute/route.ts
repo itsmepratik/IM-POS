@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
     // Validate cashier/staff ID and convert to UUID
     const { getStaffUuidById } = await import("@/lib/utils/staff-validation");
     const staffUuid = await getStaffUuidById(cashierId);
-    
+
     if (!staffUuid) {
       return NextResponse.json(
         {
@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
           error: "Invalid cashier ID",
           details: `No active staff member found with ID: ${cashierId}`,
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -53,14 +53,14 @@ export async function POST(req: NextRequest) {
 
       if (!originalTransaction) {
         throw new Error(
-          `Original transaction with bill number ${originalBillNumber} not found`
+          `Original transaction with bill number ${originalBillNumber} not found`,
         );
       }
 
       // Validate that the original transaction is a sale
       if (originalTransaction.type !== "SALE") {
         throw new Error(
-          `Cannot dispute non-sale transaction. Original transaction type: ${originalTransaction.type}`
+          `Cannot dispute non-sale transaction. Original transaction type: ${originalTransaction.type}`,
         );
       }
 
@@ -94,7 +94,8 @@ export async function POST(req: NextRequest) {
       const disputeReferenceNumber = await generateReferenceNumber(
         disputeType,
         isBattery,
-        disputeType === "REFUND" ? "CASH" : "WARRANTY_CLAIM"
+        disputeType === "REFUND" ? "CASH" : "WARRANTY_CLAIM",
+        shopId,
       );
       const totalAmount = calculateDisputeTotal(disputedItems, disputeType);
 
@@ -123,14 +124,14 @@ export async function POST(req: NextRequest) {
             .where(
               and(
                 eq(inventory.productId, disputedItem.productId),
-                eq(inventory.locationId, locationId)
-              )
+                eq(inventory.locationId, locationId),
+              ),
             )
             .limit(1);
 
           if (!inventoryRecord) {
             throw new Error(
-              `Inventory not found for product ${disputedItem.productId} at location ${locationId}`
+              `Inventory not found for product ${disputedItem.productId} at location ${locationId}`,
             );
           }
 
@@ -184,7 +185,7 @@ export async function POST(req: NextRequest) {
           error: "Invalid input data",
           details: error.errors,
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -196,7 +197,7 @@ export async function POST(req: NextRequest) {
             ? error.message
             : "Unknown error occurred during dispute processing",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

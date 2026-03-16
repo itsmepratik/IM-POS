@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback, memo } from "react";
+import React, { useState, useEffect, useMemo, useCallback, memo } from "react";
 import { Layout } from "@/components/layout";
 import { useCompanyInfo } from "@/lib/hooks/useCompanyInfo";
 
@@ -23,7 +23,17 @@ import {
   Printer,
   X,
   Search,
+  LayoutList,
+  LayoutGrid,
 } from "lucide-react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import {
   Popover,
   PopoverContent,
@@ -160,32 +170,45 @@ const TransactionCard = memo(
     onToggle: () => void;
     onViewReceipt: (transaction: TransactionDisplay) => void;
   }) => {
+    const getTypeStyles = (type: string) => {
+      switch (type) {
+        case "refund":
+          return "border-red-500 bg-red-500/5 hover:bg-red-500/10 text-red-600 dark:text-red-400";
+        case "expense":
+          return "border-purple-500 bg-purple-500/5 hover:bg-purple-500/10 text-purple-600 dark:text-purple-400";
+        case "credit":
+          return "border-blue-500 bg-blue-500/5 hover:bg-blue-500/10 text-blue-600 dark:text-blue-400";
+        case "on-hold":
+          return "border-yellow-500 bg-yellow-500/5 hover:bg-yellow-500/10 text-yellow-600 dark:text-yellow-400";
+        case "stock-transfer":
+          return "border-indigo-500 bg-indigo-500/5 hover:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400";
+        case "warranty-claim":
+          return "border-cyan-500 bg-cyan-500/5 hover:bg-cyan-500/10 text-cyan-600 dark:text-cyan-400";
+        case "on-hold-paid":
+        case "credit-paid":
+          return "border-emerald-500 bg-emerald-500/5 hover:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400";
+        default:
+          return "border-emerald-500 hover:bg-emerald-500/5 text-emerald-600 dark:text-emerald-400";
+      }
+    };
+
+    const typeStyles = getTypeStyles(transaction.type);
+
     return (
-      <Card className="p-4 sm:p-5">
-        <div className="space-y-4 sm:space-y-5">
-          <div className="flex items-center justify-between">
-            <div className="flex flex-col">
-              <div className="flex items-center gap-1.5 sm:gap-2.5">
-                <span
-                  className={`text-base sm:text-lg font-medium ${
-                    transaction.type === "refund"
-                      ? "text-red-500"
-                      : transaction.type === "expense"
-                        ? "text-purple-600"
-                        : transaction.type === "credit"
-                          ? "text-blue-600"
-                          : transaction.type === "on-hold"
-                            ? "text-yellow-600"
-                            : transaction.type === "stock-transfer"
-                              ? "text-blue-600"
-                              : transaction.type === "warranty-claim"
-                                ? "text-cyan-600"
-                                : transaction.type === "on-hold-paid" ||
-                                    transaction.type === "credit-paid"
-                                  ? "text-green-600"
-                                  : "text-green-500"
-                  }`}
-                >
+      <Card
+        className={cn(
+          "group relative bg-white dark:bg-zinc-950 overflow-hidden transition-all duration-300 border-[2.5px] ease-out backdrop-blur-sm",
+          typeStyles,
+          isExpanded
+            ? "ring-2 shadow-md"
+            : "hover:shadow-lg hover:-translate-y-0.5",
+        )}
+      >
+        <div className="p-4 sm:p-5 flex flex-col gap-4 sm:gap-5">
+          <div className="flex items-start sm:items-center justify-between">
+            <div className="flex flex-col gap-1.5 sm:gap-2">
+              <div className="flex items-center gap-2.5">
+                <span className="text-sm sm:text-base font-bold uppercase tracking-wider font-formula1">
                   {transaction.type === "refund"
                     ? "Refund"
                     : transaction.type === "warranty-claim"
@@ -204,145 +227,165 @@ const TransactionCard = memo(
                                   ? "Credit Paid"
                                   : "Sale"}
                 </span>
-                <span className="text-sm sm:text-base text-muted-foreground">
+                <span className="text-xs sm:text-sm text-muted-foreground font-mono bg-background/50 px-2 py-0.5 rounded-full border">
                   {transaction.time || transaction.date}
                 </span>
               </div>
-              <div className="text-sm sm:text-base text-muted-foreground mt-1 sm:mt-1.5">
-                • Cashier: {transaction.cashier}
+
+              <div className="text-sm sm:text-base text-muted-foreground flex items-center gap-1.5">
+                <span className="opacity-70">Cashier:</span>
+                <span className="font-medium text-foreground">
+                  {transaction.cashier}
+                </span>
               </div>
-              <div className="text-sm sm:text-base mt-1 sm:mt-1.5">
+
+              <div className="text-sm sm:text-base font-medium text-foreground/90 line-clamp-1">
                 {transaction.items[0]}
               </div>
             </div>
-            <div className="flex items-center gap-3 sm:gap-5">
-              <div
-                className={`font-semibold ${
-                  transaction.type === "refund"
-                    ? "text-red-500"
-                    : transaction.type === "expense"
-                      ? "text-purple-600"
-                      : transaction.type === "credit"
-                        ? "text-blue-600"
-                        : transaction.type === "on-hold"
-                          ? "text-yellow-600"
-                          : transaction.type === "stock-transfer"
-                            ? "text-blue-600"
-                            : transaction.type === "warranty-claim"
-                              ? "text-cyan-600"
-                              : transaction.type === "on-hold-paid" ||
-                                  transaction.type === "credit-paid"
-                                ? "text-green-600"
-                                : "text-green-500"
-                }`}
-              >
-                <div className="flex flex-col items-end">
-                  <span className="text-sm sm:text-base">OMR</span>
-                  <span className="text-lg sm:text-2xl font-bold">
+
+            <div className="flex flex-col sm:flex-row items-end sm:items-center gap-3 sm:gap-6 mt-1 sm:mt-0">
+              <div className="flex flex-col items-end">
+                <span className="text-xs sm:text-sm font-medium opacity-70 mb-0.5 uppercase tracking-widest">
+                  Amount
+                </span>
+                <div className="flex items-baseline gap-1 font-mono">
+                  <span className="text-sm sm:text-base opacity-80">OMR</span>
+                  <span className="text-xl sm:text-3xl font-bold tracking-tight">
                     {transaction.type === "refund" ? "-" : ""}
                     {Math.abs(transaction.amount).toFixed(2)}
                   </span>
                 </div>
               </div>
+
               <Button
                 variant="ghost"
-                size="sm"
-                className="h-8 w-8 sm:h-9 sm:w-9 p-0 hover:bg-muted"
+                size="icon"
+                className={cn(
+                  "h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-background/50 hover:bg-background border shadow-sm transition-transform duration-300",
+                  isExpanded ? "bg-background" : "",
+                )}
                 onClick={onToggle}
               >
-                {isExpanded ? (
-                  <ChevronUp className="h-4 w-4 sm:h-5 sm:w-5" />
-                ) : (
-                  <ChevronDown className="h-4 w-4 sm:h-5 sm:w-5" />
-                )}
+                <ChevronDown
+                  className={cn(
+                    "h-4 w-4 sm:h-5 sm:w-5 transition-transform duration-300",
+                    isExpanded ? "rotate-180" : "",
+                  )}
+                />
               </Button>
             </div>
           </div>
 
-          {isExpanded && (
-            <div className="pt-4 sm:pt-5 border-t space-y-4 sm:space-y-5 text-sm sm:text-base">
-              <div className="grid grid-cols-2 gap-3 sm:gap-5">
-                <div>
-                  <span className="text-muted-foreground">Customer:</span>
-                  <span className="ml-1.5 sm:ml-2.5 font-medium">
-                    {transaction.customerName}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Payment:</span>
-                  <span className="ml-1.5 sm:ml-2.5">
-                    {transaction.paymentMethod}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Reference:</span>
-                  <span className="ml-1.5 sm:ml-2.5 font-mono">
-                    {transaction.reference}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Cashier:</span>
-                  <span className="ml-1.5 sm:ml-2.5 font-medium">
-                    {transaction.cashier}
-                  </span>
-                </div>
-                {transaction.shopName && (
-                  <div>
-                    <span className="text-muted-foreground">Shop:</span>
-                    <span className="ml-1.5 sm:ml-2.5 font-medium">
-                      {transaction.shopName}
+          <div
+            className={cn(
+              "grid transition-all duration-300 ease-in-out",
+              isExpanded
+                ? "grid-rows-[1fr] opacity-100 mt-2"
+                : "grid-rows-[0fr] opacity-0",
+            )}
+          >
+            <div className="overflow-hidden">
+              <div className="pt-4 sm:pt-5 border-t border-border/50 text-sm sm:text-base">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 bg-background/40 p-4 rounded-xl border border-border/30">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
+                      Customer
+                    </span>
+                    <span className="font-medium text-foreground">
+                      {transaction.customerName}
                     </span>
                   </div>
-                )}
-                {transaction.mobilePaymentAccount && (
-                  <div>
-                    <span className="text-muted-foreground">Account:</span>
-                    <span className="ml-1.5 sm:ml-2.5 font-medium">
-                      {transaction.mobilePaymentAccount}
+
+                  <div className="flex flex-col gap-1">
+                    <span className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
+                      Payment
+                    </span>
+                    <span className="font-medium text-foreground capitalize">
+                      {transaction.paymentMethod}
                     </span>
                   </div>
-                )}
-                {transaction.mobileNumber && (
-                  <div>
-                    <span className="text-muted-foreground">Mobile:</span>
-                    <span className="ml-1.5 sm:ml-2.5 font-medium">
-                      {transaction.mobileNumber}
+
+                  <div className="flex flex-col gap-1">
+                    <span className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
+                      Reference
+                    </span>
+                    <span className="font-mono text-foreground font-medium bg-muted/50 w-fit px-1.5 py-0.5 rounded">
+                      {transaction.reference}
                     </span>
                   </div>
-                )}
-                {(transaction.type === "on-hold" ||
-                  transaction.carPlateNumber) &&
-                  transaction.carPlateNumber && (
-                    <div>
-                      <span className="text-muted-foreground">Car Plate:</span>
-                      <span className="ml-1.5 sm:ml-2.5 font-medium">
-                        {transaction.carPlateNumber}
+
+                  {transaction.shopName && (
+                    <div className="flex flex-col gap-1">
+                      <span className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
+                        Shop
+                      </span>
+                      <span className="font-medium text-foreground">
+                        {transaction.shopName}
                       </span>
                     </div>
                   )}
-                {transaction.notes && (
-                  <div>
-                    <span className="text-muted-foreground">Notes:</span>
-                    <span className="ml-1.5 sm:ml-2.5">
-                      {transaction.notes}
-                    </span>
-                  </div>
-                )}
-              </div>
 
-              <div className="flex justify-end mt-3">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex items-center gap-1.5 text-black hover:bg-primary/50"
-                  onClick={() => onViewReceipt(transaction)}
-                >
-                  <FileText className="h-4 w-4 sm:h-5 sm:w-5" />
-                  <span className="text-sm sm:text-base">View Receipt</span>
-                </Button>
+                  {transaction.mobilePaymentAccount && (
+                    <div className="flex flex-col gap-1">
+                      <span className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
+                        Account
+                      </span>
+                      <span className="font-medium text-foreground">
+                        {transaction.mobilePaymentAccount}
+                      </span>
+                    </div>
+                  )}
+
+                  {transaction.mobileNumber && (
+                    <div className="flex flex-col gap-1">
+                      <span className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
+                        Mobile
+                      </span>
+                      <span className="font-mono text-foreground">
+                        {transaction.mobileNumber}
+                      </span>
+                    </div>
+                  )}
+
+                  {(transaction.type === "on-hold" ||
+                    transaction.carPlateNumber) &&
+                    transaction.carPlateNumber && (
+                      <div className="flex flex-col gap-1">
+                        <span className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
+                          Car Plate
+                        </span>
+                        <span className="font-formula1 text-foreground">
+                          {transaction.carPlateNumber}
+                        </span>
+                      </div>
+                    )}
+
+                  {transaction.notes && (
+                    <div className="flex flex-col gap-1 sm:col-span-2 lg:col-span-3">
+                      <span className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
+                        Notes
+                      </span>
+                      <span className="text-foreground italic bg-background/30 p-2 rounded-md border border-border/20">
+                        {transaction.notes}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex justify-end mt-4">
+                  <Button
+                    variant="outline"
+                    className="flex items-center gap-2 group-hover:border-primary/50 transition-colors shadow-sm font-medium"
+                    onClick={() => onViewReceipt(transaction)}
+                  >
+                    <FileText className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                    <span>View Receipt</span>
+                  </Button>
+                </div>
               </div>
             </div>
-          )}
+          </div>
         </div>
       </Card>
     );
@@ -896,8 +939,8 @@ export default function TransactionsPage() {
     string | null
   >(null);
   const [isReceiptDialogOpen, setIsReceiptDialogOpen] = useState(false);
-  const [scrollActive, setScrollActive] = useState(false);
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<"list" | "table">("list");
 
   // Get staff data for transaction display
   const { staffMembers } = useStaffIDs();
@@ -1586,171 +1629,202 @@ export default function TransactionsPage() {
   return (
     <Layout>
       {/* Section 1: Main content */}
-      <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <h1 className="text-2xl font-semibold">
-            <span className="hidden sm:inline">Transactions</span>
-          </h1>
-          <div className="flex gap-2">
-            {hasMounted && !isLoadingStores ? (
-              <Select value={selectedStore} onValueChange={setSelectedStore}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Select store" />
-                </SelectTrigger>
-                <SelectContent>
-                  {stores.map((store) => (
-                    <SelectItem key={store.id} value={store.id}>
-                      {store.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ) : (
-              <div className="w-[180px] h-10" />
-            )}
+      <div className="space-y-6 md:space-y-8 bg-white dark:bg-zinc-950 pb-8 rounded-2xl p-2 sm:p-4">
+        {/* Sticky Header with Glass Effect */}
+        <div className="sticky top-0 z-40 bg-white/90 dark:bg-zinc-950/90 backdrop-blur-xl pb-4 pt-2 -mx-2 sm:-mx-4 px-2 sm:px-4 mb-6">
+          <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-4">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 bg-muted/30 p-1.5 rounded-xl border border-border/50 ml-auto xl:ml-0">
+              {hasMounted && !isLoadingStores ? (
+                <Select value={selectedStore} onValueChange={setSelectedStore}>
+                  <SelectTrigger className="w-[140px] sm:w-[160px] h-8 sm:h-9 bg-white dark:bg-zinc-900 border-border/50 shadow-sm rounded-lg transition-colors hover:bg-gray-50 dark:hover:bg-zinc-800">
+                    <SelectValue placeholder="Select store" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {stores.map((store) => (
+                      <SelectItem key={store.id} value={store.id}>
+                        {store.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <div className="w-[140px] sm:w-[160px] h-8 sm:h-9 bg-muted animate-pulse rounded-lg" />
+              )}
 
-            {hasMounted ? (
-              <Select
-                value={selectedCashier}
-                onValueChange={setSelectedCashier}
-              >
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Select cashier" />
-                </SelectTrigger>
-                <SelectContent>
-                  {cashierOptions.map((cashier) => (
-                    <SelectItem key={cashier.id} value={cashier.id}>
-                      {cashier.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ) : (
-              <div className="w-[180px] h-10" />
-            )}
-          </div>
-        </div>
-
-        {/* Search Bar */}
-        <div className="w-full">
-          <div className="relative max-w-md">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-            <Input
-              type="text"
-              placeholder="Search transactions by reference, cashier, payment method..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 pr-4 py-2 w-full sm:w-[400px] md:w-[500px] lg:w-[600px]"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery("")}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                aria-label="Clear search"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            )}
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-wrap items-center gap-3">
-            {hasMounted ? (
-              <Select
-                value={selectedPeriod}
-                onValueChange={(value: string) => {
-                  // Reset date selection when period changes
-                  setDate(undefined);
-                  setSelectedPeriod(value as TimeOptionValue);
-                }}
-              >
-                <SelectTrigger className="w-[140px]">
-                  <SelectValue placeholder="Select period" />
-                </SelectTrigger>
-                <SelectContent>
-                  {timeOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ) : (
-              <div className="w-[140px] h-10" />
-            )}
-
-            {hasMounted && selectedPeriod !== "today" && (
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    id="date"
-                    variant="outline"
-                    size="default"
-                    className={cn(
-                      "w-[240px] justify-start text-left font-normal",
-                      !date && "text-muted-foreground",
-                    )}
-                  >
-                    <CalendarRange className="mr-2 h-4 w-4" />
-                    {getDateRangeText()}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    initialFocus
-                    mode="range"
-                    defaultMonth={new Date()}
-                    selected={date}
-                    onSelect={setDate}
-                    numberOfMonths={1}
-                    disabled={{
-                      before: getMinMaxDates().minDate,
-                      after: getMinMaxDates().maxDate,
-                    }}
-                  />
-                </PopoverContent>
-              </Popover>
-            )}
-          </div>
-
-          {selectedPeriod === "today" && (
-            <div className="inline-flex items-center rounded-full border p-1 w-fit bg-muted relative">
-              <div
-                className={`absolute inset-y-1 rounded-full transition-all duration-300 ease-in-out shadow-sm ${getBackgroundPosition()}`}
-              />
-              <button
-                className={`px-6 py-1.5 rounded-full text-sm font-medium relative transition-colors duration-300 ${
-                  timeOfDay === "morning"
-                    ? "text-foreground"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-                onClick={() => setTimeOfDay("morning")}
-              >
-                Morning
-              </button>
-              <button
-                className={`px-6 py-1.5 rounded-full text-sm font-medium relative transition-colors duration-300 ${
-                  timeOfDay === "evening"
-                    ? "text-white"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-                onClick={() => setTimeOfDay("evening")}
-              >
-                Evening
-              </button>
-              <button
-                className={`px-6 py-1.5 rounded-full text-sm font-medium relative transition-colors duration-300 ${
-                  timeOfDay === "full"
-                    ? "text-white"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-                onClick={() => setTimeOfDay("full")}
-              >
-                Full Day
-              </button>
+              {hasMounted ? (
+                <Select
+                  value={selectedCashier}
+                  onValueChange={setSelectedCashier}
+                >
+                  <SelectTrigger className="w-[140px] sm:w-[160px] h-8 sm:h-9 bg-white dark:bg-zinc-900 border-border/50 shadow-sm rounded-lg transition-colors hover:bg-gray-50 dark:hover:bg-zinc-800">
+                    <SelectValue placeholder="Select cashier" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {cashierOptions.map((cashier) => (
+                      <SelectItem key={cashier.id} value={cashier.id}>
+                        {cashier.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <div className="w-[140px] sm:w-[160px] h-8 sm:h-9 bg-muted animate-pulse rounded-lg" />
+              )}
             </div>
-          )}
+          </div>
+
+          <div className="mt-5 flex flex-col xl:flex-row gap-4 items-start xl:items-center justify-between">
+            {/* Search Bar */}
+            <div className="w-full lg:w-auto flex-1 max-w-2xl relative group">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none transition-colors group-focus-within:text-primary">
+                <Search className="h-4 w-4 text-muted-foreground" />
+              </div>
+              <Input
+                type="text"
+                placeholder="Search by reference, cashier, payment method..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 pr-10 py-2.5 w-full bg-white dark:bg-zinc-900 border-border/60 focus-visible:ring-primary/30 focus-visible:border-primary shadow-sm rounded-xl transition-all"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-muted-foreground hover:text-foreground transition-colors"
+                  aria-label="Clear search"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+              {hasMounted ? (
+                <Select
+                  value={selectedPeriod}
+                  onValueChange={(value: string) => {
+                    setDate(undefined);
+                    setSelectedPeriod(value as TimeOptionValue);
+                  }}
+                >
+                  <SelectTrigger className="w-[130px] bg-white dark:bg-zinc-900 border-border/60 rounded-xl shadow-sm">
+                    <SelectValue placeholder="Select period" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {timeOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <div className="w-[130px] h-10 bg-muted animate-pulse rounded-xl" />
+              )}
+
+              {hasMounted && selectedPeriod !== "today" && (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      id="date"
+                      variant="outline"
+                      className={cn(
+                        "w-[220px] justify-start text-left font-medium rounded-xl border-border/60 bg-white dark:bg-zinc-900 shadow-sm",
+                        !date && "text-muted-foreground",
+                      )}
+                    >
+                      <CalendarRange className="mr-2 h-4 w-4" />
+                      {getDateRangeText()}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent
+                    className="w-auto p-0 rounded-xl border-border/60 shadow-lg"
+                    align="end"
+                  >
+                    <Calendar
+                      initialFocus
+                      mode="range"
+                      defaultMonth={new Date()}
+                      selected={date}
+                      onSelect={setDate}
+                      numberOfMonths={1}
+                      disabled={{
+                        before: getMinMaxDates().minDate,
+                        after: getMinMaxDates().maxDate,
+                      }}
+                      className="rounded-xl"
+                    />
+                  </PopoverContent>
+                </Popover>
+              )}
+
+              {selectedPeriod === "today" && (
+                <div className="inline-flex items-center rounded-xl border border-border/60 p-1 w-fit bg-muted/40 shadow-inner relative">
+                  <div
+                    className={`absolute inset-y-1 rounded-lg transition-all duration-300 ease-out shadow-sm ${getBackgroundPosition()}`}
+                  />
+                  <button
+                    className={`px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold relative transition-colors duration-300 ${
+                      timeOfDay === "morning"
+                        ? "text-foreground"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                    onClick={() => setTimeOfDay("morning")}
+                  >
+                    Morning
+                  </button>
+                  <button
+                    className={`px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold relative transition-colors duration-300 ${
+                      timeOfDay === "evening"
+                        ? "text-white"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                    onClick={() => setTimeOfDay("evening")}
+                  >
+                    Evening
+                  </button>
+                  <button
+                    className={`px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold relative transition-colors duration-300 ${
+                      timeOfDay === "full"
+                        ? "text-white"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                    onClick={() => setTimeOfDay("full")}
+                  >
+                    Full Day
+                  </button>
+                </div>
+              )}
+
+              <div className="flex bg-muted/30 p-1 rounded-xl border border-border/50 transition-all">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn(
+                    "h-8 w-8 sm:h-9 sm:w-9 rounded-lg transition-all",
+                    viewMode === "list"
+                      ? "bg-white dark:bg-zinc-800 shadow-sm text-foreground"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                  onClick={() => setViewMode("list")}
+                >
+                  <LayoutList className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn(
+                    "h-8 w-8 sm:h-9 sm:w-9 rounded-lg transition-all",
+                    viewMode === "table"
+                      ? "bg-white dark:bg-zinc-800 shadow-sm text-foreground"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                  onClick={() => setViewMode("table")}
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Search Results Indicator */}
@@ -1770,17 +1844,217 @@ export default function TransactionsPage() {
 
         {displayTransactions && displayTransactions.length > 0 ? (
           <div className="space-y-4 pb-20">
-            <div className="grid gap-4" id="transaction-cards-container">
-              {displayTransactions.map((transaction) => (
-                <TransactionCard
-                  key={transaction.id}
-                  transaction={transaction}
-                  isExpanded={expandedTransactionId === transaction.id}
-                  onToggle={() => toggleTransaction(transaction.id)}
-                  onViewReceipt={handleViewReceipt}
-                />
-              ))}
-            </div>
+            {viewMode === "list" ? (
+              <div className="grid gap-4" id="transaction-cards-container">
+                {displayTransactions.map((transaction) => (
+                  <TransactionCard
+                    key={transaction.id}
+                    transaction={transaction}
+                    isExpanded={expandedTransactionId === transaction.id}
+                    onToggle={() => toggleTransaction(transaction.id)}
+                    onViewReceipt={handleViewReceipt}
+                  />
+                ))}
+              </div>
+            ) : (
+              <Card className="overflow-hidden border-[2.5px] border-border/40 shadow-sm bg-white dark:bg-zinc-950 rounded-2xl backdrop-blur-sm">
+                <Table>
+                  <TableHeader className="bg-muted/10">
+                    <TableRow className="border-border/40">
+                      <TableHead className="w-[120px] font-bold text-muted-foreground tracking-wider uppercase text-xs">
+                        Time
+                      </TableHead>
+                      <TableHead className="font-bold text-muted-foreground tracking-wider uppercase text-xs">
+                        Type
+                      </TableHead>
+                      <TableHead className="font-bold text-muted-foreground tracking-wider uppercase text-xs">
+                        Cashier
+                      </TableHead>
+                      <TableHead className="font-bold text-muted-foreground tracking-wider uppercase text-xs hidden md:table-cell">
+                        Items
+                      </TableHead>
+                      <TableHead className="font-bold text-muted-foreground tracking-wider uppercase text-xs text-right">
+                        Amount (OMR)
+                      </TableHead>
+                      <TableHead className="w-[80px] font-bold text-muted-foreground tracking-wider uppercase text-xs text-center">
+                        Receipt
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {displayTransactions.map((transaction) => {
+                      const getTypeColor = (type: string) => {
+                        switch (type) {
+                          case "refund":
+                            return "text-red-600 bg-red-500/10 border-red-200 dark:border-red-900";
+                          case "expense":
+                            return "text-purple-600 bg-purple-500/10 border-purple-200 dark:border-purple-900";
+                          case "credit":
+                            return "text-blue-600 bg-blue-500/10 border-blue-200 dark:border-blue-900";
+                          case "on-hold":
+                            return "text-yellow-600 bg-yellow-500/10 border-yellow-200 dark:border-yellow-900";
+                          case "stock-transfer":
+                            return "text-indigo-600 bg-indigo-500/10 border-indigo-200 dark:border-indigo-900";
+                          case "warranty-claim":
+                            return "text-cyan-600 bg-cyan-500/10 border-cyan-200 dark:border-cyan-900";
+                          case "on-hold-paid":
+                          case "credit-paid":
+                            return "text-emerald-600 bg-emerald-500/10 border-emerald-200 dark:border-emerald-900";
+                          default:
+                            return "text-emerald-600 bg-emerald-500/10 border-emerald-200 dark:border-emerald-900";
+                        }
+                      };
+                      return (
+                        <React.Fragment key={transaction.id}>
+                          <TableRow
+                            className={cn(
+                              "cursor-pointer transition-colors border-border/40 group",
+                              expandedTransactionId === transaction.id
+                                ? "bg-muted/30"
+                                : "hover:bg-muted/30",
+                            )}
+                            onClick={() => {
+                              toggleTransaction(transaction.id);
+                            }}
+                          >
+                            <TableCell className="font-mono text-xs text-muted-foreground whitespace-nowrap">
+                              {transaction.time || transaction.date}
+                            </TableCell>
+                            <TableCell>
+                              <span
+                                className={cn(
+                                  "px-2.5 py-1 rounded-full border text-[11px] font-bold uppercase tracking-wider whitespace-nowrap",
+                                  getTypeColor(transaction.type),
+                                )}
+                              >
+                                {transaction.type.replace("-", " ")}
+                              </span>
+                            </TableCell>
+                            <TableCell className="font-medium whitespace-nowrap">
+                              {transaction.cashier}
+                            </TableCell>
+                            <TableCell
+                              className="hidden md:table-cell text-muted-foreground max-w-[200px] truncate"
+                              title={transaction.items[0]}
+                            >
+                              {transaction.items[0]}
+                            </TableCell>
+                            <TableCell className="text-right font-mono font-bold text-base whitespace-nowrap">
+                              {transaction.type === "refund" ? "-" : ""}
+                              {Math.abs(transaction.amount).toFixed(2)}
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <div className="flex justify-center items-center">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleViewReceipt(transaction);
+                                  }}
+                                >
+                                  <FileText className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                          {expandedTransactionId === transaction.id && (
+                            <TableRow className="bg-muted/10 hover:bg-muted/10">
+                              <TableCell
+                                colSpan={6}
+                                className="p-0 border-b border-border/40"
+                              >
+                                <div className="p-4 sm:p-6 bg-gradient-to-b from-muted/20 to-transparent">
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                                    <div className="flex flex-col gap-1.5">
+                                      <span className="text-[10px] font-bold tracking-widest text-muted-foreground uppercase">
+                                        Customer
+                                      </span>
+                                      <span className="font-medium text-sm text-foreground">
+                                        {transaction.customerName || "-"}
+                                      </span>
+                                    </div>
+                                    <div className="flex flex-col gap-1.5">
+                                      <span className="text-[10px] font-bold tracking-widest text-muted-foreground uppercase">
+                                        Payment
+                                      </span>
+                                      <span className="font-medium text-sm text-foreground capitalize">
+                                        {transaction.paymentMethod || "-"}
+                                      </span>
+                                    </div>
+                                    <div className="flex flex-col gap-1.5">
+                                      <span className="text-[10px] font-bold tracking-widest text-muted-foreground uppercase">
+                                        Reference
+                                      </span>
+                                      <span className="font-mono text-sm text-foreground font-medium bg-white dark:bg-zinc-900 border shadow-sm w-fit px-2 py-0.5 rounded-md">
+                                        {transaction.reference}
+                                      </span>
+                                    </div>
+                                    {transaction.shopName && (
+                                      <div className="flex flex-col gap-1.5">
+                                        <span className="text-[10px] font-bold tracking-widest text-muted-foreground uppercase">
+                                          Shop
+                                        </span>
+                                        <span className="font-medium text-sm text-foreground">
+                                          {transaction.shopName}
+                                        </span>
+                                      </div>
+                                    )}
+                                    {transaction.mobilePaymentAccount && (
+                                      <div className="flex flex-col gap-1.5">
+                                        <span className="text-[10px] font-bold tracking-widest text-muted-foreground uppercase">
+                                          Account
+                                        </span>
+                                        <span className="font-medium text-sm text-foreground">
+                                          {transaction.mobilePaymentAccount}
+                                        </span>
+                                      </div>
+                                    )}
+                                    {transaction.mobileNumber && (
+                                      <div className="flex flex-col gap-1.5">
+                                        <span className="text-[10px] font-bold tracking-widest text-muted-foreground uppercase">
+                                          Mobile
+                                        </span>
+                                        <span className="font-mono text-sm text-foreground">
+                                          {transaction.mobileNumber}
+                                        </span>
+                                      </div>
+                                    )}
+                                    {(transaction.type === "on-hold" ||
+                                      transaction.carPlateNumber) &&
+                                      transaction.carPlateNumber && (
+                                        <div className="flex flex-col gap-1.5">
+                                          <span className="text-[10px] font-bold tracking-widest text-muted-foreground uppercase">
+                                            Car Plate
+                                          </span>
+                                          <span className="font-formula1 text-sm text-foreground">
+                                            {transaction.carPlateNumber}
+                                          </span>
+                                        </div>
+                                      )}
+                                    {transaction.notes && (
+                                      <div className="flex flex-col gap-1.5 sm:col-span-2 lg:col-span-3 mt-2">
+                                        <span className="text-[10px] font-bold tracking-widest text-muted-foreground uppercase">
+                                          Notes
+                                        </span>
+                                        <span className="text-sm text-foreground italic bg-white dark:bg-zinc-900 p-3 rounded-lg border shadow-sm">
+                                          {transaction.notes}
+                                        </span>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </React.Fragment>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </Card>
+            )}
           </div>
         ) : (
           <Card className="flex flex-col items-center justify-center py-16 px-4 text-center mb-20">
@@ -1804,22 +2078,48 @@ export default function TransactionsPage() {
 
       {/* Section 2: Fixed total credit card at the bottom, responsive to sidebar */}
       <div
-        className="fixed bottom-0 right-0 left-0 md:left-8 lg:left-56 z-50 w-auto flex justify-center"
+        className="fixed bottom-0 right-0 left-0 md:left-[96px] lg:left-[240px] z-50 p-4 sm:p-6 bg-gradient-to-t from-white via-white/90 dark:from-zinc-950 dark:via-zinc-950/90 to-transparent pointer-events-none flex justify-end"
         style={{ transition: "left 300ms ease-in-out", willChange: "left" }}
       >
-        <div className="p-3 sm:p-4 px-4 sm:px-6 pb-4 sm:pb-6 w-full max-w-2xl">
-          <Card className="p-3 sm:p-4 bg-orange-50 border shadow-md">
-            <div className="flex items-center justify-between">
-              <div>
-                <span className="text-base sm:text-lg font-semibold text-orange-800">
-                  Total credit:
+        <div className="pointer-events-auto">
+          <Card
+            className={cn(
+              "p-4 sm:p-5 border-2 shadow-2xl backdrop-blur-xl rounded-2xl transition-all duration-500 hover:scale-[1.02]",
+              totalCredit < 0
+                ? "bg-red-500/10 border-red-500/30 dark:bg-red-950/40"
+                : "bg-emerald-500/10 border-emerald-500/30 dark:bg-emerald-950/40",
+            )}
+          >
+            <div className="flex items-center gap-6 sm:gap-10 justify-between">
+              <div className="flex flex-col">
+                <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                  Net Revenue
+                </span>
+                <span className="text-[10px] text-muted-foreground opacity-70 font-medium">
+                  {selectedPeriod === "today"
+                    ? timeOfDay === "full"
+                      ? "TODAY"
+                      : timeOfDay.toUpperCase()
+                    : "SELECTED PERIOD"}
                 </span>
               </div>
-              <div className="flex items-center">
-                <span className="text-sm sm:text-base text-orange-700 mr-1">
+              <div className="flex items-baseline gap-1.5 opacity-90 drop-shadow-sm">
+                <span
+                  className={cn(
+                    "text-sm sm:text-base font-bold",
+                    totalCredit < 0 ? "text-red-500" : "text-emerald-500",
+                  )}
+                >
                   OMR
                 </span>
-                <span className="text-xl sm:text-2xl font-bold text-orange-800">
+                <span
+                  className={cn(
+                    "text-3xl sm:text-4xl font-black font-formula1 tracking-tighter tabular-nums",
+                    totalCredit < 0
+                      ? "text-red-600 dark:text-red-400"
+                      : "text-emerald-600 dark:text-emerald-400",
+                  )}
+                >
                   {totalCredit < 0 ? "-" : ""}
                   {Math.abs(totalCredit).toFixed(2)}
                 </span>

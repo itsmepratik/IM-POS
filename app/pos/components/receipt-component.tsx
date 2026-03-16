@@ -1,10 +1,17 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import React, {
+  useState,
+  useRef,
+  useEffect,
+  useCallback,
+  Fragment,
+} from "react";
 import { useCompanyInfo } from "@/lib/hooks/useCompanyInfo";
 import { Button } from "@/components/ui/button";
 import { Printer } from "lucide-react";
 import { motion } from "framer-motion";
+import { generateBarcodeHTML } from "@/lib/utils/barcodeGenerator";
 
 interface CartItem {
   id: number;
@@ -49,12 +56,13 @@ export const ReceiptComponent = ({
   const [localDiscount, setLocalDiscount] = useState(discount);
   const receiptRef = useRef<HTMLDivElement>(null);
   const [showReceipt, setShowReceipt] = useState(false);
+  const [barcodeHtml, setBarcodeHtml] = useState<string>("");
 
   useEffect(() => {
-    if (discount) {
-      setLocalDiscount(discount);
+    if (receiptNumber) {
+      generateBarcodeHTML(receiptNumber).then(setBarcodeHtml);
     }
-  }, [discount]);
+  }, [receiptNumber]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -346,6 +354,16 @@ export const ReceiptComponent = ({
             <div class="whatsapp">
               WhatsApp ${brand.whatsapp || ""} for latest offers
             </div>
+            
+            ${
+              barcodeHtml
+                ? `
+            <div style="text-align: center; margin-top: 15px; margin-bottom: 5px;">
+              ${barcodeHtml}
+            </div>
+            `
+                : ""
+            }
           </div>
         </body>
       </html>
@@ -382,6 +400,7 @@ export const ReceiptComponent = ({
     paymentRecipient,
     brand,
     POS_ID,
+    barcodeHtml,
   ]);
 
   if (!showReceipt) return null;
@@ -424,132 +443,199 @@ export const ReceiptComponent = ({
       transition={{ duration: 0.5 }}
       className="w-full"
     >
-      <div className="max-h-[55vh] md:max-h-[65vh] overflow-auto mb-4">
+      <div className="max-h-[55vh] md:max-h-[65vh] overflow-auto mb-4 bg-muted/30 rounded-xl p-4 sm:p-6 flex justify-center items-start border inner-shadow-sm">
         <div
-          className="bg-white border rounded-xl p-3 sm:p-4 w-full max-w-[340px] sm:max-w-[380px] md:max-w-[420px] mx-auto shadow-md"
+          className="bg-white w-full max-w-[380px] shrink-0 font-sans text-black mx-auto overflow-hidden relative"
+          style={{
+            boxShadow:
+              "rgba(0, 0, 0, 0.1) 0px 4px 6px -1px, rgba(0, 0, 0, 0.06) 0px 2px 4px -1px, rgba(0, 0, 0, 0.05) 0px 0px 0px 1px",
+          }}
           ref={receiptRef}
         >
-          <div className="text-center mb-2">
-            <h3 className="font-bold text-base sm:text-lg tracking-tight">
-              {brand.name}
-            </h3>
-            <p className="text-[11px] sm:text-xs text-gray-500 leading-tight">
-              {brand.addressLines.join(" ")}
-            </p>
-            <p className="text-[11px] sm:text-xs text-gray-500 leading-tight">
-              Ph: {brand.phones.join(" | ")}
-            </p>
-          </div>
-
-          <div className="border-t border-b border-dashed py-1.5 mb-2 sm:mb-3">
-            <div className="flex justify-between text-[11px] sm:text-xs">
-              <span className="font-medium">Invoice: {receiptNumber}</span>
-            </div>
-            <div className="flex justify-between text-[11px] sm:text-xs">
-              <span>Date: {currentDate}</span>
-              <span>Time: {currentTime}</span>
-            </div>
-          </div>
-
-          <div className="text-[11px] sm:text-xs mb-3">
-            <div className="grid grid-cols-12 gap-1 font-medium mb-1">
-              <span className="col-span-1">#</span>
-              <span className="col-span-2">Qty</span>
-              <span className="col-span-5">Description</span>
-              <span className="col-span-2 text-right">Price</span>
-              <span className="col-span-2 text-right">Amount</span>
+          <div
+            className="p-[2mm] pt-[4mm] pb-[6mm] px-[3mm]"
+            style={{ fontFamily: "sans-serif" }}
+          >
+            {/* Header */}
+            <div className="text-center mb-2.5">
+              <h2 className="font-bold text-[16px] leading-[1.2] m-0 tracking-tight text-black">
+                {brand.name}
+              </h2>
+              <p className="text-[12px] m-0 mt-0.5 leading-[1.2] text-black">
+                {brand.addressLines.join(" ")}
+              </p>
+              <p className="text-[12px] m-0 mt-[2px] leading-[1.2] text-black">
+                Ph: {brand.phones.join(" | ")}
+              </p>
             </div>
 
-            {cart.map((item, index) => (
-              <div
-                key={item.uniqueId}
-                className="grid grid-cols-12 gap-1 mb-1 text-foreground"
-              >
-                <span className="col-span-1">{index + 1}</span>
-                <span className="col-span-2">(x{item.quantity})</span>
-                <span className="col-span-5 break-words">
-                  {(() => {
-                    // Clean up name by removing bottle info if present
-                    let cleanName = item.name
-                      .replace(
-                        /\s*\(?(\d+(\.\d+)?[Ll])\s+(open|closed)\s+bottle\)?/i,
-                        "",
-                      ) // Remove "(1L closed bottle)" or similar
-                      .replace(/\s*\(?(open|closed)\s+bottle\)?/i, "") // Remove "(open bottle)" etc
-                      .trim();
-
-                    // Clean up details similarly
-                    let cleanDetails = item.details
-                      ? item.details
-                          .replace(
-                            /\s*\(?(\d+(\.\d+)?[Ll])\s+(open|closed)\s+bottle\)?/i,
-                            "$1",
-                          ) // Keep size e.g. "1L"
-                          .replace(/\s*\(?(open|closed)\s+bottle\)?/i, "")
-                          .trim()
-                      : "";
-
-                    // Combine carefully
-                    if (cleanDetails && !cleanName.includes(cleanDetails)) {
-                      return `${cleanName} (${cleanDetails})`;
-                    }
-                    return cleanName;
-                  })()}
-                </span>
-                <span className="col-span-2 text-right">
-                  {item.price.toFixed(3)}
-                </span>
-                <span className="col-span-2 text-right">
-                  {(item.price * item.quantity).toFixed(3)}
-                </span>
+            <div className="border-t border-b border-dashed border-black py-1.5 mb-2.5">
+              <div className="flex justify-between items-center text-[12px] leading-[1.3] text-black">
+                <span>Invoice: {receiptNumber}</span>
+                <span>POS ID: {POS_ID}</span>
               </div>
-            ))}
-          </div>
-
-          <div className="border-t border-dashed pt-2 mb-3">
-            <div className="flex justify-between text-[11px] sm:text-xs">
-              <span className="font-medium">Subtotal</span>
-              <span>OMR {subtotal.toFixed(3)}</span>
-            </div>
-            {localDiscount && (
-              <div className="flex justify-between items-center border-t pt-2 text-[11px] sm:text-xs">
-                <span>
-                  Discount{" "}
-                  {localDiscount.type === "percentage"
-                    ? `(${localDiscount.value}%)`
-                    : "(Amount)"}
-                </span>
-                <span>- OMR {discountAmount.toFixed(3)}</span>
+              <div className="flex justify-between items-center text-[12px] leading-[1.3] text-black pt-[2px]">
+                <span>Date: {currentDate}</span>
+                <span>Time: {currentTime}</span>
               </div>
-            )}
-            <div className="flex justify-between text-[11px] sm:text-xs font-bold">
-              <span>Total</span>
-              <span>OMR {total.toFixed(3)}</span>
             </div>
-          </div>
 
-          <div className="text-center text-[11px] sm:text-xs text-gray-600 border-t border-dashed pt-2">
-            <p>Number of Items: {itemCount}</p>
-            <p>Payment Method: {getFormattedPaymentMethod(paymentMethod)}</p>
-            {paymentMethod === "mobile" && paymentRecipient && (
-              <p>Mobile Payment Recipient: {paymentRecipient}</p>
-            )}
-            {cashier && <p>Cashier: {cashier}</p>}
-            <p>Keep this Invoice for your Exchanges</p>
-            <p className="text-[11px] sm:text-xs text-right text-gray-600">
-              احتفظ بهذه الفاتورة للتبديل
-            </p>
-            <p>Exchange with in 15 Days</p>
-            <p className="text-[11px] sm:text-xs text-right text-gray-600">
-              التبديل خلال 15 يوم
-            </p>
-            <p>Thank you for shopping with us.</p>
-            <p className="text-[11px] sm:text-xs text-right text-gray-600">
-              شكراً للتسوق معنا
-            </p>
-            <p className="font-medium mt-2">
+            <table
+              className="w-full mb-2.5 table-fixed text-[12px] border-collapse text-black"
+              style={{ wordWrap: "break-word" }}
+            >
+              <thead>
+                <tr>
+                  <th className="text-left font-normal pb-1.5 w-[20px]">#</th>
+                  <th className="text-left font-normal pb-1.5">Description</th>
+                  <th className="text-right font-normal pb-1.5 w-[44px]">
+                    Price
+                  </th>
+                  <th className="text-center font-normal pb-1.5 w-[36px] pl-[8px] pr-0">
+                    Qty
+                  </th>
+                  <th className="text-right font-normal pb-1.5 w-[64px] pl-[12px]">
+                    Amt
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {cart.map((item, index) => {
+                  let cleanName = item.name
+                    .replace(
+                      /\s*\(?(\d+(\.\d+)?[Ll])\s+(open|closed)\s+bottle\)?/i,
+                      "",
+                    )
+                    .replace(/\s*\(?(open|closed)\s+bottle\)?/i, "")
+                    .trim();
+
+                  let cleanDetails = item.details
+                    ? item.details
+                        .replace(
+                          /\s*\(?(\d+(\.\d+)?[Ll])\s+(open|closed)\s+bottle\)?/i,
+                          "$1",
+                        )
+                        .replace(/\s*\(?(open|closed)\s+bottle\)?/i, "")
+                        .trim()
+                    : "";
+
+                  let displayName = cleanName;
+                  if (cleanDetails && !cleanName.includes(cleanDetails)) {
+                    displayName = `${cleanName} (${cleanDetails})`;
+                  }
+
+                  return (
+                    <Fragment key={item.uniqueId}>
+                      <tr>
+                        <td className="align-top pb-0 text-black pr-1">
+                          {index + 1}
+                        </td>
+                        <td className="align-top pb-0 text-black" colSpan={4}>
+                          {displayName}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="pt-0"></td>
+                        <td className="pt-0"></td>
+                        <td className="align-top text-right text-black pt-0 pb-1.5 whitespace-nowrap tabular-nums">
+                          {item.price.toFixed(3)}
+                        </td>
+                        <td className="align-top text-center text-black pt-0 pb-1.5 whitespace-nowrap pl-[8px] pr-0 tabular-nums">
+                          (x{item.quantity})
+                        </td>
+                        <td className="align-top text-right text-black pt-0 pb-1.5 whitespace-nowrap pl-[12px] tabular-nums">
+                          {(item.price * item.quantity).toFixed(3)}
+                        </td>
+                      </tr>
+                    </Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+
+            <div className="border-t border-dashed border-black pt-1.5 mt-2.5">
+              <table className="w-full text-[12px]">
+                <tbody>
+                  <tr>
+                    <td className="font-bold text-black py-[2px] pl-0">
+                      Subtotal
+                    </td>
+                    <td className="font-bold text-right text-black py-[2px] pr-0 tabular-nums">
+                      OMR {subtotal.toFixed(3)}
+                    </td>
+                  </tr>
+                  {localDiscount && (
+                    <tr className="text-[#22c55e] font-bold">
+                      <td className="py-[2px] pl-0">
+                        Discount{" "}
+                        {localDiscount.type === "percentage"
+                          ? `(${localDiscount.value}%)`
+                          : "(Amount)"}
+                      </td>
+                      <td className="text-right py-[2px] pr-0 tabular-nums">
+                        - OMR {discountAmount.toFixed(3)}
+                      </td>
+                    </tr>
+                  )}
+                  <tr>
+                    <td className="font-bold text-black pt-[5px] pb-0 border-t border-black mt-1 pl-0">
+                      Total
+                    </td>
+                    <td className="font-bold text-right text-black pt-[5px] pb-0 border-t border-black mt-1 text-[14px] pr-0 tabular-nums">
+                      OMR {total.toFixed(3)}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div className="border-t border-dashed border-black pt-1.5 mt-2.5 text-center text-[12px] text-black">
+              <p className="m-0 my-[3px]">Number of Items: {itemCount}</p>
+              <p className="m-0 my-[3px]">
+                Payment Method: {getFormattedPaymentMethod(paymentMethod)}
+              </p>
+              {paymentMethod === "mobile" && paymentRecipient && (
+                <p className="m-0 my-[3px]">
+                  Mobile Payment Recipient: {paymentRecipient}
+                </p>
+              )}
+              {cashier && <p className="m-0 my-[3px]">Cashier: {cashier}</p>}
+              <p className="m-0 my-[3px]">
+                Keep this Invoice for your Exchanges
+              </p>
+              <p className="m-0 my-[2px] text-[11px]" dir="rtl">
+                احتفظ بهذه الفاتورة للتبديل
+              </p>
+              <p className="m-0 my-[3px]">Exchange with in 15 Days</p>
+              <p className="m-0 my-[2px] text-[11px]" dir="rtl">
+                التبديل خلال 15 يوم
+              </p>
+              <p className="m-0 my-[3px]">Thank you for shopping with us.</p>
+              <p className="m-0 my-[2px] text-[11px]" dir="rtl">
+                شكراً للتسوق معنا
+              </p>
+            </div>
+
+            <div className="text-center text-[11px] font-bold mt-[5px] text-black">
               WhatsApp {brand.whatsapp || ""} for latest offers
-            </p>
+            </div>
+
+            {barcodeHtml && (
+              <div
+                className="flex justify-center mt-[15px] mb-[5px]"
+                dangerouslySetInnerHTML={{ __html: barcodeHtml }}
+              />
+            )}
+          </div>
+
+          {/* Jagged bottom edge representation */}
+          <div className="absolute bottom-0 left-0 w-full h-[6px] overflow-hidden opacity-20 flex">
+            {Array.from({ length: 60 }).map((_, i) => (
+              <div
+                key={i}
+                className="w-[8px] h-[8px] bg-gray-300 transform rotate-45 translate-y-[4px] -ml-[4px]"
+              ></div>
+            ))}
           </div>
         </div>
       </div>

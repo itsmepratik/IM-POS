@@ -5,6 +5,7 @@ import { useCompanyInfo } from "@/lib/hooks/useCompanyInfo";
 import { Button } from "@/components/ui/button";
 import { Printer } from "lucide-react";
 import { motion } from "framer-motion";
+import { generateBarcodeHTML } from "@/lib/utils/barcodeGenerator";
 
 // Define the structure for cart items consistent with POSPage
 interface CartItem {
@@ -46,25 +47,36 @@ export const BillComponent: React.FC<BillComponentProps> = ({
 }) => {
   const billRef = useRef<HTMLDivElement>(null);
   const [isClient, setIsClient] = useState(false);
+  const [barcodeHtml, setBarcodeHtml] = useState<string>("");
   const { registered, thankYouMessage } = useCompanyInfo();
-  
+
   // Filter out Sanaiya from address lines
-  const filteredAddressLines = (registered.addressLines || []).filter(
-    line => !line.toLowerCase().includes("al-sanaiya")
-  );
+  const displayAddressLines =
+    registered?.addressLines.filter(
+      (line) => !line.toLowerCase().includes("sanaiya"),
+    ) || [];
 
   // Flatten address lines for compatibility with existing template
   const companyDetails = {
     ...registered,
-    addressLine1: filteredAddressLines[0] || "",
-    addressLine2: filteredAddressLines[1] || "",
-    addressLine3: filteredAddressLines[2] || "",
+    addressLine1: displayAddressLines[0] || "",
+    addressLine2: displayAddressLines[1] || "",
+    addressLine3: displayAddressLines[2] || "",
   };
-  const serviceDescriptionContent = registered.serviceDescription || { english: "", arabic: "" };
+  const serviceDescriptionContent = registered.serviceDescription || {
+    english: "",
+    arabic: "",
+  };
 
   useEffect(() => {
     setIsClient(true);
   }, []);
+
+  useEffect(() => {
+    if (billNumber) {
+      generateBarcodeHTML(billNumber).then(setBarcodeHtml);
+    }
+  }, [billNumber]);
 
   const handlePrint = useCallback(() => {
     const content = billRef.current;
@@ -100,7 +112,7 @@ export const BillComponent: React.FC<BillComponentProps> = ({
     const finalTradeInAmount = appliedTradeInAmount || 0;
     const totalAmount = Math.max(
       0,
-      subtotalAfterMainDiscount - finalTradeInAmount - oldBatteryDiscountAmount
+      subtotalAfterMainDiscount - finalTradeInAmount - oldBatteryDiscountAmount,
     );
 
     const htmlContent = `
@@ -421,8 +433,6 @@ export const BillComponent: React.FC<BillComponentProps> = ({
               <td class="print-date">Printed on: ${currentDate} ${currentTime}</td>
             </tr>
           </table>
-          <div style="width: 100%; border-bottom: 1px dashed #999; margin: 3px 0;"></div>
-
           <!-- Customer info with two columns -->
           <table class="bill-info-table">
             <tr>
@@ -457,7 +467,7 @@ export const BillComponent: React.FC<BillComponentProps> = ({
                   <td>${item.price.toFixed(3)}</td>
                   <td>${(item.price * item.quantity).toFixed(3)}</td>
                 </tr>
-              `
+              `,
                 )
                 .join("")}
             </tbody>
@@ -475,7 +485,7 @@ export const BillComponent: React.FC<BillComponentProps> = ({
               <tr style="color: #D9534E;">
                 <td class="label">Trade-In Amount</td>
                 <td class="amount" style="color: #D9534E;">- ${finalTradeInAmount.toFixed(
-                  3
+                  3,
                 )}</td>
               </tr>
             `
@@ -491,7 +501,7 @@ export const BillComponent: React.FC<BillComponentProps> = ({
                     : `(Amount)`
                 }</td>
                 <td class="amount" style="color: #D9534E;">- ${mainDiscountAmount.toFixed(
-                  3
+                  3,
                 )}</td>
               </tr>
             `
@@ -503,7 +513,7 @@ export const BillComponent: React.FC<BillComponentProps> = ({
               <tr style="color: #D9534E;">
                 <td class="label">Discount on old battery</td>
                 <td class="amount" style="color: #D9534E;">- ${oldBatteryDiscountAmount.toFixed(
-                  3
+                  3,
                 )}</td>
               </tr>
             `
@@ -537,6 +547,8 @@ export const BillComponent: React.FC<BillComponentProps> = ({
             <div class="footer-thank-you" style="white-space: pre-line;">${
               thankYouMessage?.english + "\n" + thankYouMessage?.arabic
             }</div>
+            
+            ${barcodeHtml ? `<div style="text-align: center; margin-top: 15px;">${barcodeHtml}</div>` : ""}
           </div>
         </div>
       </body>
@@ -554,7 +566,7 @@ export const BillComponent: React.FC<BillComponentProps> = ({
       // and don't add the about:blank text
       if (
         !/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-          navigator.userAgent
+          navigator.userAgent,
         )
       ) {
         // Removed auto close to prevent about:blank text
@@ -571,6 +583,7 @@ export const BillComponent: React.FC<BillComponentProps> = ({
     cashier,
     appliedDiscount,
     appliedTradeInAmount,
+    barcodeHtml,
   ]);
 
   if (!isClient) {
@@ -595,7 +608,7 @@ export const BillComponent: React.FC<BillComponentProps> = ({
     } else {
       mainDiscountForDisplay = Math.min(
         appliedDiscount.value,
-        subtotalForDisplay
+        subtotalForDisplay,
       );
     }
   }
@@ -608,7 +621,7 @@ export const BillComponent: React.FC<BillComponentProps> = ({
     0,
     subtotalAfterMainDiscountDisplay -
       finalTradeInAmountForDisplay -
-      oldBatteryDiscountForDisplay
+      oldBatteryDiscountForDisplay,
   );
 
   return (
@@ -668,8 +681,6 @@ export const BillComponent: React.FC<BillComponentProps> = ({
               Printed on: {currentDate} {currentTime}
             </span>
           </div>
-          <div className="border-t border-dashed my-2"></div>
-
           {/* Customer info */}
           <div className="flex justify-between text-xs mb-3">
             <span className="font-medium">To, Mr./Mrs.: {customerName}</span>
@@ -691,7 +702,7 @@ export const BillComponent: React.FC<BillComponentProps> = ({
             {cart
               .filter(
                 (item) =>
-                  !item.name.toLowerCase().includes("discount on old battery")
+                  !item.name.toLowerCase().includes("discount on old battery"),
               )
               .map((item, index) => (
                 <div
@@ -746,12 +757,12 @@ export const BillComponent: React.FC<BillComponentProps> = ({
               </div>
             )}
           </div>
-          
+
           <div className="border-t border-dashed pt-2 mb-3">
-             <div className="flex justify-between text-xs font-bold text-[#0000CC]">
-               <span>TOTAL AMOUNT:</span>
-               <span>OMR {totalAmountForDisplay.toFixed(3)}</span>
-             </div>
+            <div className="flex justify-between text-xs font-bold text-[#0000CC]">
+              <span>TOTAL AMOUNT:</span>
+              <span>OMR {totalAmountForDisplay.toFixed(3)}</span>
+            </div>
           </div>
 
           {/* Footer */}
@@ -768,11 +779,21 @@ export const BillComponent: React.FC<BillComponentProps> = ({
             <p className="font-medium">
               Contact no.: {companyDetails.contactNumber}
             </p>
-            <p className="rtl">رقم الاتصال: {companyDetails.contactNumberArabic}</p>
+            <p className="rtl">
+              رقم الاتصال: {companyDetails.contactNumberArabic}
+            </p>
             <p className="italic text-xs" style={{ whiteSpace: "pre-line" }}>
-              {thankYouMessage?.english + (thankYouMessage?.arabic ? "\n" + thankYouMessage.arabic : "")}
+              {thankYouMessage?.english +
+                (thankYouMessage?.arabic ? "\n" + thankYouMessage.arabic : "")}
             </p>
             <p className="font-mono mt-2">{billNumber}</p>
+
+            {barcodeHtml && (
+              <div
+                className="flex justify-center mt-3 pt-2"
+                dangerouslySetInnerHTML={{ __html: barcodeHtml }}
+              />
+            )}
           </div>
         </div>
       </div>

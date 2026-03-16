@@ -8,6 +8,8 @@ interface NumpadProps {
   onBackspace: () => void;
   onSubmit: () => void;
   disabled?: boolean;
+  className?: string;
+  buttonClassName?: string;
 }
 
 export function Numpad({
@@ -16,6 +18,8 @@ export function Numpad({
   onBackspace,
   onSubmit,
   disabled,
+  className = "w-48 mx-auto my-4",
+  buttonClassName = "p-4 text-xl",
 }: NumpadProps) {
   const touchHandled = useRef(false);
 
@@ -32,11 +36,11 @@ export function Numpad({
   };
 
   return (
-    <div className="grid grid-cols-3 gap-2 w-48 mx-auto my-4">
+    <div className={`grid grid-cols-3 gap-2 ${className}`}>
       {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
         <button
           key={n}
-          className="bg-muted rounded-lg p-4 text-xl font-bold hover:bg-accent"
+          className={`bg-muted rounded-lg font-bold hover:bg-accent active:scale-95 transition-all ${buttonClassName}`}
           onClick={() => {
             if (!touchHandled.current) handleClick(n.toString());
           }}
@@ -47,7 +51,7 @@ export function Numpad({
         </button>
       ))}
       <button
-        className="bg-muted rounded-lg p-4 text-xl font-bold hover:bg-accent"
+        className={`bg-muted rounded-lg font-bold hover:bg-accent active:scale-95 transition-all ${buttonClassName}`}
         onClick={() => {
           if (!touchHandled.current) onBackspace();
         }}
@@ -63,7 +67,7 @@ export function Numpad({
         ⌫
       </button>
       <button
-        className="bg-muted rounded-lg p-4 text-xl font-bold hover:bg-accent"
+        className={`bg-muted rounded-lg font-bold hover:bg-accent active:scale-95 transition-all ${buttonClassName}`}
         onClick={() => {
           if (!touchHandled.current) handleClick("0");
         }}
@@ -73,7 +77,7 @@ export function Numpad({
         0
       </button>
       <button
-        className="bg-primary text-primary-foreground rounded-lg p-4 text-xl font-bold hover:bg-primary/90"
+        className={`bg-primary text-primary-foreground rounded-lg font-bold hover:bg-primary/90 active:scale-95 transition-all ${buttonClassName}`}
         onClick={() => {
           if (!touchHandled.current) onSubmit();
         }}

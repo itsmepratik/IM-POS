@@ -1,4 +1,5 @@
 // Receipt generation utilities for thermal and battery bills
+import { generateBarcodeHTML } from "./barcodeGenerator";
 
 export interface ReceiptData {
   referenceNumber: string;
@@ -41,7 +42,9 @@ const DEFAULT_COMPANY_INFO = {
   },
 };
 
-export function generateThermalReceipt(data: ReceiptData): string {
+export async function generateThermalReceipt(
+  data: ReceiptData,
+): Promise<string> {
   const {
     referenceNumber,
     totalAmount,
@@ -74,6 +77,8 @@ export function generateThermalReceipt(data: ReceiptData): string {
 
   // Calculate total item quantity
   const totalItemQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
+
+  const barcodeHtml = await generateBarcodeHTML(referenceNumber);
 
   return `
     <!DOCTYPE html>
@@ -249,6 +254,16 @@ export function generateThermalReceipt(data: ReceiptData): string {
           </p>
         </div>
         
+        ${
+          barcodeHtml
+            ? `
+        <div style="text-align: center; margin: 10px 0;">
+          ${barcodeHtml}
+        </div>
+        `
+            : ""
+        }
+        
         <table class="receipt-table">
           <thead>
             <tr>
@@ -331,13 +346,15 @@ export function generateThermalReceipt(data: ReceiptData): string {
         <div class="whatsapp">
           WhatsApp ${whatsapp} for latest offers
         </div>
+        
+        ${barcodeHtml ? `<div style="text-align: center; margin-top: 15px;">${barcodeHtml}</div>` : ""}
       </div>
     </body>
     </html>
   `;
 }
 
-export function generateBatteryBill(data: ReceiptData): string {
+export async function generateBatteryBill(data: ReceiptData): Promise<string> {
   const {
     referenceNumber,
     totalAmount,
@@ -355,6 +372,8 @@ export function generateBatteryBill(data: ReceiptData): string {
   const subtotal =
     subtotalBeforeDiscount ??
     items.reduce((sum, item) => sum + item.sellingPrice * item.quantity, 0);
+
+  const barcodeHtml = await generateBarcodeHTML(referenceNumber);
 
   return `
     <!DOCTYPE html>
@@ -583,6 +602,8 @@ export function generateBatteryBill(data: ReceiptData): string {
           This receipt is your proof of purchase and warranty document.
         </p>
       </div>
+      
+      ${barcodeHtml ? `<div style="text-align: center; margin-top: 15px;">${barcodeHtml}</div>` : ""}
     </body>
     </html>
   `;

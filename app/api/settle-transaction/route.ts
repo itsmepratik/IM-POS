@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
           error: "Invalid request data",
           details: validation.error.flatten(),
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
           error: "Transaction not found",
           details: fetchError?.message,
         },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
       originalTransaction.type !== "CREDIT"
     ) {
       console.error(
-        `[${requestId}] Invalid transaction type: ${originalTransaction.type}`
+        `[${requestId}] Invalid transaction type: ${originalTransaction.type}`,
       );
       return NextResponse.json(
         {
@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
           error: "Only ON_HOLD and CREDIT transactions can be settled",
           details: `Transaction type is ${originalTransaction.type}`,
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -97,7 +97,7 @@ export async function POST(req: NextRequest) {
     if (settlementCheckError) {
       console.error(
         `[${requestId}] Error checking for settlement:`,
-        settlementCheckError
+        settlementCheckError,
       );
       return NextResponse.json(
         {
@@ -105,13 +105,13 @@ export async function POST(req: NextRequest) {
           error: "Failed to check settlement status",
           details: settlementCheckError.message,
         },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
     if (existingSettlement) {
       console.warn(
-        `[${requestId}] Transaction already settled: ${existingSettlement.reference_number}`
+        `[${requestId}] Transaction already settled: ${existingSettlement.reference_number}`,
       );
       return NextResponse.json(
         {
@@ -119,14 +119,14 @@ export async function POST(req: NextRequest) {
           error: "Transaction already settled",
           details: `Settlement reference: ${existingSettlement.reference_number}`,
         },
-        { status: 409 }
+        { status: 409 },
       );
     }
 
     // Step 4: Verify cashier exists and convert to UUID
     const { getStaffUuidById } = await import("@/lib/utils/staff-validation");
     const staffUuid = await getStaffUuidById(cashierId);
-    
+
     if (!staffUuid) {
       console.error(`[${requestId}] Cashier not found: ${cashierId}`);
       return NextResponse.json(
@@ -135,7 +135,7 @@ export async function POST(req: NextRequest) {
           error: "Invalid cashier ID",
           details: `No active staff member found with ID: ${cashierId}`,
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -149,19 +149,22 @@ export async function POST(req: NextRequest) {
     // Step 5: Generate new reference number for settlement transaction using sequential system
     const settlementType =
       originalTransaction.type === "ON_HOLD" ? "ON_HOLD_PAID" : "CREDIT_PAID";
-    
+
     // Check if original transaction was a battery sale by inspecting items
     const itemsSold = originalTransaction.items_sold || [];
-    const isBatterySale = Array.isArray(itemsSold) && itemsSold.some((item: any) => {
-      const description = item.volumeDescription || item.name || "";
-      return description.toLowerCase().includes("battery");
-    });
+    const isBatterySale =
+      Array.isArray(itemsSold) &&
+      itemsSold.some((item: any) => {
+        const description = item.volumeDescription || item.name || "";
+        return description.toLowerCase().includes("battery");
+      });
 
     // Generate sequential reference number (settlements use A prefix per plan)
     const newReferenceNumber = await generateReferenceNumber(
       settlementType,
       isBatterySale,
-      paymentMethod
+      paymentMethod,
+      originalTransaction.shop_id,
     );
 
     // Step 6: Create new settlement transaction
@@ -196,7 +199,7 @@ export async function POST(req: NextRequest) {
           error: "Failed to create settlement transaction",
           details: insertError?.message,
         },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -228,7 +231,7 @@ export async function POST(req: NextRequest) {
           originalTransaction.type === "ON_HOLD" ? "On-hold" : "Credit"
         } transaction successfully settled`,
       },
-      { status: 201 }
+      { status: 201 },
     );
   } catch (error) {
     console.error(`[${requestId}] Unexpected error:`, error);
@@ -238,7 +241,7 @@ export async function POST(req: NextRequest) {
         error: "Internal server error",
         details: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -256,7 +259,7 @@ export async function GET(req: NextRequest) {
     if (!referenceNumber) {
       return NextResponse.json(
         { success: false, error: "Reference number is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -266,7 +269,7 @@ export async function GET(req: NextRequest) {
     const { data: transaction, error: fetchError } = await supabase
       .from("transactions")
       .select(
-        "id, reference_number, type, total_amount, created_at, customer_id, customers(name, phone)"
+        "id, reference_number, type, total_amount, created_at, customer_id, customers(name, phone)",
       )
       .eq("reference_number", referenceNumber)
       .single();
@@ -277,7 +280,7 @@ export async function GET(req: NextRequest) {
           success: false,
           error: "Transaction not found",
         },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -320,7 +323,7 @@ export async function GET(req: NextRequest) {
         success: false,
         error: "Internal server error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

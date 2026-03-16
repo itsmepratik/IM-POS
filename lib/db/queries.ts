@@ -101,8 +101,8 @@ export const getCachedProducts = async (locationId: string) => {
             with: {
               brand: true,
               category: true,
-              // Checking schema: productsRelations has 'type' (singular) relation to 'types' table
-              type: true,
+              // type relation is commented out in schema
+              // type: true,
               // Checking schema: productsRelations has 'volumes' relation to 'productVolumes' table
               volumes: true,
             },
@@ -132,11 +132,7 @@ export const getCachedProducts = async (locationId: string) => {
 
           const categoryName = p.category?.name || "Uncategorized";
           const isOilProduct =
-            p.productType?.toLowerCase() === "oil" ||
-            p.productType?.toLowerCase() === "synthetic" ||
-            p.productType?.toLowerCase() === "semi-synthetic" ||
-            categoryName === "Lubricants" ||
-            categoryName === "Additives";
+            categoryName === "Lubricants" || categoryName === "Additives";
 
           let volumes: any[] = [];
           if (isOilProduct) {
@@ -210,8 +206,8 @@ export const getCachedProducts = async (locationId: string) => {
             brand: p.brand?.name || "N/A",
             brand_id: p.brandId,
             category_id: p.categoryId,
-            type: p.type?.name || p.productType || null,
-            type_id: p.typeId,
+            type: null,
+            type_id: null,
             description: p.description,
             isOil: isOilProduct,
             imageUrl: p.imageUrl,

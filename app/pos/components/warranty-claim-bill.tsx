@@ -1,10 +1,18 @@
 "use client";
 
-import React, { useRef, useCallback, useEffect, useState, forwardRef, useImperativeHandle } from "react";
+import React, {
+  useRef,
+  useCallback,
+  useEffect,
+  useState,
+  forwardRef,
+  useImperativeHandle,
+} from "react";
 import { useCompanyInfo } from "@/lib/hooks/useCompanyInfo";
 import { Button } from "@/components/ui/button";
 import { Printer } from "lucide-react";
 import { motion } from "framer-motion";
+import { generateBarcodeHTML } from "@/lib/utils/barcodeGenerator";
 
 // Define the structure for cart items consistent with POSPage
 interface CartItem {
@@ -33,60 +41,77 @@ export interface WarrantyClaimBillRef {
   print: () => void;
 }
 
-export const WarrantyClaimBill = forwardRef<WarrantyClaimBillRef, WarrantyClaimBillProps>(({
-  cart,
-  billNumber,
-  currentDate,
-  currentTime,
-  customerName = "",
-  cashier,
-  carPlateNumber,
-  hideButton = false,
-  onClose,
-}, ref) => {
-  const billRef = useRef<HTMLDivElement>(null);
-  const [isClient, setIsClient] = useState(false);
-  const { registered, thankYouMessage } = useCompanyInfo();
-  
-  // Filter out Sanaiya from address lines
-  const filteredAddressLines = (registered.addressLines || []).filter(
-    line => !line.toLowerCase().includes("al-sanaiya")
-  );
+export const WarrantyClaimBill = forwardRef<
+  WarrantyClaimBillRef,
+  WarrantyClaimBillProps
+>(
+  (
+    {
+      cart,
+      billNumber,
+      currentDate,
+      currentTime,
+      customerName = "",
+      cashier,
+      carPlateNumber,
+      hideButton = false,
+      onClose,
+    },
+    ref,
+  ) => {
+    const billRef = useRef<HTMLDivElement>(null);
+    const [isClient, setIsClient] = useState(false);
+    const [barcodeHtml, setBarcodeHtml] = useState<string>("");
+    const { registered, thankYouMessage } = useCompanyInfo();
 
-  // Flatten address lines for compatibility with existing template
-  const companyDetails = {
-    ...registered,
-    addressLine1: filteredAddressLines[0] || "",
-    addressLine2: filteredAddressLines[1] || "",
-    addressLine3: filteredAddressLines[2] || "",
-  };
-  const serviceDescriptionContent = registered.serviceDescription || { english: "", arabic: "" };
+    // Filter out Sanaiya from address lines
+    const filteredAddressLines = (registered.addressLines || []).filter(
+      (line) => !line.toLowerCase().includes("al-sanaiya"),
+    );
 
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
+    // Flatten address lines for compatibility with existing template
+    const companyDetails = {
+      ...registered,
+      addressLine1: filteredAddressLines[0] || "",
+      addressLine2: filteredAddressLines[1] || "",
+      addressLine3: filteredAddressLines[2] || "",
+    };
+    const serviceDescriptionContent = registered.serviceDescription || {
+      english: "",
+      arabic: "",
+    };
 
-  const handlePrint = useCallback(() => {
-    const content = billRef.current;
-    if (!content || !isClient) return;
+    useEffect(() => {
+      setIsClient(true);
+    }, []);
 
-    const printWindow = window.open("", "_blank");
-    if (!printWindow) {
-      alert("Please allow popups to print the bill.");
-      return;
-    }
+    useEffect(() => {
+      if (billNumber) {
+        generateBarcodeHTML(billNumber).then(setBarcodeHtml);
+      }
+    }, [billNumber]);
 
-    let subtotalForBill = 0;
-    const billItems = cart.filter((item) => {
-      // Typically warranty claims might not show prices the same way or might be zero cost,
-      // but assuming we print the item value for record.
-      subtotalForBill += item.price * item.quantity;
-      return true;
-    });
+    const handlePrint = useCallback(() => {
+      const content = billRef.current;
+      if (!content || !isClient) return;
 
-    const totalAmount = subtotalForBill; // Warranty usually doesn't have discounts applied on the claim certificate itself unless specified
+      const printWindow = window.open("", "_blank");
+      if (!printWindow) {
+        alert("Please allow popups to print the bill.");
+        return;
+      }
 
-    const htmlContent = `
+      let subtotalForBill = 0;
+      const billItems = cart.filter((item) => {
+        // Typically warranty claims might not show prices the same way or might be zero cost,
+        // but assuming we print the item value for record.
+        subtotalForBill += item.price * item.quantity;
+        return true;
+      });
+
+      const totalAmount = subtotalForBill; // Warranty usually doesn't have discounts applied on the claim certificate itself unless specified
+
+      const htmlContent = `
       <!DOCTYPE html>
       <html lang="en">
       <head>
@@ -425,8 +450,6 @@ export const WarrantyClaimBill = forwardRef<WarrantyClaimBillRef, WarrantyClaimB
               <td class="print-date">Printed on: ${currentDate} ${currentTime}</td>
             </tr>
           </table>
-          <div style="width: 100%; border-bottom: 1px dashed #999; margin: 3px 0;"></div>
-
           <!-- Customer info with two columns -->
           <table class="bill-info-table">
             <tr>
@@ -461,7 +484,7 @@ export const WarrantyClaimBill = forwardRef<WarrantyClaimBillRef, WarrantyClaimB
                   <td>${item.price.toFixed(3)}</td>
                   <td>${(item.price * item.quantity).toFixed(3)}</td>
                 </tr>
-              `
+              `,
                 )
                 .join("")}
             </tbody>
@@ -501,203 +524,212 @@ export const WarrantyClaimBill = forwardRef<WarrantyClaimBillRef, WarrantyClaimB
             <div class="footer-thank-you" style="white-space: pre-line;">${
               thankYouMessage?.english + "\n" + thankYouMessage?.arabic
             }</div>
+            
+            ${barcodeHtml ? `<div style="text-align: center; margin-top: 15px;">${barcodeHtml}</div>` : ""}
           </div>
         </div>
       </body>
       </html>
     `;
 
-    printWindow.document.open();
-    printWindow.document.write(htmlContent);
-    printWindow.document.close();
-    printWindow.document.title = "";
+      printWindow.document.open();
+      printWindow.document.write(htmlContent);
+      printWindow.document.close();
+      printWindow.document.title = "";
 
-    setTimeout(() => {
-      printWindow.print();
-      // Don't automatically close the print window on mobile devices
-      if (
-        !/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-          navigator.userAgent
-        )
-      ) {
-        // Removed auto close
-      }
-    }, 500);
-  }, [
-    isClient,
-    cart,
-    billNumber,
-    currentDate,
-    currentTime,
-    customerName,
-    cashier,
-  ]);
+      setTimeout(() => {
+        printWindow.print();
+        // Don't automatically close the print window on mobile devices
+        if (
+          !/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+            navigator.userAgent,
+          )
+        ) {
+          // Removed auto close
+        }
+      }, 500);
+    }, [
+      isClient,
+      cart,
+      billNumber,
+      currentDate,
+      currentTime,
+      customerName,
+      cashier,
+      barcodeHtml,
+    ]);
 
-  useImperativeHandle(ref, () => ({
-    print: handlePrint
-  }));
+    useImperativeHandle(ref, () => ({
+      print: handlePrint,
+    }));
 
-  if (!isClient) {
-    return null;
-  }
+    if (!isClient) {
+      return null;
+    }
 
-  let subtotalForDisplay = 0;
-  cart.forEach((item) => {
-    subtotalForDisplay += item.price * item.quantity;
-  });
+    let subtotalForDisplay = 0;
+    cart.forEach((item) => {
+      subtotalForDisplay += item.price * item.quantity;
+    });
 
-  const totalAmountForDisplay = subtotalForDisplay;
+    const totalAmountForDisplay = subtotalForDisplay;
 
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-      className="w-full flex flex-col"
-    >
-      <div className="max-h-[40vh] overflow-auto mb-4">
-        <div
-          ref={billRef}
-          className="bg-white border rounded-lg p-4 w-full max-w-[400px] mx-auto font-formula1"
-        >
-          {/* Header - three column layout */}
-          <div className="text-center mb-2">
-            <h3 className="font-bold text-lg text-black">
-              {companyDetails.name}
-            </h3>
-            <p className="font-bold text-black text-sm">
-              {companyDetails.arabicName}
-            </p>
-            <div className="grid grid-cols-2 gap-4 text-xs text-gray-500 mt-1">
-              <div className="text-left">
-                <div>C.R. No.: {companyDetails.crNumber}</div>
-                <div>{companyDetails.addressLine1}</div>
-                <div>{companyDetails.addressLine2}</div>
-                <div>{companyDetails.addressLine3}</div>
-              </div>
-              <div className="text-right rtl">
-                <div>السجل التجاري: {companyDetails.crNumber}</div>
-                <div>ولاية صحم</div>
-                <div>الصناعية</div>
-                <div>سلطنة عمان</div>
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="w-full flex flex-col"
+      >
+        <div className="max-h-[40vh] overflow-auto mb-4">
+          <div
+            ref={billRef}
+            className="bg-white border rounded-lg p-4 w-full max-w-[400px] mx-auto font-formula1"
+          >
+            {/* Header - three column layout */}
+            <div className="text-center mb-2">
+              <h3 className="font-bold text-lg text-black">
+                {companyDetails.name}
+              </h3>
+              <p className="font-bold text-black text-sm">
+                {companyDetails.arabicName}
+              </p>
+              <div className="grid grid-cols-2 gap-4 text-xs text-gray-500 mt-1">
+                <div className="text-left">
+                  <div>C.R. No.: {companyDetails.crNumber}</div>
+                  <div>{companyDetails.addressLine1}</div>
+                  <div>{companyDetails.addressLine2}</div>
+                  <div>{companyDetails.addressLine3}</div>
+                </div>
+                <div className="text-right rtl">
+                  <div>السجل التجاري: {companyDetails.crNumber}</div>
+                  <div>ولاية صحم</div>
+                  <div>الصناعية</div>
+                  <div>سلطنة عمان</div>
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Service description */}
-          <div className="border-t border-dashed py-1">
-            <p className="text-xs font-bold text-center">
-              {serviceDescriptionContent.english}
-            </p>
-            <p className="text-xs font-bold text-center">
-              {serviceDescriptionContent.arabic}
-            </p>
-          </div>
+            {/* Service description */}
+            <div className="border-t border-dashed py-1">
+              <p className="text-xs font-bold text-center">
+                {serviceDescriptionContent.english}
+              </p>
+              <p className="text-xs font-bold text-center">
+                {serviceDescriptionContent.arabic}
+              </p>
+            </div>
 
-          <div className="border-b border-dashed py-1 mb-3">
-            <div className="flex justify-center mt-2">
-              <span className="text-xs font-bold text-center text-red-600 border border-red-600 px-2 py-0.5">
-                WARRANTY CLAIM CERTIFICATE
+            <div className="border-b border-dashed py-1 mb-3">
+              <div className="flex justify-center mt-2">
+                <span className="text-xs font-bold text-center text-red-600 border border-red-600 px-2 py-0.5">
+                  WARRANTY CLAIM CERTIFICATE
+                </span>
+              </div>
+              <p className="text-xs font-bold text-center text-red-600 mt-1">
+                شهادة ضمان
+              </p>
+            </div>
+
+            {/* Bill info */}
+            <div className="flex justify-between text-xs">
+              <span>Bill no.: {billNumber}</span>
+              <span>
+                Printed on: {currentDate} {currentTime}
               </span>
             </div>
-            <p className="text-xs font-bold text-center text-red-600 mt-1">
-              شهادة ضمان
-            </p>
-          </div>
-
-          {/* Bill info */}
-          <div className="flex justify-between text-xs">
-            <span>Bill no.: {billNumber}</span>
-            <span>
-              Printed on: {currentDate} {currentTime}
-            </span>
-          </div>
-          <div className="border-t border-dashed my-2"></div>
-
-          {/* Customer info */}
-          <div className="flex justify-between text-xs mb-3">
-            <span className="font-medium">To, Mr./Mrs.: {customerName}</span>
-            <span className="font-medium">
-              Warranty Type: Battery
-            </span>
-          </div>
-
-          {/* Items table */}
-          <div className="text-xs mb-3">
-            <div className="grid grid-cols-12 gap-1 font-medium mb-1">
-              <span className="col-span-1">#</span>
-              <span className="col-span-5">Item</span>
-              <span className="col-span-2 text-right">Qty</span>
-              <span className="col-span-2 text-right">Price</span>
-              <span className="col-span-2 text-right">Total</span>
+            {/* Customer info */}
+            <div className="flex justify-between text-xs mb-3">
+              <span className="font-medium">To, Mr./Mrs.: {customerName}</span>
+              <span className="font-medium">Warranty Type: Battery</span>
             </div>
 
-            {cart.map((item, index) => (
-              <div
-                key={item.uniqueId}
-                className="grid grid-cols-12 gap-1 mb-1"
-              >
-                <span className="col-span-1">{index + 1}</span>
-                <span className="col-span-5 break-words">
-                  {item.name} {item.details ? `(${item.details})` : ""}
-                </span>
-                <span className="col-span-2 text-right">{item.quantity}</span>
-                <span className="col-span-2 text-right">
-                  {item.price.toFixed(3)}
-                </span>
-                <span className="col-span-2 text-right">
-                  {(item.price * item.quantity).toFixed(3)}
-                </span>
+            {/* Items table */}
+            <div className="text-xs mb-3">
+              <div className="grid grid-cols-12 gap-1 font-medium mb-1">
+                <span className="col-span-1">#</span>
+                <span className="col-span-5">Item</span>
+                <span className="col-span-2 text-right">Qty</span>
+                <span className="col-span-2 text-right">Price</span>
+                <span className="col-span-2 text-right">Total</span>
               </div>
-            ))}
-          </div>
 
-          {/* Summary section */}
-          <div className="border-t border-dashed pt-2 mb-3">
-            <div className="flex justify-between text-xs">
-              <span>Subtotal</span>
-              <span>OMR {subtotalForDisplay.toFixed(3)}</span>
+              {cart.map((item, index) => (
+                <div
+                  key={item.uniqueId}
+                  className="grid grid-cols-12 gap-1 mb-1"
+                >
+                  <span className="col-span-1">{index + 1}</span>
+                  <span className="col-span-5 break-words">
+                    {item.name} {item.details ? `(${item.details})` : ""}
+                  </span>
+                  <span className="col-span-2 text-right">{item.quantity}</span>
+                  <span className="col-span-2 text-right">
+                    {item.price.toFixed(3)}
+                  </span>
+                  <span className="col-span-2 text-right">
+                    {(item.price * item.quantity).toFixed(3)}
+                  </span>
+                </div>
+              ))}
             </div>
-            {/* Warranty doesn't usually show discounts unless needed */}
-          </div>
-          
-          <div className="border-t border-dashed pt-2 mb-3">
-             <div className="flex justify-between text-xs font-bold text-[#0000CC]">
-               <span>WARRANTY AMOUNT:</span>
-               <span>OMR {totalAmountForDisplay.toFixed(3)}</span>
-             </div>
-          </div>
 
-          <div className="flex justify-between text-xs mt-4">
-             <div>Cashier: {cashier || ""}</div>
-             <div className="border-t border-gray-400 w-32 text-center pt-1 text-[10px] text-gray-500">Authorized Signature</div>
+            {/* Summary section */}
+            <div className="border-t border-dashed pt-2 mb-3">
+              <div className="flex justify-between text-xs">
+                <span>Subtotal</span>
+                <span>OMR {subtotalForDisplay.toFixed(3)}</span>
+              </div>
+              {/* Warranty doesn't usually show discounts unless needed */}
+            </div>
+
+            <div className="border-t border-dashed pt-2 mb-3">
+              <div className="flex justify-between text-xs font-bold text-[#0000CC]">
+                <span>WARRANTY AMOUNT:</span>
+                <span>OMR {totalAmountForDisplay.toFixed(3)}</span>
+              </div>
+            </div>
+
+            <div className="flex justify-between text-xs mt-4">
+              <div>Cashier: {cashier || ""}</div>
+              <div className="border-t border-gray-400 w-32 text-center pt-1 text-[10px] text-gray-500">
+                Authorized Signature
+              </div>
+            </div>
+
+            {barcodeHtml && (
+              <div
+                className="flex justify-center mt-3 pt-2"
+                dangerouslySetInnerHTML={{ __html: barcodeHtml }}
+              />
+            )}
           </div>
         </div>
-      </div>
 
-      {!hideButton && (
-        <div className="flex flex-row gap-4 mt-4">
-          {onClose && (
+        {!hideButton && (
+          <div className="flex flex-row gap-4 mt-4">
+            {onClose && (
+              <Button
+                variant="chonky-secondary"
+                onClick={onClose}
+                className="flex-1"
+              >
+                Close
+              </Button>
+            )}
             <Button
-              variant="chonky-secondary"
-              onClick={onClose}
-              className="flex-1"
+              variant="chonky"
+              onClick={handlePrint}
+              className="flex-1 flex items-center justify-center gap-2"
             >
-              Close
+              <Printer className="h-4 w-4" />
+              Print Warranty Claim
             </Button>
-          )}
-          <Button
-            variant="chonky"
-            onClick={handlePrint}
-            className="flex-1 flex items-center justify-center gap-2"
-          >
-            <Printer className="h-4 w-4" />
-            Print Warranty Claim
-          </Button>
-        </div>
-      )}
-    </motion.div>
-  );
-});
+          </div>
+        )}
+      </motion.div>
+    );
+  },
+);
 
 WarrantyClaimBill.displayName = "WarrantyClaimBill";

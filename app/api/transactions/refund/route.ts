@@ -15,7 +15,7 @@ const RefundSchema = z.object({
       name: z.string(),
       price: z.number(),
       quantity: z.number(),
-    })
+    }),
   ),
   reason: z.string().optional(),
   cashierId: z.string().min(1, "Cashier ID is required"),
@@ -43,7 +43,7 @@ function getItemIdentifier(item: any): string {
 // Helper function to get all possible IDs from an item (for flexible matching)
 function getAllItemIds(item: any): string[] {
   const ids: string[] = [];
-  
+
   // Collect all possible ID fields
   if (item.id !== null && item.id !== undefined) {
     ids.push(String(item.id));
@@ -54,7 +54,7 @@ function getAllItemIds(item: any): string[] {
   if (item.product_id !== null && item.product_id !== undefined) {
     ids.push(String(item.product_id));
   }
-  
+
   return ids;
 }
 
@@ -64,7 +64,7 @@ function itemsMatch(item1: any, item2: any): boolean {
   // Get all possible IDs from both items
   const ids1 = getAllItemIds(item1);
   const ids2 = getAllItemIds(item2);
-  
+
   // Primary match: Check if any IDs match (handles UUID strings vs numbers)
   for (const id1 of ids1) {
     for (const id2 of ids2) {
@@ -80,47 +80,67 @@ function itemsMatch(item1: any, item2: any): boolean {
       }
     }
   }
-  
+
   // CRITICAL: For lubricant products, prioritize volumeDescription matching
   // Lubricant items often have volumeDescription like "Shell 20W-50 - 1L"
   // which is more specific than just the product name
-  const volumeDesc1 = (item1.volumeDescription || item1.volume_description || "").trim().toLowerCase();
-  const volumeDesc2 = (item2.volumeDescription || item2.volume_description || "").trim().toLowerCase();
-  
+  const volumeDesc1 = (
+    item1.volumeDescription ||
+    item1.volume_description ||
+    ""
+  )
+    .trim()
+    .toLowerCase();
+  const volumeDesc2 = (
+    item2.volumeDescription ||
+    item2.volume_description ||
+    ""
+  )
+    .trim()
+    .toLowerCase();
+
   // If both have volumeDescription, try matching by that first (most specific)
   if (volumeDesc1 !== "" && volumeDesc2 !== "") {
     const price1 = parseFloat(item1.price || item1.sellingPrice || 0);
     const price2 = parseFloat(item2.price || item2.sellingPrice || 0);
-    
+
     // Match if volumeDescription matches (exact or contains) AND price matches
-    if ((volumeDesc1 === volumeDesc2 || volumeDesc1.includes(volumeDesc2) || volumeDesc2.includes(volumeDesc1)) &&
-        Math.abs(price1 - price2) < 0.01) {
+    if (
+      (volumeDesc1 === volumeDesc2 ||
+        volumeDesc1.includes(volumeDesc2) ||
+        volumeDesc2.includes(volumeDesc1)) &&
+      Math.abs(price1 - price2) < 0.01
+    ) {
       return true;
     }
   }
-  
+
   // Fallback match: Name + Price (within tolerance for floating point)
   // Extract names from multiple possible fields (volumeDescription takes priority for lubricants)
   const name1 = (
     volumeDesc1 || // Use volumeDescription first if available
-    item1.name || 
-    item1.productName || 
-    item1.product_name || 
+    item1.name ||
+    item1.productName ||
+    item1.product_name ||
     ""
-  ).trim().toLowerCase();
-  
+  )
+    .trim()
+    .toLowerCase();
+
   const name2 = (
     volumeDesc2 || // Use volumeDescription first if available
-    item2.name || 
-    item2.productName || 
-    item2.product_name || 
+    item2.name ||
+    item2.productName ||
+    item2.product_name ||
     ""
-  ).trim().toLowerCase();
-  
+  )
+    .trim()
+    .toLowerCase();
+
   // Extract prices from multiple possible fields
   const price1 = parseFloat(item1.price || item1.sellingPrice || 0);
   const price2 = parseFloat(item2.price || item2.sellingPrice || 0);
-  
+
   // Match by name+price if:
   // 1. Both names are not empty
   // 2. Names match (exact or one contains the other for flexibility)
@@ -128,10 +148,9 @@ function itemsMatch(item1: any, item2: any): boolean {
   if (name1 !== "" && name2 !== "") {
     // For lubricants, if one name contains the other (e.g., "Shell 20W-50" vs "Shell 20W-50 - 1L")
     // and prices match, consider it a match
-    const namesMatch = name1 === name2 || 
-                       name1.includes(name2) || 
-                       name2.includes(name1);
-    
+    const namesMatch =
+      name1 === name2 || name1.includes(name2) || name2.includes(name1);
+
     if (namesMatch) {
       // Price match within 0.01 tolerance (more lenient for floating point)
       if (Math.abs(price1 - price2) < 0.01) {
@@ -139,13 +158,13 @@ function itemsMatch(item1: any, item2: any): boolean {
       }
     }
   }
-  
+
   // Last resort: Match by price only if prices are very close and one name is empty
   // This handles cases where original transaction doesn't have name but refund request does
   if (Math.abs(price1 - price2) < 0.001 && (name1 === "" || name2 === "")) {
     return true;
   }
-  
+
   return false;
 }
 
@@ -161,14 +180,14 @@ export async function POST(req: Request) {
     if (!parsed.success) {
       console.error(
         "❌ Refund validation failed:",
-        JSON.stringify(parsed.error.flatten(), null, 2)
+        JSON.stringify(parsed.error.flatten(), null, 2),
       );
       return NextResponse.json(
         {
           error: "Invalid request data",
           details: parsed.error.flatten(),
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -177,14 +196,14 @@ export async function POST(req: Request) {
     // Validate cashier/staff ID and convert to UUID
     const { getStaffUuidById } = await import("@/lib/utils/staff-validation");
     const staffUuid = await getStaffUuidById(refundData.cashierId);
-    
+
     if (!staffUuid) {
       return NextResponse.json(
         {
           error: "Invalid cashier ID",
           details: `No active staff member found with ID: ${refundData.cashierId}`,
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -201,7 +220,7 @@ export async function POST(req: Request) {
           error: "Original transaction not found",
           details: `No transaction found with reference number: ${refundData.originalReferenceNumber}`,
         },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -212,13 +231,13 @@ export async function POST(req: Request) {
           error: "Cannot refund a refund transaction",
           details: `Transaction ${refundData.originalReferenceNumber} is already a refund transaction. Cannot refund a refund.`,
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     // Validate that the refund amount doesn't exceed the original transaction amount
     const originalAmount = Math.abs(
-      parseFloat(originalTransaction.total_amount.toString())
+      parseFloat(originalTransaction.total_amount.toString()),
     );
 
     if (refundData.refundAmount > originalAmount) {
@@ -226,10 +245,10 @@ export async function POST(req: Request) {
         {
           error: "Refund amount exceeds original transaction amount",
           details: `Cannot refund OMR ${refundData.refundAmount.toFixed(
-            3
+            3,
           )} from a transaction worth OMR ${originalAmount.toFixed(3)}`,
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -241,19 +260,23 @@ export async function POST(req: Request) {
       .eq("original_reference_number", refundData.originalReferenceNumber);
 
     if (refundsError) {
-      console.error("❌ Critical error checking existing refunds:", refundsError);
+      console.error(
+        "❌ Critical error checking existing refunds:",
+        refundsError,
+      );
       return NextResponse.json(
         {
           error: "Failed to validate refund",
-          details: "Could not check for existing refunds. Please try again or contact support.",
+          details:
+            "Could not check for existing refunds. Please try again or contact support.",
         },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
     // Get original transaction items for validation
     const originalItems = originalTransaction.items_sold as Array<any> | null;
-    
+
     if (!originalItems || !Array.isArray(originalItems)) {
       console.error("❌ Original transaction items invalid:", originalItems);
       return NextResponse.json(
@@ -261,25 +284,29 @@ export async function POST(req: Request) {
           error: "Invalid transaction data",
           details: "Original transaction items could not be parsed.",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     // Check if any items have already been refunded
     if (existingRefunds && existingRefunds.length > 0) {
-      
       // Collect all refunded items from existing refunds
       // CRITICAL: Store the actual item objects, not just identifiers, for proper matching
       const refundedItemsList: Array<{ item: any; quantity: number }> = [];
-      
+
       for (const refund of existingRefunds) {
         const refundedItems = refund.items_sold as Array<any> | null;
-        
+
         if (refundedItems && Array.isArray(refundedItems)) {
           for (const item of refundedItems) {
-            const itemName = item.name || item.productName || item.product_name || item.volumeDescription || "Unknown";
+            const itemName =
+              item.name ||
+              item.productName ||
+              item.product_name ||
+              item.volumeDescription ||
+              "Unknown";
             const itemQty = item.quantity || 1;
-            
+
             refundedItemsList.push({
               item: item,
               quantity: itemQty,
@@ -298,7 +325,7 @@ export async function POST(req: Request) {
         // Use itemsMatch function for proper lubricant matching (handles volumeDescription)
         let matchedRefundedItem: { item: any; quantity: number } | undefined;
         let totalRefundedQty = 0;
-        
+
         for (const refundedEntry of refundedItemsList) {
           if (itemsMatch(refundedEntry.item, refundItem)) {
             matchedRefundedItem = refundedEntry;
@@ -308,10 +335,12 @@ export async function POST(req: Request) {
 
         // Find matching original item using improved matching
         // Log detailed comparison for debugging
-        
+
         // Try to find matching item in original transaction
-        let originalItem = originalItems.find((item) => itemsMatch(item, refundItem));
-        
+        let originalItem = originalItems.find((item) =>
+          itemsMatch(item, refundItem),
+        );
+
         // If not found, try a more lenient match by checking if productId matches
         if (!originalItem && refundItem.productId) {
           originalItem = originalItems.find((item) => {
@@ -319,48 +348,70 @@ export async function POST(req: Request) {
             return String(itemProductId) === String(refundItem.productId);
           });
         }
-        
+
         if (!originalItem) {
-          // If we found a matching refunded item but couldn't match original, 
+          // If we found a matching refunded item but couldn't match original,
           // it means the item was already refunded (this is the duplicate case)
           if (matchedRefundedItem) {
-            console.error(`❌ Item already refunded (found in refunds but not in original): ${refundItemName}`);
+            console.error(
+              `❌ Item already refunded (found in refunds but not in original): ${refundItemName}`,
+            );
             return NextResponse.json(
               {
                 error: "Item already refunded",
                 details: `Item "${refundItemName}" has already been refunded. Cannot refund this item again.`,
               },
-              { status: 400 }
+              { status: 400 },
             );
           }
-          
-          console.error(`❌ Item not found in original transaction: ${refundItemName}`);
-          console.error(`   Refund item details:`, JSON.stringify({
-            id: refundItem.id,
-            productId: refundItem.productId,
-            name: refundItem.name,
-            volumeDescription: refundItem.volumeDescription,
-            price: refundItem.price,
-            quantity: refundItem.quantity,
-            allIds: getAllItemIds(refundItem),
-          }, null, 2));
-          console.error(`   Available original items:`, JSON.stringify(originalItems.map(item => ({
-            id: item.id,
-            productId: item.productId,
-            product_id: item.product_id,
-            name: item.name || item.productName || item.product_name || item.volumeDescription,
-            volumeDescription: item.volumeDescription,
-            price: item.price || item.sellingPrice,
-            quantity: item.quantity,
-            allIds: getAllItemIds(item),
-          })), null, 2));
-          
+
+          console.error(
+            `❌ Item not found in original transaction: ${refundItemName}`,
+          );
+          console.error(
+            `   Refund item details:`,
+            JSON.stringify(
+              {
+                id: refundItem.id,
+                productId: refundItem.productId,
+                name: refundItem.name,
+                volumeDescription: refundItem.volumeDescription,
+                price: refundItem.price,
+                quantity: refundItem.quantity,
+                allIds: getAllItemIds(refundItem),
+              },
+              null,
+              2,
+            ),
+          );
+          console.error(
+            `   Available original items:`,
+            JSON.stringify(
+              originalItems.map((item) => ({
+                id: item.id,
+                productId: item.productId,
+                product_id: item.product_id,
+                name:
+                  item.name ||
+                  item.productName ||
+                  item.product_name ||
+                  item.volumeDescription,
+                volumeDescription: item.volumeDescription,
+                price: item.price || item.sellingPrice,
+                quantity: item.quantity,
+                allIds: getAllItemIds(item),
+              })),
+              null,
+              2,
+            ),
+          );
+
           return NextResponse.json(
             {
               error: "Item not found in original transaction",
               details: `Item "${refundItemName}" was not found in the original transaction. Please verify the item selection.`,
             },
-            { status: 400 }
+            { status: 400 },
           );
         }
 
@@ -371,25 +422,29 @@ export async function POST(req: Request) {
 
         // CRITICAL: If no quantity is available, reject immediately
         if (availableQty <= 0) {
-          console.error(`❌ Item fully refunded: ${refundItemName} (${totalRefundedQty} of ${originalQty} refunded)`);
+          console.error(
+            `❌ Item fully refunded: ${refundItemName} (${totalRefundedQty} of ${originalQty} refunded)`,
+          );
           return NextResponse.json(
             {
               error: "Item already refunded",
               details: `Item "${refundItemName}" has already been fully refunded (${totalRefundedQty} of ${originalQty}). Cannot refund this item again.`,
             },
-            { status: 400 }
+            { status: 400 },
           );
         }
 
         // Check if requested quantity exceeds available
         if (refundItemQty > availableQty) {
-          console.error(`❌ Insufficient quantity: ${refundItemName} (Available: ${availableQty}, Requested: ${refundItemQty})`);
+          console.error(
+            `❌ Insufficient quantity: ${refundItemName} (Available: ${availableQty}, Requested: ${refundItemQty})`,
+          );
           return NextResponse.json(
             {
               error: "Item already refunded",
               details: `Item "${refundItemName}" has already been partially refunded. Available quantity for refund: ${availableQty}, requested: ${refundItemQty}.`,
             },
-            { status: 400 }
+            { status: 400 },
           );
         }
       }
@@ -402,15 +457,16 @@ export async function POST(req: Request) {
     const shopId = originalTransaction.shop_id || refundData.shopId;
 
     // Validate UUID format for location_id and shop_id
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    
+    const uuidRegex =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
     if (!uuidRegex.test(locationId)) {
       return NextResponse.json(
         {
           error: "Invalid location ID",
           details: `Location ID must be a valid UUID. Received: ${locationId}`,
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -420,7 +476,7 @@ export async function POST(req: Request) {
           error: "Invalid shop ID",
           details: `Shop ID must be a valid UUID. Received: ${shopId}`,
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -428,7 +484,8 @@ export async function POST(req: Request) {
     const refundReferenceNumber = await generateReferenceNumber(
       "REFUND",
       false,
-      "REFUND"
+      "REFUND",
+      shopId,
     );
 
     // Prepare the refund transaction data
@@ -450,7 +507,7 @@ export async function POST(req: Request) {
         refundData.originalReferenceNumber,
         refundData.refundItems,
         refundData.refundAmount,
-        refundData.reason
+        refundData.reason,
       ),
       created_at: new Date().toISOString(),
     };
@@ -464,25 +521,30 @@ export async function POST(req: Request) {
 
     if (refundError) {
       console.error("❌ Error creating refund transaction:", refundError);
-      console.error("Refund transaction data:", JSON.stringify(refundTransaction, null, 2));
-      
+      console.error(
+        "Refund transaction data:",
+        JSON.stringify(refundTransaction, null, 2),
+      );
+
       // Provide more detailed error information
       let errorMessage = refundError.message;
       if (refundError.code === "23503") {
-        errorMessage = "Invalid foreign key reference. Please check location_id, shop_id, or cashier_id.";
+        errorMessage =
+          "Invalid foreign key reference. Please check location_id, shop_id, or cashier_id.";
       } else if (refundError.code === "23505") {
         errorMessage = "A refund with this reference number already exists.";
       } else if (refundError.code === "23502") {
-        errorMessage = "Required field is missing. Please check all required fields.";
+        errorMessage =
+          "Required field is missing. Please check all required fields.";
       }
-      
+
       return NextResponse.json(
         {
           error: "Failed to create refund transaction",
           details: errorMessage,
           code: refundError.code,
         },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -503,7 +565,7 @@ export async function POST(req: Request) {
         error: "Internal server error",
         details: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -519,11 +581,11 @@ function generateRefundReceiptHTML(
     quantity: number;
   }>,
   refundAmount: number,
-  reason?: string
+  reason?: string,
 ): string {
   const subtotal = refundItems.reduce(
     (sum, item) => sum + item.price * item.quantity,
-    0
+    0,
   );
   const vat = 0; // No VAT for refunds in this implementation
   const total = subtotal;
@@ -579,12 +641,12 @@ function generateRefundReceiptHTML(
             <p><span>Refund: ${refundReferenceNumber}</span></p>
             <p><span>Original Invoice: ${originalReferenceNumber}</span></p>
             <p><span>Date: ${new Date().toLocaleDateString(
-              "en-GB"
+              "en-GB",
             )}</span><span>Time: ${new Date().toLocaleTimeString("en-GB", {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  })}</span></p>
+              hour: "2-digit",
+              minute: "2-digit",
+              second: "2-digit",
+            })}</span></p>
           </div>
 
           <table class="receipt-table">
@@ -614,10 +676,10 @@ function generateRefundReceiptHTML(
                   <td class="price">${item.price.toFixed(3)}</td>
                   <td class="qty">(x${item.quantity})</td>
                   <td class="amount">${(item.price * item.quantity).toFixed(
-                    3
+                    3,
                   )}</td>
                 </tr>
-              `
+              `,
                 )
                 .join("")}
             </tbody>
@@ -632,7 +694,7 @@ function generateRefundReceiptHTML(
               <tr>
                 <td class="total-label">TOTAL REFUND</td>
                 <td class="total-amount" style="color: #D9534F;">OMR ${refundAmount.toFixed(
-                  3
+                  3,
                 )}</td>
               </tr>
             </table>

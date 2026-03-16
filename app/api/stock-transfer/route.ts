@@ -29,7 +29,7 @@ const StockTransferSchema = z.object({
       price: z.number(),
       quantity: z.number(),
       details: z.string().optional(),
-    })
+    }),
   ),
   totalAmount: z.number(),
   targetDate: z.string().optional(),
@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
     // Validate cashier/staff ID and convert to UUID
     const { getStaffUuidById } = await import("@/lib/utils/staff-validation");
     const staffUuid = await getStaffUuidById(cashierId);
-    
+
     if (!staffUuid) {
       return NextResponse.json(
         {
@@ -68,14 +68,14 @@ export async function POST(req: NextRequest) {
           error: "Invalid cashier ID",
           message: `No active staff member found with ID: ${cashierId}`,
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     // Helper function to get or map location ID
     const getValidLocationId = async (
       locationId: string,
-      locationName: string
+      locationName: string,
     ): Promise<string> => {
       // If it looks like a UUID, use it directly
       const uuidRegex =
@@ -98,8 +98,8 @@ export async function POST(req: NextRequest) {
       // Try alternative names for common locations
       const alternativeNames: Record<string, string[]> = {
         "Abu Dhurus": ["Abu Dhabi Branch", "Abu Dhabi"],
-        "Hafith": ["Hafeet Branch", "Hafeet", "Hafit"],
-        "Sanaiya": ["Sanaiya (Main)", "Main Branch"],
+        Hafith: ["Hafeet Branch", "Hafeet", "Hafit"],
+        Sanaiya: ["Sanaiya (Main)", "Main Branch"],
       };
 
       if (alternativeNames[locationName]) {
@@ -109,7 +109,7 @@ export async function POST(req: NextRequest) {
             .from(locations)
             .where(eq(locations.name, altName))
             .limit(1);
-          
+
           if (altLocation) {
             return altLocation.id;
           }
@@ -117,7 +117,9 @@ export async function POST(req: NextRequest) {
       }
 
       // If no location found, get the first available location as fallback
-      console.warn(`⚠️ Location "${locationName}" not found, using first available location as fallback`);
+      console.warn(
+        `⚠️ Location "${locationName}" not found, using first available location as fallback`,
+      );
       const [firstLocation] = await db
         .select({ id: locations.id })
         .from(locations)
@@ -131,18 +133,18 @@ export async function POST(req: NextRequest) {
 
     // Map the location IDs to actual database UUIDs
     // Handle both "sanaiya" and "loc0" for source location
-    const sourceLocationName = 
-      sourceLocationId === "sanaiya" || sourceLocationId === "loc0" 
-        ? "Sanaiya" 
+    const sourceLocationName =
+      sourceLocationId === "sanaiya" || sourceLocationId === "loc0"
+        ? "Sanaiya"
         : sourceLocationId === "main"
-        ? "Main Branch"
-        : sourceLocationId;
-    
+          ? "Main Branch"
+          : sourceLocationId;
+
     const actualSourceLocationId = await getValidLocationId(
       sourceLocationId,
-      sourceLocationName
+      sourceLocationName,
     );
-    
+
     // Handle destination location mapping
     // Try multiple possible location name variations
     let destinationLocationName = destinationLocationId;
@@ -152,26 +154,25 @@ export async function POST(req: NextRequest) {
     } else if (destinationLocationId === "loc2") {
       // Try "Hafith" first, fallback to "Hafeet Branch"
       destinationLocationName = "Hafith";
-    } else if (!destinationLocationId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+    } else if (
+      !destinationLocationId.match(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+      )
+    ) {
       // If it's not a UUID, try to use it as a location name directly
       destinationLocationName = destinationLocationId;
     }
-    
+
     const actualDestinationLocationId = await getValidLocationId(
       destinationLocationId,
-      destinationLocationName
-    );
-
-    // Generate sequential reference number using ST prefix
-    const referenceNumber = await generateReferenceNumber(
-      "STOCK_TRANSFER",
-      false, // Not a battery sale
-      "TRANSFER"
+      destinationLocationName,
     );
 
     // Format items for storage (use UUID for productId)
     const formattedItems = items.map((item) => {
-      const productId = item.originalId || (typeof item.id === 'string' ? item.id : item.id.toString());
+      const productId =
+        item.originalId ||
+        (typeof item.id === "string" ? item.id : item.id.toString());
       return {
         productId, // Use UUID
         productName: item.name,
@@ -200,19 +201,27 @@ export async function POST(req: NextRequest) {
           error: "Destination shop not found",
           message: `No shop found for destination location: ${destinationLocationName || destinationLocationId}`,
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
+
+    // Generate sequential reference number using ST prefix
+    const referenceNumber = await generateReferenceNumber(
+      "STOCK_TRANSFER",
+      false, // Not a battery sale
+      "TRANSFER",
+      destinationShop.id,
+    );
 
     // Use notes from frontend if provided, otherwise generate them
     let transferNotes: string;
     let sourceLocationDisplayName: string;
     let destinationLocationDisplayName: string;
-    
+
     if (frontendNotes) {
       // Use notes from frontend (preferred - more reliable)
       transferNotes = frontendNotes;
-      
+
       // Still fetch location names for logging purposes
       const [sourceLocationData] = await db
         .select({ name: locations.name })
@@ -226,8 +235,10 @@ export async function POST(req: NextRequest) {
         .where(eq(locations.id, actualDestinationLocationId))
         .limit(1);
 
-      sourceLocationDisplayName = sourceLocationData?.name || sourceLocationName;
-      destinationLocationDisplayName = destinationLocationData?.name || destinationLocationName;
+      sourceLocationDisplayName =
+        sourceLocationData?.name || sourceLocationName;
+      destinationLocationDisplayName =
+        destinationLocationData?.name || destinationLocationName;
     } else {
       // Fallback: Generate notes from database location names
       const [sourceLocationData] = await db
@@ -242,8 +253,10 @@ export async function POST(req: NextRequest) {
         .where(eq(locations.id, actualDestinationLocationId))
         .limit(1);
 
-      sourceLocationDisplayName = sourceLocationData?.name || sourceLocationName;
-      destinationLocationDisplayName = destinationLocationData?.name || destinationLocationName;
+      sourceLocationDisplayName =
+        sourceLocationData?.name || sourceLocationName;
+      destinationLocationDisplayName =
+        destinationLocationData?.name || destinationLocationName;
       transferNotes = `Stock transfer between ${sourceLocationDisplayName} to ${destinationLocationDisplayName}`;
     }
 
@@ -277,16 +290,19 @@ export async function POST(req: NextRequest) {
           return item.originalId;
         }
         // Otherwise, try id as UUID string
-        const id = typeof item.id === 'string' ? item.id : item.id.toString();
+        const id = typeof item.id === "string" ? item.id : item.id.toString();
         // Check if it looks like a UUID
-        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        const uuidRegex =
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
         if (uuidRegex.test(id)) {
           return id;
         }
         // If not a UUID, we can't proceed - this shouldn't happen if originalId is provided
-        throw new Error(`Invalid product ID format for item ${item.name}. Expected UUID but got: ${id}`);
+        throw new Error(
+          `Invalid product ID format for item ${item.name}. Expected UUID but got: ${id}`,
+        );
       });
-      
+
       const productsData = await tx
         .select()
         .from(products)
@@ -312,7 +328,9 @@ export async function POST(req: NextRequest) {
       // 3. Process each item and deduct stock from source location
       for (const item of items) {
         // Use originalId (UUID) if available, otherwise use id as UUID
-        const productId = item.originalId || (typeof item.id === 'string' ? item.id : item.id.toString());
+        const productId =
+          item.originalId ||
+          (typeof item.id === "string" ? item.id : item.id.toString());
 
         // Find inventory record at source location
         const [inventoryRecord] = await tx
@@ -321,14 +339,14 @@ export async function POST(req: NextRequest) {
           .where(
             and(
               eq(inventory.productId, productId),
-              eq(inventory.locationId, actualSourceLocationId)
-            )
+              eq(inventory.locationId, actualSourceLocationId),
+            ),
           )
           .limit(1);
 
         if (!inventoryRecord) {
           throw new Error(
-            `Inventory not found for product ${item.name} (ID: ${productId}) at source location`
+            `Inventory not found for product ${item.name} (ID: ${productId}) at source location`,
           );
         }
 
@@ -341,11 +359,9 @@ export async function POST(req: NextRequest) {
         // Handle lubricants differently
         if (isLubricant) {
           // For lubricants, deduct from closed bottles stock
-          if (
-            (inventoryRecord.closedBottlesStock ?? 0) < item.quantity
-          ) {
+          if ((inventoryRecord.closedBottlesStock ?? 0) < item.quantity) {
             throw new Error(
-              `Insufficient closed bottles stock for product ${item.name}. Available: ${inventoryRecord.closedBottlesStock ?? 0}, Required: ${item.quantity}`
+              `Insufficient closed bottles stock for product ${item.name}. Available: ${inventoryRecord.closedBottlesStock ?? 0}, Required: ${item.quantity}`,
             );
           }
 
@@ -365,8 +381,8 @@ export async function POST(req: NextRequest) {
             .where(
               and(
                 eq(batches.inventoryId, inventoryRecord.id),
-                eq(batches.isActiveBatch, true)
-              )
+                eq(batches.isActiveBatch, true),
+              ),
             )
             .orderBy(asc(batches.purchaseDate))
             .limit(1)
@@ -380,8 +396,8 @@ export async function POST(req: NextRequest) {
               .where(
                 and(
                   eq(batches.inventoryId, inventoryRecord.id),
-                  gt(batches.stockRemaining, 0)
-                )
+                  gt(batches.stockRemaining, 0),
+                ),
               )
               .orderBy(asc(batches.purchaseDate))
               .limit(1)
@@ -399,7 +415,7 @@ export async function POST(req: NextRequest) {
               const currentStock = inventoryRecord.standardStock ?? 0;
               if (currentStock < item.quantity) {
                 throw new Error(
-                  `Insufficient stock for product ${item.name}. Available: ${currentStock}, Required: ${item.quantity}`
+                  `Insufficient stock for product ${item.name}. Available: ${currentStock}, Required: ${item.quantity}`,
                 );
               }
               // Update standard stock directly
@@ -416,7 +432,7 @@ export async function POST(req: NextRequest) {
           // Check if we have enough stock in the active batch
           if (activeBatch.stockRemaining < item.quantity) {
             throw new Error(
-              `Insufficient stock in active batch for product ${item.name}. Available: ${activeBatch.stockRemaining}, Required: ${item.quantity}`
+              `Insufficient stock in active batch for product ${item.name}. Available: ${activeBatch.stockRemaining}, Required: ${item.quantity}`,
             );
           }
 
@@ -443,8 +459,8 @@ export async function POST(req: NextRequest) {
                 and(
                   eq(batches.inventoryId, inventoryRecord.id),
                   eq(batches.isActiveBatch, false),
-                  gt(batches.stockRemaining, 0)
-                )
+                  gt(batches.stockRemaining, 0),
+                ),
               )
               .orderBy(asc(batches.purchaseDate))
               .limit(1);
@@ -461,7 +477,7 @@ export async function POST(req: NextRequest) {
           const currentStock = inventoryRecord.standardStock ?? 0;
           if (currentStock < item.quantity) {
             throw new Error(
-              `Insufficient standard stock for product ${item.name}. Available: ${currentStock}, Required: ${item.quantity}`
+              `Insufficient standard stock for product ${item.name}. Available: ${currentStock}, Required: ${item.quantity}`,
             );
           }
 
@@ -489,7 +505,7 @@ export async function POST(req: NextRequest) {
           createdAt: result.createdAt,
         },
       },
-      { status: 201 }
+      { status: 201 },
     );
   } catch (error: any) {
     console.error("❌ Error creating stock transfer transaction:", {
@@ -511,7 +527,7 @@ export async function POST(req: NextRequest) {
             .map((e) => `${e.path.join(".")}: ${e.message}`)
             .join(", "),
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -523,7 +539,7 @@ export async function POST(req: NextRequest) {
           error: "Inventory error",
           message: error.message,
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -534,7 +550,7 @@ export async function POST(req: NextRequest) {
         error: error?.message || "Failed to create stock transfer transaction",
         details: error?.stack ? "Check server logs for details" : undefined,
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
