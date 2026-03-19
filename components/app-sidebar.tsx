@@ -215,6 +215,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       adminOnly: true,
     },
     {
+      title: "Purchase Orders",
+      href: "/purchase-orders",
+      icon: Inbox,
+      permission: "admin.access",
+      adminOnly: true,
+    },
+    {
       title: "Transfer Stock",
       href: "/transfer",
       icon: ArrowLeftRight,

@@ -142,7 +142,7 @@ export function MobileNav({ className }: { className?: string }) {
       setTimeout(() => {
         if (window.location.pathname !== "/login") {
           console.log(
-            "⚠️ Router didn't navigate, forcing window.location.href..."
+            "⚠️ Router didn't navigate, forcing window.location.href...",
           );
           window.location.href = "/login";
         } else {
@@ -169,7 +169,7 @@ export function MobileNav({ className }: { className?: string }) {
         size="icon"
         className={cn(
           "h-9 w-9 rounded-full border-muted-foreground/20",
-          className
+          className,
         )}
         onClick={() => setOpen(true)}
       >
@@ -178,7 +178,7 @@ export function MobileNav({ className }: { className?: string }) {
       </Button>
       <SheetContent
         side="left"
-        className="w-[300px] p-0 rounded-tr-lg rounded-br-lg"
+        className="w-[85vw] max-w-[380px] p-0 rounded-tr-lg rounded-br-lg"
       >
         <DialogPrimitive.Title className="sr-only">
           Navigation Menu
@@ -209,7 +209,7 @@ export function MobileNav({ className }: { className?: string }) {
                     "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
                     mounted && pathname === item.href
                       ? "bg-accent text-accent-foreground shadow-sm ring-1 ring-muted-foreground/30"
-                      : "transparent"
+                      : "transparent",
                   )}
                 >
                   {item.icon}
@@ -225,7 +225,7 @@ export function MobileNav({ className }: { className?: string }) {
                       "flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
                       mounted && pathname.startsWith("/inventory")
                         ? "bg-accent text-accent-foreground"
-                        : "transparent"
+                        : "transparent",
                     )}
                   >
                     <div className="flex items-center gap-3">
@@ -235,7 +235,7 @@ export function MobileNav({ className }: { className?: string }) {
                     <ChevronDown
                       className={cn(
                         "h-4 w-4 transition-transform",
-                        inventoryOpen && "rotate-180"
+                        inventoryOpen && "rotate-180",
                       )}
                     />
                   </button>
@@ -249,7 +249,7 @@ export function MobileNav({ className }: { className?: string }) {
                           "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
                           mounted && pathname === "/inventory/main-inventory"
                             ? "bg-accent text-accent-foreground shadow-sm ring-1 ring-muted-foreground/30"
-                            : "transparent"
+                            : "transparent",
                         )}
                       >
                         <Warehouse className="h-4 w-4" />
@@ -262,7 +262,7 @@ export function MobileNav({ className }: { className?: string }) {
                           "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
                           mounted && pathname === "/inventory/branch-inventory"
                             ? "bg-accent text-accent-foreground shadow-sm ring-1 ring-muted-foreground/30"
-                            : "transparent"
+                            : "transparent",
                         )}
                       >
                         <Building className="h-4 w-4" />
@@ -282,9 +282,10 @@ export function MobileNav({ className }: { className?: string }) {
                       mounted &&
                         (pathname === "/orders" ||
                           pathname === "/transfer" ||
-                          pathname === "/restock-orders")
+                          pathname === "/restock-orders" ||
+                          pathname === "/purchase-orders")
                         ? "bg-accent text-accent-foreground"
-                        : "transparent"
+                        : "transparent",
                     )}
                   >
                     <div className="flex items-center gap-3">
@@ -294,7 +295,7 @@ export function MobileNav({ className }: { className?: string }) {
                     <ChevronDown
                       className={cn(
                         "h-4 w-4 transition-transform",
-                        ordersOpen && "rotate-180"
+                        ordersOpen && "rotate-180",
                       )}
                     />
                   </button>
@@ -308,11 +309,24 @@ export function MobileNav({ className }: { className?: string }) {
                           "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
                           mounted && pathname === "/orders"
                             ? "bg-accent text-accent-foreground"
-                            : "transparent"
+                            : "transparent",
                         )}
                       >
                         <ShoppingCart className="h-4 w-4" />
                         <span>Online Orders</span>
+                      </Link>
+                      <Link
+                        href="/purchase-orders"
+                        onClick={() => setOpen(false)}
+                        className={cn(
+                          "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
+                          mounted && pathname === "/purchase-orders"
+                            ? "bg-accent text-accent-foreground"
+                            : "transparent",
+                        )}
+                      >
+                        <Inbox className="h-4 w-4" />
+                        <span>Purchase Orders</span>
                       </Link>
                       <Link
                         href="/transfer"
@@ -321,7 +335,7 @@ export function MobileNav({ className }: { className?: string }) {
                           "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
                           mounted && pathname === "/transfer"
                             ? "bg-accent text-accent-foreground"
-                            : "transparent"
+                            : "transparent",
                         )}
                       >
                         <ArrowLeftRight className="h-4 w-4" />
@@ -334,7 +348,7 @@ export function MobileNav({ className }: { className?: string }) {
                           "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
                           mounted && pathname === "/restock-orders"
                             ? "bg-accent text-accent-foreground"
-                            : "transparent"
+                            : "transparent",
                         )}
                       >
                         <Truck className="h-4 w-4" />
@@ -347,7 +361,7 @@ export function MobileNav({ className }: { className?: string }) {
                           "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
                           mounted && pathname === "/transfer-2"
                             ? "bg-accent text-accent-foreground"
-                            : "transparent"
+                            : "transparent",
                         )}
                       >
                         <Package className="h-4 w-4" />
@@ -370,7 +384,7 @@ export function MobileNav({ className }: { className?: string }) {
                     "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground mb-2",
                     mounted && pathname === "/notifications"
                       ? "bg-accent text-accent-foreground"
-                      : "transparent"
+                      : "transparent",
                   )}
                 >
                   <span className="relative">
@@ -482,7 +496,7 @@ export function MobileNav({ className }: { className?: string }) {
                 <ChevronDown
                   className={cn(
                     "h-4 w-4 transition-transform",
-                    profileMenuOpen && "rotate-180"
+                    profileMenuOpen && "rotate-180",
                   )}
                 />
               </button>

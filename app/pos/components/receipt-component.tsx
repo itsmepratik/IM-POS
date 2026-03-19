@@ -626,6 +626,7 @@ export const ReceiptComponent = ({
                 dangerouslySetInnerHTML={{ __html: barcodeHtml }}
               />
             )}
+            <div className="h-[4px]" />
           </div>
 
           {/* Jagged bottom edge representation */}

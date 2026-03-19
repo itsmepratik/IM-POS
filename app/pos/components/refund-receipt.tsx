@@ -477,6 +477,7 @@ export const RefundReceipt: React.FC<RefundReceiptProps> = ({
                 dangerouslySetInnerHTML={{ __html: barcodeHtml }}
               />
             )}
+            <div className="h-[4px]" />
           </div>
 
           {/* Jagged bottom edge representation */}

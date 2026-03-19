@@ -33,6 +33,7 @@ export function Layout({ children, pageTitle }: LayoutProps) {
     if (pathname === "/transfer") return "Transfer Stock";
     if (pathname === "/restock") return "Restock Orders";
     if (pathname === "/restock-orders") return "Restock Order History";
+    if (pathname === "/purchase-orders") return "Purchase Orders";
     if (pathname === "/admins") return "Admin";
 
     // Extract the last part of the path and capitalize it

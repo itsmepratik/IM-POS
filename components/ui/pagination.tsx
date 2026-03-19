@@ -29,48 +29,31 @@ export function Pagination({
 
   const generatePageNumbers = () => {
     const pages: (number | string)[] = [];
-    
-    // Mobile: Show all pages to allow scrolling
-    if (isMobile) {
-      for (let i = 1; i <= totalPages; i++) {
-        pages.push(i);
-      }
-      return pages;
-    }
 
-    // Desktop: Use ellipsis logic
-    const maxVisiblePages = 7;
+    const maxVisiblePages = isMobile ? 5 : 7;
 
     if (totalPages <= maxVisiblePages) {
-      // Show all pages if total is small
       for (let i = 1; i <= totalPages; i++) {
         pages.push(i);
       }
     } else {
-      // Always show first page
-      pages.push(1);
-
-      // Calculate range around current page
-      const start = Math.max(2, currentPage - 2);
-      const end = Math.min(totalPages - 1, currentPage + 2);
-
-      // Add ellipsis after first page if there's a gap
-      if (start > 2) {
+      if (currentPage <= 3) {
+        pages.push(1, 2, 3);
+        if (!isMobile) pages.push(4, 5);
         pages.push("...");
-      }
-
-      // Add pages around current page
-      for (let i = start; i <= end; i++) {
-        pages.push(i);
-      }
-
-      // Add ellipsis before last page if there's a gap
-      if (end < totalPages - 1) {
+        pages.push(totalPages);
+      } else if (currentPage >= totalPages - 2) {
+        pages.push(1);
         pages.push("...");
-      }
-
-      // Always show last page
-      if (totalPages > 1) {
+        if (!isMobile) pages.push(totalPages - 4, totalPages - 3);
+        pages.push(totalPages - 2, totalPages - 1, totalPages);
+      } else {
+        pages.push(1);
+        pages.push("...");
+        if (!isMobile) pages.push(currentPage - 2);
+        pages.push(currentPage - 1, currentPage, currentPage + 1);
+        if (!isMobile) pages.push(currentPage + 2);
+        pages.push("...");
         pages.push(totalPages);
       }
     }
