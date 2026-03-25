@@ -15,8 +15,12 @@ interface MobileCartProps {
   showCart: boolean;
   cartVisible: boolean;
   setShowCart: (show: boolean) => void;
-  updateQuantity: (uniqueId: string, quantity: number) => void;
-  removeFromCart: (uniqueId: string) => void;
+  updateQuantity: (
+    id: number,
+    quantity: number,
+    uniqueId?: string,
+  ) => boolean | void;
+  removeFromCart: (id: number, uniqueId?: string) => void;
   subtotal: number;
   total: number;
   discountAmount: number;
@@ -29,6 +33,9 @@ interface MobileCartProps {
   onOpenDiscount: () => void;
   onOpenTradeIn: () => void;
   onCheckout: () => void;
+  currentCustomer: any | null;
+  onOpenCustomer: () => void;
+  onRemoveCustomer: () => void;
 }
 
 export function MobileCart({
@@ -50,6 +57,9 @@ export function MobileCart({
   onOpenDiscount,
   onOpenTradeIn,
   onCheckout,
+  currentCustomer,
+  onOpenCustomer,
+  onRemoveCustomer,
 }: MobileCartProps) {
   const mobileCartEndRef = useRef<HTMLDivElement>(null);
 
@@ -129,6 +139,9 @@ export function MobileCart({
                 onOpenDiscount={onOpenDiscount}
                 onOpenTradeIn={onOpenTradeIn}
                 onCheckout={onCheckout}
+                currentCustomer={currentCustomer}
+                onOpenCustomer={onOpenCustomer}
+                onRemoveCustomer={onRemoveCustomer}
               />
             </div>
           </CardContent>

@@ -281,12 +281,12 @@ export function PurchaseOrdersClient({
       {/* RIGHT COLUMN: Items List */}
       <div className="md:col-span-2 space-y-4">
         <Card className="border-border shadow-sm min-h-[500px] flex flex-col">
-          <CardHeader className="bg-muted/30 border-b pb-4 flex flex-row items-center justify-between">
+          <CardHeader className="bg-muted/30 border-b pb-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div>
               <CardTitle className="text-lg">Product Lines</CardTitle>
               <CardDescription>Select products to restock</CardDescription>
             </div>
-            <div className="relative w-[300px] md:w-[400px]">
+            <div className="relative w-full md:w-[400px]">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -306,48 +306,92 @@ export function PurchaseOrdersClient({
                       No product found.
                     </div>
                   ) : (
-                    <div className="py-1">
-                      {filteredProducts.map((product) => (
-                        <button
-                          key={product.id}
-                          className="w-full text-left px-4 py-2 hover:bg-muted text-sm flex justify-between items-center transition-colors border-b last:border-0 border-border/50"
-                          onClick={() => {
-                            handleAddProduct(product);
+                    <div
+                      className="py-1"
+                      onMouseDown={(e) => e.preventDefault()}
+                    >
+                      <div className="flex items-center justify-between px-4 py-2 border-b border-border/50 bg-muted/30 sticky top-0 z-10">
+                        <span className="text-xs font-semibold text-muted-foreground uppercase">
+                          {filteredProducts.length} Results
+                        </span>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            filteredProducts.forEach((p) => {
+                              if (!items.some((i) => i.productId === p.id)) {
+                                handleAddProduct(p);
+                              }
+                            });
+                            // We close it after Add All
                             setSearchQuery("");
                             setIsSearching(false);
                           }}
                         >
-                          <div className="flex items-center flex-1 min-w-0 pr-4">
-                            {/* Product Image Thumbnail */}
-                            <div className="flex-shrink-0 w-8 h-8 rounded bg-muted/50 overflow-hidden flex items-center justify-center mr-3 border border-border/50">
-                              {product.imageUrl ? (
-                                <img
-                                  src={product.imageUrl}
-                                  alt={product.name}
-                                  className="w-full h-full object-contain"
-                                />
-                              ) : (
-                                <Package className="h-4 w-4 text-muted-foreground/50" />
-                              )}
-                            </div>
-                            <div className="block truncate text-left">
-                              <span className="block truncate font-medium">
-                                {product.name}
-                              </span>
-                              {product.brandName && (
-                                <span className="block truncate text-xs text-muted-foreground">
-                                  {product.brandName}
-                                </span>
-                              )}
-                            </div>
-                          </div>
+                          Add All
+                        </Button>
+                      </div>
 
-                          <span className="text-xs text-muted-foreground ml-2 whitespace-nowrap bg-muted px-1.5 py-0.5 rounded-sm shrink-0">
-                            OMR{" "}
-                            {parseFloat(product.costPrice || "0").toFixed(3)}
-                          </span>
-                        </button>
-                      ))}
+                      {filteredProducts.map((product) => {
+                        const isAdded = items.some(
+                          (i) => i.productId === product.id,
+                        );
+                        return (
+                          <button
+                            key={product.id}
+                            type="button"
+                            className={cn(
+                              "w-full text-left px-4 py-2 hover:bg-muted text-sm flex justify-between items-center transition-colors border-b last:border-0 border-border/50 relative",
+                              isAdded && "opacity-60 bg-muted/50",
+                            )}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              if (!isAdded) {
+                                handleAddProduct(product);
+                              }
+                            }}
+                          >
+                            <div className="flex items-center flex-1 min-w-0 pr-4">
+                              {/* Product Image Thumbnail */}
+                              <div className="flex-shrink-0 w-8 h-8 rounded bg-muted/50 overflow-hidden flex items-center justify-center mr-3 border border-border/50">
+                                {product.imageUrl ? (
+                                  <img
+                                    src={product.imageUrl}
+                                    alt={product.name}
+                                    className="w-full h-full object-contain"
+                                  />
+                                ) : (
+                                  <Package className="h-4 w-4 text-muted-foreground/50" />
+                                )}
+                              </div>
+                              <div className="block truncate text-left">
+                                <span className="block truncate font-medium">
+                                  {product.name}
+                                </span>
+                                {product.brandName && (
+                                  <span className="block truncate text-xs text-muted-foreground">
+                                    {product.brandName}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="flex items-center shrink-0 ml-2">
+                              <span className="text-xs text-muted-foreground whitespace-nowrap bg-background rounded-sm px-1.5 py-0.5 border shadow-sm">
+                                OMR{" "}
+                                {parseFloat(product.costPrice || "0").toFixed(
+                                  3,
+                                )}
+                              </span>
+                              {isAdded && (
+                                <CheckCircle2 className="h-4 w-4 ml-3 text-primary shrink-0" />
+                              )}
+                            </div>
+                          </button>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -407,9 +451,6 @@ export function PurchaseOrdersClient({
                         ) : null}
                         {item.name}
                       </h4>
-                      <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 font-mono">
-                        {item.productId}
-                      </p>
                     </div>
 
                     <div className="flex flex-wrap sm:flex-nowrap items-center gap-4">

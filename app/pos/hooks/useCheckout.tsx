@@ -206,8 +206,7 @@ export function useCheckout({
         return;
       }
 
-      setIsCustomerFormOpen(true);
-
+      // Setup the transaction metadata and open checkout modal directly
       const newCurrentDate = new Date().toLocaleDateString("en-GB");
       const newCurrentTime = new Date().toLocaleTimeString("en-GB", {
         hour: "2-digit",
@@ -220,6 +219,11 @@ export function useCheckout({
         currentDate: newCurrentDate,
         currentTime: newCurrentTime,
       });
+
+      setEnteredCashierId("");
+      setFetchedCashier(null);
+      setCashierIdError(null);
+      setIsCheckoutModalOpen(true);
     } catch (error) {
       console.error("Critical error in handleCheckout:", error);
       toast({
@@ -634,20 +638,12 @@ export function useCheckout({
 
     setTimeout(() => {
       setShowCustomerSuccess(false);
-      setEnteredCashierId("");
-      setFetchedCashier(null);
-      setCashierIdError(null);
-      setIsCheckoutModalOpen(true);
-    }, 3000);
+    }, 2000);
   }, []);
 
   /** Handle skipping customer form */
   const handleSkipCustomerForm = useCallback(() => {
     setIsCustomerFormOpen(false);
-    setEnteredCashierId("");
-    setFetchedCashier(null);
-    setCashierIdError(null);
-    setIsCheckoutModalOpen(true);
   }, []);
 
   return {

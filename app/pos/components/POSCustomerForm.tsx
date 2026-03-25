@@ -28,9 +28,11 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Plus, Eraser, Car, Trash2 } from "lucide-react";
+import { Plus, Eraser, Car, Trash2, Search, UserPlus } from "lucide-react";
 import { CustomerData, Vehicle } from "@/lib/services/customerService";
 import { customerService } from "@/lib/services/customerService";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 export interface POSCustomerFormProps {
   isOpen: boolean;
@@ -59,6 +61,7 @@ export function POSCustomerForm({
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [activeTab, setActiveTab] = useState<"search" | "create">("search");
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>("");
   const [existingCustomers, setExistingCustomers] = useState<
     Array<{
@@ -77,12 +80,13 @@ export function POSCustomerForm({
     setIsLoadingCustomers(true);
     try {
       const response = await fetch(
-        `/api/customers/dropdown?search=${encodeURIComponent(search)}&limit=50`
+        `/api/customers/dropdown?search=${encodeURIComponent(search)}&limit=50`,
       );
       if (response.ok) {
         const data = await response.json();
-        const sortedCustomers = (data.customers || []).sort((a: { displayText?: string }, b: { displayText?: string }) => 
-          (a.displayText || "").localeCompare(b.displayText || "")
+        const sortedCustomers = (data.customers || []).sort(
+          (a: { displayText?: string }, b: { displayText?: string }) =>
+            (a.displayText || "").localeCompare(b.displayText || ""),
         );
         setExistingCustomers(sortedCustomers);
       }
@@ -97,7 +101,6 @@ export function POSCustomerForm({
   // Handle customer selection from dropdown
   const handleCustomerSelect = useCallback(
     async (customerId: string) => {
-
       if (!customerId || customerId === "new-customer") {
         setSelectedCustomerId("");
         setFormData({
@@ -148,13 +151,24 @@ export function POSCustomerForm({
         void error;
       }
     },
-    [setCurrentCustomer]
+    [setCurrentCustomer],
   );
 
   // Load customers when dialog opens
   useEffect(() => {
     if (isOpen) {
-      fetchCustomers();
+      setActiveTab("search");
+      setCustomerSearchTerm("");
+      setSelectedCustomerId("");
+      setFormData({
+        name: "",
+        email: "",
+        phone: "",
+        address: "",
+        notes: "",
+        vehicles: [],
+      });
+      fetchCustomers("");
     }
   }, [isOpen, fetchCustomers]);
 
@@ -174,24 +188,23 @@ export function POSCustomerForm({
 
     if (isSubmitting) return;
 
-    setIsSubmitting(true);
-
     try {
-      let customerData;
-
-      if (selectedCustomerId) {
-        // Use existing customer - fetch fresh data to ensure we have the ID
-        const response = await fetch(`/api/customers/${selectedCustomerId}`);
-        if (response.ok) {
-          const responseData = await response.json();
-          // Extract the customer object from the response
-          customerData = responseData.customer;
-        } else {
-          throw new Error("Failed to fetch existing customer");
-        }
+      if (selectedCustomerId && activeTab === "search") {
+        // Form submission from search tab (fallback if needed)
+        const fullCustomerData: CustomerData = {
+          id: selectedCustomerId,
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          address: formData.address,
+          notes: formData.notes,
+          vehicles: formData.vehicles,
+          lastVisit: new Date().toISOString(),
+        };
+        onSubmit(fullCustomerData);
       } else {
         // Create new customer
-        customerData = await customerService.createCustomer({
+        const customerData = await customerService.createCustomer({
           name: formData.name,
           email: formData.email,
           phone: formData.phone,
@@ -207,18 +220,16 @@ export function POSCustomerForm({
             notes: v.notes || "",
           })),
         });
-      }
 
-      if (customerData && customerData.id) {
-        // Set currentCustomer with the returned data that includes id
-        setCurrentCustomer(customerData);
-        onSubmit(customerData);
-      } else {
-        throw new Error("Failed to handle customer - missing customer ID");
+        if (customerData && customerData.id) {
+          setCurrentCustomer(customerData);
+          onSubmit(customerData);
+        } else {
+          throw new Error("Failed to handle customer - missing customer ID");
+        }
       }
     } catch (error) {
-      // Error is already handled by the service with toast
-      void error;
+      console.error("Error submitting customer:", error);
     } finally {
       setIsSubmitting(false);
     }
@@ -230,11 +241,12 @@ export function POSCustomerForm({
       vehicles: [
         ...prev.vehicles,
         {
-          id: Date.now().toString(),
+          id: crypto.randomUUID(),
           make: "",
           model: "",
           year: "",
           licensePlate: "",
+          notes: "",
         },
       ],
     }));
@@ -243,8 +255,8 @@ export function POSCustomerForm({
   const updateVehicle = (id: string, field: keyof Vehicle, value: string) => {
     setFormData((prev) => ({
       ...prev,
-      vehicles: prev.vehicles.map((vehicle) =>
-        vehicle.id === id ? { ...vehicle, [field]: value } : vehicle
+      vehicles: prev.vehicles.map((v) =>
+        v.id === id ? { ...v, [field]: value } : v,
       ),
     }));
   };
@@ -254,6 +266,34 @@ export function POSCustomerForm({
       ...prev,
       vehicles: prev.vehicles.filter((vehicle) => vehicle.id !== id),
     }));
+  };
+
+  // Helper to instantly select an existing customer
+  const handleInstantSelect = async (customerId: string) => {
+    try {
+      const response = await fetch(`/api/customers/${customerId}`);
+      if (response.ok) {
+        const responseData = await response.json();
+        const customer = responseData.customer;
+
+        if (customer && customer.id) {
+          const fullCustomerData: CustomerData = {
+            id: customer.id,
+            name: customer.name || "",
+            email: customer.email || "",
+            phone: customer.phone || "",
+            address: customer.address || "",
+            notes: customer.notes || "",
+            vehicles: customer.vehicles || [],
+            lastVisit: new Date().toISOString(),
+          };
+          setCurrentCustomer(fullCustomerData);
+          onSubmit(fullCustomerData); // Instantly submit and close
+        }
+      }
+    } catch (error) {
+      console.error("Failed to load customer details", error);
+    }
   };
 
   return (
@@ -285,6 +325,7 @@ export function POSCustomerForm({
                   notes: "",
                   vehicles: [],
                 });
+                setActiveTab("create"); // Switch to create tab after clearing
               }}
               title="Clear all fields"
             >
@@ -293,338 +334,349 @@ export function POSCustomerForm({
             </Button>
           </div>
         </DialogHeader>
-        
-        <div className="flex-1 overflow-y-auto py-1 px-0 min-h-0">
-          <form
-            id="customer-form"
-            onSubmit={handleSubmit}
-            className="space-y-6 pb-2"
-          >
-            <div className="space-y-4">
-              {/* Customer Selector Dropdown */}
-              <div className="space-y-2">
-                <Label htmlFor="customer-select">
-                  Select Existing Customer
-                </Label>
-                <Select
-                  value={selectedCustomerId}
-                  onValueChange={handleCustomerSelect}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Choose an existing customer or create new..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <div className="p-2">
-                      <Input
-                        placeholder="Search customers..."
-                        value={customerSearchTerm}
-                        onChange={(e) =>
-                          setCustomerSearchTerm(e.target.value)
-                        }
-                        className="mb-2"
-                      />
-                    </div>
-                    {isLoadingCustomers ? (
-                      <SelectItem value="loading" disabled>
-                        Loading customers...
-                      </SelectItem>
-                    ) : existingCustomers.length > 0 ? (
-                      <>
-                        <SelectItem value="new-customer">
-                          Create New Customer
-                        </SelectItem>
-                        {existingCustomers.map((customer) => (
-                          <SelectItem key={customer.id} value={customer.id}>
-                            {customer.displayText}
-                          </SelectItem>
-                        ))}
-                      </>
-                    ) : (
-                      <SelectItem value="no-customers" disabled>
-                        {customerSearchTerm
-                          ? "No customers found"
-                          : "No customers available"}
-                      </SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
 
+        <div className="flex-1 overflow-y-auto py-1 px-0 min-h-0">
+          <Tabs
+            value={activeTab}
+            onValueChange={(v) => setActiveTab(v as "search" | "create")}
+            className="w-full"
+          >
+            <TabsList className="grid w-full grid-cols-2 mb-4">
+              <TabsTrigger value="search">
+                <Search className="w-4 h-4 mr-2" />
+                Find Existing
+              </TabsTrigger>
+              <TabsTrigger value="create">
+                <UserPlus className="w-4 h-4 mr-2" />
+                Create New
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="search" className="space-y-4 outline-none">
               <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Label htmlFor="name">Full Name</Label>
-                  {selectedCustomerId && (
-                    <Badge variant="secondary" className="text-xs">
-                      From existing customer
-                    </Badge>
-                  )}
-                </div>
                 <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) =>
-                    setFormData({ ...formData, name: e.target.value })
-                  }
-                  placeholder="Customer full name"
-                  required
+                  autoFocus
+                  placeholder="Search customers by name, phone, or email..."
+                  value={customerSearchTerm}
+                  onChange={(e) => setCustomerSearchTerm(e.target.value)}
+                  className="w-full text-lg h-12"
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    value={formData.email}
-                    onChange={(e) =>
-                      setFormData({ ...formData, email: e.target.value })
-                    }
-                    placeholder="customer@example.com"
-                    type="email"
-                  />
+              <ScrollArea className="h-[300px] border rounded-md">
+                <div className="p-2 space-y-1">
+                  {isLoadingCustomers ? (
+                    <div className="p-4 flex justify-center text-muted-foreground">
+                      Searching...
+                    </div>
+                  ) : existingCustomers.length > 0 ? (
+                    existingCustomers.map((customer) => (
+                      <button
+                        key={customer.id}
+                        type="button"
+                        onClick={() => handleInstantSelect(customer.id)}
+                        className="w-full text-left p-3 hover:bg-muted rounded-md transition-colors border border-transparent hover:border-gray-200"
+                      >
+                        <div className="font-medium text-lg">
+                          {customer.name}
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          {customer.phone ||
+                            customer.email ||
+                            "No contact info"}
+                        </div>
+                      </button>
+                    ))
+                  ) : customerSearchTerm.length > 0 ? (
+                    <div className="p-8 text-center space-y-4">
+                      <p className="text-muted-foreground">
+                        No customers found matching "{customerSearchTerm}"
+                      </p>
+                      <Button
+                        variant="secondary"
+                        onClick={() => {
+                          setFormData((prev) => ({
+                            ...prev,
+                            name: customerSearchTerm,
+                          }));
+                          setActiveTab("create");
+                        }}
+                      >
+                        Create new customer
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="p-8 text-center text-muted-foreground">
+                      Type to search existing customers
+                    </div>
+                  )}
                 </div>
+              </ScrollArea>
 
+              <div className="flex justify-between gap-3 pt-4 border-t mt-4">
+                <Button
+                  variant="outline"
+                  type="button"
+                  onClick={onSkip}
+                  className="w-full"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="create" className="outline-none">
+              <form
+                id="customer-create-form"
+                onSubmit={handleSubmit}
+                className="space-y-6 pb-2"
+              >
                 <div className="space-y-2">
-                  <Label htmlFor="phone">Phone</Label>
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="name">Full Name</Label>
+                    {selectedCustomerId && (
+                      <Badge variant="secondary" className="text-xs">
+                        From existing customer
+                      </Badge>
+                    )}
+                  </div>
                   <Input
-                    id="phone"
-                    value={formData.phone}
+                    id="name"
+                    value={formData.name}
                     onChange={(e) =>
-                      setFormData({ ...formData, phone: e.target.value })
+                      setFormData({ ...formData, name: e.target.value })
                     }
-                    placeholder="(555) 123-4567"
+                    placeholder="Customer full name"
                     required
                   />
                 </div>
-              </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="address">Address</Label>
-                <Textarea
-                  id="address"
-                  value={formData.address}
-                  onChange={(e) =>
-                    setFormData({ ...formData, address: e.target.value })
-                  }
-                  placeholder="Customer address"
-                  className="h-20"
-                />
-              </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                      id="email"
+                      value={formData.email}
+                      onChange={(e) =>
+                        setFormData({ ...formData, email: e.target.value })
+                      }
+                      placeholder="customer@example.com"
+                      type="email"
+                    />
+                  </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="notes">Notes</Label>
-                <Textarea
-                  id="notes"
-                  value={formData.notes}
-                  onChange={(e) =>
-                    setFormData({ ...formData, notes: e.target.value })
-                  }
-                  placeholder="Additional notes about the customer"
-                  className="h-20"
-                />
-              </div>
-
-              <div className="space-y-3 pt-2">
-                <div className="flex items-center justify-between">
-                  <Label>Vehicles ({formData.vehicles.length})</Label>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={addVehicle}
-                  >
-                    <Plus className="h-4 w-4 mr-1" /> Add Vehicle
-                  </Button>
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Phone</Label>
+                    <Input
+                      id="phone"
+                      value={formData.phone}
+                      onChange={(e) =>
+                        setFormData({ ...formData, phone: e.target.value })
+                      }
+                      placeholder="(555) 123-4567"
+                      required
+                    />
+                  </div>
                 </div>
 
-                {formData.vehicles.length > 0 ? (
-                  <Accordion type="multiple" className="w-full">
-                    {formData.vehicles.map((vehicle, idx) => (
-                      <AccordionItem
-                        key={vehicle.id}
-                        value={vehicle.id}
-                        className="border rounded-md px-3 my-2"
-                      >
-                        <div className="flex items-center">
-                          <Car className="h-4 w-4 mr-2 text-muted-foreground" />
-                          <AccordionTrigger className="flex-1 hover:no-underline py-2">
-                            <span className="text-sm">
-                              {vehicle.make && vehicle.model
-                                ? `${vehicle.make} ${vehicle.model} ${vehicle.year}`
-                                : `Vehicle ${idx + 1}`}
-                            </span>
-                          </AccordionTrigger>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              removeVehicle(vehicle.id);
-                            }}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                        <AccordionContent className="pb-3 pt-1">
-                          <div className="grid grid-cols-2 gap-3">
-                            <div className="space-y-2">
-                              <Label htmlFor={`make-${vehicle.id}`}>
-                                Make
-                              </Label>
-                              <Input
-                                id={`make-${vehicle.id}`}
-                                value={vehicle.make}
-                                onChange={(e) =>
-                                  updateVehicle(
-                                    vehicle.id,
-                                    "make",
-                                    e.target.value
-                                  )
-                                }
-                                placeholder="Toyota"
-                              />
-                            </div>
-                            <div className="space-y-2">
-                              <Label htmlFor={`model-${vehicle.id}`}>
-                                Model
-                              </Label>
-                              <Input
-                                id={`model-${vehicle.id}`}
-                                value={vehicle.model}
-                                onChange={(e) =>
-                                  updateVehicle(
-                                    vehicle.id,
-                                    "model",
-                                    e.target.value
-                                  )
-                                }
-                                placeholder="Camry"
-                              />
-                            </div>
-                            <div className="space-y-2">
-                              <Label htmlFor={`year-${vehicle.id}`}>
-                                Year
-                              </Label>
-                              <Input
-                                id={`year-${vehicle.id}`}
-                                value={vehicle.year}
-                                onChange={(e) =>
-                                  updateVehicle(
-                                    vehicle.id,
-                                    "year",
-                                    e.target.value
-                                  )
-                                }
-                                placeholder="2023"
-                              />
-                            </div>
-                            <div className="space-y-2">
-                              <Label htmlFor={`license-${vehicle.id}`}>
-                                License Plate
-                              </Label>
-                              <Input
-                                id={`license-${vehicle.id}`}
-                                value={vehicle.licensePlate}
-                                onChange={(e) =>
-                                  updateVehicle(
-                                    vehicle.id,
-                                    "licensePlate",
-                                    e.target.value
-                                  )
-                                }
-                                placeholder="ABC-1234"
-                              />
-                            </div>
-                            <div className="space-y-2 col-span-2">
-                              <Label htmlFor={`vin-${vehicle.id}`}>
-                                VIN (Optional)
-                              </Label>
-                              <Input
-                                id={`vin-${vehicle.id}`}
-                                value={vehicle.vin || ""}
-                                onChange={(e) =>
-                                  updateVehicle(
-                                    vehicle.id,
-                                    "vin",
-                                    e.target.value
-                                  )
-                                }
-                                placeholder="Vehicle Identification Number"
-                              />
-                            </div>
-                            <div className="space-y-2 col-span-2">
-                              <Label htmlFor={`notes-${vehicle.id}`}>
-                                Vehicle Notes
-                              </Label>
-                              <Textarea
-                                id={`notes-${vehicle.id}`}
-                                value={vehicle.notes || ""}
-                                onChange={(e) =>
-                                  updateVehicle(
-                                    vehicle.id,
-                                    "notes",
-                                    e.target.value
-                                  )
-                                }
-                                placeholder="Additional information about the vehicle"
-                                className="h-16"
-                              />
-                            </div>
-                          </div>
-                        </AccordionContent>
-                      </AccordionItem>
-                    ))}
-                  </Accordion>
-                ) : (
-                  <div className="text-center py-6 border border-dashed rounded-md">
-                    <Car className="h-10 w-10 text-muted-foreground mx-auto mb-2" />
-                    <p className="text-sm text-muted-foreground">
-                      No vehicles added yet
-                    </p>
+                <div className="space-y-2">
+                  <Label htmlFor="address">Address</Label>
+                  <Textarea
+                    id="address"
+                    value={formData.address}
+                    onChange={(e) =>
+                      setFormData({ ...formData, address: e.target.value })
+                    }
+                    placeholder="Customer address"
+                    className="h-20"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="notes">Notes</Label>
+                  <Textarea
+                    id="notes"
+                    value={formData.notes}
+                    onChange={(e) =>
+                      setFormData({ ...formData, notes: e.target.value })
+                    }
+                    placeholder="Additional notes about the customer"
+                    className="h-20"
+                  />
+                </div>
+
+                <div className="space-y-3 pt-2">
+                  <div className="flex items-center justify-between">
+                    <Label>Vehicles ({formData.vehicles.length})</Label>
                     <Button
                       type="button"
-                      variant="outline"
                       size="sm"
-                      className="mt-2"
+                      variant="outline"
                       onClick={addVehicle}
                     >
                       <Plus className="h-4 w-4 mr-1" /> Add Vehicle
                     </Button>
                   </div>
-                )}
-              </div>
-            </div>
-          </form>
-        </div>
 
-        <DialogFooter className="p-0 bg-background shrink-0 flex flex-col sm:flex-row gap-3 sm:gap-2 pt-6">
-          <Button
-            type="button"
-            variant="chonky-secondary"
-            onClick={onSkip}
-            className="w-full sm:w-auto order-2 sm:order-1 h-auto px-4 py-[9px]"
-          >
-            Skip
-          </Button>
-          <Button
-            type="submit"
-            form="customer-form"
-            variant="chonky"
-            className="w-full sm:w-auto order-1 sm:order-2 h-auto px-4 py-[9px]"
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? (
-              <>
-                <Spinner className="text-white mr-2" />
-                Adding...
-              </>
-            ) : (
-              "Add Customer"
-            )}
-          </Button>
-        </DialogFooter>
+                  {formData.vehicles.length > 0 ? (
+                    <Accordion type="multiple" className="w-full">
+                      {formData.vehicles.map((vehicle, idx) => (
+                        <AccordionItem
+                          key={vehicle.id!}
+                          value={vehicle.id!}
+                          className="border rounded-md px-3 my-2"
+                        >
+                          <div className="flex items-center">
+                            <Car className="h-4 w-4 mr-2 text-muted-foreground" />
+                            <AccordionTrigger className="flex-1 hover:no-underline py-2">
+                              <span className="text-sm">
+                                {vehicle.make && vehicle.model
+                                  ? `${vehicle.make} ${vehicle.model} ${vehicle.year}`
+                                  : `Vehicle ${idx + 1}`}
+                              </span>
+                            </AccordionTrigger>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                removeVehicle(vehicle.id!);
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                          <AccordionContent className="pb-3 pt-1">
+                            <div className="grid grid-cols-2 gap-3">
+                              <div className="space-y-2">
+                                <Label htmlFor={`make-${vehicle.id}`}>
+                                  Make
+                                </Label>
+                                <Input
+                                  id={`make-${vehicle.id}`}
+                                  value={vehicle.make || ""}
+                                  onChange={(e) =>
+                                    updateVehicle(
+                                      vehicle.id!,
+                                      "make",
+                                      e.target.value || "",
+                                    )
+                                  }
+                                  placeholder="Toyota"
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor={`model-${vehicle.id}`}>
+                                  Model
+                                </Label>
+                                <Input
+                                  id={`model-${vehicle.id}`}
+                                  value={vehicle.model || ""}
+                                  onChange={(e) =>
+                                    updateVehicle(
+                                      vehicle.id!,
+                                      "model",
+                                      e.target.value || "",
+                                    )
+                                  }
+                                  placeholder="Camry"
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor={`year-${vehicle.id}`}>
+                                  Year
+                                </Label>
+                                <Input
+                                  id={`year-${vehicle.id}`}
+                                  value={vehicle.year || ""}
+                                  onChange={(e) =>
+                                    updateVehicle(
+                                      vehicle.id!,
+                                      "year",
+                                      e.target.value || "",
+                                    )
+                                  }
+                                  placeholder="2023"
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor={`license-${vehicle.id}`}>
+                                  License Plate
+                                </Label>
+                                <Input
+                                  id={`license-${vehicle.id}`}
+                                  value={vehicle.licensePlate || ""}
+                                  onChange={(e) =>
+                                    updateVehicle(
+                                      vehicle.id!,
+                                      "licensePlate",
+                                      e.target.value || "",
+                                    )
+                                  }
+                                  placeholder="ABC-1234"
+                                />
+                              </div>
+
+                              <div className="space-y-2 col-span-2">
+                                <Label htmlFor={`notes-${vehicle.id}`}>
+                                  Vehicle Notes
+                                </Label>
+                                <Textarea
+                                  id={`notes-${vehicle.id}`}
+                                  value={vehicle.notes || ""}
+                                  onChange={(e) =>
+                                    updateVehicle(
+                                      vehicle.id!,
+                                      "notes",
+                                      e.target.value || "",
+                                    )
+                                  }
+                                  placeholder="Additional information about the vehicle"
+                                  className="h-16"
+                                />
+                              </div>
+                            </div>
+                          </AccordionContent>
+                        </AccordionItem>
+                      ))}
+                    </Accordion>
+                  ) : (
+                    <div className="text-center py-6 border border-dashed rounded-md">
+                      <Car className="h-10 w-10 text-muted-foreground mx-auto mb-2" />
+                      <p className="text-sm text-muted-foreground">
+                        No vehicles added yet
+                      </p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="mt-2"
+                        onClick={addVehicle}
+                      >
+                        <Plus className="h-4 w-4 mr-1" /> Add Vehicle
+                      </Button>
+                    </div>
+                  )}
+                </div>
+                <div className="flex justify-end gap-3 pt-4 border-t mt-4">
+                  <Button variant="outline" type="button" onClick={onSkip}>
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    form="customer-create-form"
+                    className="flex-1 max-w-[200px]"
+                    disabled={isSubmitting || !formData.name || !formData.phone}
+                  >
+                    {isSubmitting ? "Saving..." : "Create Customer"}
+                  </Button>
+                </div>
+              </form>
+            </TabsContent>
+          </Tabs>
+        </div>
       </DialogContent>
     </Dialog>
   );

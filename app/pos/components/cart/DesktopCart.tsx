@@ -11,8 +11,12 @@ import { CartItem as CartItemType } from "../../types";
 
 interface DesktopCartProps {
   cart: CartItemType[];
-  updateQuantity: (uniqueId: string, quantity: number) => void;
-  removeFromCart: (uniqueId: string) => void;
+  updateQuantity: (
+    id: number,
+    quantity: number,
+    uniqueId?: string,
+  ) => boolean | void;
+  removeFromCart: (id: number, uniqueId?: string) => void;
   subtotal: number;
   total: number;
   discountAmount: number;
@@ -25,6 +29,9 @@ interface DesktopCartProps {
   onOpenDiscount: () => void;
   onOpenTradeIn: () => void;
   onCheckout: () => void;
+  currentCustomer: any | null;
+  onOpenCustomer: () => void;
+  onRemoveCustomer: () => void;
 }
 
 export function DesktopCart({
@@ -43,6 +50,9 @@ export function DesktopCart({
   onOpenDiscount,
   onOpenTradeIn,
   onCheckout,
+  currentCustomer,
+  onOpenCustomer,
+  onRemoveCustomer,
 }: DesktopCartProps) {
   const desktopCartEndRef = useRef<HTMLDivElement>(null);
 
@@ -98,6 +108,9 @@ export function DesktopCart({
               onOpenDiscount={onOpenDiscount}
               onOpenTradeIn={onOpenTradeIn}
               onCheckout={onCheckout}
+              currentCustomer={currentCustomer}
+              onOpenCustomer={onOpenCustomer}
+              onRemoveCustomer={onRemoveCustomer}
             />
           </div>
         </CardContent>

@@ -1155,6 +1155,9 @@ export function POSClient({ initialData }: { initialData?: any }) {
               setIsTradeInDialogOpen(true);
             }}
             onCheckout={handleCheckout}
+            currentCustomer={currentCustomer}
+            onOpenCustomer={() => setIsCustomerFormOpen(true)}
+            onRemoveCustomer={() => setCurrentCustomer(null)}
           />
 
           {/* Mobile Cart */}
@@ -1186,6 +1189,9 @@ export function POSClient({ initialData }: { initialData?: any }) {
               setIsTradeInDialogOpen(true);
             }}
             onCheckout={handleCheckout}
+            currentCustomer={currentCustomer}
+            onOpenCustomer={() => setIsCustomerFormOpen(true)}
+            onRemoveCustomer={() => setCurrentCustomer(null)}
           />
 
           {/* Volume Selection Modal */}

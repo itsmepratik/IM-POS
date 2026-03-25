@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { X, Scissors, PercentIcon } from "lucide-react";
+import { X, Scissors, PercentIcon, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Spinner } from "@/components/ui/spinner";
 import { CartItem as CartItemType } from "../../types";
@@ -19,6 +19,9 @@ interface CartSummaryProps {
   onOpenDiscount: () => void;
   onOpenTradeIn: () => void;
   onCheckout: () => void;
+  currentCustomer: any | null;
+  onOpenCustomer: () => void;
+  onRemoveCustomer: () => void;
 }
 
 export function CartSummary({
@@ -34,6 +37,9 @@ export function CartSummary({
   onOpenDiscount,
   onOpenTradeIn,
   onCheckout,
+  currentCustomer,
+  onOpenCustomer,
+  onRemoveCustomer,
 }: CartSummaryProps) {
   return (
     <>
@@ -78,30 +84,82 @@ export function CartSummary({
         </div>
       </div>
 
-      <div className="space-y-1">
-        <div className="flex gap-2 mb-2">
-          <Button
-            variant="chonky-secondary"
-            className={cn(
-              "h-auto py-[9px] rounded-[12px] flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-800",
-              cartContainsAnyBatteries(cart) ? "flex-1" : "w-full",
-            )}
-            onClick={onOpenDiscount}
-            disabled={cart.length === 0}
-          >
-            <Scissors className="h-4 w-4" />
-            {appliedDiscount ? "Edit Discount" : "Discount"}
-          </Button>
-          {cartContainsAnyBatteries(cart) && (
+      <div className="space-y-2">
+        <div className="flex flex-col sm:flex-row gap-2 mb-2">
+          {/* Customer Button */}
+          {currentCustomer ? (
+            <div className="flex w-full sm:flex-1 items-stretch">
+              <Button
+                variant="chonky-secondary"
+                className={cn(
+                  "h-auto py-[9px] rounded-[12px] rounded-r-none flex items-center justify-center gap-2 bg-blue-50 border border-blue-200 border-r-0 text-blue-700 hover:bg-blue-100 flex-1 truncate",
+                )}
+                onClick={onOpenCustomer}
+                disabled={cart.length === 0}
+              >
+                <User className="h-4 w-4 shrink-0" />
+                <span className="truncate">{currentCustomer.name}</span>
+              </Button>
+              <Button
+                variant="chonky-secondary"
+                className={cn(
+                  "h-auto py-[9px] px-3 rounded-[12px] rounded-l-none border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 shrink-0 border-l border-l-blue-300",
+                )}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRemoveCustomer();
+                }}
+                disabled={cart.length === 0}
+                title="Remove Customer"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          ) : (
             <Button
               variant="chonky-secondary"
-              className="h-auto py-[9px] rounded-[12px] flex-1 flex items-center justify-center gap-2 bg-secondary hover:bg-accent text-foreground border-input border"
-              onClick={onOpenTradeIn}
+              className={cn(
+                "h-auto py-[9px] rounded-[12px] flex items-center justify-center gap-2 bg-blue-50 border border-blue-200 text-blue-700 hover:bg-blue-100",
+                "w-full sm:flex-1",
+              )}
+              onClick={onOpenCustomer}
+              disabled={cart.length === 0}
             >
-              <PercentIcon className="h-4 w-4" />
-              {appliedTradeInAmount > 0 ? "Edit Trade-In" : "Trade In"}
+              <User className="h-4 w-4" />
+              <span className="truncate">Add Customer</span>
             </Button>
           )}
+
+          {/* Discount & Trade-In Buttons */}
+          <div className={cn("flex gap-2 w-full", "sm:flex-1")}>
+            <Button
+              variant="chonky-secondary"
+              className={cn(
+                "h-auto py-[9px] rounded-[12px] flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-800",
+                cartContainsAnyBatteries(cart) ? "flex-1" : "w-full",
+              )}
+              onClick={onOpenDiscount}
+              disabled={cart.length === 0}
+            >
+              <Scissors className="h-4 w-4" />
+              <span className="truncate">
+                {appliedDiscount ? "Edit Discount" : "Discount"}
+              </span>
+            </Button>
+            {cartContainsAnyBatteries(cart) && (
+              <Button
+                variant="chonky-secondary"
+                className="h-auto py-[9px] rounded-[12px] flex-1 flex items-center justify-center gap-2 bg-secondary hover:bg-accent text-foreground border-input border"
+                onClick={onOpenTradeIn}
+                disabled={cart.length === 0}
+              >
+                <PercentIcon className="h-4 w-4" />
+                <span className="truncate">
+                  {appliedTradeInAmount > 0 ? "Edit Trade-In" : "Trade In"}
+                </span>
+              </Button>
+            )}
+          </div>
         </div>
 
         <Button
