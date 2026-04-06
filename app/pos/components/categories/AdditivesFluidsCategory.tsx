@@ -13,6 +13,14 @@ import {
   isImageCached,
 } from "@/lib/utils/imageCache";
 import { ImageErrorFallback } from "@/components/ui/image-error-boundary";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { BrandLogo } from "../brand-logo";
 import { Brand } from "@/lib/services/inventoryService";
 
@@ -50,13 +58,14 @@ interface AdditivesFluidsCategoryProps {
   isLoading: boolean;
 }
 
-// Helper component for additive/fluid product images
 function AdditiveFluidImage({
   imageUrl,
   productName,
+  onColorExtracted,
 }: {
   imageUrl?: string;
   productName: string;
+  onColorExtracted?: (color: string) => void;
 }) {
   const [hasError, setHasError] = React.useState(false);
   const hasLoadedRef = React.useRef(false);
@@ -79,40 +88,64 @@ function AdditiveFluidImage({
     [imageUrl],
   );
 
-  const handleLoad = React.useCallback(() => {
-    // Only cache if not already cached and not already loaded
-    if (imageUrl && !hasLoadedRef.current && !isImageCached(imageUrl)) {
-      setHasError(false);
-      cacheImageValid(imageUrl);
-      hasLoadedRef.current = true;
-    }
-  }, [imageUrl]);
+  const handleLoad = React.useCallback(
+    (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+      // Only cache if not already cached and not already loaded
+      if (imageUrl && !hasLoadedRef.current && !isImageCached(imageUrl)) {
+        setHasError(false);
+        cacheImageValid(imageUrl);
+        hasLoadedRef.current = true;
+      }
+
+      if (onColorExtracted && e.currentTarget) {
+        try {
+          const img = e.currentTarget;
+          const canvas = document.createElement("canvas");
+          canvas.width = 1;
+          canvas.height = 1;
+          const ctx = canvas.getContext("2d", { willReadFrequently: true });
+          if (ctx) {
+            // Sample top-left edge pixel
+            ctx.drawImage(img, 0, 0, 1, 1, 0, 0, 1, 1);
+            const [r, g, b, a] = ctx.getImageData(0, 0, 1, 1).data;
+            if (a < 250) {
+              onColorExtracted("transparent");
+            } else {
+              onColorExtracted(`rgb(${r},${g},${b})`);
+            }
+          }
+        } catch (err) {
+          onColorExtracted("transparent");
+        }
+      }
+    },
+    [imageUrl, onColorExtracted],
+  );
 
   // Show fallback icon if no valid image URL or error occurred
   if (!imageUrl || !isValidImageUrl(imageUrl) || hasError) {
     return (
-      <div className="w-12 h-12 flex-shrink-0 flex items-center justify-center rounded-md bg-muted/80">
-        <Droplet className="h-6 w-6 text-primary/70" />
+      <div className="w-full h-full flex items-center justify-center rounded-md bg-muted/80">
+        <Droplet className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 text-primary/70" />
       </div>
     );
   }
 
   return (
-    <div className="w-12 h-12 flex-shrink-0 relative rounded-md overflow-hidden bg-muted/80">
-      <ImageErrorFallback onError={handleError} className="w-full h-full">
-        <Image
-          src={imageUrl}
-          alt={productName}
-          className="object-contain p-1 transition-opacity duration-200"
-          fill
-          sizes="48px"
-          onError={handleError}
-          onLoad={handleLoad}
-          loading="lazy"
-          quality={85}
-        />
-      </ImageErrorFallback>
-    </div>
+    <ImageErrorFallback onError={handleError} className="w-full h-full">
+      <Image
+        src={imageUrl}
+        alt={productName}
+        className="object-contain p-1 transition-opacity duration-200"
+        fill
+        sizes="(max-width: 640px) 64px, (max-width: 768px) 80px, 128px"
+        onError={handleError}
+        onLoad={handleLoad}
+        loading="lazy"
+        quality={85}
+        crossOrigin="anonymous"
+      />
+    </ImageErrorFallback>
   );
 }
 
@@ -126,6 +159,10 @@ export function AdditivesFluidsCategory({
   isLoading,
 }: AdditivesFluidsCategoryProps) {
   const { addPersistentNotification } = useNotification();
+  const [brandColors, setBrandColors] = useState<Record<string, string>>({});
+  const [productColors, setProductColors] = useState<Record<string, string>>(
+    {},
+  );
 
   // Get unique brands for additives & fluids
   const additiveBrands = useMemo(() => {
@@ -154,116 +191,152 @@ export function AdditivesFluidsCategory({
   }
 
   return (
-    <>
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
       {additiveBrands.map((brand) => (
-        <div key={brand} className="border rounded-lg overflow-hidden">
-          <Button
-            variant="ghost"
-            className="w-full p-4 flex items-center justify-between hover:bg-accent"
-            onClick={() =>
-              setExpandedBrand(expandedBrand === brand ? null : brand)
-            }
-          >
-            <div className="flex items-center gap-3">
-              <div className="relative w-8 h-8 flex items-center justify-center">
-                <BrandLogo
-                  brand={brand}
-                  brands={brands}
-                  imageUrl={brands?.find((b) => b.name === brand)?.imageUrl}
-                />
+        <Dialog
+          key={brand}
+          open={expandedBrand === brand}
+          onOpenChange={(open) => setExpandedBrand(open ? brand : null)}
+        >
+          <DialogTrigger asChild>
+            <Button
+              variant="outline"
+              className="w-full h-full min-h-[150px] sm:min-h-[170px] md:min-h-[190px] flex-col overflow-hidden p-0 rounded-xl hover:bg-accent border-2 transition-all hover:scale-[1.02] group"
+              onClick={() => setExpandedBrand(brand)}
+            >
+              <div
+                className="relative flex-1 w-full transition-colors min-h-[100px] sm:min-h-[120px]"
+                style={{ backgroundColor: brandColors[brand] || "#ffffff" }}
+              >
+                <div className="absolute inset-2 sm:inset-2 md:inset-3">
+                  <BrandLogo
+                    brand={brand}
+                    brands={brands}
+                    imageUrl={brands?.find((b) => b.name === brand)?.imageUrl}
+                    onColorExtracted={(color) => {
+                      setBrandColors((prev) => {
+                        if (prev[brand] === color) return prev;
+                        return { ...prev, [brand]: color };
+                      });
+                    }}
+                  />
+                </div>
               </div>
-              <span className="font-semibold text-lg">{brand}</span>
-            </div>
-            {expandedBrand === brand ? (
-              <ChevronUp className="h-5 w-5" />
-            ) : (
-              <ChevronDown className="h-5 w-5" />
-            )}
-          </Button>
-          {expandedBrand === brand && (
-            <div className="p-4 bg-muted/50 grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 gap-4">
-              {products
-                .filter(
-                  (p) =>
-                    p.category === "Additives & Fluids" &&
-                    (p.brand || "Other") === brand, // Handle null/undefined brands
-                )
-                .map((product) => {
-                  const available = product.availableQuantity ?? 0;
-                  const isOutOfStock = available <= 0;
+              <div className="w-full bg-slate-50 border-t py-1 sm:py-1.5 px-3 shrink-0 flex items-center justify-center min-h-[32px] sm:min-h-[36px]">
+                <span className="font-semibold text-center text-sm md:text-base break-words w-full line-clamp-1 block text-foreground leading-tight">
+                  {brand}
+                </span>
+              </div>
+            </Button>
+          </DialogTrigger>
 
-                  return (
-                    <Button
-                      key={product.id}
-                      variant="outline"
-                      disabled={false} // Always clickable to show notification
-                      className={`border-2 rounded-[18px] flex flex-col items-center justify-between p-4 h-auto min-h-[150px] transition-all overflow-hidden relative ${
-                        isOutOfStock
-                          ? "opacity-60 bg-muted/50"
-                          : "hover:shadow-md"
-                      }`}
-                      onClick={() => {
-                        if (isOutOfStock) {
-                          addPersistentNotification({
-                            type: "error",
-                            title: "Out of Stock",
-                            message: `${product.name} is currently out of stock.`,
-                            category: "stock",
-                          });
-                          return;
-                        }
-                        addToCart({
-                          id: product.id,
-                          name: product.name,
-                          price: product.price,
-                          brand: product.brand,
-                        });
-                      }}
-                    >
-                      {/* Stock Badge - REMOVED per user request */}
+          <DialogContent className="max-w-[90vw] w-[90vw] h-[90vh] max-h-[90vh] flex flex-col overflow-hidden p-0 sm:p-6 pb-0 sm:pb-0">
+            <DialogHeader className="shrink-0 px-6 pt-6 sm:px-0 sm:pt-0">
+              <DialogTitle className="flex items-center gap-3 text-2xl mb-2">
+                <div className="relative w-8 h-8 flex items-center justify-center">
+                  <BrandLogo
+                    brand={brand}
+                    brands={brands}
+                    imageUrl={brands?.find((b) => b.name === brand)?.imageUrl}
+                  />
+                </div>
+                <span>{brand} Additives & Fluids</span>
+              </DialogTitle>
+            </DialogHeader>
+            <div className="flex-1 overflow-hidden flex flex-col">
+              <ScrollArea className="flex-1 h-full px-6 sm:px-0">
+                <div className="pb-24 pt-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                    {/* Render additive/fluid products */}
+                    {products
+                      .filter(
+                        (p) =>
+                          p.category === "Additives & Fluids" &&
+                          (p.brand || "Other") === brand,
+                      )
+                      .map((product) => {
+                        const available = product.availableQuantity ?? 0;
+                        const isOutOfStock = available <= 0;
 
-                      {/* Product image with fallback to icon */}
-                      <div className="mb-3 relative">
-                        <AdditiveFluidImage
-                          imageUrl={product.imageUrl}
-                          productName={product.name}
-                        />
-                        {/* Out of Stock Overlay - Matches Lubricant Style */}
-                        {isOutOfStock && (
-                          <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-[1px] rounded-md z-1">
-                            <Badge
-                              variant="destructive"
-                              className="text-[10px]"
+                        return (
+                          <Button
+                            key={product.id}
+                            variant="outline"
+                            disabled={false} // Always clickable to show notification
+                            className={`border-2 rounded-[18px] flex flex-col items-center justify-between p-3 sm:p-4 h-[180px] sm:h-[200px] md:h-[220px] overflow-hidden shadow-sm hover:shadow-md transition-all relative ${
+                              isOutOfStock ? "opacity-60 bg-muted/50" : ""
+                            }`}
+                            onClick={() => {
+                              if (isOutOfStock) {
+                                addPersistentNotification({
+                                  type: "error",
+                                  title: "Out of Stock",
+                                  message: `${product.name} is currently out of stock.`,
+                                  category: "stock",
+                                });
+                                return;
+                              }
+                              addToCart({
+                                id: product.id,
+                                name: product.name,
+                                price: product.price,
+                                brand: product.brand,
+                              });
+                            }}
+                          >
+                            <div
+                              className="relative flex-1 w-full mt-2 mb-2 min-h-[60px] rounded-lg transition-colors"
+                              style={{
+                                backgroundColor:
+                                  productColors[product.id] || "transparent",
+                              }}
                             >
-                              Out of Stock
-                            </Badge>
-                          </div>
-                        )}
-                      </div>
+                              <AdditiveFluidImage
+                                imageUrl={product.imageUrl}
+                                productName={product.name}
+                                onColorExtracted={(color) => {
+                                  setProductColors((prev) => {
+                                    if (prev[product.id] === color) return prev;
+                                    return { ...prev, [product.id]: color };
+                                  });
+                                }}
+                              />
+                              {/* Out of Stock Overlay */}
+                              {isOutOfStock && (
+                                <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-[1px] rounded-md z-1">
+                                  <Badge
+                                    variant="destructive"
+                                    className="text-[10px]"
+                                  >
+                                    Out of Stock
+                                  </Badge>
+                                </div>
+                              )}
+                            </div>
 
-                      {/* Product information with proper text handling */}
-                      <div className="w-full flex flex-col items-center space-y-2">
-                        {/* Product name with line clamping */}
-                        <div className="text-center w-full">
-                          <p className="text-sm font-medium line-clamp-2 leading-tight">
-                            {product.name}
-                          </p>
-                        </div>
-
-                        {/* Price with consistent formatting */}
-                        <div className="mt-auto">
-                          <span className="font-medium text-[clamp(0.75rem,1.5vw,0.85rem)] text-[#6d6d6d]">
-                            OMR {product.price.toFixed(3)}
-                          </span>
-                        </div>
-                      </div>
-                    </Button>
-                  );
-                })}
+                            <div className="text-center shrink-0 flex flex-col justify-end w-full gap-0.5 mt-1 z-10">
+                              <div className="flex flex-col w-full">
+                                <span
+                                  className="text-center font-semibold text-[10px] sm:text-xs w-full px-1 word-wrap whitespace-normal leading-tight hyphens-auto line-clamp-2"
+                                  style={{ lineHeight: 1.1 }}
+                                >
+                                  {product.name}
+                                </span>
+                              </div>
+                              <span className="block text-sm font-bold text-[#6d6d6d] mt-0">
+                                OMR {product.price.toFixed(3)}
+                              </span>
+                            </div>
+                          </Button>
+                        );
+                      })}
+                  </div>
+                </div>
+              </ScrollArea>
             </div>
-          )}
-        </div>
+          </DialogContent>
+        </Dialog>
       ))}
-    </>
+    </div>
   );
 }

@@ -44,10 +44,12 @@ function LubricantImage({
   imageUrl,
   brand,
   type,
+  onColorExtracted,
 }: {
   imageUrl: string;
   brand: string;
   type: string;
+  onColorExtracted?: (color: string) => void;
 }) {
   const [hasError, setHasError] = React.useState(false);
   const hasLoadedRef = React.useRef(false);
@@ -70,14 +72,39 @@ function LubricantImage({
     [imageUrl],
   );
 
-  const handleLoad = React.useCallback(() => {
-    // Only cache if not already cached and not already loaded
-    if (imageUrl && !hasLoadedRef.current && !isImageCached(imageUrl)) {
-      setHasError(false);
-      cacheImageValid(imageUrl);
-      hasLoadedRef.current = true;
-    }
-  }, [imageUrl]);
+  const handleLoad = React.useCallback(
+    (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+      // Only cache if not already cached and not already loaded
+      if (imageUrl && !hasLoadedRef.current && !isImageCached(imageUrl)) {
+        setHasError(false);
+        cacheImageValid(imageUrl);
+        hasLoadedRef.current = true;
+      }
+
+      if (onColorExtracted && e.currentTarget) {
+        try {
+          const img = e.currentTarget;
+          const canvas = document.createElement("canvas");
+          canvas.width = 1;
+          canvas.height = 1;
+          const ctx = canvas.getContext("2d", { willReadFrequently: true });
+          if (ctx) {
+            // Sample top-left edge pixel
+            ctx.drawImage(img, 0, 0, 1, 1, 0, 0, 1, 1);
+            const [r, g, b, a] = ctx.getImageData(0, 0, 1, 1).data;
+            if (a < 250) {
+              onColorExtracted("transparent");
+            } else {
+              onColorExtracted(`rgb(${r},${g},${b})`);
+            }
+          }
+        } catch (err) {
+          onColorExtracted("transparent");
+        }
+      }
+    },
+    [imageUrl, onColorExtracted],
+  );
 
   if (hasError || !isValidImageUrl(imageUrl)) {
     return (
@@ -102,6 +129,7 @@ function LubricantImage({
         onLoad={handleLoad}
         loading="lazy"
         quality={85}
+        crossOrigin="anonymous"
       />
     </ImageErrorFallback>
   );
@@ -119,6 +147,9 @@ export function LubricantCategory({
 }: LubricantCategoryProps) {
   const { addPersistentNotification } = useNotification();
   const [brandColors, setBrandColors] = useState<Record<string, string>>({});
+  const [productColors, setProductColors] = useState<Record<string, string>>(
+    {},
+  );
 
   // Filter brands based on search query
   const filteredLubricantBrands = useMemo(() => {
@@ -309,12 +340,25 @@ export function LubricantCategory({
                                 )}
                               </div>
                             )}
-                            <div className="relative w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 mt-1 mb-1 shrink-0">
+                            <div
+                              className="relative flex-1 w-full mt-2 mb-2 min-h-[60px] rounded-lg transition-colors"
+                              style={{
+                                backgroundColor:
+                                  productColors[lubricant.id] || "transparent",
+                              }}
+                            >
                               {lubricant.image ? (
                                 <LubricantImage
                                   imageUrl={lubricant.image}
                                   brand={lubricant.brand}
                                   type={lubricant.type}
+                                  onColorExtracted={(color) => {
+                                    setProductColors((prev) => {
+                                      if (prev[lubricant.id] === color)
+                                        return prev;
+                                      return { ...prev, [lubricant.id]: color };
+                                    });
+                                  }}
                                 />
                               ) : (
                                 <div className="w-full h-full flex items-center justify-center bg-muted rounded-md">
@@ -334,7 +378,7 @@ export function LubricantCategory({
                                 </div>
                               )}
                             </div>
-                            <div className="text-center flex-1 flex flex-col justify-end w-full gap-1">
+                            <div className="text-center shrink-0 flex flex-col justify-end w-full gap-0.5 mt-1 z-10">
                               <div className="flex flex-col w-full">
                                 <span
                                   className="text-center font-semibold text-[10px] sm:text-xs w-full px-1 word-wrap whitespace-normal leading-tight hyphens-auto line-clamp-2"
@@ -435,12 +479,25 @@ export function LubricantCategory({
                                 )}
                               </div>
                             )}
-                            <div className="relative w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 mt-1 mb-1 shrink-0">
+                            <div
+                              className="relative flex-1 w-full mt-2 mb-2 min-h-[60px] rounded-lg transition-colors"
+                              style={{
+                                backgroundColor:
+                                  productColors[lubricant.id] || "transparent",
+                              }}
+                            >
                               {lubricant.image ? (
                                 <LubricantImage
                                   imageUrl={lubricant.image}
                                   brand={lubricant.brand}
                                   type={lubricant.type}
+                                  onColorExtracted={(color) => {
+                                    setProductColors((prev) => {
+                                      if (prev[lubricant.id] === color)
+                                        return prev;
+                                      return { ...prev, [lubricant.id]: color };
+                                    });
+                                  }}
                                 />
                               ) : (
                                 <div className="w-full h-full flex items-center justify-center bg-muted rounded-md">
@@ -460,7 +517,7 @@ export function LubricantCategory({
                                 </div>
                               )}
                             </div>
-                            <div className="text-center flex-1 flex flex-col justify-end w-full gap-1">
+                            <div className="text-center shrink-0 flex flex-col justify-end w-full gap-0.5 mt-1 z-10">
                               <div className="flex flex-col w-full">
                                 <span
                                   className="text-center font-semibold text-[10px] sm:text-xs w-full px-1 word-wrap whitespace-normal leading-tight hyphens-auto line-clamp-2"
@@ -573,12 +630,25 @@ export function LubricantCategory({
                                 )}
                               </div>
                             )}
-                            <div className="relative w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 mt-1 mb-1 shrink-0">
+                            <div
+                              className="relative flex-1 w-full mt-2 mb-2 min-h-[60px] rounded-lg transition-colors"
+                              style={{
+                                backgroundColor:
+                                  productColors[lubricant.id] || "transparent",
+                              }}
+                            >
                               {lubricant.image ? (
                                 <LubricantImage
                                   imageUrl={lubricant.image}
                                   brand={lubricant.brand}
                                   type={lubricant.type}
+                                  onColorExtracted={(color) => {
+                                    setProductColors((prev) => {
+                                      if (prev[lubricant.id] === color)
+                                        return prev;
+                                      return { ...prev, [lubricant.id]: color };
+                                    });
+                                  }}
                                 />
                               ) : (
                                 <div className="w-full h-full flex items-center justify-center bg-muted rounded-md">
@@ -598,7 +668,7 @@ export function LubricantCategory({
                                 </div>
                               )}
                             </div>
-                            <div className="text-center flex-1 flex flex-col justify-end w-full gap-1">
+                            <div className="text-center shrink-0 flex flex-col justify-end w-full gap-0.5 mt-1 z-10">
                               <div className="flex flex-col w-full">
                                 <span
                                   className="text-center font-semibold text-[10px] sm:text-xs w-full px-1 word-wrap whitespace-normal leading-tight hyphens-auto line-clamp-2"
