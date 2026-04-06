@@ -37,8 +37,9 @@ const useDropdownMenu = () => {
   return context;
 };
 
-interface DropdownMenuProps
-  extends React.ComponentPropsWithoutRef<typeof MenuTrigger> {
+interface DropdownMenuProps extends React.ComponentPropsWithoutRef<
+  typeof MenuTrigger
+> {
   isLoading?: boolean;
   error?: string | null;
   onError?: (error: string) => void;
@@ -52,7 +53,7 @@ const DropdownMenu = React.forwardRef<
 >(({ children, isLoading, error, onError, onClearError, ...props }, ref) => {
   const contextValue = React.useMemo(
     () => ({ isLoading, error, onError, onClearError }),
-    [isLoading, error, onError, onClearError]
+    [isLoading, error, onError, onClearError],
   );
 
   return (
@@ -89,15 +90,15 @@ const DropdownMenuTrigger = React.forwardRef<
       size = "default",
       ...props
     },
-    ref
+    ref,
   ) => {
     const { isLoading, error } = useDropdownMenu();
 
     const childVariant = React.isValidElement(children)
-      ? (children as any).props?.variant ?? variant
+      ? ((children as any).props?.variant ?? variant)
       : variant;
     const childSize = React.isValidElement(children)
-      ? (children as any).props?.size ?? size
+      ? ((children as any).props?.size ?? size)
       : size;
     const childClassName = React.isValidElement(children)
       ? (children as any).props?.className
@@ -110,7 +111,7 @@ const DropdownMenuTrigger = React.forwardRef<
           buttonVariants({ variant: childVariant, size: childSize }),
           error && "border-destructive text-destructive",
           childClassName,
-          className
+          className,
         )}
         isDisabled={isLoading}
         aria-describedby={error ? "dropdown-error" : undefined}
@@ -122,13 +123,13 @@ const DropdownMenuTrigger = React.forwardRef<
             Loading...
           </>
         ) : React.isValidElement(children) ? (
-          children.props?.children ?? children
+          (children.props?.children ?? children)
         ) : (
           children
         )}
       </RACButton>
     );
-  }
+  },
 );
 DropdownMenuTrigger.displayName = "DropdownMenuTrigger";
 
@@ -145,7 +146,7 @@ const DropdownMenuContent = React.forwardRef<
 >(
   (
     { className, sideOffset = 4, children, placement, side, align, ...props },
-    ref
+    ref,
   ) => {
     const { error, onClearError } = useDropdownMenu();
 
@@ -170,13 +171,13 @@ const DropdownMenuContent = React.forwardRef<
         offset={sideOffset}
         placement={finalPlacement}
         className={cn(
-          "min-w-[8rem] overflow-hidden rounded-xl border-2 bg-popover p-1.5 text-popover-foreground shadow-md",
+          "min-w-[8rem] overflow-hidden rounded-xl border-2 bg-popover p-1.5 text-popover-foreground shadow-md pointer-events-auto",
           "data-[entering]:animate-in data-[exiting]:animate-out data-[exiting]:fade-out-0 data-[entering]:fade-in-0 data-[exiting]:zoom-out-95 data-[entering]:zoom-in-95",
           "data-[placement=bottom]:slide-in-from-top-2 data-[placement=left]:slide-in-from-right-2 data-[placement=right]:slide-in-from-left-2 data-[placement=top]:slide-in-from-bottom-2",
           "max-sm:w-[15.5rem]",
-          className
+          className,
         )}
-        style={{ zIndex: 99999 }}
+        style={{ zIndex: 999999 }}
         {...props}
       >
         <Menu className="outline-none">
@@ -194,7 +195,7 @@ const DropdownMenuContent = React.forwardRef<
         </Menu>
       </Popover>
     );
-  }
+  },
 );
 DropdownMenuContent.displayName = "DropdownMenuContent";
 
@@ -244,7 +245,7 @@ const DropdownMenuItem = React.forwardRef<
         "[&>svg]:size-5 [&>svg]:stroke-[2] [&>svg]:shrink-0",
         inset && "pl-8",
         isDisabled && "opacity-50 pointer-events-none",
-        className
+        className,
       )}
       onAction={handleAction}
       {...props}
@@ -276,7 +277,7 @@ const DropdownMenuCheckboxItem = React.forwardRef<
       "relative flex cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none transition-colors",
       "focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
       "data-[focused]:bg-accent data-[focused]:text-accent-foreground",
-      className
+      className,
     )}
     {...props}
   >
@@ -302,7 +303,7 @@ const DropdownMenuRadioItem = React.forwardRef<
       "relative flex cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none transition-colors",
       "focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
       "data-[focused]:bg-accent data-[focused]:text-accent-foreground",
-      className
+      className,
     )}
     {...props}
   >
@@ -327,7 +328,7 @@ const DropdownMenuLabel = React.forwardRef<
     className={cn(
       "px-2 py-1.5 text-sm font-semibold",
       inset && "pl-8",
-      className
+      className,
     )}
     {...props}
   />
@@ -383,7 +384,7 @@ const DropdownMenuSubTrigger = React.forwardRef<
         "flex cursor-default gap-2 select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none",
         "focus:bg-accent data-[focused]:bg-accent [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
         inset && "pl-8",
-        className
+        className,
       )}
       {...props}
     >
@@ -406,7 +407,7 @@ const DropdownMenuSubContent = React.forwardRef<
       "z-50 min-w-[8rem] overflow-hidden rounded-md border-2 bg-popover p-1 text-popover-foreground shadow-lg",
       "data-[entering]:animate-in data-[exiting]:animate-out data-[exiting]:fade-out-0 data-[entering]:fade-in-0 data-[exiting]:zoom-out-95 data-[entering]:zoom-in-95",
       "data-[placement=bottom]:slide-in-from-top-2 data-[placement=left]:slide-in-from-right-2 data-[placement=right]:slide-in-from-left-2 data-[placement=top]:slide-in-from-bottom-2",
-      className
+      className,
     )}
     {...props}
   >

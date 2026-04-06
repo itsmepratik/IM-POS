@@ -298,6 +298,14 @@ export function POSClient({ initialData }: { initialData?: any }) {
   } = useIntegratedPOSData(undefined, { initialData });
 
   const { toast } = useToast();
+
+  const [currentTime, setCurrentTime] = useState<Date | null>(null);
+  useEffect(() => {
+    setCurrentTime(new Date());
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
   const { currentBranch, inventoryLocationId } = useBranch();
   const companyInfo = useCompanyInfo();
   // lastNotificationRef and addPersistentNotification moved to useLubricantVolume hook
@@ -993,12 +1001,12 @@ export function POSClient({ initialData }: { initialData?: any }) {
                 <div className="hidden lg:flex gap-4 items-center">
                   {/* Status Indicator */}
                   <div className="flex items-center gap-2">
-                    <div className="h-2 w-2 bg-green-500 rounded-full" />
+                    <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.6)]" />
                     <span
                       className="font-mono text-sm text-gray-600"
                       suppressHydrationWarning
                     >
-                      {new Date().toLocaleTimeString([], {
+                      {(currentTime || new Date()).toLocaleTimeString([], {
                         hour: "2-digit",
                         minute: "2-digit",
                         second: "2-digit",
@@ -1202,8 +1210,14 @@ export function POSClient({ initialData }: { initialData?: any }) {
             selectedVolumes={selectedVolumes}
             onVolumeClick={handleVolumeClick}
             onQuantityChange={handleQuantityChange}
-            onAddSelectedToCart={handleAddSelectedToCart}
-            onNextItem={handleNextItem}
+            onAddSelectedToCart={() => {
+              handleAddSelectedToCart();
+              setExpandedBrand(null);
+            }}
+            onNextItem={() => {
+              handleNextItem();
+              setExpandedBrand(null);
+            }}
             onCancel={() => {
               setIsVolumeModalOpen(false);
               setSelectedVolumes([]);

@@ -334,21 +334,25 @@ export default function RevenuePage() {
       );
     }
 
-    if (isMobileView) {
-      return (
-        <MobileView
-          salesData={filteredItems}
-          expandedItems={expandedItems}
-          toggleItem={toggleItem}
-        />
-      );
-    }
     return (
-      <DesktopView
-        salesData={filteredItems}
-        expandedItems={expandedItems}
-        toggleItem={toggleItem}
-      />
+      <>
+        {isMobileView && (
+          <div className="block print:hidden">
+            <MobileView
+              salesData={filteredItems}
+              expandedItems={expandedItems}
+              toggleItem={toggleItem}
+            />
+          </div>
+        )}
+        <div className={isMobileView ? "hidden print:block" : "block"}>
+          <DesktopView
+            salesData={filteredItems}
+            expandedItems={expandedItems}
+            toggleItem={toggleItem}
+          />
+        </div>
+      </>
     );
   }, [isMobileView, filteredItems, expandedItems, toggleItem, error]);
 

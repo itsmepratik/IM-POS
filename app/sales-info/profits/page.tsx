@@ -569,22 +569,26 @@ export default function ProfitsPage() {
     if (isLoading)
       return <div className="p-10 text-center">Loading profits data...</div>;
 
-    if (isMobileView) {
-      return (
-        <MobileView
-          profitData={filteredItems}
-          expandedItems={expandedItems}
-          toggleItem={toggleItem}
-        />
-      );
-    }
     return (
-      <DesktopView
-        profitData={filteredItems}
-        expandedItems={expandedItems}
-        toggleItem={toggleItem}
-        visibleColumns={visibleColumns}
-      />
+      <>
+        {isMobileView && (
+          <div className="block print:hidden">
+            <MobileView
+              profitData={filteredItems}
+              expandedItems={expandedItems}
+              toggleItem={toggleItem}
+            />
+          </div>
+        )}
+        <div className={isMobileView ? "hidden print:block" : "block"}>
+          <DesktopView
+            profitData={filteredItems}
+            expandedItems={expandedItems}
+            toggleItem={toggleItem}
+            visibleColumns={visibleColumns}
+          />
+        </div>
+      </>
     );
   }, [
     isMobileView,

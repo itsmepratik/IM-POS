@@ -19,7 +19,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useItems } from "./items-context";
-import { X, Loader2, Edit2, Plus, ImageIcon, Trash2, ArrowUpDown, Link, Upload } from "lucide-react";
+import {
+  X,
+  Loader2,
+  Edit2,
+  Plus,
+  ImageIcon,
+  Trash2,
+  ArrowUpDown,
+  Link,
+  Upload,
+} from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
 import Image from "next/image";
@@ -32,22 +42,29 @@ interface BrandModalProps {
 }
 
 export default function BrandModal({ open, onOpenChange }: BrandModalProps) {
-  const { brandObjects, addBrand, updateBrand, deleteBrand, refetchItems } = useItems();
+  const { brandObjects, addBrand, updateBrand, deleteBrand, refetchItems } =
+    useItems();
   const [newBrandName, setNewBrandName] = useState("");
   const [newBrandImage, setNewBrandImage] = useState("");
   const [isAdding, setIsAdding] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  
+
   const [editingBrand, setEditingBrand] = useState<Brand | null>(null);
   const [editName, setEditName] = useState("");
   const [editImage, setEditImage] = useState("");
   const [imageErrors, setImageErrors] = useState<Set<string>>(new Set());
-  const [sortBy, setSortBy] = useState<"name-asc" | "name-desc" | "image-first" | "image-last">("name-asc");
-  
+  const [sortBy, setSortBy] = useState<
+    "name-asc" | "name-desc" | "image-first" | "image-last"
+  >("name-asc");
+
   // Image input tabs
-  const [addBrandImageTab, setAddBrandImageTab] = useState<"upload" | "url">("upload");
-  const [editBrandImageTab, setEditBrandImageTab] = useState<"upload" | "url">("upload");
+  const [addBrandImageTab, setAddBrandImageTab] = useState<"upload" | "url">(
+    "upload",
+  );
+  const [editBrandImageTab, setEditBrandImageTab] = useState<"upload" | "url">(
+    "upload",
+  );
 
   // Helper function to validate if a string is a valid URL
   const isValidUrl = (url: string | null | undefined): boolean => {
@@ -73,8 +90,8 @@ export default function BrandModal({ open, onOpenChange }: BrandModalProps) {
         return brands.sort((a, b) => b.name.localeCompare(a.name));
       case "image-first":
         return brands.sort((a, b) => {
-          const aHasImage = isValidUrl(a.image_url);
-          const bHasImage = isValidUrl(b.image_url);
+          const aHasImage = isValidUrl(a.imageUrl);
+          const bHasImage = isValidUrl(b.imageUrl);
           if (aHasImage === bHasImage) {
             return a.name.localeCompare(b.name);
           }
@@ -82,8 +99,8 @@ export default function BrandModal({ open, onOpenChange }: BrandModalProps) {
         });
       case "image-last":
         return brands.sort((a, b) => {
-          const aHasImage = isValidUrl(a.image_url);
-          const bHasImage = isValidUrl(b.image_url);
+          const aHasImage = isValidUrl(a.imageUrl);
+          const bHasImage = isValidUrl(b.imageUrl);
           if (aHasImage === bHasImage) {
             return a.name.localeCompare(b.name);
           }
@@ -160,7 +177,7 @@ export default function BrandModal({ open, onOpenChange }: BrandModalProps) {
   const handleRemoveBrand = async (brand: Brand) => {
     if (
       !window.confirm(
-        `Are you sure you want to delete "${brand.name}"? This may affect items assigned to this brand.`
+        `Are you sure you want to delete "${brand.name}"? This may affect items assigned to this brand.`,
       )
     ) {
       return;
@@ -192,8 +209,8 @@ export default function BrandModal({ open, onOpenChange }: BrandModalProps) {
     setEditBrandImageTab("upload");
   };
 
-  const handleImageError = (brandId: string) => {
-    setImageErrors((prev) => new Set(prev).add(brandId));
+  const handleImageError = (id: string) => {
+    setImageErrors((prev) => new Set(prev).add(id));
   };
 
   // Reset image errors when modal opens
@@ -237,14 +254,16 @@ export default function BrandModal({ open, onOpenChange }: BrandModalProps) {
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <Label htmlFor="new-brand-image">Brand Image (Optional)</Label>
+                    <Label htmlFor="new-brand-image">
+                      Brand Image (Optional)
+                    </Label>
                     <div className="flex bg-muted rounded-md p-1 gap-1">
                       <button
                         type="button"
                         onClick={() => setAddBrandImageTab("upload")}
                         className={`text-xs px-2 py-0.5 rounded-sm transition-all ${
-                          addBrandImageTab === "upload" 
-                            ? "bg-background shadow-sm text-foreground font-medium" 
+                          addBrandImageTab === "upload"
+                            ? "bg-background shadow-sm text-foreground font-medium"
                             : "text-muted-foreground hover:text-foreground"
                         }`}
                       >
@@ -254,8 +273,8 @@ export default function BrandModal({ open, onOpenChange }: BrandModalProps) {
                         type="button"
                         onClick={() => setAddBrandImageTab("url")}
                         className={`text-xs px-2 py-0.5 rounded-sm transition-all ${
-                          addBrandImageTab === "url" 
-                            ? "bg-background shadow-sm text-foreground font-medium" 
+                          addBrandImageTab === "url"
+                            ? "bg-background shadow-sm text-foreground font-medium"
                             : "text-muted-foreground hover:text-foreground"
                         }`}
                       >
@@ -263,7 +282,7 @@ export default function BrandModal({ open, onOpenChange }: BrandModalProps) {
                       </button>
                     </div>
                   </div>
-                  
+
                   {addBrandImageTab === "upload" ? (
                     <ImageUpload
                       value={newBrandImage}
@@ -324,9 +343,15 @@ export default function BrandModal({ open, onOpenChange }: BrandModalProps) {
               </h3>
               <div className="flex items-center gap-2">
                 <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
-                <Select 
-                  value={sortBy} 
-                  onValueChange={(value: "name-asc" | "name-desc" | "image-first" | "image-last") => setSortBy(value)}
+                <Select
+                  value={sortBy}
+                  onValueChange={(
+                    value:
+                      | "name-asc"
+                      | "name-desc"
+                      | "image-first"
+                      | "image-last",
+                  ) => setSortBy(value)}
                 >
                   <SelectTrigger className="w-[200px]">
                     <SelectValue placeholder="Sort by" />
@@ -334,8 +359,12 @@ export default function BrandModal({ open, onOpenChange }: BrandModalProps) {
                   <SelectContent>
                     <SelectItem value="name-asc">Name (A-Z)</SelectItem>
                     <SelectItem value="name-desc">Name (Z-A)</SelectItem>
-                    <SelectItem value="image-first">With Images First</SelectItem>
-                    <SelectItem value="image-last">Without Images First</SelectItem>
+                    <SelectItem value="image-first">
+                      With Images First
+                    </SelectItem>
+                    <SelectItem value="image-last">
+                      Without Images First
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -391,8 +420,8 @@ export default function BrandModal({ open, onOpenChange }: BrandModalProps) {
                                   type="button"
                                   onClick={() => setEditBrandImageTab("upload")}
                                   className={`text-[10px] px-1.5 py-0.5 rounded-sm transition-all ${
-                                    editBrandImageTab === "upload" 
-                                      ? "bg-background shadow-sm text-foreground font-medium" 
+                                    editBrandImageTab === "upload"
+                                      ? "bg-background shadow-sm text-foreground font-medium"
                                       : "text-muted-foreground hover:text-foreground"
                                   }`}
                                 >
@@ -402,8 +431,8 @@ export default function BrandModal({ open, onOpenChange }: BrandModalProps) {
                                   type="button"
                                   onClick={() => setEditBrandImageTab("url")}
                                   className={`text-[10px] px-1.5 py-0.5 rounded-sm transition-all ${
-                                    editBrandImageTab === "url" 
-                                      ? "bg-background shadow-sm text-foreground font-medium" 
+                                    editBrandImageTab === "url"
+                                      ? "bg-background shadow-sm text-foreground font-medium"
                                       : "text-muted-foreground hover:text-foreground"
                                   }`}
                                 >
@@ -411,7 +440,7 @@ export default function BrandModal({ open, onOpenChange }: BrandModalProps) {
                                 </button>
                               </div>
                             </div>
-                            
+
                             {editBrandImageTab === "upload" ? (
                               <ImageUpload
                                 value={editImage}
@@ -465,8 +494,10 @@ export default function BrandModal({ open, onOpenChange }: BrandModalProps) {
                             <div className="relative w-16 h-16 rounded-lg border-2 bg-muted overflow-hidden flex-shrink-0">
                               {(() => {
                                 const imageUrl = brand.image_url?.trim();
-                                const hasValidUrl = isValidUrl(imageUrl) && !imageErrors.has(brand.id);
-                                
+                                const hasValidUrl =
+                                  isValidUrl(imageUrl) &&
+                                  !imageErrors.has(brand.id);
+
                                 if (hasValidUrl && imageUrl) {
                                   return (
                                     <Image
@@ -480,7 +511,32 @@ export default function BrandModal({ open, onOpenChange }: BrandModalProps) {
                                     />
                                   );
                                 }
-                                
+
+                                // Fallback to Brandfetch CDN
+                                if (!imageErrors.has(`bf-${brand.id}`)) {
+                                  const sanitizedDomain = brand.name
+                                    .toLowerCase()
+                                    .replace(/[^a-z0-9]/g, "");
+                                  const clientId =
+                                    process.env
+                                      .NEXT_PUBLIC_BRANDFETCH_CLIENT_ID || "";
+                                  const brandfetchUrl = `https://cdn.brandfetch.io/${sanitizedDomain}.com?c=${clientId}`;
+
+                                  return (
+                                    <Image
+                                      src={brandfetchUrl}
+                                      alt={brand.name}
+                                      fill
+                                      sizes="64px"
+                                      className="object-contain p-2"
+                                      onError={() =>
+                                        handleImageError(`bf-${brand.id}`)
+                                      }
+                                      unoptimized
+                                    />
+                                  );
+                                }
+
                                 return (
                                   <div className="w-full h-full flex items-center justify-center">
                                     <ImageIcon className="w-6 h-6 text-muted-foreground" />
@@ -564,8 +620,8 @@ export default function BrandModal({ open, onOpenChange }: BrandModalProps) {
         </div>
 
         <DialogFooter className="mt-4 flex flex-row gap-4 w-full">
-          <Button 
-            onClick={() => onOpenChange(false)} 
+          <Button
+            onClick={() => onOpenChange(false)}
             variant="chonky-secondary"
             className="flex-1"
           >

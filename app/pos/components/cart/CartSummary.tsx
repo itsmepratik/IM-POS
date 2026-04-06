@@ -85,20 +85,22 @@ export function CartSummary({
       </div>
 
       <div className="space-y-2">
-        <div className="flex flex-col sm:flex-row gap-2 mb-2">
-          {/* Customer Button */}
+        {/* Customer Row */}
+        <div className="flex w-full min-w-0">
           {currentCustomer ? (
-            <div className="flex w-full sm:flex-1 items-stretch">
+            <>
               <Button
                 variant="chonky-secondary"
                 className={cn(
-                  "h-auto py-[9px] rounded-[12px] rounded-r-none flex items-center justify-center gap-2 bg-blue-50 border border-blue-200 border-r-0 text-blue-700 hover:bg-blue-100 flex-1 truncate",
+                  "h-auto py-[9px] rounded-[12px] rounded-r-none flex items-center justify-center gap-2 bg-blue-50 border border-blue-200 border-r-0 text-blue-700 hover:bg-blue-100 flex-1 min-w-0 px-2",
                 )}
                 onClick={onOpenCustomer}
                 disabled={cart.length === 0}
               >
                 <User className="h-4 w-4 shrink-0" />
-                <span className="truncate">{currentCustomer.name}</span>
+                <span className="truncate block max-w-full text-left font-medium">
+                  {currentCustomer.name}
+                </span>
               </Button>
               <Button
                 variant="chonky-secondary"
@@ -114,69 +116,72 @@ export function CartSummary({
               >
                 <X className="h-4 w-4" />
               </Button>
-            </div>
+            </>
           ) : (
             <Button
               variant="chonky-secondary"
               className={cn(
-                "h-auto py-[9px] rounded-[12px] flex items-center justify-center gap-2 bg-blue-50 border border-blue-200 text-blue-700 hover:bg-blue-100",
-                "w-full sm:flex-1",
+                "h-auto py-[9px] rounded-[12px] flex items-center justify-center gap-2 bg-blue-50 border border-blue-200 text-blue-700 hover:bg-blue-100 flex-1 min-w-0",
               )}
               onClick={onOpenCustomer}
               disabled={cart.length === 0}
             >
-              <User className="h-4 w-4" />
-              <span className="truncate">Add Customer</span>
+              <User className="h-4 w-4 shrink-0" />
+              <span className="truncate block max-w-full">Add Customer</span>
             </Button>
           )}
-
-          {/* Discount & Trade-In Buttons */}
-          <div className={cn("flex gap-2 w-full", "sm:flex-1")}>
-            <Button
-              variant="chonky-secondary"
-              className={cn(
-                "h-auto py-[9px] rounded-[12px] flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-800",
-                cartContainsAnyBatteries(cart) ? "flex-1" : "w-full",
-              )}
-              onClick={onOpenDiscount}
-              disabled={cart.length === 0}
-            >
-              <Scissors className="h-4 w-4" />
-              <span className="truncate">
-                {appliedDiscount ? "Edit Discount" : "Discount"}
-              </span>
-            </Button>
-            {cartContainsAnyBatteries(cart) && (
-              <Button
-                variant="chonky-secondary"
-                className="h-auto py-[9px] rounded-[12px] flex-1 flex items-center justify-center gap-2 bg-secondary hover:bg-accent text-foreground border-input border"
-                onClick={onOpenTradeIn}
-                disabled={cart.length === 0}
-              >
-                <PercentIcon className="h-4 w-4" />
-                <span className="truncate">
-                  {appliedTradeInAmount > 0 ? "Edit Trade-In" : "Trade In"}
-                </span>
-              </Button>
-            )}
-          </div>
         </div>
 
-        <Button
-          variant="chonky"
-          className="w-full h-auto py-[9px] rounded-[12px]"
-          disabled={cart.length === 0 || isCheckoutLoading}
-          onClick={onCheckout}
-        >
-          {isCheckoutLoading ? (
-            <div className="flex items-center justify-center w-full">
-              <Spinner className="text-black mr-2" />
-              Processing...
-            </div>
-          ) : (
-            "Checkout"
+        {/* Action & Checkout Row */}
+        <div className="flex gap-2">
+          {/* Discount Button */}
+          <Button
+            variant="chonky-secondary"
+            className={cn(
+              "h-auto py-[9px] rounded-[12px] flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-800",
+              cartContainsAnyBatteries(cart) ? "flex-[0.5]" : "flex-[0.5]",
+            )}
+            onClick={onOpenDiscount}
+            disabled={cart.length === 0}
+          >
+            <Scissors className="h-4 w-4 shrink-0" />
+            <span className="truncate hidden sm:inline-block">
+              {appliedDiscount ? "Edit Discount" : "Discount"}
+            </span>
+          </Button>
+
+          {/* Trade In Button (Optional) */}
+          {cartContainsAnyBatteries(cart) && (
+            <Button
+              variant="chonky-secondary"
+              className="h-auto py-[9px] rounded-[12px] flex-[0.5] flex items-center justify-center gap-2 bg-secondary hover:bg-accent text-foreground border-input border"
+              onClick={onOpenTradeIn}
+              disabled={cart.length === 0}
+            >
+              <PercentIcon className="h-4 w-4 shrink-0" />
+              <span className="truncate hidden sm:inline-block">
+                {appliedTradeInAmount > 0 ? "Edit Trade-In" : "Trade In"}
+              </span>
+            </Button>
           )}
-        </Button>
+
+          {/* Checkout Button */}
+          <Button
+            variant="chonky"
+            className="flex-1 h-auto py-[9px] rounded-[12px]"
+            disabled={cart.length === 0 || isCheckoutLoading}
+            onClick={onCheckout}
+          >
+            {isCheckoutLoading ? (
+              <div className="flex items-center justify-center w-full">
+                <Spinner className="text-black mr-2" />
+                Processing...
+              </div>
+            ) : (
+              "Checkout"
+            )}
+          </Button>
+        </div>
       </div>
     </>
   );

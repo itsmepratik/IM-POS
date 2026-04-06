@@ -76,8 +76,10 @@ export function MobileCart({
     <div
       className={cn(
         "fixed inset-0 bg-background/80 backdrop-blur-sm z-50 lg:hidden transition-all duration-300",
-        showCart ? "opacity-100 pointer-events-auto" : "opacity-0",
-        !cartVisible && "pointer-events-none",
+        showCart
+          ? "opacity-100 pointer-events-auto"
+          : "opacity-0 pointer-events-none",
+        !cartVisible && "hidden",
       )}
     >
       <div

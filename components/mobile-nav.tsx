@@ -7,6 +7,13 @@ import { Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Home,
   RefreshCcw,
   Settings,
@@ -39,7 +46,7 @@ export function MobileNav({ className }: { className?: string }) {
   const [open, setOpen] = React.useState(false);
   const [inventoryOpen, setInventoryOpen] = React.useState(false);
   const [ordersOpen, setOrdersOpen] = React.useState(false);
-  const [profileMenuOpen, setProfileMenuOpen] = React.useState(false);
+  const [ordersOpen, setOrdersOpen] = React.useState(false);
   const [isLoggingOut, setIsLoggingOut] = React.useState(false);
   const { currentUser, signOut, hasPermission } = useUser();
   const { notifications, unreadCount } = useNotification();
@@ -399,13 +406,14 @@ export function MobileNav({ className }: { className?: string }) {
                 </Link>
               )}
 
-            <div className="relative">
+            <div className="flex flex-col gap-2">
               {profileMenuOpen && (
-                <div className="absolute bottom-full left-0 right-0 mb-2 space-y-1 rounded-xl border-2 bg-background p-2 shadow-lg z-50">
+                <div className="space-y-1 rounded-xl border bg-muted/30 p-2 fade-in animate-in slide-in-from-bottom-2">
                   <button
                     onClick={() => {
-                      console.log("🔵 Profile clicked!");
                       setProfileMenuOpen(false);
+                      setOpen(false);
+                      router.push("/settings");
                     }}
                     className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground"
                   >
@@ -415,7 +423,6 @@ export function MobileNav({ className }: { className?: string }) {
 
                   <button
                     onClick={() => {
-                      console.log("🔵 Settings clicked!");
                       setProfileMenuOpen(false);
                       setOpen(false);
                       router.push("/settings");
@@ -427,10 +434,7 @@ export function MobileNav({ className }: { className?: string }) {
                   </button>
 
                   <button
-                    onClick={() => {
-                      console.log("🔵 Dark Mode clicked!");
-                      toggleDarkMode();
-                    }}
+                    onClick={() => toggleDarkMode()}
                     className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground"
                   >
                     <div className="flex items-center gap-3">
@@ -443,26 +447,22 @@ export function MobileNav({ className }: { className?: string }) {
                     </div>
                     <Switch
                       checked={darkMode}
-                      onCheckedChange={(checked) => {
-                        console.log("🔵 Switch toggled:", checked);
-                        setDarkMode(checked);
-                      }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                      }}
+                      onCheckedChange={(checked) => setDarkMode(checked)}
+                      onClick={(e) => e.stopPropagation()}
+                      className="scale-75"
                     />
                   </button>
 
-                  <div className="h-[2px] bg-muted my-2" />
+                  <div className="mx-2 my-1 h-[1px] bg-border" />
 
                   <button
-                    onClick={() => {
-                      console.log("🔵 Logout clicked!");
+                    onClick={(e) => {
+                      e.preventDefault();
                       setProfileMenuOpen(false);
                       handleLogout();
                     }}
                     disabled={isLoggingOut}
-                    className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground disabled:opacity-50 disabled:pointer-events-none"
+                    className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50"
                   >
                     <LogOut className="h-5 w-5 stroke-[2]" />
                     <span>{isLoggingOut ? "Logging out..." : "Log out"}</span>
@@ -471,10 +471,7 @@ export function MobileNav({ className }: { className?: string }) {
               )}
 
               <button
-                onClick={() => {
-                  console.log("🔵 Profile menu toggle clicked!");
-                  setProfileMenuOpen(!profileMenuOpen);
-                }}
+                onClick={() => setProfileMenuOpen(!profileMenuOpen)}
                 className="flex w-full items-center gap-3 px-3 py-2 rounded-md hover:bg-accent transition-colors duration-200"
               >
                 <Avatar className="h-8 w-8">

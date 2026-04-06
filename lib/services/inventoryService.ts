@@ -111,7 +111,7 @@ export type Category = {
 export type Brand = {
   id: string;
   name: string;
-  imageUrl?: string | null; // Direct image URL column in database
+  image_url?: string | null; // Direct image URL column in database
 };
 
 export type Supplier = {
