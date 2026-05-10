@@ -177,22 +177,20 @@ export const getCachedProducts = async (locationId: string) => {
                 inv.openBottlesStock || 0,
                 inv.closedBottlesStock || 0,
               );
-              derivedOpenBottles = legacyResult.openBottleCount;
+              derivedOpenBottles = openBottleRows.length;
               derivedClosedBottles = legacyResult.closedBottleCount;
-              if (openBottleRows.length > 0) {
-                totalOpenVolume = openBottleRows.reduce(
-                  (sum: number, b: any) =>
-                    sum + (parseFloat(b.currentVolume) || 0),
-                  0,
-                );
-              }
+              totalOpenVolume = openBottleRows.reduce(
+                (sum: number, b: any) =>
+                  sum + (parseFloat(b.currentVolume) || 0),
+                0,
+              );
             }
           }
 
           const finalStock = isOilProduct
             ? batchStock !== null
               ? batchStock + derivedOpenBottles
-              : inv.standard_stock || 0
+              : derivedClosedBottles + derivedOpenBottles
             : batchStock !== null
               ? batchStock
               : inv.standard_stock || 0;

@@ -134,6 +134,11 @@ export function calculateLubricantStock(
  * Legacy fallback calculation using inventory table columns directly.
  * Used when batches are not available (for backward compatibility).
  *
+ * IMPORTANT: For `openBottleCount`, callers should prefer counting non-empty
+ * `open_bottle_details` rows. `inventory.open_bottles_stock` can diverge
+ * (e.g. pre-migration data, manual edits, or sync trigger category mismatch)
+ * while the details table stays empty.
+ *
  * @param openBottlesStock - Value from inventory.open_bottles_stock
  * @param closedBottlesStock - Value from inventory.closed_bottles_stock
  */

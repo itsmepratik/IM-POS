@@ -533,21 +533,20 @@ export const fetchInventoryItems = async (
             derivedClosedBottles = stockResult.closedBottleCount;
             totalOpenVolume = stockResult.totalOpenVolume;
           } else {
-            // Fallback to legacy calculation
+            // No batch rows: closed bottles still come from inventory columns;
+            // open bottle count MUST come from open_bottle_details (not
+            // open_bottles_stock), which drifted historically for many SKUs.
             const legacyResult = calculateLubricantStockLegacy(
               inv.open_bottles_stock,
               inv.closed_bottles_stock,
             );
-            derivedOpenBottles = legacyResult.openBottleCount;
+            derivedOpenBottles = openBottleRows?.length ?? 0;
             derivedClosedBottles = legacyResult.closedBottleCount;
-            // Calculate totalOpenVolume from actual open bottles if available
-            if (openBottleRows) {
-              totalOpenVolume = openBottleRows.reduce(
-                (sum: any, b: any) =>
-                  sum + (parseFloat(String(b.current_volume)) || 0),
-                0,
-              );
-            }
+            totalOpenVolume = (openBottleRows ?? []).reduce(
+              (sum: number, b: { current_volume: string | number }) =>
+                sum + (parseFloat(String(b.current_volume)) || 0),
+              0,
+            );
           }
         }
 
@@ -555,7 +554,7 @@ export const fetchInventoryItems = async (
         const finalStock = isOilProduct
           ? batchStock !== null
             ? batchStock + derivedOpenBottles
-            : inv.standard_stock || 0
+            : derivedClosedBottles + derivedOpenBottles
           : batchStock !== null
             ? batchStock
             : inv.standard_stock || 0;
@@ -828,21 +827,18 @@ export const fetchItems = async (
             ) {
             }
           } else {
-            // Fallback for legacy items without batches
+            // No batch rows: derive open count from open_bottle_details only
             const legacyResult = calculateLubricantStockLegacy(
               inv.open_bottles_stock,
               inv.closed_bottles_stock,
             );
-            derivedOpenBottles = legacyResult.openBottleCount;
+            derivedOpenBottles = openBottleRows?.length ?? 0;
             derivedClosedBottles = legacyResult.closedBottleCount;
-            // Calculate totalOpenVolume from actual open bottles if available
-            if (openBottleRows) {
-              totalOpenVolume = openBottleRows.reduce(
-                (sum: any, b: any) =>
-                  sum + (parseFloat(String(b.current_volume)) || 0),
-                0,
-              );
-            }
+            totalOpenVolume = (openBottleRows ?? []).reduce(
+              (sum: number, b: { current_volume: string | number }) =>
+                sum + (parseFloat(String(b.current_volume)) || 0),
+              0,
+            );
 
             // DEBUG: Log fallback (no batches)
             if (
@@ -859,7 +855,7 @@ export const fetchItems = async (
         const totalStock = isOilProduct
           ? batchStock !== null
             ? batchStock + derivedOpenBottles
-            : inv.standard_stock || 0
+            : derivedClosedBottles + derivedOpenBottles
           : batchStock !== null
             ? batchStock
             : inv.standard_stock || 0;

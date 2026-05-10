@@ -1,8 +1,6 @@
 "use server";
 
-import { unstable_cache } from "next/cache";
 import { fetchInventoryItems } from "@/lib/services/inventoryService";
-import { CACHE_TAGS } from "@/lib/db/cache-tags";
 import { createClient } from "@/supabase/server";
 import { createAdminClient } from "@/supabase/admin";
 
@@ -26,8 +24,6 @@ export async function getInventoryServerAction(
     sortOrder?: "asc" | "desc";
   } = {},
 ) {
-  // 1. Verify Authentication
-  // We must do this outside unstable_cache because cookies() are request-specific
   const supabaseServer = await createClient();
   const {
     data: { user },
@@ -39,37 +35,18 @@ export async function getInventoryServerAction(
     return { data: [], count: 0 };
   }
 
-  // Create a stable string representation for the cache key
-  const filterStr = JSON.stringify(filters || {});
-  // Changed to "v5-p" to bust cache after fixing the batteryState bug
-  const cacheKeyStr = `v5-p${page}-l${limit}-s${search}-c${categoryId}-b${brandId}-f${filterStr}`;
+  // No unstable_cache here: inventory must reflect the DB immediately (including
+  // changes made directly in Supabase). A 1-hour cache caused stale bottle counts.
 
-  const getCachedData = unstable_cache(
-    async () => {
-      // Execute the heavy DB query via service
-      // We MUST use the admin client here because unstable_cache callback
-      // does not have access to cookies(), so RLS would block an anonymous client.
-      const adminClient = createAdminClient();
-      return fetchInventoryItems(
-        page,
-        limit,
-        search,
-        categoryId,
-        brandId,
-        locationId,
-        filters,
-        adminClient,
-      );
-    },
-    [CACHE_TAGS.inventory(locationId, cacheKeyStr)],
-    {
-      tags: [
-        CACHE_TAGS.inventory(locationId), // Tag to invalidate this specific location's inventory
-        CACHE_TAGS.ALL_PRODUCTS, // Global fallback tag
-      ],
-      revalidate: 3600, // 1 hour, depends on mutations to revalidate
-    },
+  const adminClient = createAdminClient();
+  return fetchInventoryItems(
+    page,
+    limit,
+    search,
+    categoryId,
+    brandId,
+    locationId,
+    filters,
+    adminClient,
   );
-
-  return getCachedData();
 }
