@@ -83,11 +83,11 @@ function FilterImage({
       if (imageUrl) {
         cacheImageInvalid(imageUrl);
       }
-      if (e && 'currentTarget' in e) {
+      if (e && "currentTarget" in e) {
         e.currentTarget.onerror = null;
       }
     },
-    [imageUrl]
+    [imageUrl],
   );
 
   const handleLoad = React.useCallback(() => {
@@ -109,10 +109,7 @@ function FilterImage({
   }
 
   return (
-    <ImageErrorFallback
-      onError={handleError}
-      className="w-full h-full"
-    >
+    <ImageErrorFallback onError={handleError} className="w-full h-full">
       <Image
         src={imageUrl}
         alt={`${brand} ${type} ${filterName}`}
@@ -123,6 +120,7 @@ function FilterImage({
         onLoad={handleLoad}
         loading="lazy"
         quality={85}
+        unoptimized
       />
     </ImageErrorFallback>
   );
@@ -165,7 +163,6 @@ export function FilterModal({
         <DialogHeader className="p-0 shrink-0 pb-6">
           <DialogTitle className="text-[clamp(1.125rem,3vw,1.25rem)] font-semibold">
             {selectedFilterBrand} - {selectedFilterType}
-
           </DialogTitle>
         </DialogHeader>
 
@@ -178,63 +175,74 @@ export function FilterModal({
                 gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
               }}
             >
-              {[...filters].sort((a, b) => a.name.localeCompare(b.name)).map((filter) => {
-                const available = filter.availableQuantity ?? 0;
-                const isOutOfStock = available <= 0;
-                const isSelected = selectedFilters.some((sf) => sf.id === filter.id);
+              {[...filters]
+                .sort((a, b) => a.name.localeCompare(b.name))
+                .map((filter) => {
+                  const available = filter.availableQuantity ?? 0;
+                  const isOutOfStock = available <= 0;
+                  const isSelected = selectedFilters.some(
+                    (sf) => sf.id === filter.id,
+                  );
 
-                return (
-                  <Button
-                    key={filter.id}
-                    variant={isSelected ? "chonky" : "outline"}
-                    disabled={false} // Always clickable to show notification
-                    className={`border-2 rounded-[18px] flex flex-col items-center justify-between p-3 sm:p-4 h-[180px] sm:h-[200px] md:h-[220px] overflow-hidden shadow-sm hover:shadow-md transition-all relative ${
-                      isOutOfStock 
-                      ? "opacity-60 bg-muted/50" 
-                      : isSelected ? "ring-2 ring-primary" : ""
-                    }`}
-                    onClick={() => {
-                      if (isOutOfStock) {
-                         addPersistentNotification({
-                           type: "error",
-                           title: "Out of Stock",
-                           message: `${filter.name} is currently out of stock.`,
-                           category: "stock"
-                         });
-                         return;
-                      }
-                      onFilterClick(filter);
-                    }}
-                    type="button"
-                  >
-                    {/* Stock Badge - REMOVED per user request */}
-
-                    <div className="relative w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 mb-2 flex items-center justify-center">
-                      <FilterImage
-                        imageUrl={filter.imageUrl}
-                        brand={selectedFilterBrand || ""}
-                        type={selectedFilterType || ""}
-                        filterName={filter.name}
-                      />
-                      {/* Out of Stock Overlay - Matches Lubricant Style */}
-                      {isOutOfStock && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-[1px] rounded-md z-1">
-                           <Badge variant="destructive" className="text-[10px]">Out of Stock</Badge>
-                        </div>
-                      )}
-                    </div>
-                    <span
-                      className="text-center font-medium text-xs sm:text-sm w-full px-1 whitespace-normal leading-tight hyphens-auto break-words"
-                      style={{ lineHeight: 1.1 }}
+                  return (
+                    <Button
+                      key={filter.id}
+                      variant={isSelected ? "chonky" : "outline"}
+                      disabled={false} // Always clickable to show notification
+                      className={`border-2 rounded-[18px] flex flex-col items-center justify-between p-3 sm:p-4 h-[180px] sm:h-[200px] md:h-[220px] overflow-hidden shadow-sm hover:shadow-md transition-all relative ${
+                        isOutOfStock
+                          ? "opacity-60 bg-muted/50"
+                          : isSelected
+                            ? "ring-2 ring-primary"
+                            : ""
+                      }`}
+                      onClick={() => {
+                        if (isOutOfStock) {
+                          addPersistentNotification({
+                            type: "error",
+                            title: "Out of Stock",
+                            message: `${filter.name} is currently out of stock.`,
+                            category: "stock",
+                          });
+                          return;
+                        }
+                        onFilterClick(filter);
+                      }}
+                      type="button"
                     >
-                      {filter.name}
-                    </span>
-                    <span className="block text-xs sm:text-sm text-[#6d6d6d] mt-1">
-                      OMR {filter.price.toFixed(3)}
-                    </span>
-                  </Button>
-                );
-              })}
+                      {/* Stock Badge - REMOVED per user request */}
+
+                      <div className="relative w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 mb-2 flex items-center justify-center">
+                        <FilterImage
+                          imageUrl={filter.imageUrl}
+                          brand={selectedFilterBrand || ""}
+                          type={selectedFilterType || ""}
+                          filterName={filter.name}
+                        />
+                        {/* Out of Stock Overlay - Matches Lubricant Style */}
+                        {isOutOfStock && (
+                          <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-[1px] rounded-md z-1">
+                            <Badge
+                              variant="destructive"
+                              className="text-[10px]"
+                            >
+                              Out of Stock
+                            </Badge>
+                          </div>
+                        )}
+                      </div>
+                      <span
+                        className="text-center font-medium text-xs sm:text-sm w-full px-1 whitespace-normal leading-tight hyphens-auto break-words"
+                        style={{ lineHeight: 1.1 }}
+                      >
+                        {filter.name}
+                      </span>
+                      <span className="block text-xs sm:text-sm text-[#6d6d6d] mt-1">
+                        OMR {filter.price.toFixed(3)}
+                      </span>
+                    </Button>
+                  );
+                })}
             </div>
 
             {/* Selected filters list - bulletproof against overflow */}

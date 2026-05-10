@@ -25,46 +25,63 @@ export function BrandLogo({
   onColorExtracted,
 }: BrandLogoProps) {
   const [hasError, setHasError] = React.useState(false);
+  const [useBrandfetchFallback, setUseBrandfetchFallback] = React.useState(false);
   const hasLoadedRef = React.useRef(false);
 
   // Find the brand data from the database
   const brandData = React.useMemo(() => {
-    return brands?.find((b) => b.name.toLowerCase() === brand.toLowerCase());
+    return brands?.find((b) => {
+      const dbName = b.name.toLowerCase().replace(/[^a-z0-9]/g, "");
+      const propName = brand.toLowerCase().replace(/[^a-z0-9]/g, "");
+      return dbName === propName;
+    });
   }, [brands, brand]);
 
   // Get the image URL from brand data or direct prop
   const databaseImageUrl = React.useMemo(() => {
     if (imageUrl) return imageUrl;
-    if (!brandData?.image_url) return null;
-    return brandData.image_url;
+    if (!(brandData as any)?.image_url && !(brandData as any)?.imageUrl)
+      return null;
+    return (brandData as any)?.image_url || (brandData as any)?.imageUrl;
   }, [brandData, imageUrl]);
 
   // Determine which image source to use
   const imgSrc = React.useMemo(() => {
-    // Use database image if available and valid
-    if (databaseImageUrl && isValidImageUrl(databaseImageUrl)) {
-      return databaseImageUrl;
-    }
-
-    // Create Brandfetch CDN URL based on Brand string
+    let brandfetchUrl = null;
     if (brand && typeof brand === "string" && brand.trim() !== "") {
       const sanitizedDomain = brand.toLowerCase().replace(/[^a-z0-9]/g, "");
       const clientId = process.env.NEXT_PUBLIC_BRANDFETCH_CLIENT_ID || "";
-      return `https://cdn.brandfetch.io/${sanitizedDomain}.com?c=${clientId}`;
+      brandfetchUrl = `https://cdn.brandfetch.io/${sanitizedDomain}.com?c=${clientId}`;
     }
 
-    // Otherwise return null to show fallback icon
-    return null;
-  }, [databaseImageUrl, brand]);
+    // Use database image if available and valid and we haven't failed yet
+    if (!useBrandfetchFallback && databaseImageUrl && isValidImageUrl(databaseImageUrl)) {
+      return databaseImageUrl;
+    }
+
+    return brandfetchUrl;
+  }, [databaseImageUrl, brand, useBrandfetchFallback]);
+
+  // Reset states when brand or external URL changes fundamentally
+  React.useEffect(() => {
+    setUseBrandfetchFallback(false);
+  }, [brand, databaseImageUrl]);
 
   // Reset loaded ref when imgSrc changes
   React.useEffect(() => {
     hasLoadedRef.current = false;
+    setHasError(false);
   }, [imgSrc]);
 
   const handleError = React.useCallback(
     (e?: any) => {
-      setHasError(true);
+      if (!useBrandfetchFallback && databaseImageUrl && imgSrc === databaseImageUrl) {
+        // Fallback to brandfetch if DB image failed
+        setUseBrandfetchFallback(true);
+      } else {
+        setHasError(true);
+      }
+      
       if (imgSrc) {
         cacheImageInvalid(imgSrc);
       }
@@ -72,7 +89,7 @@ export function BrandLogo({
         e.currentTarget.onerror = null;
       }
     },
-    [imgSrc],
+    [imgSrc, useBrandfetchFallback, databaseImageUrl],
   );
 
   const handleLoad = React.useCallback(
@@ -121,20 +138,21 @@ export function BrandLogo({
     );
   }
 
+  const requiresCrossOrigin = React.useMemo(() => {
+    if (!imgSrc) return false;
+    return imgSrc.includes("brandfetch.io") || imgSrc.includes("supabase.co");
+  }, [imgSrc]);
+
   return (
     <ImageErrorFallback onError={handleError} className="w-full h-full">
-      <Image
+      <img
         src={imgSrc}
         alt={`${brand} logo`}
-        className="object-contain rounded-md transition-opacity duration-200"
-        fill
-        sizes="(max-width: 768px) 48px, (max-width: 1024px) 64px, 80px"
+        className="w-full h-full object-contain rounded-md transition-opacity duration-200"
         onError={handleError}
-        onLoad={handleLoad}
+        onLoad={handleLoad as any}
         loading="lazy"
-        quality={85}
-        unoptimized
-        crossOrigin="anonymous"
+        crossOrigin={requiresCrossOrigin ? "anonymous" : undefined}
       />
     </ImageErrorFallback>
   );

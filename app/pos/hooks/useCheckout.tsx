@@ -413,6 +413,31 @@ export function useCheckout({
     [syncProducts, toast],
   );
 
+  /** Reset all POS state after a transaction is complete */
+  const resetPOSState = useCallback(() => {
+    contextClearCart();
+    setShowCart(false);
+    setSelectedPaymentMethod(null);
+    setAppliedDiscount(null);
+    setDiscountValue(0);
+    setAppliedTradeInAmount(0);
+    resetTradeInDialog();
+    setSelectedCashier(null);
+    setEnteredCashierId("");
+    setFetchedCashier(null);
+    setCashierIdError(null);
+    setPaymentRecipient(null);
+    setCurrentCustomer(null);
+    setSelectedCustomerId("");
+  }, [
+    contextClearCart,
+    resetTradeInDialog,
+    setAppliedDiscount,
+    setDiscountValue,
+    setAppliedTradeInAmount,
+    setShowCart,
+  ]);
+
   // ── Optimistic Finalize Payment ───────────────────────────────────────
   // SYNCHRONOUS — shows success/ticket immediately, fires API in background.
   const handleFinalizePayment = useCallback(() => {
@@ -484,9 +509,10 @@ export function useCheckout({
         tradeinBatteries: [...tradeinBatteries],
       };
 
-      // Show on-hold ticket IMMEDIATELY
+      // Show on-hold ticket IMMEDIATELY and clear the cart behind the scenes
       setShowOnHoldTicket(true);
       setIsCashierSelectOpen(false);
+      resetPOSState();
 
       // Fire API in background
       const payload = {
@@ -559,9 +585,10 @@ export function useCheckout({
       tradeinBatteries: [...tradeinBatteries],
     };
 
-    // ── Show success IMMEDIATELY ───────────────────────────────────
+    // ── Show success IMMEDIATELY and clear the cart behind the scenes ──
     setIsCashierSelectOpen(false);
     setShowSuccess(true);
+    resetPOSState();
 
     // ── Fire API in background (non-blocking) ──────────────────────
     const payload = {
@@ -602,33 +629,10 @@ export function useCheckout({
     cart,
     processInBackground,
     processOnHoldInBackground,
+    resetPOSState,
     toast,
   ]);
 
-  /** Reset all POS state after a transaction is complete */
-  const resetPOSState = useCallback(() => {
-    contextClearCart();
-    setShowCart(false);
-    setSelectedPaymentMethod(null);
-    setAppliedDiscount(null);
-    setDiscountValue(0);
-    setAppliedTradeInAmount(0);
-    resetTradeInDialog();
-    setSelectedCashier(null);
-    setEnteredCashierId("");
-    setFetchedCashier(null);
-    setCashierIdError(null);
-    setPaymentRecipient(null);
-    setCurrentCustomer(null);
-    setSelectedCustomerId("");
-  }, [
-    contextClearCart,
-    resetTradeInDialog,
-    setAppliedDiscount,
-    setDiscountValue,
-    setAppliedTradeInAmount,
-    setShowCart,
-  ]);
 
   /** Handle customer form submission */
   const handleAddCustomer = useCallback((customerData: CustomerData) => {

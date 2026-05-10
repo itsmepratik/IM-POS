@@ -19,7 +19,7 @@ interface FiltersCategoryProps {
       name: string;
       price: number;
       quantity: number;
-    }>
+    }>,
   ) => void;
   setIsFilterBrandModalOpen: (open: boolean) => void;
   filterTypes: string[];
@@ -49,13 +49,10 @@ export function FiltersCategory({
         new Set(
           products
             .filter(
-              (p) =>
-                p.category === "Filters" &&
-                p.type === type &&
-                p.brand
+              (p) => p.category === "Filters" && p.type === type && p.brand,
             )
-            .map((p) => p.brand!)
-        )
+            .map((p) => p.brand!),
+        ),
       );
     };
   }, [products]);
@@ -67,9 +64,11 @@ export function FiltersCategory({
     return filterBrands
       .map((brandName) => {
         const brandData = brands.find(
-          (b) => b.name.toLowerCase() === brandName.toLowerCase()
+          (b) => b.name.toLowerCase() === brandName.toLowerCase(),
         );
-        return brandData?.imageUrl || null;
+        return (
+          (brandData as any)?.image_url || (brandData as any)?.imageUrl || null
+        );
       })
       .filter((url): url is string => url !== null);
   }, [brands, filterBrands]);
@@ -97,7 +96,7 @@ export function FiltersCategory({
     <div className="grid grid-cols-1 gap-4">
       {filterTypes
         .filter((type) =>
-          type.toLowerCase().includes(searchQuery.toLowerCase())
+          type.toLowerCase().includes(searchQuery.toLowerCase()),
         )
         .map((type) => (
           <div key={type} className="border rounded-lg overflow-hidden">
@@ -128,14 +127,36 @@ export function FiltersCategory({
               )}
             </Button>
             {selectedFilterType === type && (
-              <div
-                className="p-4 bg-muted/50 grid gap-4 grid-cols-2 md:grid-cols-4"
-              >
+              <div className="p-4 bg-muted/50 grid gap-4 grid-cols-2 md:grid-cols-4">
                 {getBrandsForType(type).map((brand) => (
                   <BrandCard
                     key={brand}
                     brand={brand}
                     brands={brands}
+                    imageUrl={
+                      (
+                        brands?.find((b) => {
+                          const dbName = b.name
+                            .toLowerCase()
+                            .replace(/[^a-z0-9]/g, "");
+                          const propName = brand
+                            .toLowerCase()
+                            .replace(/[^a-z0-9]/g, "");
+                          return dbName === propName;
+                        }) as any
+                      )?.image_url ||
+                      (
+                        brands?.find((b) => {
+                          const dbName = b.name
+                            .toLowerCase()
+                            .replace(/[^a-z0-9]/g, "");
+                          const propName = brand
+                            .toLowerCase()
+                            .replace(/[^a-z0-9]/g, "");
+                          return dbName === propName;
+                        }) as any
+                      )?.imageUrl
+                    }
                     onClick={() => {
                       setSelectedFilterBrand(brand);
                       setSelectedFilters([]);

@@ -1759,6 +1759,7 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated }: ItemModal
                                       ? new Date().toISOString().split("T")[0]
                                       : "2023-01-01",
                                     cost_price: 0,
+                                    initial_quantity: 0,
                                     current_quantity: 0,
                                   });
                                   setIsEditingBatch(true);
@@ -1884,7 +1885,20 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated }: ItemModal
                                     e.preventDefault();
                                     // Parse values for submission
                                     const parsedCostPrice = typeof editingBatch.cost_price === 'string' ? Number(editingBatch.cost_price) || 0 : editingBatch.cost_price;
-                                    const parsedQuantity = typeof editingBatch.current_quantity === 'string' ? Number(editingBatch.current_quantity) || 0 : editingBatch.current_quantity;
+                                    const parsedQtyRemaining =
+                                      typeof editingBatch.current_quantity === "string"
+                                        ? Number(editingBatch.current_quantity) || 0
+                                        : (editingBatch.current_quantity || 0);
+                                    const parsedQtyReceived =
+                                      typeof editingBatch.initial_quantity === "string"
+                                        ? Number(editingBatch.initial_quantity) || 0
+                                        : (editingBatch.initial_quantity || 0);
+
+                                    const safeQtyReceived = Math.max(0, parsedQtyReceived);
+                                    const safeQtyRemaining = Math.max(
+                                      0,
+                                      Math.min(parsedQtyRemaining, safeQtyReceived),
+                                    );
 
                                     if (editingBatch.id) {
                                       // Update batch in context
@@ -1895,7 +1909,8 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated }: ItemModal
                                           purchase_date:
                                             editingBatch.purchase_date,
                                           cost_price: parsedCostPrice,
-                                          current_quantity: parsedQuantity,
+                                          initial_quantity: safeQtyReceived,
+                                          current_quantity: safeQtyRemaining,
                                         }
                                       );
 
@@ -1909,7 +1924,8 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated }: ItemModal
                                                   editingBatch.purchase_date,
                                                 cost_price:
                                                   parsedCostPrice,
-                                                current_quantity: parsedQuantity,
+                                                initial_quantity: safeQtyReceived,
+                                                current_quantity: safeQtyRemaining,
                                               }
                                             : batch
                                         );
@@ -1934,8 +1950,8 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated }: ItemModal
                                       addBatch(formData.id, {
                                         purchase_date: editingBatch.purchase_date,
                                         cost_price: parsedCostPrice,
-                                        initial_quantity: parsedQuantity,
-                                        current_quantity: parsedQuantity,
+                                        initial_quantity: safeQtyReceived,
+                                        current_quantity: safeQtyRemaining,
                                         supplier_id: null,
                                         expiration_date: null,
                                       });
@@ -1949,8 +1965,8 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated }: ItemModal
                                         expiration_date: null,
                                         supplier_id: null,
                                         cost_price: parsedCostPrice,
-                                        initial_quantity: parsedQuantity,
-                                        current_quantity: parsedQuantity,
+                                        initial_quantity: safeQtyReceived,
+                                        current_quantity: safeQtyRemaining,
                                         created_at: new Date().toISOString(),
                                         updated_at: new Date().toISOString(),
                                       };
@@ -2028,24 +2044,68 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated }: ItemModal
                                     </div>
                                     <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
                                       <Label
-                                        htmlFor="quantity"
+                                        htmlFor="quantityReceived"
                                         className="sm:text-right text-sm"
                                       >
-                                        Quantity
+                                        Qty Received
                                       </Label>
                                       <div className="sm:col-span-3 space-y-1">
                                         <Input
-                                          id="quantity"
+                                          id="quantityReceived"
                                           type="number"
-                                          value={editingBatch.current_quantity || ""}
+                                          min="0"
+                                          value={editingBatch.initial_quantity ?? ""}
                                           onChange={(e) =>
                                             setEditingBatch({
                                               ...editingBatch,
-                                              current_quantity: e.target.value as any,
+                                              initial_quantity: e.target.value as any,
                                             })
                                           }
                                           required
                                         />
+                                      </div>
+                                    </div>
+                                    <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
+                                      <Label
+                                        htmlFor="quantityRemaining"
+                                        className="sm:text-right text-sm"
+                                      >
+                                        Qty Remaining
+                                      </Label>
+                                      <div className="sm:col-span-3 space-y-1">
+                                        <Input
+                                          id="quantityRemaining"
+                                          type="number"
+                                          min="0"
+                                          value={editingBatch.current_quantity ?? ""}
+                                          onChange={(e) =>
+                                            setEditingBatch((prev) => {
+                                              const nextRemaining = e.target.value as any;
+                                              const receivedRaw = prev.initial_quantity as any;
+                                              const received =
+                                                typeof receivedRaw === "string"
+                                                  ? Number(receivedRaw) || 0
+                                                  : Number(receivedRaw) || 0;
+                                              const remainingNum = Number(nextRemaining) || 0;
+                                              const clamped = Math.max(
+                                                0,
+                                                Math.min(remainingNum, Math.max(0, received)),
+                                              );
+                                              return {
+                                                ...prev,
+                                                current_quantity:
+                                                  typeof nextRemaining === "string" &&
+                                                  nextRemaining.trim() === ""
+                                                    ? ("" as any)
+                                                    : (clamped as any),
+                                              };
+                                            })
+                                          }
+                                          required
+                                        />
+                                        <div className="text-[10px] text-muted-foreground">
+                                          Remaining can’t exceed received.
+                                        </div>
                                       </div>
                                     </div>
                                   </div>

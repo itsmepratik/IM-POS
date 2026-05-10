@@ -95,6 +95,8 @@ export const products = pgTable(
   },
   (table) => ({
     categoryIdIdx: index("products_category_idx").on(table.categoryId),
+    brandIdIdx: index("products_brand_idx").on(table.brandId),
+    nameLowerIdx: index("products_name_lower_idx").on(sql`lower(${table.name})`),
   }),
 );
 
@@ -206,6 +208,9 @@ export const transactions = pgTable(
   },
   (table) => ({
     referenceNumberIdx: index("transactions_ref_idx").on(table.referenceNumber),
+    createdAtIdx: index("transactions_date_idx").on(table.createdAt),
+    customerIdIdx: index("transactions_customer_idx").on(table.customerId),
+    shopIdIdx: index("transactions_shop_idx").on(table.shopId),
   }),
 );
 
@@ -237,31 +242,48 @@ export const tradeInTransactions = pgTable("trade_in_transactions", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });
 
-export const customers = pgTable("customers", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  name: text("name").notNull(),
-  email: text("email"),
-  phone: text("phone"),
-  address: text("address"),
-  notes: text("notes"),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
-});
+export const customers = pgTable(
+  "customers",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    email: text("email"),
+    phone: text("phone"),
+    address: text("address"),
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  },
+  (table) => ({
+    nameLowerIdx: index("customers_name_lower_idx").on(
+      sql`lower(${table.name})`,
+    ),
+    phoneIdx: index("customers_phone_idx").on(table.phone),
+  }),
+);
 
-export const customerVehicles = pgTable("customer_vehicles", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  customerId: uuid("customer_id")
-    .notNull()
-    .references(() => customers.id, { onDelete: "cascade" }),
-  make: text("make").notNull(),
-  model: text("model").notNull(),
-  year: text("year").notNull(),
-  licensePlate: text("license_plate").notNull(),
-  vin: text("vin"),
-  notes: text("notes"),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
-});
+export const customerVehicles = pgTable(
+  "customer_vehicles",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    customerId: uuid("customer_id")
+      .notNull()
+      .references(() => customers.id, { onDelete: "cascade" }),
+    make: text("make").notNull(),
+    model: text("model").notNull(),
+    year: text("year").notNull(),
+    licensePlate: text("license_plate").notNull(),
+    vin: text("vin"),
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  },
+  (table) => ({
+    licensePlateLowerIdx: index("vehicles_plate_lower_idx").on(
+      sql`lower(${table.licensePlate})`,
+    ),
+  }),
+);
 
 export const openBottleDetails = pgTable(
   "open_bottle_details",

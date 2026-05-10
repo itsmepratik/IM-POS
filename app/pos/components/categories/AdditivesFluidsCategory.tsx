@@ -143,7 +143,7 @@ function AdditiveFluidImage({
         onLoad={handleLoad}
         loading="lazy"
         quality={85}
-        crossOrigin="anonymous"
+        unoptimized
       />
     </ImageErrorFallback>
   );
@@ -263,7 +263,7 @@ export function AdditivesFluidsCategory({
                             key={product.id}
                             variant="outline"
                             disabled={false} // Always clickable to show notification
-                            className={`border-2 rounded-[18px] flex flex-col items-center justify-between p-3 sm:p-4 h-[180px] sm:h-[200px] md:h-[220px] overflow-hidden shadow-sm hover:shadow-md transition-all relative ${
+                            className={`w-full h-full min-h-[220px] sm:min-h-[240px] flex-col overflow-hidden p-0 rounded-[18px] hover:bg-accent border-2 transition-all hover:scale-[1.02] group relative ${
                               isOutOfStock ? "opacity-60 bg-muted/50" : ""
                             }`}
                             onClick={() => {
@@ -285,25 +285,28 @@ export function AdditivesFluidsCategory({
                             }}
                           >
                             <div
-                              className="relative flex-1 w-full mt-2 mb-2 min-h-[60px] rounded-lg transition-colors"
+                              className="relative flex-1 w-full transition-colors"
                               style={{
                                 backgroundColor:
                                   productColors[product.id] || "transparent",
                               }}
                             >
-                              <AdditiveFluidImage
-                                imageUrl={product.imageUrl}
-                                productName={product.name}
-                                onColorExtracted={(color) => {
-                                  setProductColors((prev) => {
-                                    if (prev[product.id] === color) return prev;
-                                    return { ...prev, [product.id]: color };
-                                  });
-                                }}
-                              />
+                              <div className="absolute inset-2 sm:inset-3 md:inset-4">
+                                <AdditiveFluidImage
+                                  imageUrl={product.imageUrl}
+                                  productName={product.name}
+                                  onColorExtracted={(color) => {
+                                    setProductColors((prev) => {
+                                      if (prev[product.id] === color)
+                                        return prev;
+                                      return { ...prev, [product.id]: color };
+                                    });
+                                  }}
+                                />
+                              </div>
                               {/* Out of Stock Overlay */}
                               {isOutOfStock && (
-                                <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-[1px] rounded-md z-1">
+                                <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-[1px] z-10">
                                   <Badge
                                     variant="destructive"
                                     className="text-[10px]"
@@ -314,16 +317,11 @@ export function AdditivesFluidsCategory({
                               )}
                             </div>
 
-                            <div className="text-center shrink-0 flex flex-col justify-end w-full gap-0.5 mt-1 z-10">
-                              <div className="flex flex-col w-full">
-                                <span
-                                  className="text-center font-semibold text-[10px] sm:text-xs w-full px-1 word-wrap whitespace-normal leading-tight hyphens-auto line-clamp-2"
-                                  style={{ lineHeight: 1.1 }}
-                                >
-                                  {product.name}
-                                </span>
-                              </div>
-                              <span className="block text-sm font-bold text-[#6d6d6d] mt-0">
+                            <div className="w-full bg-slate-50 border-t py-2 px-2 shrink-0 flex flex-col items-center justify-center min-h-[50px] sm:min-h-[60px] z-10">
+                              <span className="text-center font-semibold text-[10px] sm:text-xs w-full px-1 break-words line-clamp-2 text-foreground leading-tight">
+                                {product.name}
+                              </span>
+                              <span className="block text-xs sm:text-sm font-bold text-[#6d6d6d] mt-0.5">
                                 OMR {product.price.toFixed(3)}
                               </span>
                             </div>

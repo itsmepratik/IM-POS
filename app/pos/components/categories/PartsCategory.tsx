@@ -48,14 +48,9 @@ export function PartsCategory({
       return Array.from(
         new Set(
           products
-            .filter(
-              (p) =>
-                p.category === "Parts" &&
-                p.type === type &&
-                p.brand
-            )
-            .map((p) => p.brand!)
-        )
+            .filter((p) => p.category === "Parts" && p.type === type && p.brand)
+            .map((p) => p.brand!),
+        ),
       );
     };
   }, [products]);
@@ -67,9 +62,9 @@ export function PartsCategory({
     return partBrands
       .map((brandName) => {
         const brandData = brands.find(
-          (b) => b.name.toLowerCase() === brandName.toLowerCase()
+          (b) => b.name.toLowerCase() === brandName.toLowerCase(),
         );
-        return brandData?.imageUrl || null;
+        return brandData?.image_url || null;
       })
       .filter((url): url is string => url !== null);
   }, [brands, partBrands]);
@@ -97,7 +92,7 @@ export function PartsCategory({
     <div className="grid grid-cols-1 gap-4">
       {partTypes
         .filter((type) =>
-          type.toLowerCase().includes(searchQuery.toLowerCase())
+          type.toLowerCase().includes(searchQuery.toLowerCase()),
         )
         .map((type) => (
           <div key={type} className="border rounded-lg overflow-hidden">
@@ -116,14 +111,36 @@ export function PartsCategory({
               )}
             </Button>
             {selectedPartType === type && (
-              <div
-                className="p-4 bg-muted/50 grid gap-4 grid-cols-2 md:grid-cols-4"
-              >
+              <div className="p-4 bg-muted/50 grid gap-4 grid-cols-2 md:grid-cols-4">
                 {getBrandsForType(type).map((brand) => (
                   <BrandCard
                     key={brand}
                     brand={brand}
                     brands={brands}
+                    imageUrl={
+                      (
+                        brands?.find((b) => {
+                          const dbName = b.name
+                            .toLowerCase()
+                            .replace(/[^a-z0-9]/g, "");
+                          const propName = brand
+                            .toLowerCase()
+                            .replace(/[^a-z0-9]/g, "");
+                          return dbName === propName;
+                        }) as any
+                      )?.image_url ||
+                      (
+                        brands?.find((b) => {
+                          const dbName = b.name
+                            .toLowerCase()
+                            .replace(/[^a-z0-9]/g, "");
+                          const propName = brand
+                            .toLowerCase()
+                            .replace(/[^a-z0-9]/g, "");
+                          return dbName === propName;
+                        }) as any
+                      )?.imageUrl
+                    }
                     onClick={() => {
                       setSelectedPartBrand(brand);
                       setSelectedParts([]);

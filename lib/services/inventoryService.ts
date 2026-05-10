@@ -1790,7 +1790,7 @@ export const addBrandService = async (
       .from("brands")
       .insert({
         name: brand.name,
-        image_url: brand.imageUrl || null,
+        image_url: brand.image_url || null,
       })
       .select()
       .single();
@@ -1822,9 +1822,9 @@ export const updateBrandService = async (
       dbUpdates.name = updates.name;
     }
 
-    if (updates.imageUrl !== undefined) {
+    if (updates.image_url !== undefined) {
       // Update the image_url column directly
-      dbUpdates.image_url = updates.imageUrl || null;
+      dbUpdates.image_url = updates.image_url || null;
     }
 
     const { data, error } = await supabase

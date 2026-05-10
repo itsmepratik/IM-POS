@@ -1,3 +1,6 @@
+"use client";
+
+import React, { useState } from "react";
 import { BrandLogo } from "../brand-logo";
 import { Brand } from "@/lib/services/inventoryService";
 
@@ -6,6 +9,7 @@ interface BrandCardProps {
   onClick: () => void;
   productCount?: number;
   brands?: Brand[]; // Optional brands data for database images
+  imageUrl?: string | null;
 }
 
 export function BrandCard({
@@ -13,27 +17,39 @@ export function BrandCard({
   onClick,
   productCount,
   brands,
+  imageUrl,
 }: BrandCardProps) {
+  const [bgColor, setBgColor] = useState<string>("#ffffff");
+
   return (
     <button
-      className="flex flex-col items-center justify-center border-2 rounded-[18px] bg-background shadow-sm p-3 sm:p-4 h-[120px] sm:h-[140px] md:h-[160px] transition hover:bg-accent focus:outline-none focus:ring-2 focus:ring-muted-foreground/30"
+      className="w-full h-full min-h-[150px] sm:min-h-[170px] md:min-h-[190px] flex flex-col overflow-hidden p-0 rounded-xl hover:bg-accent border-2 transition-all hover:scale-[1.02] group focus:outline-none focus:ring-2 focus:ring-muted-foreground/30"
       onClick={onClick}
       type="button"
     >
-      <div className="relative w-12 h-12 sm:w-16 sm:h-16 mb-2 flex items-center justify-center">
-        <BrandLogo brand={brand} brands={brands} />
-      </div>
-      <span
-        className="text-[clamp(0.7rem,1.5vw,0.85rem)] font-medium text-center line-clamp-2 leading-tight px-1 whitespace-normal break-words"
-        style={{ lineHeight: 1 }}
+      <div
+        className="relative flex-1 w-full transition-colors min-h-[100px] sm:min-h-[120px]"
+        style={{ backgroundColor: bgColor }}
       >
-        {brand}
-      </span>
-      {productCount !== undefined && (
-        <span className="text-xs text-muted-foreground mt-1">
-          {productCount} products
+        <div className="absolute inset-1 sm:inset-1 flex items-center justify-center">
+          <BrandLogo
+             brand={brand}
+             brands={brands}
+             imageUrl={imageUrl}
+             onColorExtracted={(color) => setBgColor(color)}
+          />
+        </div>
+      </div>
+      <div className="w-full bg-slate-50 border-t py-2 px-3 shrink-0 flex flex-col items-center justify-center min-h-[48px] sm:min-h-[50px]">
+        <span className="font-semibold text-center text-sm md:text-base break-words w-full line-clamp-1 block text-foreground leading-tight">
+          {brand}
         </span>
-      )}
+        {productCount !== undefined && (
+          <span className="text-xs text-muted-foreground mt-0.5">
+            {productCount} products
+          </span>
+        )}
+      </div>
     </button>
   );
 }

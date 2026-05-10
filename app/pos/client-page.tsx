@@ -1067,8 +1067,8 @@ export function POSClient({ initialData }: { initialData?: any }) {
                       </TabsTrigger>
                     </TabsList>
                   </div>
-                  <ScrollArea className="flex-1 mt-4 -mx-2 px-2">
-                    <div className="grid grid-cols-1 gap-4">
+                  <ScrollArea className="flex-1 mt-4 -mx-2 px-2" viewportClassName="!overflow-visible">
+                    <div className="grid grid-cols-1 gap-4 p-2 overflow-visible">
                       {activeCategory === "Lubricants" ? (
                         <LubricantCategory
                           searchQuery={searchQuery}

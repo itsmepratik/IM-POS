@@ -117,18 +117,15 @@ function LubricantImage({
   return (
     <ImageErrorFallback
       onError={handleError}
-      className="w-full h-full rounded-md"
+      className="w-full h-full rounded-md flex items-center justify-center p-1"
     >
-      <Image
+      <img
         src={imageUrl}
         alt={`${brand} ${type}`}
-        className="object-contain rounded-md transition-opacity duration-200"
-        fill
-        sizes="(max-width: 640px) 64px, (max-width: 768px) 80px, (max-width: 1024px) 96px, 128px"
+        className="w-full h-full object-contain rounded-md transition-opacity duration-200"
         onError={handleError}
-        onLoad={handleLoad}
+        onLoad={handleLoad as any}
         loading="lazy"
-        quality={85}
         crossOrigin="anonymous"
       />
     </ImageErrorFallback>
@@ -198,14 +195,14 @@ export function LubricantCategory({
           <DialogTrigger asChild>
             <Button
               variant="outline"
-              className="w-full h-full min-h-[150px] sm:min-h-[170px] md:min-h-[190px] flex-col overflow-hidden p-0 rounded-xl hover:bg-accent border-2 transition-all hover:scale-[1.02] group"
+              className="w-full h-full min-h-[150px] sm:min-h-[170px] md:min-h-[190px] flex-col overflow-visible p-0 rounded-xl hover:bg-accent border-2 transition-all hover:scale-[1.02] group"
               onClick={() => setExpandedBrand(brand)}
             >
               <div
-                className="relative flex-1 w-full transition-colors min-h-[100px] sm:min-h-[120px]"
+                className="relative flex-1 w-full transition-colors min-h-[100px] sm:min-h-[120px] rounded-t-[10px]"
                 style={{ backgroundColor: brandColors[brand] || "#ffffff" }}
               >
-                <div className="absolute inset-2 sm:inset-2 md:inset-3">
+                <div className="absolute inset-1 sm:inset-1 flex items-center justify-center">
                   <BrandLogo
                     brand={brand}
                     brands={brands}
@@ -219,7 +216,7 @@ export function LubricantCategory({
                   />
                 </div>
               </div>
-              <div className="w-full bg-slate-50 border-t py-1 sm:py-1.5 px-3 shrink-0 flex items-center justify-center min-h-[32px] sm:min-h-[36px]">
+              <div className="w-full bg-slate-50 border-t py-1 sm:py-1.5 px-3 shrink-0 flex items-center justify-center min-h-[32px] sm:min-h-[36px] rounded-b-[10px]">
                 <span className="font-semibold text-center text-sm md:text-base break-words w-full line-clamp-1 block text-foreground leading-tight">
                   {brand}
                 </span>
@@ -260,7 +257,7 @@ export function LubricantCategory({
                           <Button
                             key={lubricant.id}
                             variant="outline"
-                            className={`border-2 rounded-[18px] flex flex-col items-center justify-between p-3 sm:p-4 h-[180px] sm:h-[200px] md:h-[220px] overflow-hidden shadow-sm hover:shadow-md transition-all relative ${
+                            className={`w-full h-full min-h-[220px] sm:min-h-[240px] flex-col overflow-hidden p-0 rounded-[18px] hover:bg-accent border-2 transition-all hover:scale-[1.02] group relative ${
                               !lubricant.isAvailable
                                 ? "opacity-60 cursor-not-allowed bg-muted"
                                 : ""
@@ -341,25 +338,30 @@ export function LubricantCategory({
                               </div>
                             )}
                             <div
-                              className="relative flex-1 w-full mt-2 mb-2 min-h-[60px] rounded-lg transition-colors"
+                              className="relative flex-1 w-full transition-colors"
                               style={{
                                 backgroundColor:
                                   productColors[lubricant.id] || "transparent",
                               }}
                             >
                               {lubricant.image ? (
-                                <LubricantImage
-                                  imageUrl={lubricant.image}
-                                  brand={lubricant.brand}
-                                  type={lubricant.type}
-                                  onColorExtracted={(color) => {
-                                    setProductColors((prev) => {
-                                      if (prev[lubricant.id] === color)
-                                        return prev;
-                                      return { ...prev, [lubricant.id]: color };
-                                    });
-                                  }}
-                                />
+                                <div className="absolute inset-1 sm:inset-1 flex items-center justify-center">
+                                  <LubricantImage
+                                    imageUrl={lubricant.image}
+                                    brand={lubricant.brand}
+                                    type={lubricant.type}
+                                    onColorExtracted={(color) => {
+                                      setProductColors((prev) => {
+                                        if (prev[lubricant.id] === color)
+                                          return prev;
+                                        return {
+                                          ...prev,
+                                          [lubricant.id]: color,
+                                        };
+                                      });
+                                    }}
+                                  />
+                                </div>
                               ) : (
                                 <div className="w-full h-full flex items-center justify-center bg-muted rounded-md">
                                   <ImageIcon className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 text-muted-foreground" />
@@ -368,7 +370,7 @@ export function LubricantCategory({
 
                               {/* Out of Stock Overlay */}
                               {!lubricant.isAvailable && (
-                                <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-[1px] rounded-md z-10">
+                                <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-[1px] z-10">
                                   <Badge
                                     variant="destructive"
                                     className="text-[10px]"
@@ -378,16 +380,11 @@ export function LubricantCategory({
                                 </div>
                               )}
                             </div>
-                            <div className="text-center shrink-0 flex flex-col justify-end w-full gap-0.5 mt-1 z-10">
-                              <div className="flex flex-col w-full">
-                                <span
-                                  className="text-center font-semibold text-[10px] sm:text-xs w-full px-1 word-wrap whitespace-normal leading-tight hyphens-auto line-clamp-2"
-                                  style={{ lineHeight: 1.1 }}
-                                >
-                                  {lubricant.name}
-                                </span>
-                              </div>
-                              <span className="block text-sm font-bold text-[#6d6d6d] mt-0">
+                            <div className="w-full bg-slate-50 border-t py-2 px-2 shrink-0 flex flex-col items-center justify-center min-h-[50px] sm:min-h-[60px] z-10">
+                              <span className="text-center font-semibold text-[10px] sm:text-xs w-full px-1 break-words line-clamp-2 text-foreground leading-tight">
+                                {lubricant.name}
+                              </span>
+                              <span className="block text-xs sm:text-sm font-bold text-[#6d6d6d] mt-0.5">
                                 OMR {lubricant.basePrice.toFixed(3)}
                               </span>
                             </div>
@@ -415,7 +412,7 @@ export function LubricantCategory({
                           <Button
                             key={lubricant.id}
                             variant="outline"
-                            className="border-2 rounded-[18px] flex flex-col items-center justify-between p-3 sm:p-4 h-[180px] sm:h-[200px] md:h-[220px] overflow-hidden shadow-sm hover:shadow-md transition-all relative"
+                            className={`w-full h-full min-h-[220px] sm:min-h-[240px] flex-col overflow-hidden p-0 rounded-[18px] hover:bg-accent border-2 transition-all hover:scale-[1.02] group relative ${!lubricant.isAvailable ? "opacity-60 cursor-not-allowed bg-muted" : ""}`}
                             onClick={() => {
                               if (!lubricant.isAvailable) {
                                 addPersistentNotification({
@@ -480,25 +477,30 @@ export function LubricantCategory({
                               </div>
                             )}
                             <div
-                              className="relative flex-1 w-full mt-2 mb-2 min-h-[60px] rounded-lg transition-colors"
+                              className="relative flex-1 w-full transition-colors"
                               style={{
                                 backgroundColor:
                                   productColors[lubricant.id] || "transparent",
                               }}
                             >
                               {lubricant.image ? (
-                                <LubricantImage
-                                  imageUrl={lubricant.image}
-                                  brand={lubricant.brand}
-                                  type={lubricant.type}
-                                  onColorExtracted={(color) => {
-                                    setProductColors((prev) => {
-                                      if (prev[lubricant.id] === color)
-                                        return prev;
-                                      return { ...prev, [lubricant.id]: color };
-                                    });
-                                  }}
-                                />
+                                <div className="absolute inset-1 sm:inset-1 flex items-center justify-center">
+                                  <LubricantImage
+                                    imageUrl={lubricant.image}
+                                    brand={lubricant.brand}
+                                    type={lubricant.type}
+                                    onColorExtracted={(color) => {
+                                      setProductColors((prev) => {
+                                        if (prev[lubricant.id] === color)
+                                          return prev;
+                                        return {
+                                          ...prev,
+                                          [lubricant.id]: color,
+                                        };
+                                      });
+                                    }}
+                                  />
+                                </div>
                               ) : (
                                 <div className="w-full h-full flex items-center justify-center bg-muted rounded-md">
                                   <ImageIcon className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 text-muted-foreground" />
@@ -507,7 +509,7 @@ export function LubricantCategory({
 
                               {/* Out of Stock Overlay */}
                               {!lubricant.isAvailable && (
-                                <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-[1px] rounded-md z-10">
+                                <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-[1px] z-10">
                                   <Badge
                                     variant="destructive"
                                     className="text-[10px]"
@@ -517,16 +519,11 @@ export function LubricantCategory({
                                 </div>
                               )}
                             </div>
-                            <div className="text-center shrink-0 flex flex-col justify-end w-full gap-0.5 mt-1 z-10">
-                              <div className="flex flex-col w-full">
-                                <span
-                                  className="text-center font-semibold text-[10px] sm:text-xs w-full px-1 word-wrap whitespace-normal leading-tight hyphens-auto line-clamp-2"
-                                  style={{ lineHeight: 1.1 }}
-                                >
-                                  {lubricant.name}
-                                </span>
-                              </div>
-                              <span className="block text-sm font-bold text-[#6d6d6d] mt-0">
+                            <div className="w-full bg-slate-50 border-t py-2 px-2 shrink-0 flex flex-col items-center justify-center min-h-[50px] sm:min-h-[60px] z-10">
+                              <span className="text-center font-semibold text-[10px] sm:text-xs w-full px-1 break-words line-clamp-2 text-foreground leading-tight">
+                                {lubricant.name}
+                              </span>
+                              <span className="block text-xs sm:text-sm font-bold text-[#6d6d6d] mt-0.5">
                                 OMR {lubricant.basePrice.toFixed(3)}
                               </span>
                             </div>
@@ -566,7 +563,7 @@ export function LubricantCategory({
                           <Button
                             key={lubricant.id}
                             variant="outline"
-                            className="border-2 rounded-[18px] flex flex-col items-center justify-between p-3 sm:p-4 h-[180px] sm:h-[200px] md:h-[220px] overflow-hidden shadow-sm hover:shadow-md transition-all relative"
+                            className={`w-full h-full min-h-[220px] sm:min-h-[240px] flex-col overflow-hidden p-0 rounded-[18px] hover:bg-accent border-2 transition-all hover:scale-[1.02] group relative ${!lubricant.isAvailable ? "opacity-60 cursor-not-allowed bg-muted" : ""}`}
                             onClick={() => {
                               if (!lubricant.isAvailable) {
                                 addPersistentNotification({
@@ -631,25 +628,30 @@ export function LubricantCategory({
                               </div>
                             )}
                             <div
-                              className="relative flex-1 w-full mt-2 mb-2 min-h-[60px] rounded-lg transition-colors"
+                              className="relative flex-1 w-full transition-colors"
                               style={{
                                 backgroundColor:
                                   productColors[lubricant.id] || "transparent",
                               }}
                             >
                               {lubricant.image ? (
-                                <LubricantImage
-                                  imageUrl={lubricant.image}
-                                  brand={lubricant.brand}
-                                  type={lubricant.type}
-                                  onColorExtracted={(color) => {
-                                    setProductColors((prev) => {
-                                      if (prev[lubricant.id] === color)
-                                        return prev;
-                                      return { ...prev, [lubricant.id]: color };
-                                    });
-                                  }}
-                                />
+                                <div className="absolute inset-1 sm:inset-1 flex items-center justify-center">
+                                  <LubricantImage
+                                    imageUrl={lubricant.image}
+                                    brand={lubricant.brand}
+                                    type={lubricant.type}
+                                    onColorExtracted={(color) => {
+                                      setProductColors((prev) => {
+                                        if (prev[lubricant.id] === color)
+                                          return prev;
+                                        return {
+                                          ...prev,
+                                          [lubricant.id]: color,
+                                        };
+                                      });
+                                    }}
+                                  />
+                                </div>
                               ) : (
                                 <div className="w-full h-full flex items-center justify-center bg-muted rounded-md">
                                   <ImageIcon className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 text-muted-foreground" />
@@ -658,7 +660,7 @@ export function LubricantCategory({
 
                               {/* Out of Stock Overlay */}
                               {!lubricant.isAvailable && (
-                                <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-[1px] rounded-md z-10">
+                                <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-[1px] z-10">
                                   <Badge
                                     variant="destructive"
                                     className="text-[10px]"
@@ -668,16 +670,11 @@ export function LubricantCategory({
                                 </div>
                               )}
                             </div>
-                            <div className="text-center shrink-0 flex flex-col justify-end w-full gap-0.5 mt-1 z-10">
-                              <div className="flex flex-col w-full">
-                                <span
-                                  className="text-center font-semibold text-[10px] sm:text-xs w-full px-1 word-wrap whitespace-normal leading-tight hyphens-auto line-clamp-2"
-                                  style={{ lineHeight: 1.1 }}
-                                >
-                                  {lubricant.name}
-                                </span>
-                              </div>
-                              <span className="block text-sm font-bold text-[#6d6d6d] mt-0">
+                            <div className="w-full bg-slate-50 border-t py-2 px-2 shrink-0 flex flex-col items-center justify-center min-h-[50px] sm:min-h-[60px] z-10">
+                              <span className="text-center font-semibold text-[10px] sm:text-xs w-full px-1 break-words line-clamp-2 text-foreground leading-tight">
+                                {lubricant.name}
+                              </span>
+                              <span className="block text-xs sm:text-sm font-bold text-[#6d6d6d] mt-0.5">
                                 OMR {lubricant.basePrice.toFixed(3)}
                               </span>
                             </div>
