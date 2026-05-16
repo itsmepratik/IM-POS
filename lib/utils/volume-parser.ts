@@ -51,6 +51,23 @@ export function parseVolumeString(volumeStr: string): number {
  * @param volumes - Array of volume objects with size property
  * @returns The volume string with the highest numeric value (e.g., "4L" or "5L")
  */
+/**
+ * Sort volume rows by numeric liters ascending (e.g. 500ml, 1L, 4L).
+ * Tie-breaker: label string so order is stable in the UI and matches checkout
+ * consumption (smallest open bottles first).
+ */
+export function sortVolumesByLitersAsc<
+  T extends { size?: string; name?: string },
+>(volumes: T[]): T[] {
+  return [...volumes].sort((a, b) => {
+    const labelA = (a.size ?? a.name ?? "").trim();
+    const labelB = (b.size ?? b.name ?? "").trim();
+    const diff = parseVolumeString(labelA) - parseVolumeString(labelB);
+    if (diff !== 0) return diff;
+    return labelA.localeCompare(labelB);
+  });
+}
+
 export function findHighestVolumeFromVolumes(
   volumes: Array<{ size: string; [key: string]: any }>
 ): string | null {

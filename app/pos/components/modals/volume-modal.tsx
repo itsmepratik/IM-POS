@@ -7,6 +7,7 @@ import {
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ArrowRight, Minus, Plus } from "lucide-react";
+import { sortVolumesByLitersAsc } from "@/lib/utils/volume-parser";
 
 interface Volume {
   id: number;
@@ -40,6 +41,8 @@ export function VolumeModal({
   onAddToCart,
   onNext,
 }: VolumeModalProps) {
+  const sortedVolumes = sortVolumesByLitersAsc(volumes);
+
   return (
     <Dialog
       open={isOpen}
@@ -72,7 +75,7 @@ export function VolumeModal({
         <div className="space-y-6">
           {/* Volume options grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {volumes.map((volume) => (
+            {sortedVolumes.map((volume) => (
               <Button
                 key={volume.id}
                 variant="chonky-secondary"

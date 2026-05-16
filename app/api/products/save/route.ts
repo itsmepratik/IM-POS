@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/supabase/client";
+import { syncOpenBottleDetailsToOpenCount } from "@/lib/services/sync-open-bottle-details";
 
 // Input validation schema
 const VolumeSchema = z.object({
@@ -335,6 +336,17 @@ export async function POST(req: Request) {
       }
       */
     } else {
+    }
+
+    if (isLubricant && body.open_bottles_stock !== undefined) {
+      const syncRes = await syncOpenBottleDetailsToOpenCount(supabase, {
+        inventoryId,
+        productId,
+        openBottleCount: body.open_bottles_stock,
+      });
+      if (!syncRes.ok) {
+        console.error("syncOpenBottleDetailsToOpenCount (save):", syncRes.error);
+      }
     }
 
     // 4) Initial batch for new product

@@ -37,6 +37,7 @@ import { ProductImage } from "./ProductImage";
 import { BrandLogo } from "@/app/pos/components/brand-logo";
 import { OpenBottleIcon, ClosedBottleIcon } from "@/components/ui/bottle-icons";
 import { cn } from "@/lib/utils";
+import { sortVolumesByLitersAsc } from "@/lib/utils/volume-parser";
 
 // Interface for POS items that will be selected
 interface POSCartItem {
@@ -777,21 +778,22 @@ export function Transfer2POSInterface({
           <div className="space-y-4 sm:space-y-6">
             {/* Volume options grid */}
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
-              {selectedOil?.volumes.map((volume: any) => (
-                <Button
-                  key={`volume-button-${volume.size}`}
-                  variant="outline"
-                  className="h-auto py-2 sm:py-3 px-2 sm:px-4 flex flex-col items-center gap-1 hover:bg-accent"
-                  onClick={() => handleVolumeClick(volume)}
-                >
-                  <div className="text-sm sm:text-base font-medium">
-                    {volume.size}
-                  </div>
-                  <div className="text-xs sm:text-sm text-muted-foreground">
-                    OMR {volume.price.toFixed(3)}
-                  </div>
-                </Button>
-              ))}
+              {sortVolumesByLitersAsc(selectedOil?.volumes ?? []).map(
+                (volume: any) => (
+                  <Button
+                    key={`volume-button-${volume.size}`}
+                    variant="outline"
+                    className="h-auto py-2 sm:py-3 px-2 sm:px-4 flex flex-col items-center gap-1 hover:bg-accent"
+                    onClick={() => handleVolumeClick(volume)}
+                  >
+                    <div className="text-sm sm:text-base font-medium">
+                      {volume.size}
+                    </div>
+                    <div className="text-xs sm:text-sm text-muted-foreground">
+                      OMR {volume.price.toFixed(3)}
+                    </div>
+                  </Button>
+                ))}
             </div>
 
             {/* Selected volumes list */}

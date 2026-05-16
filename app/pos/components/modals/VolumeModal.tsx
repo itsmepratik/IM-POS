@@ -13,7 +13,10 @@ import { OpenBottleIcon, ClosedBottleIcon } from "@/components/ui/bottle-icons";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import { LubricantProduct } from "@/lib/hooks/data/useIntegratedPOSData";
-import { parseVolumeString } from "@/lib/utils/volume-parser";
+import {
+  parseVolumeString,
+  sortVolumesByLitersAsc,
+} from "@/lib/utils/volume-parser";
 
 interface VolumeModalProps {
   isOpen: boolean;
@@ -60,6 +63,8 @@ export function VolumeModal({
   calculateCartClosedCount,
   calculateTotalOpenVolumeSelected,
 }: VolumeModalProps) {
+  const volumeButtons = sortVolumesByLitersAsc(selectedOil?.volumes ?? []);
+
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="w-[90%] max-w-[500px] rounded-lg max-h-[85vh] flex flex-col overflow-hidden gap-0">
@@ -101,7 +106,7 @@ export function VolumeModal({
             <div className="space-y-4 sm:space-y-6">
               {/* Volume buttons grid */}
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
-                {selectedOil?.volumes.map((volume) => (
+                {volumeButtons.map((volume) => (
                   <Button
                     key={`volume-button-${volume.size}`}
                     variant="outline"

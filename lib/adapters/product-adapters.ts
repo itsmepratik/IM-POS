@@ -21,6 +21,7 @@ import {
   POSLubricantVolume,
   isLubricantProduct,
 } from "@/lib/types/unified-product";
+import { sortVolumesByLitersAsc } from "@/lib/utils/volume-parser";
 
 /**
  * Converts an Inventory Item to a Unified Product
@@ -232,13 +233,14 @@ export function unifiedProductToPOSLubricantProduct(
     return null; // Non-lubricants should use the regular adapter
   }
 
-  const volumes: POSLubricantVolume[] =
-    product.volumes?.map((vol) => ({
+  const volumes: POSLubricantVolume[] = sortVolumesByLitersAsc(
+    (product.volumes?.map((vol) => ({
       size: vol.size,
       price: vol.price,
       availableQuantity: calculateVolumeStock(product, vol.size),
       bottleStates: product.bottleStates,
-    })) || [];
+    })) ?? []) as POSLubricantVolume[],
+  );
 
   return {
     id: generateNumericId(product.id),

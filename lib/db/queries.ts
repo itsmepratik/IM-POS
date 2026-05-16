@@ -13,8 +13,10 @@ import {
 import { unstable_cache } from "next/cache";
 import { desc, eq, and, sql } from "drizzle-orm";
 import {
+  applyLubricantBatchReadFallback,
   calculateLubricantStock,
   calculateLubricantStockLegacy,
+  determineBottleSize,
   type VolumeInfo,
 } from "@/lib/utils/lubricant-stock-calc";
 
@@ -169,9 +171,16 @@ export const getCachedProducts = async (locationId: string) => {
                 })),
                 volumeInfos,
               );
-              derivedOpenBottles = stockResult.openBottleCount;
-              derivedClosedBottles = stockResult.closedBottleCount;
-              totalOpenVolume = stockResult.totalOpenVolume;
+              const merged = applyLubricantBatchReadFallback(
+                stockResult,
+                batchStock,
+                openBottleRows.length,
+                inv.openBottlesStock,
+                inv.closedBottlesStock,
+              );
+              derivedOpenBottles = merged.open;
+              derivedClosedBottles = merged.closed;
+              totalOpenVolume = merged.totalOpenVolume;
             } else {
               const legacyResult = calculateLubricantStockLegacy(
                 inv.openBottlesStock || 0,
@@ -184,13 +193,19 @@ export const getCachedProducts = async (locationId: string) => {
                   sum + (parseFloat(b.currentVolume) || 0),
                 0,
               );
+              if (
+                openBottleRows.length === 0 &&
+                (inv.openBottlesStock ?? 0) > 0
+              ) {
+                derivedOpenBottles = inv.openBottlesStock ?? 0;
+                totalOpenVolume =
+                  derivedOpenBottles * determineBottleSize(volumeInfos, 4.0);
+              }
             }
           }
 
           const finalStock = isOilProduct
-            ? batchStock !== null
-              ? batchStock + derivedOpenBottles
-              : derivedClosedBottles + derivedOpenBottles
+            ? derivedClosedBottles + derivedOpenBottles
             : batchStock !== null
               ? batchStock
               : inv.standard_stock || 0;

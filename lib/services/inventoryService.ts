@@ -1,9 +1,12 @@
 import { createClient } from "@/supabase/client";
 import {
+  applyLubricantBatchReadFallback,
   calculateLubricantStock,
   calculateLubricantStockLegacy,
+  determineBottleSize,
   type VolumeInfo,
 } from "@/lib/utils/lubricant-stock-calc";
+import { syncOpenBottleDetailsToOpenCount } from "@/lib/services/sync-open-bottle-details";
 
 // Create a singleton Supabase client to prevent dynamic import issues
 const supabase = createClient();
@@ -529,9 +532,16 @@ export const fetchInventoryItems = async (
               openBottleRows,
               volumeInfos,
             );
-            derivedOpenBottles = stockResult.openBottleCount;
-            derivedClosedBottles = stockResult.closedBottleCount;
-            totalOpenVolume = stockResult.totalOpenVolume;
+            const merged = applyLubricantBatchReadFallback(
+              stockResult,
+              batchStock,
+              openBottleRows?.length ?? 0,
+              inv.open_bottles_stock,
+              inv.closed_bottles_stock,
+            );
+            derivedOpenBottles = merged.open;
+            derivedClosedBottles = merged.closed;
+            totalOpenVolume = merged.totalOpenVolume;
           } else {
             // No batch rows: closed bottles still come from inventory columns;
             // open bottle count MUST come from open_bottle_details (not
@@ -547,14 +557,20 @@ export const fetchInventoryItems = async (
                 sum + (parseFloat(String(b.current_volume)) || 0),
               0,
             );
+            if (
+              (openBottleRows?.length ?? 0) === 0 &&
+              (inv.open_bottles_stock ?? 0) > 0
+            ) {
+              derivedOpenBottles = inv.open_bottles_stock ?? 0;
+              totalOpenVolume =
+                derivedOpenBottles * determineBottleSize(volumeInfos, 4.0);
+            }
           }
         }
 
         // Calculate final stock value
         const finalStock = isOilProduct
-          ? batchStock !== null
-            ? batchStock + derivedOpenBottles
-            : derivedClosedBottles + derivedOpenBottles
+          ? derivedClosedBottles + derivedOpenBottles
           : batchStock !== null
             ? batchStock
             : inv.standard_stock || 0;
@@ -816,9 +832,16 @@ export const fetchItems = async (
               openBottleRows,
               volumeInfos,
             );
-            derivedOpenBottles = stockResult.openBottleCount;
-            derivedClosedBottles = stockResult.closedBottleCount;
-            totalOpenVolume = stockResult.totalOpenVolume;
+            const merged = applyLubricantBatchReadFallback(
+              stockResult,
+              batchStock,
+              openBottleRows?.length ?? 0,
+              inv.open_bottles_stock,
+              inv.closed_bottles_stock,
+            );
+            derivedOpenBottles = merged.open;
+            derivedClosedBottles = merged.closed;
+            totalOpenVolume = merged.totalOpenVolume;
 
             // DEBUG: Log stock calculation for lubricants
             if (
@@ -839,6 +862,14 @@ export const fetchItems = async (
                 sum + (parseFloat(String(b.current_volume)) || 0),
               0,
             );
+            if (
+              (openBottleRows?.length ?? 0) === 0 &&
+              (inv.open_bottles_stock ?? 0) > 0
+            ) {
+              derivedOpenBottles = inv.open_bottles_stock ?? 0;
+              totalOpenVolume =
+                derivedOpenBottles * determineBottleSize(volumeInfos, 4.0);
+            }
 
             // DEBUG: Log fallback (no batches)
             if (
@@ -850,12 +881,10 @@ export const fetchItems = async (
         }
 
         // Final Stock Assignment
-        // For Oil: Use batchStock (Total Volume) if available, otherwise fallback to legacy logic or volume sum
+        // For Oil: closed + open (inventory columns can backfill when batches/details are empty)
         // For Others: Use batchStock (Total Units) if available, otherwise standard_stock
         const totalStock = isOilProduct
-          ? batchStock !== null
-            ? batchStock + derivedOpenBottles
-            : derivedClosedBottles + derivedOpenBottles
+          ? derivedClosedBottles + derivedOpenBottles
           : batchStock !== null
             ? batchStock
             : inv.standard_stock || 0;
@@ -1103,6 +1132,20 @@ export const createItem = async (
       await sb.from("product_volumes").insert(volumeInserts);
     }
 
+    if (item.isOil && inventoryData?.id) {
+      const syncRes = await syncOpenBottleDetailsToOpenCount(sb, {
+        inventoryId: inventoryData.id,
+        productId: productData.id,
+        openBottleCount: item.bottleStates?.open ?? 0,
+      });
+      if (!syncRes.ok) {
+        console.error(
+          "syncOpenBottleDetailsToOpenCount (createItem):",
+          syncRes.error,
+        );
+      }
+    }
+
     // Insert types into product_types junction table
     if (item.types && item.types.length > 0) {
       const typeInserts = item.types.map((type) => ({
@@ -1217,6 +1260,22 @@ export const updateItem = async (
       }
     }
 
+    let invMetaForOpenBottleSync: {
+      id: string;
+      open_bottles_stock: number | null;
+    } | null = null;
+    if (updates.isOil && updates.bottleStates?.open !== undefined) {
+      const { data: invRow } = await sb
+        .from("inventory")
+        .select("id, open_bottles_stock")
+        .eq("product_id", id)
+        .eq("location_id", actualLocationId)
+        .maybeSingle();
+      if (invRow?.id) {
+        invMetaForOpenBottleSync = invRow;
+      }
+    }
+
     // Update inventory
     const inventoryUpdates: any = {};
     if (updates.stock !== undefined) {
@@ -1324,6 +1383,26 @@ export const updateItem = async (
             await sb.from("product_volumes").delete().eq("id", volumeId);
           }
         }
+      }
+    }
+
+    if (
+      updates.isOil &&
+      updates.bottleStates?.open !== undefined &&
+      invMetaForOpenBottleSync?.id &&
+      (invMetaForOpenBottleSync.open_bottles_stock ?? 0) !==
+        (updates.bottleStates.open ?? 0)
+    ) {
+      const syncRes = await syncOpenBottleDetailsToOpenCount(sb, {
+        inventoryId: invMetaForOpenBottleSync.id,
+        productId: id,
+        openBottleCount: updates.bottleStates.open ?? 0,
+      });
+      if (!syncRes.ok) {
+        console.error(
+          "syncOpenBottleDetailsToOpenCount failed:",
+          syncRes.error,
+        );
       }
     }
 

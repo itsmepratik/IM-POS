@@ -66,7 +66,7 @@ export function parseVolumeSize(volumeDescription: string): number {
  */
 export function determineBottleSize(
   volumes: VolumeInfo[],
-  fallbackSize: number = 4.0
+  fallbackSize: number = 4.0,
 ): number {
   if (!volumes || volumes.length === 0) {
     return fallbackSize;
@@ -101,14 +101,14 @@ export function calculateLubricantStock(
   batchStockRemaining: number | null,
   openBottleRows: Array<{ current_volume: string | number }> | null,
   volumes: VolumeInfo[],
-  fallbackBottleSize: number = 4.0
+  fallbackBottleSize: number = 4.0,
 ): LubricantStockResult {
   // Calculate open bottles data
   const measuredOpenCount = openBottleRows?.length ?? 0;
   const totalOpenVolume =
     openBottleRows?.reduce(
       (sum, b) => sum + (parseFloat(String(b.current_volume)) || 0),
-      0
+      0,
     ) ?? 0;
 
   // Determine bottle size from volumes (for reference/display purposes)
@@ -117,9 +117,10 @@ export function calculateLubricantStock(
   // For lubricants, batchStockRemaining IS the closed bottle count directly
   // (it's populated from inventory.closed_bottles_stock, which is a bottle count)
   // We do NOT divide by bottle size - the value is already in "bottles" unit
-  const closedBottleCount = batchStockRemaining !== null && batchStockRemaining > 0
-    ? Math.floor(batchStockRemaining) // Ensure integer (in case there's any floating point)
-    : 0;
+  const closedBottleCount =
+    batchStockRemaining !== null && batchStockRemaining > 0
+      ? Math.floor(batchStockRemaining) // Ensure integer (in case there's any floating point)
+      : 0;
 
   return {
     openBottleCount: measuredOpenCount,
@@ -144,10 +145,40 @@ export function calculateLubricantStock(
  */
 export function calculateLubricantStockLegacy(
   openBottlesStock: number | null,
-  closedBottlesStock: number | null
+  closedBottlesStock: number | null,
 ): Pick<LubricantStockResult, "openBottleCount" | "closedBottleCount"> {
   return {
     openBottleCount: openBottlesStock ?? 0,
     closedBottleCount: closedBottlesStock ?? 0,
   };
+}
+
+/**
+ * `updateItem` / `products/save` write `inventory.open_bottles_stock` and
+ * `closed_bottles_stock` but do not sync `open_bottle_details` or batch rows.
+ * When batch rows exist, {@link calculateLubricantStock} ignores those columns,
+ * so the UI shows zero after a manual edit. Prefer detail rows when present;
+ * otherwise fall back to inventory columns when batch closed stock is zero.
+ */
+export function applyLubricantBatchReadFallback(
+  stockResult: LubricantStockResult,
+  batchStockSum: number | null,
+  openDetailRowCount: number,
+  invOpenBottlesStock: number | null | undefined,
+  invClosedBottlesStock: number | null | undefined,
+): { open: number; closed: number; totalOpenVolume: number } {
+  let open = stockResult.openBottleCount;
+  let closed = stockResult.closedBottleCount;
+  let totalOpenVolume = stockResult.totalOpenVolume;
+
+  if (openDetailRowCount === 0 && (invOpenBottlesStock ?? 0) > 0) {
+    open = invOpenBottlesStock ?? 0;
+    totalOpenVolume = open * stockResult.bottleSizeUsed;
+  }
+
+  if ((batchStockSum ?? 0) === 0 && (invClosedBottlesStock ?? 0) > 0) {
+    closed = invClosedBottlesStock ?? 0;
+  }
+
+  return { open, closed, totalOpenVolume };
 }
