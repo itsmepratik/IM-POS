@@ -6,8 +6,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { ArrowRight, Minus, Plus, ImageIcon } from "lucide-react";
+import { ArrowRight, ImageIcon } from "lucide-react";
 import React, { useState, useMemo } from "react";
 import Image from "next/image";
 import {
@@ -19,6 +18,7 @@ import {
 import { ImageErrorFallback } from "@/components/ui/image-error-boundary";
 import { useImagePreloader } from "@/lib/hooks/useImagePreloader";
 import { useNotification } from "@/lib/contexts/NotificationContext";
+import { SelectedItemsList } from "../shared/SelectedItemsList";
 
 interface Filter {
   id: number;
@@ -55,6 +55,7 @@ interface FilterModalProps {
   onQuantityChange: (filterId: number, change: number) => void;
   onAddToCart: () => void;
   onNext: () => void;
+  lastAddedFilterId?: number | null;
 }
 
 // Helper for filter image
@@ -137,6 +138,7 @@ export function FilterModal({
   onQuantityChange,
   onAddToCart,
   onNext,
+  lastAddedFilterId,
 }: FilterModalProps) {
   const { addPersistentNotification } = useNotification();
 
@@ -246,51 +248,11 @@ export function FilterModal({
             </div>
 
             {/* Selected filters list - bulletproof against overflow */}
-            {selectedFilters.length > 0 && (
-              <div className="border rounded-lg bg-muted/50 w-full max-w-full">
-                <ScrollArea className="h-[140px] sm:h-[160px] px-1 py-2 w-full max-w-full">
-                  <div className="space-y-5 w-full max-w-full">
-                    {selectedFilters.map((filter) => (
-                      <div
-                        key={filter.id}
-                        className="w-full flex items-center gap-2 min-w-0 px-2 max-w-full"
-                      >
-                        <div className="flex items-center gap-1 flex-shrink-0">
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-5 w-5"
-                            onClick={() => onQuantityChange(filter.id, -1)}
-                          >
-                            <Minus className="h-2.5 w-2.5" />
-                          </Button>
-                          <span className="w-4 text-center text-[clamp(0.875rem,2vw,1rem)]">
-                            {filter.quantity}
-                          </span>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-5 w-5"
-                            onClick={() => onQuantityChange(filter.id, 1)}
-                          >
-                            <Plus className="h-2.5 w-2.5" />
-                          </Button>
-                        </div>
-                        <span
-                          className="font-medium text-[clamp(0.875rem,2vw,1rem)] whitespace-normal break-words line-clamp-2 flex-1 min-w-0"
-                          style={{ lineHeight: 1 }}
-                        >
-                          {filter.name}
-                        </span>
-                        <span className="font-medium text-[clamp(0.875rem,2vw,1rem)] whitespace-nowrap pl-2 flex-shrink-0 text-[#6d6d6d]">
-                          OMR {(filter.price * filter.quantity).toFixed(3)}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </ScrollArea>
-              </div>
-            )}
+            <SelectedItemsList
+              items={selectedFilters}
+              onQuantityChange={onQuantityChange}
+              lastAddedItemId={lastAddedFilterId}
+            />
           </div>
         </div>
 

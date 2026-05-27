@@ -92,7 +92,16 @@ export function CartProvider({ children }: CartProviderProps) {
         }
       }
 
-      const uniqueId = `${product.id}-${details || ""}-${source || ""}-${bottleType || ""}-${Date.now()}`;
+      // Stable key so repeat adds of the same product/details/source/bottleType/price
+      // merge into a single cart line instead of duplicating rows.
+      const stableKeyParts = [
+        product.id,
+        details || "",
+        source || "",
+        bottleType || "",
+        product.price,
+      ];
+      const uniqueId = stableKeyParts.join("-");
       items = [
         {
           id: product.id,

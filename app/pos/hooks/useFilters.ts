@@ -48,6 +48,9 @@ export function useFilters({
       brand?: string;
     }>
   >([]);
+  const [lastAddedFilterId, setLastAddedFilterId] = useState<number | null>(
+    null,
+  );
 
   /** Get filter products by type */
   const getFiltersByType = useCallback(
@@ -87,10 +90,12 @@ export function useFilters({
         }
 
         if (existing) {
+          setLastAddedFilterId(filter.id);
           return prev.map((f) =>
             f.id === filter.id ? { ...f, quantity: f.quantity + 1 } : f,
           );
         }
+        setLastAddedFilterId(filter.id);
         return [...prev, { ...filter, quantity: 1, brand: filter.brand }];
       });
     },
@@ -125,10 +130,15 @@ export function useFilters({
               : f,
           )
           .filter((f) => f.quantity > 0);
+        if (updated.length === 0) {
+          setLastAddedFilterId(null);
+        } else if (!updated.some((f) => f.id === lastAddedFilterId)) {
+          setLastAddedFilterId(updated[updated.length - 1].id);
+        }
         return updated;
       });
     },
-    [products, toast, calculateCartCount],
+    [products, toast, calculateCartCount, lastAddedFilterId],
   );
 
   /** Add all selected filters to cart */
@@ -176,6 +186,7 @@ export function useFilters({
     if (success) {
       setIsFilterBrandModalOpen(false);
       setSelectedFilters([]);
+      setLastAddedFilterId(null);
       if (isMobile) setShowCart(true);
     }
   }, [addFiltersToCart, isMobile, setShowCart]);
@@ -187,6 +198,7 @@ export function useFilters({
       setActiveCategory("Parts");
       setIsFilterBrandModalOpen(false);
       setSelectedFilters([]);
+      setLastAddedFilterId(null);
       setSearchQuery("");
       // Do NOT show cart to allow flow to continue
     }
@@ -202,6 +214,7 @@ export function useFilters({
     setSelectedFilterBrand,
     selectedFilters,
     setSelectedFilters,
+    lastAddedFilterId,
 
     // Actions
     getFiltersByType,

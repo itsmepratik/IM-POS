@@ -17,6 +17,10 @@ interface UseLubricantVolumeProps {
     bottleType?: "open" | "closed",
   ) => void;
   calculateCartClosedCount: (productId: string | number) => number;
+  calculateCartClosedCountBySize?: (
+    productId: string | number,
+    size: string,
+  ) => number;
   calculateCartOpenVolume: (productId: string | number) => number;
   isMobile: boolean;
   setShowCart: (show: boolean) => void;
@@ -27,6 +31,7 @@ interface UseLubricantVolumeProps {
 export function useLubricantVolume({
   addToCart,
   calculateCartClosedCount,
+  calculateCartClosedCountBySize,
   calculateCartOpenVolume,
   isMobile,
   setShowCart,
@@ -37,6 +42,17 @@ export function useLubricantVolume({
   const { addPersistentNotification } = useNotification();
   const lastNotificationRef = useRef<{ key: string; timestamp: number } | null>(
     null,
+  );
+
+  const calcCartClosedCountBySize = useCallback(
+    (productId: string | number, size: string) => {
+      if (calculateCartClosedCountBySize) {
+        return calculateCartClosedCountBySize(productId, size);
+      }
+      // Fallback (non-size-aware): treat all closed bottles as the same pool
+      return calculateCartClosedCount(productId);
+    },
+    [calculateCartClosedCountBySize, calculateCartClosedCount],
   );
 
   // Volume modal states
@@ -100,48 +116,82 @@ export function useLubricantVolume({
     (size: string, bottleType: "open" | "closed") => {
       if (!selectedOil) return;
 
-      // Validate Open Bottle Stock
-      if (bottleType === "open" && selectedOil.totalOpenVolume !== undefined) {
-        const cartOpenVolume = calculateCartOpenVolume(selectedOil.id);
-        const currentModalOpenVolume =
-          calculateTotalOpenVolumeSelected(selectedVolumes);
-        const volumeAmount = parseVolumeString(size);
-        const newTotal = cartOpenVolume + currentModalOpenVolume + volumeAmount;
-
-        if (newTotal > selectedOil.totalOpenVolume) {
-          toast({
-            title: "Insufficient Open Bottle Stock",
-            description: `Only ${selectedOil.totalOpenVolume.toFixed(2)}L available.`,
-            variant: "destructive",
-          });
-          return;
-        }
-      }
-
       const volumeDetails = selectedOil.volumes.find((v) => v.size === size);
       if (!volumeDetails) return;
 
-      // Check stock for closed bottles
-      if (bottleType === "closed") {
-        const availableClosed =
-          selectedOil?.volumes?.[0]?.bottleStates?.closed || 0;
-        const cartClosedCount = calculateCartClosedCount(selectedOil.id);
-        const modalClosedCount = selectedVolumes
-          .filter((v) => !v.bottleType || v.bottleType === "closed")
-          .reduce((sum, v) => sum + v.quantity, 0);
-
-        if (cartClosedCount + modalClosedCount + 1 > availableClosed) {
-          toast({
-            title: "Insufficient Closed Bottle Stock",
-            description: `Only ${availableClosed} closed bottles available.`,
-            variant: "destructive",
-          });
-          return;
-        }
-      }
-
       // Add to selectedVolumes
       setSelectedVolumes((prev) => {
+        // Validate Open Bottle Stock against latest modal state
+        if (
+          bottleType === "open" &&
+          selectedOil.totalOpenVolume !== undefined
+        ) {
+          const cartOpenVolume = calculateCartOpenVolume(selectedOil.id);
+          const currentModalOpenVolume = prev
+            .filter((v) => v.bottleType === "open")
+            .reduce((total, v) => {
+              const volumeAmount = parseVolumeString(v.size);
+              return total + volumeAmount * v.quantity;
+            }, 0);
+          const volumeAmount = parseVolumeString(size);
+          const newTotal = cartOpenVolume + currentModalOpenVolume + volumeAmount;
+
+          if (newTotal > selectedOil.totalOpenVolume) {
+            toast({
+              title: "Insufficient Open Bottle Stock",
+              description: `Only ${selectedOil.totalOpenVolume.toFixed(2)}L available.`,
+              variant: "destructive",
+            });
+            return prev;
+          }
+        }
+
+        // Validate closed stock against latest modal state
+        if (bottleType === "closed") {
+          const maxBottleLiters = Math.max(
+          parseVolumeString(selectedOil.type || ""),
+            ...selectedOil.volumes
+              .map((v) => parseVolumeString(v.size))
+              .filter((n) => Number.isFinite(n) && n > 0),
+            1,
+          );
+          const cartClosedBottleEquivalent = selectedOil.volumes.reduce(
+            (sum, v) => {
+              const liters = parseVolumeString(v.size);
+              if (!Number.isFinite(liters) || liters <= 0) return sum;
+              const qty = calcCartClosedCountBySize(selectedOil.id, v.size);
+              return sum + qty * (liters / maxBottleLiters);
+            },
+            0,
+          );
+          const modalClosedBottleEquivalent = prev
+            .filter((v) => !v.bottleType || v.bottleType === "closed")
+            .reduce((sum, v) => {
+              const liters = parseVolumeString(v.size);
+              if (!Number.isFinite(liters) || liters <= 0) return sum;
+              return sum + (v.quantity || 0) * (liters / maxBottleLiters);
+            }, 0);
+          const requestedBottleEquivalent =
+            parseVolumeString(size) / maxBottleLiters;
+          const availableClosedTotal = Number(
+            selectedOil?.volumes?.[0]?.bottleStates?.closed ?? 0,
+          );
+
+          if (
+            cartClosedBottleEquivalent +
+              modalClosedBottleEquivalent +
+              requestedBottleEquivalent >
+            availableClosedTotal + 1e-9
+          ) {
+            toast({
+              title: "Insufficient Closed Bottle Stock",
+              description: `Only ${availableClosedTotal} closed bottles available.`,
+              variant: "destructive",
+            });
+            return prev;
+          }
+        }
+
         const existing = prev.find(
           (v) => v.size === size && v.bottleType === bottleType,
         );
@@ -162,10 +212,9 @@ export function useLubricantVolume({
     },
     [
       selectedOil,
-      selectedVolumes,
       calculateCartClosedCount,
+      calcCartClosedCountBySize,
       calculateCartOpenVolume,
-      calculateTotalOpenVolumeSelected,
       toast,
     ],
   );
@@ -255,6 +304,64 @@ export function useLubricantVolume({
           }
         }
 
+        // Validate incrementing closed bottle quantity by size
+        if (
+          change > 0 &&
+          (volumeToChange?.bottleType === "closed" || !volumeToChange?.bottleType)
+        ) {
+          const maxBottleLiters = Math.max(
+            parseVolumeString(selectedOil?.type || ""),
+            ...(selectedOil?.volumes ?? [])
+              .map((v) => parseVolumeString(v.size))
+              .filter((n) => Number.isFinite(n) && n > 0),
+            1,
+          );
+          const cartClosedBottleEquivalent = (selectedOil?.volumes ?? []).reduce(
+            (sum, v) => {
+              const liters = parseVolumeString(v.size);
+              if (!Number.isFinite(liters) || liters <= 0) return sum;
+              const qty = calcCartClosedCountBySize(selectedOil!.id, v.size);
+              return sum + qty * (liters / maxBottleLiters);
+            },
+            0,
+          );
+          const availableClosed = Number(
+            selectedOil?.volumes?.[0]?.bottleStates?.closed ?? 0,
+          );
+          const otherModalClosedBottleEquivalent = prev
+            .filter(
+              (v) =>
+                !(
+                  v.size === size &&
+                  (!bottleType || v.bottleType === bottleType)
+                ),
+            )
+            .filter((v) => !v.bottleType || v.bottleType === "closed")
+            .reduce((sum, v) => {
+              const liters = parseVolumeString(v.size);
+              if (!Number.isFinite(liters) || liters <= 0) return sum;
+              return sum + (v.quantity || 0) * (liters / maxBottleLiters);
+            }, 0);
+          const sizeBottleEquivalent =
+            parseVolumeString(size) / maxBottleLiters;
+          const nextQty = (volumeToChange?.quantity || 0) + change;
+
+          // Enforce bottle-equivalent total pool for closed bottles.
+          if (
+            cartClosedBottleEquivalent +
+              otherModalClosedBottleEquivalent +
+              nextQty * sizeBottleEquivalent >
+            availableClosed + 1e-9
+          ) {
+            toast({
+              title: "Insufficient Closed Bottle Stock",
+              description: `Only ${availableClosed} closed bottles available.`,
+              variant: "destructive",
+            });
+            return prev;
+          }
+        }
+
         // Proceed with quantity change
         const updated = prev
           .map((v) =>
@@ -266,7 +373,14 @@ export function useLubricantVolume({
         return updated;
       });
     },
-    [selectedOil, calculateCartOpenVolume, toast, addPersistentNotification],
+    [
+      selectedOil,
+      calculateCartOpenVolume,
+      calculateCartClosedCount,
+      calcCartClosedCountBySize,
+      toast,
+      addPersistentNotification,
+    ],
   );
 
   /** Add all currently selected volumes to cart */

@@ -7,7 +7,7 @@
 
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { UnifiedProduct, ProductInventory } from "@/lib/types/unified-product";
 import {
   itemsToUnifiedProducts,
@@ -90,10 +90,15 @@ export function useInventoryPOSSync(
   const abortControllerRef = useRef<AbortController | null>(null);
   const retryCountRef = useRef(0);
   const emptyDataRetryCountRef = useRef(0);
+  const productsRef = useRef<UnifiedProduct[]>(config.initialData || []);
   
   // If we have initial data, we treat the first "real" sync as a background sync/update
   // unless strictly specified otherwise.
   const isInitialLoadRef = useRef(!config.initialData);
+
+  useEffect(() => {
+    productsRef.current = products;
+  }, [products]);
 
   // Add sync event
   const addSyncEvent = useCallback((event: Omit<SyncEvent, "timestamp">) => {
@@ -160,12 +165,12 @@ export function useInventoryPOSSync(
         if (
           !forceUpdate &&
           unifiedProducts.length === 0 &&
-          products.length > 0 &&
+          productsRef.current.length > 0 &&
           emptyDataRetryCountRef.current < MAX_EMPTY_DATA_RETRIES
         ) {
           emptyDataRetryCountRef.current++;
           console.warn(
-            `⚠️ Suspected incomplete sync (0 items vs ${products.length} existing). Retrying (${emptyDataRetryCountRef.current}/${MAX_EMPTY_DATA_RETRIES})...`
+            `⚠️ Suspected incomplete sync (0 items vs ${productsRef.current.length} existing). Retrying (${emptyDataRetryCountRef.current}/${MAX_EMPTY_DATA_RETRIES})...`
           );
 
           if (!isBackgroundSync) {
@@ -246,7 +251,7 @@ export function useInventoryPOSSync(
         }
       }
     },
-    [locationId, finalConfig.maxRetries, finalConfig.retryDelay, addSyncEvent, products.length]
+    [locationId, finalConfig.maxRetries, finalConfig.retryDelay, addSyncEvent]
   );
 
   // Update stock levels
@@ -430,9 +435,7 @@ export function useInventoryPOSSync(
   );
 
   // Get POS-formatted data
-  const getPOSData = useCallback(() => {
-    return unifiedProductsToPOSProducts(products);
-  }, [products]);
+  const posData = useMemo(() => unifiedProductsToPOSProducts(products), [products]);
 
   // Auto-sync setup
   useEffect(() => {
@@ -480,7 +483,7 @@ export function useInventoryPOSSync(
   return {
     // Data
     products,
-    posData: getPOSData(),
+    posData,
     isLoading,
     isBackgroundSyncing,
     error,

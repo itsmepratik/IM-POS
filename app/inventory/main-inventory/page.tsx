@@ -11,7 +11,6 @@ import React, {
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { DebouncedSearchInput } from "@/components/ui/debounced-search-input";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
@@ -30,7 +29,6 @@ import {
 import {
   MoreHorizontal,
   Plus,
-  Search,
   Menu,
   ImageIcon,
   MoreVertical,
@@ -48,6 +46,7 @@ import {
   ArrowUpDown,
 } from "lucide-react";
 import { ItemsProvider, useItems, type Item } from "../items-context";
+import { InventorySearchInput } from "../components/InventorySearchInput";
 import { useServerInventory } from "../hooks/useServerInventory";
 import dynamic from "next/dynamic";
 import { ItemModalProps } from "../components/item-modal/types";
@@ -834,10 +833,9 @@ function MobileView({
     setFiltersOpen(false);
   }, []);
 
-  // Handle search input change
-  const handleSearchChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      startTransition(() => setSearchQuery(e.target.value));
+  const handleSearchQueryChange = useCallback(
+    (value: string) => {
+      startTransition(() => setSearchQuery(value));
     },
     [setSearchQuery],
   );
@@ -901,16 +899,10 @@ function MobileView({
       <div className="mb-2 flex flex-col gap-4">
         {/* Search bar and stock indicators */}
         <div className="flex items-center gap-2">
-          <div className="relative flex-1">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Search..."
-              className="w-full pl-9"
-              value={searchQuery}
-              onChange={handleSearchChange}
-            />
-          </div>
+          <InventorySearchInput
+            searchQuery={searchQuery}
+            onSearchQueryChange={handleSearchQueryChange}
+          />
           <Button
             variant="ghost"
             size="sm"
@@ -1507,8 +1499,7 @@ function DesktopView({
     [setMaxPrice],
   );
 
-  // Handle search input change
-  const handleSearchChange = useCallback(
+  const handleSearchQueryChange = useCallback(
     (value: string) => {
       startTransition(() => setSearchQuery(value));
     },
@@ -1551,16 +1542,14 @@ function DesktopView({
   return (
     <div className="space-y-4 pt-3 pb-4">
       <div className="flex items-center gap-2">
-        <div className="relative flex-1 min-w-0">
-          <ClientOnly>
-            <DebouncedSearchInput
-              value={searchQuery}
-              onChange={handleSearchChange}
-              placeholder="Search items..."
-              debounceMs={500}
-            />
-          </ClientOnly>
-        </div>
+        <ClientOnly>
+          <InventorySearchInput
+            searchQuery={searchQuery}
+            onSearchQueryChange={handleSearchQueryChange}
+            placeholder="Search items..."
+            variant="pill"
+          />
+        </ClientOnly>
 
         <div className="flex-shrink-0 space-x-2">
           <Button

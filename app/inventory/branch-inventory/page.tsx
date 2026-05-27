@@ -4,7 +4,6 @@ import { useState, useEffect, useMemo, useCallback, memo } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { DebouncedSearchInput } from "@/components/ui/debounced-search-input";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
@@ -23,7 +22,6 @@ import {
 import {
   MoreHorizontal,
   Plus,
-  Search,
   ChevronRight,
   Menu,
   ImageIcon,
@@ -39,6 +37,7 @@ import {
   ArrowUpDown,
 } from "lucide-react";
 import { ItemsProvider, useItems, type Item } from "../items-context";
+import { InventorySearchInput } from "../components/InventorySearchInput";
 import dynamic from "next/dynamic";
 import { ItemModalProps } from "../components/item-modal/types";
 
@@ -344,6 +343,13 @@ function MobileView({
   // Filter items based on stock filters (search is handled by the server now)
   const filteredItems = useMemo(() => {
     return items.filter((item) => {
+      const query = searchQuery.trim().toLowerCase();
+      const matchesSearch =
+        !query ||
+        item.name.toLowerCase().includes(query) ||
+        (item.brand || "").toLowerCase().includes(query) ||
+        (item.category || "").toLowerCase().includes(query);
+
       // Low stock filter
       const matchesLowStock = showLowStockOnly
         ? (item.stock ?? 0) > 0 &&
@@ -355,11 +361,14 @@ function MobileView({
         ? (item.stock ?? 0) === 0
         : true;
 
-      return showLowStockOnly || showOutOfStockOnly
-        ? matchesLowStock && matchesOutOfStock
-        : true;
+      const matchesStock =
+        showLowStockOnly || showOutOfStockOnly
+          ? matchesLowStock && matchesOutOfStock
+          : true;
+
+      return matchesSearch && matchesStock;
     });
-  }, [items, showLowStockOnly, showOutOfStockOnly]);
+  }, [items, showLowStockOnly, showOutOfStockOnly, searchQuery]);
 
   const handleAddItem = () => {
     setEditingItem(null);
@@ -409,16 +418,10 @@ function MobileView({
 
         {/* Search and indicators */}
         <div className="flex items-center gap-2">
-          <div className="relative flex-1">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Search..."
-              className="pl-9 w-full"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
+          <InventorySearchInput
+            searchQuery={searchQuery}
+            onSearchQueryChange={setSearchQuery}
+          />
           <Button
             variant="outline"
             size="sm"
@@ -718,9 +721,8 @@ function BranchInventoryContent({
     resetFilters,
   } = useServerInventory({
     locationId: selectedLocationId,
-    initialLimit: 50,
+    initialLimit: 20,
   });
-
   // UI States
   const [showFilters, setShowFilters] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -848,14 +850,12 @@ function BranchInventoryContent({
 
           <div className="space-y-4">
             <div className="flex items-center gap-2">
-              <div className="relative flex-1 min-w-0">
-                <DebouncedSearchInput
-                  value={searchQuery}
-                  onChange={(val) => setSearchQuery(val)}
-                  placeholder="Search items..."
-                  debounceMs={500}
-                />
-              </div>
+              <InventorySearchInput
+                searchQuery={searchQuery}
+                onSearchQueryChange={setSearchQuery}
+                placeholder="Search items..."
+                variant="pill"
+              />
 
               <div className="flex-shrink-0 space-x-2 flex items-center">
                 <Button

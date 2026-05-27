@@ -46,6 +46,7 @@ export function useParts({
       brand?: string;
     }>
   >([]);
+  const [lastAddedPartId, setLastAddedPartId] = useState<number | null>(null);
 
   /** Get parts products by type */
   const getPartsByType = useCallback(
@@ -86,10 +87,12 @@ export function useParts({
         }
 
         if (existing) {
+          setLastAddedPartId(part.id);
           return prev.map((p) =>
             p.id === part.id ? { ...p, quantity: p.quantity + 1 } : p,
           );
         }
+        setLastAddedPartId(part.id);
         return [...prev, { ...part, quantity: 1, brand: part.brand }];
       });
     },
@@ -123,10 +126,15 @@ export function useParts({
               : p,
           )
           .filter((p) => p.quantity > 0);
+        if (updated.length === 0) {
+          setLastAddedPartId(null);
+        } else if (!updated.some((p) => p.id === lastAddedPartId)) {
+          setLastAddedPartId(updated[updated.length - 1].id);
+        }
         return updated;
       });
     },
-    [products, toast, calculateCartCount],
+    [products, toast, calculateCartCount, lastAddedPartId],
   );
 
   /** Add all selected parts to cart */
@@ -167,6 +175,7 @@ export function useParts({
     });
     setIsPartBrandModalOpen(false);
     setSelectedParts([]);
+    setLastAddedPartId(null);
     setSelectedPartType(null);
     if (isMobile) setShowCart(true);
   }, [
@@ -196,6 +205,7 @@ export function useParts({
     setSelectedPartBrand,
     selectedParts,
     setSelectedParts,
+    lastAddedPartId,
 
     // Actions
     getPartsByType,

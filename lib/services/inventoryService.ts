@@ -1044,17 +1044,6 @@ export const createItem = async (
       specification: item.specification || null,
     };
 
-    // Prefer type_id over type (text) for new products
-    if (item.type_id) {
-      // The product table only has product_type (text)
-      // The true type relationship is handled by the product_types junction table
-      productInsert.product_type = null;
-    } else if (item.type) {
-      // Legacy support: if type_id not provided but type text is, try to find matching type
-      // This is for backward compatibility during migration
-      productInsert.product_type = item.type;
-    }
-
     const { data: productData, error: productError } = await sb
       .from("products")
       .insert(productInsert)
@@ -1161,15 +1150,32 @@ export const createItem = async (
         console.error("Error inserting product types:", typesError);
         // Continue despite error, as product was created
       }
-    } else if (productData.type_id) {
-      // Fallback: if types array not provided but type_id is (single select mode), add it to product_types
+    } else if (item.type_id) {
+      // Simple mode: single type_id
       const { error: typeError } = await sb.from("product_types").insert({
         product_id: productData.id,
-        type_id: productData.type_id,
+        type_id: item.type_id,
       });
 
-      if (typeError) {
-        console.error("Error inserting fallback product type:", typeError);
+      if (typeError) console.error("Error inserting product type:", typeError);
+    } else if (item.type) {
+      // Back-compat: type name string -> resolve to types.id and insert
+      const { data: resolvedType, error: resolvedTypeError } = await sb
+        .from("types")
+        .select("id, name")
+        .ilike("name", item.type)
+        .limit(1)
+        .maybeSingle();
+
+      if (resolvedTypeError) {
+        console.error("Error resolving type by name:", resolvedTypeError);
+      } else if (resolvedType?.id) {
+        const { error: typeError } = await sb.from("product_types").insert({
+          product_id: productData.id,
+          type_id: resolvedType.id,
+        });
+        if (typeError)
+          console.error("Error inserting resolved product type:", typeError);
       }
     }
     await revalidateProducts();
@@ -1210,17 +1216,7 @@ export const updateItem = async (
       productUpdates.category_id = updates.category_id;
     if (updates.brand_id !== undefined)
       productUpdates.brand_id = updates.brand_id;
-    // Prefer type_id over type (text)
-    if (updates.type_id !== undefined) {
-      // The products table does not have type_id, relationship is in product_types table.
-      // Clear product_type when type_id is set
-      if (updates.type_id) {
-        productUpdates.product_type = null;
-      }
-    } else if (updates.type !== undefined) {
-      // Legacy support: if type_id not provided but type text is
-      productUpdates.product_type = updates.type;
-    }
+    // Product types are stored in product_types; do not write products.product_type (column removed)
     if (updates.description !== undefined)
       productUpdates.description = updates.description;
     if (updates.image_url !== undefined)

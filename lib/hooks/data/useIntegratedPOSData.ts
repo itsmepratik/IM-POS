@@ -113,12 +113,14 @@ export function useIntegratedPOSData(
     initialData: config?.initialData?.products
   });
 
-  // Transform the POS data to match the expected interface and SORT alphabetically
-  const lubricantProducts = [...posData.lubricantProducts].sort((a, b) => 
-    a.name.localeCompare(b.name)
+  // Transform POS data once per sync update, not on every render.
+  const lubricantProducts = useMemo(
+    () => [...posData.lubricantProducts].sort((a, b) => a.name.localeCompare(b.name)),
+    [posData.lubricantProducts]
   );
-  const products = [...posData.regularProducts].sort((a, b) => 
-    a.name.localeCompare(b.name)
+  const products = useMemo(
+    () => [...posData.regularProducts].sort((a, b) => a.name.localeCompare(b.name)),
+    [posData.regularProducts]
   );
 
   // Derive organized data arrays (same logic as the original usePOSData)

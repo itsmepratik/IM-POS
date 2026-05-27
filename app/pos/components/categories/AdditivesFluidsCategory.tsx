@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, ChevronUp, Droplet, ImageIcon } from "lucide-react";
+import { ArrowRight, Droplet } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useNotification } from "@/lib/contexts/NotificationContext";
 import Image from "next/image";
@@ -23,6 +23,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { BrandLogo } from "../brand-logo";
 import { Brand } from "@/lib/services/inventoryService";
+import { SelectedItemsList } from "../shared/SelectedItemsList";
 
 interface Product {
   id: number;
@@ -41,10 +42,11 @@ interface Product {
   isAvailable: boolean;
 }
 
-interface CartItem {
+interface SelectedAdditive {
   id: number;
   name: string;
   price: number;
+  quantity: number;
   brand?: string;
 }
 
@@ -52,7 +54,13 @@ interface AdditivesFluidsCategoryProps {
   searchQuery?: string;
   expandedBrand: string | null;
   setExpandedBrand: (brand: string | null) => void;
-  addToCart: (item: CartItem) => void;
+  selectedAdditives: SelectedAdditive[];
+  onAdditiveClick: (product: Product) => void;
+  onQuantityChange: (productId: number, change: number) => void;
+  onAddToCart: () => void;
+  onNext: () => void;
+  onDialogClose?: () => void;
+  lastAddedAdditiveId?: number | null;
   products: Product[];
   brands?: Brand[];
   isLoading: boolean;
@@ -153,7 +161,13 @@ export function AdditivesFluidsCategory({
   searchQuery = "",
   expandedBrand,
   setExpandedBrand,
-  addToCart,
+  selectedAdditives,
+  onAdditiveClick,
+  onQuantityChange,
+  onAddToCart,
+  onNext,
+  onDialogClose,
+  lastAddedAdditiveId,
   products,
   brands,
   isLoading,
@@ -196,7 +210,12 @@ export function AdditivesFluidsCategory({
         <Dialog
           key={brand}
           open={expandedBrand === brand}
-          onOpenChange={(open) => setExpandedBrand(open ? brand : null)}
+          onOpenChange={(open) => {
+            if (!open) {
+              onDialogClose?.();
+            }
+            setExpandedBrand(open ? brand : null);
+          }}
         >
           <DialogTrigger asChild>
             <Button
@@ -243,9 +262,9 @@ export function AdditivesFluidsCategory({
                 <span>{brand} Additives & Fluids</span>
               </DialogTitle>
             </DialogHeader>
-            <div className="flex-1 overflow-hidden flex flex-col">
-              <ScrollArea className="flex-1 h-full px-6 sm:px-0">
-                <div className="pb-24 pt-2">
+            <div className="flex-1 overflow-hidden flex flex-col min-h-0">
+              <ScrollArea className="flex-1 h-full px-6 sm:px-0 min-h-0">
+                <div className="pb-4 pt-2">
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                     {/* Render additive/fluid products */}
                     {products
@@ -257,14 +276,21 @@ export function AdditivesFluidsCategory({
                       .map((product) => {
                         const available = product.availableQuantity ?? 0;
                         const isOutOfStock = available <= 0;
+                        const isSelected = selectedAdditives.some(
+                          (p) => p.id === product.id,
+                        );
 
                         return (
                           <Button
                             key={product.id}
-                            variant="outline"
+                            variant={isSelected ? "default" : "outline"}
                             disabled={false} // Always clickable to show notification
                             className={`w-full h-full min-h-[220px] sm:min-h-[240px] flex-col overflow-hidden p-0 rounded-[18px] hover:bg-accent border-2 transition-all hover:scale-[1.02] group relative ${
-                              isOutOfStock ? "opacity-60 bg-muted/50" : ""
+                              isOutOfStock
+                                ? "opacity-60 bg-muted/50"
+                                : isSelected
+                                  ? "ring-2 ring-primary"
+                                  : ""
                             }`}
                             onClick={() => {
                               if (isOutOfStock) {
@@ -276,12 +302,7 @@ export function AdditivesFluidsCategory({
                                 });
                                 return;
                               }
-                              addToCart({
-                                id: product.id,
-                                name: product.name,
-                                price: product.price,
-                                brand: product.brand,
-                              });
+                              onAdditiveClick(product);
                             }}
                           >
                             <div
@@ -329,8 +350,57 @@ export function AdditivesFluidsCategory({
                         );
                       })}
                   </div>
+
                 </div>
               </ScrollArea>
+
+              <div className="shrink-0 border-t bg-background px-6 py-4 sm:px-0">
+                {selectedAdditives.length > 0 && (
+                  <SelectedItemsList
+                    items={selectedAdditives}
+                    onQuantityChange={onQuantityChange}
+                    lastAddedItemId={lastAddedAdditiveId}
+                    className="mb-3"
+                  />
+                )}
+                <div className="flex justify-between gap-3">
+                  <Button
+                    variant="outline"
+                    className="px-4 sm:px-6"
+                    onClick={() => {
+                      onDialogClose?.();
+                      setExpandedBrand(null);
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="default"
+                      className="px-4 sm:px-6"
+                      onClick={() => {
+                        onAddToCart();
+                        setExpandedBrand(null);
+                      }}
+                      disabled={selectedAdditives.length === 0}
+                    >
+                      Go to Cart
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-10 w-10"
+                      onClick={() => {
+                        onNext();
+                        setExpandedBrand(null);
+                      }}
+                      disabled={selectedAdditives.length === 0}
+                    >
+                      <ArrowRight className="h-5 w-5" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
             </div>
           </DialogContent>
         </Dialog>

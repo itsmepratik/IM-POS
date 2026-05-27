@@ -13,6 +13,7 @@ import { OpenBottleIcon, ClosedBottleIcon } from "@/components/ui/bottle-icons";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import { LubricantProduct } from "@/lib/hooks/data/useIntegratedPOSData";
+import { CartItem as CartItemType } from "../../types";
 import {
   parseVolumeString,
   sortVolumesByLitersAsc,
@@ -38,6 +39,7 @@ interface VolumeModalProps {
   onAddSelectedToCart: () => void;
   onNextItem: () => void;
   onCancel: () => void;
+  cart: CartItemType[];
   calculateCartOpenVolume: (productId: string | number) => number;
   calculateCartClosedCount: (productId: string | number) => number;
   calculateTotalOpenVolumeSelected: (
@@ -59,11 +61,53 @@ export function VolumeModal({
   onAddSelectedToCart,
   onNextItem,
   onCancel,
+  cart,
   calculateCartOpenVolume,
   calculateCartClosedCount,
   calculateTotalOpenVolumeSelected,
 }: VolumeModalProps) {
   const volumeButtons = sortVolumesByLitersAsc(selectedOil?.volumes ?? []);
+  const maxBottleLiters = Math.max(
+    parseVolumeString(selectedOil?.type || ""),
+    ...(selectedOil?.volumes ?? [])
+      .map((v) => parseVolumeString(v.size))
+      .filter((n) => Number.isFinite(n) && n > 0),
+    1,
+  );
+
+  const toBottleEquivalent = (size: string, quantity: number) => {
+    const liters = parseVolumeString(size);
+    const normalizedLiters =
+      Number.isFinite(liters) && liters > 0 ? liters : maxBottleLiters;
+    return quantity * (normalizedLiters / maxBottleLiters);
+  };
+
+  const cartClosedBottleEquivalent = selectedOil
+    ? cart
+        .filter((item) => item.id === selectedOil.id)
+        .filter((item) => {
+          const src = (item.source || "").toUpperCase();
+          return src === "CLOSED" || item.bottleType === "closed";
+        })
+        .reduce((sum, item) => {
+          const detailsSize = item.details || "";
+          return sum + toBottleEquivalent(detailsSize, item.quantity || 0);
+        }, 0)
+    : 0;
+
+  const modalClosedBottleEquivalent = selectedVolumes
+    .filter((v) => !v.bottleType || v.bottleType === "closed")
+    .reduce((sum, v) => sum + toBottleEquivalent(v.size, v.quantity || 0), 0);
+
+  const availableClosedTotal = Number(
+    selectedOil?.volumes?.[0]?.bottleStates?.closed ?? 0,
+  );
+
+  const wouldExceedClosedPool = (size: string, nextQty: number = 1) =>
+    cartClosedBottleEquivalent +
+      modalClosedBottleEquivalent +
+      toBottleEquivalent(size, nextQty) >
+    availableClosedTotal + 1e-9;
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -106,21 +150,38 @@ export function VolumeModal({
             <div className="space-y-4 sm:space-y-6">
               {/* Volume buttons grid */}
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
-                {volumeButtons.map((volume) => (
-                  <Button
-                    key={`volume-button-${volume.size}`}
-                    variant="outline"
-                    className="h-auto py-2 sm:py-3 px-2 sm:px-4 flex flex-col items-center gap-1"
-                    onClick={() => onVolumeClick(volume)}
-                  >
-                    <div className="text-sm sm:text-base font-bold">
-                      {volume.size}
-                    </div>
-                    <div className="text-xs sm:text-sm text-foreground">
-                      OMR {volume.price.toFixed(3)}
-                    </div>
-                  </Button>
-                ))}
+                {volumeButtons.map((volume) => {
+                  const liters = parseVolumeString(volume.size);
+                  const isLargeVolumeAutoClosed = liters >= 4; // 4L/5L etc => closed bottles
+                  const isDisabled =
+                    isLargeVolumeAutoClosed &&
+                    wouldExceedClosedPool(volume.size, 1);
+
+                  return (
+                    <Button
+                      key={`volume-button-${volume.size}`}
+                      variant="outline"
+                      disabled={isDisabled}
+                      className="h-auto py-2 sm:py-3 px-2 sm:px-4 flex flex-col items-center gap-1"
+                      onClick={() => {
+                        if (isDisabled) return;
+                        onVolumeClick(volume);
+                      }}
+                      title={
+                        isDisabled
+                          ? `Only ${availableClosedTotal} closed bottles available`
+                          : undefined
+                      }
+                    >
+                      <div className="text-sm sm:text-base font-bold">
+                        {volume.size}
+                      </div>
+                      <div className="text-xs sm:text-sm text-foreground">
+                        OMR {volume.price.toFixed(3)}
+                      </div>
+                    </Button>
+                  );
+                })}
               </div>
 
               {/* Selected volumes list */}
@@ -206,30 +267,7 @@ export function VolumeModal({
                                     !volume.bottleType ||
                                     volume.bottleType === "closed"
                                   ) {
-                                    if (
-                                      volume.availableQuantity === undefined &&
-                                      !selectedOil?.volumes?.[0]?.bottleStates
-                                        ?.closed
-                                    )
-                                      return false;
-
-                                    const availableClosed =
-                                      selectedOil?.volumes?.[0]?.bottleStates
-                                        ?.closed || 0;
-                                    const cartClosedCount =
-                                      calculateCartClosedCount(selectedOil!.id);
-                                    const modalClosedCount = selectedVolumes
-                                      .filter(
-                                        (v) =>
-                                          !v.bottleType ||
-                                          v.bottleType === "closed",
-                                      )
-                                      .reduce((sum, v) => sum + v.quantity, 0);
-
-                                    return (
-                                      cartClosedCount + modalClosedCount + 1 >
-                                      availableClosed
-                                    );
+                                    return wouldExceedClosedPool(volume.size, 1);
                                   }
 
                                   return false;

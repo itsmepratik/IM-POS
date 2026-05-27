@@ -180,6 +180,7 @@ import { AdditivesFluidsCategory } from "./components/categories/AdditivesFluids
 import { DataProvider, useBranch } from "@/lib/contexts/DataProvider";
 import { BranchSelector } from "@/components/BranchSelector";
 // parseVolumeString, findHighestVolumeFromVolumes, isHighestVolume moved to useLubricantVolume hook
+import { parseVolumeString } from "@/lib/utils/volume-parser";
 
 // Extracted types
 import {
@@ -266,15 +267,43 @@ const ClearCartConfirm = dynamic(
 // Extracted cart panel components
 import { DesktopCart } from "./components/cart/DesktopCart";
 import { MobileCart } from "./components/cart/MobileCart";
+import {
+  POSSearchSuggestions,
+  POSSearchSuggestionItem,
+} from "./components/POSSearchSuggestions";
 
 // Extracted hooks
 import { useCartHelpers } from "./hooks/useCartHelpers";
 import { useFilters } from "./hooks/useFilters";
 import { useParts } from "./hooks/useParts";
+import { useAdditivesFluids } from "./hooks/useAdditivesFluids";
 import { useLubricantVolume } from "./hooks/useLubricantVolume";
 import { useCheckout } from "./hooks/useCheckout";
 
 // Note: useTradeIn and useDiscount hooks are available in ./hooks/ for future use
+
+type SearchResultItem =
+  | {
+      kind: "lubricant";
+      id: number;
+      label: string;
+      category: "Lubricants";
+      brand?: string;
+      price: number;
+      imageUrl?: string;
+      item: LubricantProduct;
+    }
+  | {
+      kind: "regular";
+      id: number;
+      label: string;
+      category: "Filters" | "Parts" | "Additives & Fluids";
+      brand?: string;
+      type?: string;
+      price: number;
+      imageUrl?: string;
+      item: Product;
+    };
 
 // Export named component
 export function POSClient({ initialData }: { initialData?: any }) {
@@ -348,6 +377,7 @@ export function POSClient({ initialData }: { initialData?: any }) {
     setSelectedFilterBrand,
     selectedFilters,
     setSelectedFilters,
+    lastAddedFilterId,
     getFiltersByType,
     handleFilterClick,
     handleFilterQuantityChange,
@@ -365,6 +395,26 @@ export function POSClient({ initialData }: { initialData?: any }) {
   });
   const [showClearCartDialog, setShowClearCartDialog] = useState(false);
   const [expandedBrand, setExpandedBrand] = useState<string | null>(null);
+
+  const calculateCartClosedCountBySize = useCallback(
+    (productId: number, size: string) => {
+      const sizeLower = size.toLowerCase();
+      return cart.reduce((total, cartItem) => {
+        if (cartItem.id !== productId) return total;
+
+        const source = (cartItem.source || "").toUpperCase();
+        const isClosed =
+          source === "CLOSED" || cartItem.bottleType === "closed";
+        if (!isClosed) return total;
+
+        const detailsLower = (cartItem.details || "").toLowerCase();
+        if (!detailsLower.includes(sizeLower)) return total;
+
+        return total + (cartItem.quantity || 0);
+      }, 0);
+    },
+    [cart],
+  );
 
   // Lubricant volume state + handlers
   const {
@@ -390,6 +440,7 @@ export function POSClient({ initialData }: { initialData?: any }) {
   } = useLubricantVolume({
     addToCart: contextAddToCart,
     calculateCartClosedCount,
+    calculateCartClosedCountBySize,
     calculateCartOpenVolume,
     isMobile,
     setShowCart,
@@ -430,6 +481,7 @@ export function POSClient({ initialData }: { initialData?: any }) {
     setSelectedPartBrand,
     selectedParts,
     setSelectedParts,
+    lastAddedPartId,
     getPartsByType,
     handlePartClick,
     handlePartQuantityChange,
@@ -443,6 +495,22 @@ export function POSClient({ initialData }: { initialData?: any }) {
     setShowCart,
     setActiveCategory,
     setSearchQuery,
+  });
+
+  const {
+    selectedAdditives,
+    lastAddedAdditiveId,
+    handleAdditiveClick,
+    handleAdditiveQuantityChange,
+    handleAddSelectedAdditivesToCart,
+    handleNextAdditiveItem,
+    clearSelectedAdditives,
+  } = useAdditivesFluids({
+    products,
+    addToCart: contextAddToCart,
+    calculateCartCount,
+    isMobile,
+    setShowCart,
   });
 
   // Trade-in battery states (must be before useCheckout which references tradeinBatteries/resetTradeInDialog)
@@ -652,9 +720,69 @@ export function POSClient({ initialData }: { initialData?: any }) {
       // Check stock limit when increasing quantity
       if (newQuantity > item.quantity) {
         const additionalQuantity = newQuantity - item.quantity;
+        const sourceType = (item.source || "").toUpperCase();
+        const inferredBottleType =
+          item.bottleType ||
+          (sourceType === "OPEN" ? "open" : sourceType === "CLOSED" ? "closed" : undefined);
+        const isLubricantLine =
+          inferredBottleType === "open" ||
+          inferredBottleType === "closed" ||
+          /\b(open|closed)\s+bottle\b/i.test(item.details || "");
+        const lubricant = lubricantProducts.find((p) => p.id === productId);
         const product = products.find((p) => p.id === productId);
 
-        if (product) {
+        // IMPORTANT: lubricant lines must always validate by bottle type/volume.
+        if (isLubricantLine && lubricant) {
+          if (inferredBottleType === "closed") {
+            const availableClosed = lubricant?.volumes?.[0]?.bottleStates?.closed || 0;
+            const otherClosedInCart = cart.reduce((total, cartItem) => {
+              if (cartItem.uniqueId === item.uniqueId) return total;
+              const sameProduct = cartItem.id === productId;
+              const cartSource = (cartItem.source || "").toUpperCase();
+              const cartBottleType =
+                cartItem.bottleType ||
+                (cartSource === "OPEN" ? "open" : cartSource === "CLOSED" ? "closed" : undefined);
+              const isClosed = cartBottleType === "closed";
+              return sameProduct && isClosed ? total + (cartItem.quantity || 0) : total;
+            }, 0);
+
+            if (otherClosedInCart + newQuantity > availableClosed) {
+              toast({
+                title: "Stock Limit Reached",
+                description: `Only ${availableClosed} closed bottles available.`,
+                variant: "destructive",
+              });
+              return false;
+            }
+          } else if (inferredBottleType === "open") {
+            const availableOpenVolume = lubricant.totalOpenVolume ?? 0;
+            const currentItemVolume = parseVolumeString(item.details || "");
+            const volumePerUnit = currentItemVolume > 0 ? currentItemVolume : 1;
+
+            const otherOpenVolumeInCart = cart.reduce((total, cartItem) => {
+              if (cartItem.uniqueId === item.uniqueId) return total;
+              const sameProduct = cartItem.id === productId;
+              const cartSource = (cartItem.source || "").toUpperCase();
+              const cartBottleType =
+                cartItem.bottleType ||
+                (cartSource === "OPEN" ? "open" : cartSource === "CLOSED" ? "closed" : undefined);
+              if (!sameProduct || cartBottleType !== "open") return total;
+              const perUnit = parseVolumeString(cartItem.details || "");
+              const normalizedPerUnit = perUnit > 0 ? perUnit : 1;
+              return total + normalizedPerUnit * (cartItem.quantity || 0);
+            }, 0);
+
+            const requestedOpenVolume = newQuantity * volumePerUnit;
+            if (otherOpenVolumeInCart + requestedOpenVolume > availableOpenVolume) {
+              toast({
+                title: "Stock Limit Reached",
+                description: `Only ${availableOpenVolume.toFixed(1).replace(/\\.0$/, "")}L available in open bottles.`,
+                variant: "destructive",
+              });
+              return false;
+            }
+          }
+        } else if (product) {
           const currentInCart = calculateCartCount(productId);
           const available =
             product.availableQuantity !== undefined
@@ -670,7 +798,6 @@ export function POSClient({ initialData }: { initialData?: any }) {
             return false;
           }
         } else {
-          // For lubricants
           const avail = getProductAvailability(item.id);
           if (avail && !avail.canSell) {
             toast({
@@ -694,6 +821,7 @@ export function POSClient({ initialData }: { initialData?: any }) {
       contextUpdateQuantity,
       cart,
       products,
+      lubricantProducts,
       calculateCartCount,
       getProductAvailability,
       toast,
@@ -808,6 +936,114 @@ export function POSClient({ initialData }: { initialData?: any }) {
             return matchesCategory && matchesSearch && matchesBrand;
           }),
     [activeCategory, searchQuery, expandedBrand, products],
+  );
+
+  const globalSearchResults = useMemo<SearchResultItem[]>(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return [];
+
+    const lubricantMatches: SearchResultItem[] = lubricantProducts
+      .filter((p) => {
+        const name = p.name.toLowerCase();
+        const brand = (p.brand || "").toLowerCase();
+        const spec = (p.specification || "").toLowerCase();
+        return (
+          name.includes(query) ||
+          brand.includes(query) ||
+          `${brand} ${name}`.includes(query) ||
+          spec.includes(query)
+        );
+      })
+      .map((p) => ({
+        kind: "lubricant",
+        id: p.id,
+        label: p.name,
+        category: "Lubricants",
+        brand: p.brand,
+        price: p.basePrice,
+        imageUrl: p.image,
+        item: p,
+      }));
+
+    const regularMatches: SearchResultItem[] = products
+      .filter((p) => {
+        const name = p.name.toLowerCase();
+        const brand = (p.brand || "").toLowerCase();
+        const type = (p.type || "").toLowerCase();
+        return (
+          name.includes(query) ||
+          brand.includes(query) ||
+          type.includes(query) ||
+          `${brand} ${name}`.includes(query)
+        );
+      })
+      .map((p) => ({
+        kind: "regular",
+        id: p.id,
+        label: p.name,
+        category: p.category as "Filters" | "Parts" | "Additives & Fluids",
+        brand: p.brand,
+        type: p.type,
+        price: p.price,
+        imageUrl: p.imageUrl,
+        item: p,
+      }));
+
+    return [...lubricantMatches, ...regularMatches];
+  }, [searchQuery, lubricantProducts, products]);
+  const suggestionResults = useMemo<POSSearchSuggestionItem[]>(
+    () =>
+      globalSearchResults.map((result) => ({
+        key: `suggest-${result.kind}-${result.id}-${result.category}`,
+        label: result.label,
+        brand: result.brand,
+        category: result.category,
+        imageUrl: result.imageUrl,
+      })),
+    [globalSearchResults],
+  );
+
+  const handleSearchResultSelect = useCallback(
+    (result: SearchResultItem) => {
+      if (result.kind === "lubricant") {
+        setActiveCategory("Lubricants");
+        setExpandedBrand(result.brand || null);
+        handleLubricantSelect(result.item);
+        return;
+      }
+
+      if (result.category === "Filters") {
+        setActiveCategory("Filters");
+        setSelectedFilterType(result.type || null);
+        setSelectedFilterBrand(result.brand || "");
+        setSelectedFilters([]);
+        setIsFilterBrandModalOpen(true);
+        return;
+      }
+
+      if (result.category === "Parts") {
+        setActiveCategory("Parts");
+        setSelectedPartType(result.type || null);
+        setSelectedPartBrand(result.brand || "");
+        setSelectedParts([]);
+        setIsPartBrandModalOpen(true);
+        return;
+      }
+
+      setActiveCategory("Additives & Fluids");
+      setExpandedBrand(result.brand || "Other");
+    },
+    [
+      handleLubricantSelect,
+      setSelectedFilterType,
+      setSelectedFilterBrand,
+      setSelectedFilters,
+      setIsFilterBrandModalOpen,
+      setSelectedPartType,
+      setSelectedPartBrand,
+      setSelectedParts,
+      setIsPartBrandModalOpen,
+    ],
   );
 
   // Calculate total with discount and trade-in
@@ -1037,16 +1273,21 @@ export function POSClient({ initialData }: { initialData?: any }) {
                   onValueChange={setActiveCategory}
                 >
                   <div className="space-y-4 flex-shrink-0">
-                    <div className="relative">
-                      <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        placeholder={`Search in ${activeCategory}...`}
-                        className="pl-9 h-10 text-base"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        suppressHydrationWarning
-                      />
-                    </div>
+                    <POSSearchSuggestions
+                      activeCategory={activeCategory}
+                      searchQuery={searchQuery}
+                      onSearchQueryChange={setSearchQuery}
+                      suggestions={suggestionResults}
+                      onSelectSuggestion={(suggestion) => {
+                        const selected = globalSearchResults.find(
+                          (result) =>
+                            `suggest-${result.kind}-${result.id}-${result.category}` ===
+                            suggestion.key,
+                        );
+                        if (!selected) return;
+                        handleSearchResultSelect(selected);
+                      }}
+                    />
 
                     {/* Labor Pill Button */}
                     <Button
@@ -1067,11 +1308,11 @@ export function POSClient({ initialData }: { initialData?: any }) {
                       </TabsTrigger>
                     </TabsList>
                   </div>
-                  <ScrollArea className="flex-1 mt-4 -mx-2 px-2" viewportClassName="!overflow-visible">
+                    <ScrollArea className="flex-1 mt-4 -mx-2 px-2" viewportClassName="!overflow-visible">
                     <div className="grid grid-cols-1 gap-4 p-2 overflow-visible">
                       {activeCategory === "Lubricants" ? (
                         <LubricantCategory
-                          searchQuery={searchQuery}
+                          searchQuery=""
                           expandedBrand={expandedBrand}
                           setExpandedBrand={setExpandedBrand}
                           onLubricantSelect={handleLubricantSelect}
@@ -1082,7 +1323,7 @@ export function POSClient({ initialData }: { initialData?: any }) {
                         />
                       ) : activeCategory === "Filters" ? (
                         <FiltersCategory
-                          searchQuery={searchQuery}
+                          searchQuery=""
                           selectedFilterType={selectedFilterType}
                           setSelectedFilterType={setSelectedFilterType}
                           setSelectedFilterBrand={setSelectedFilterBrand}
@@ -1096,7 +1337,7 @@ export function POSClient({ initialData }: { initialData?: any }) {
                         />
                       ) : activeCategory === "Parts" ? (
                         <PartsCategory
-                          searchQuery={searchQuery}
+                          searchQuery=""
                           selectedPartType={selectedPartType}
                           setSelectedPartType={setSelectedPartType}
                           setSelectedPartBrand={setSelectedPartBrand}
@@ -1110,10 +1351,16 @@ export function POSClient({ initialData }: { initialData?: any }) {
                         />
                       ) : activeCategory === "Additives & Fluids" ? (
                         <AdditivesFluidsCategory
-                          searchQuery={searchQuery}
+                          searchQuery=""
                           expandedBrand={expandedBrand}
                           setExpandedBrand={setExpandedBrand}
-                          addToCart={handleSafeAddToCart}
+                          selectedAdditives={selectedAdditives}
+                          lastAddedAdditiveId={lastAddedAdditiveId}
+                          onAdditiveClick={handleAdditiveClick}
+                          onQuantityChange={handleAdditiveQuantityChange}
+                          onAddToCart={handleAddSelectedAdditivesToCart}
+                          onNext={handleNextAdditiveItem}
+                          onDialogClose={clearSelectedAdditives}
                           products={products}
                           brands={brands}
                           isLoading={isLoading}
@@ -1210,6 +1457,7 @@ export function POSClient({ initialData }: { initialData?: any }) {
             selectedVolumes={selectedVolumes}
             onVolumeClick={handleVolumeClick}
             onQuantityChange={handleQuantityChange}
+            cart={cart}
             onAddSelectedToCart={() => {
               handleAddSelectedToCart();
               setExpandedBrand(null);
@@ -1266,6 +1514,7 @@ export function POSClient({ initialData }: { initialData?: any }) {
                   )?.availableQuantity || 0,
               }))}
             selectedFilters={selectedFilters}
+            lastAddedFilterId={lastAddedFilterId}
             onFilterClick={({ id, name, price, imageUrl, originalId }) => {
               // Find the full product to pass to handleFilterClick
               const product = getFiltersByType(selectedFilterType || "").find(
@@ -1759,6 +2008,7 @@ export function POSClient({ initialData }: { initialData?: any }) {
             : []
         }
         selectedParts={selectedParts}
+        lastAddedPartId={lastAddedPartId}
         onPartClick={handlePartClick}
         onQuantityChange={handlePartQuantityChange}
         onAddToCart={handleAddSelectedPartsToCart}
