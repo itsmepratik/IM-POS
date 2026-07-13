@@ -72,6 +72,7 @@ export async function POST(req: NextRequest) {
       customerId,
       mobilePaymentAccount,
       mobileNumber,
+      referenceNumber: clientReferenceNumber,
     } = validatedInput;
 
     const uuidRegex =
@@ -184,43 +185,93 @@ export async function POST(req: NextRequest) {
     )
       transactionType = "ON_HOLD";
 
-    // Generate Reference Number
-    const { generateReferenceNumber } =
-      await import("@/lib/utils/reference-numbers");
+    let referenceNumber = clientReferenceNumber;
 
-    // Determine if battery transaction by querying DB safely
-    const productIds = cart.map((i) => i.productId);
-    const validProductIds = productIds.filter((id) =>
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-        id,
-      ),
-    );
+    if (referenceNumber) {
+      // Sync reference counter to DB
+      try {
+        // Format of clientReferenceNumber is: [PREFIX][SHOP_CODE][3-DIGIT-COUNTER][MMYY]
+        // Resolve shopCode from database for safety
+        let shopCode = "01";
+        if (resolvedShopId) {
+          const [shopData] = await db
+            .select({ shopCode: shops.shopCode })
+            .from(shops)
+            .where(eq(shops.id, resolvedShopId))
+            .limit(1);
+          if (shopData && shopData.shopCode) {
+            shopCode = shopData.shopCode;
+          }
+        }
 
-    let isBatteryTransaction = false;
-    if (validProductIds.length > 0) {
-      const { products } = await import("@/lib/db/schema");
-      const { eq, inArray, and } = await import("drizzle-orm");
-      const batteryProducts = await db
-        .select({ id: products.id })
-        .from(products)
-        .where(
-          and(
-            inArray(products.id, validProductIds),
-            eq(products.isBattery, true),
-          ),
-        )
-        .limit(1);
+        // The prefix in clientReferenceNumber is at the start (1 or 2 letters: e.g. WB, R, OH, ST, B, A)
+        let prefix = "A";
+        if (referenceNumber.startsWith("WB")) prefix = "WB";
+        else if (referenceNumber.startsWith("R")) prefix = "R";
+        else if (referenceNumber.startsWith("OH")) prefix = "OH";
+        else if (referenceNumber.startsWith("ST")) prefix = "ST";
+        else if (referenceNumber.startsWith("B")) prefix = "B";
 
-      if (batteryProducts.length > 0) {
-        isBatteryTransaction = true;
+        // Extract counter and MMYY based on prefix and shopCode lengths
+        const counterStartIdx = prefix.length + shopCode.length;
+        const counterStr = referenceNumber.substring(counterStartIdx, counterStartIdx + 3);
+        const mmyy = referenceNumber.substring(counterStartIdx + 3);
+
+        const counterVal = parseInt(counterStr, 10);
+
+        if (!isNaN(counterVal)) {
+          const counterKey = `${prefix}_${shopCode}_${mmyy}`;
+          // Atomically update DB counter to be at least counterVal
+          await db.execute(sql`
+            INSERT INTO reference_number_counters (prefix, counter, updated_at)
+            VALUES (${counterKey}, ${counterVal}, now())
+            ON CONFLICT (prefix) DO UPDATE
+            SET counter = GREATEST(reference_number_counters.counter, EXCLUDED.counter),
+                updated_at = now()
+          `);
+        }
+      } catch (err) {
+        console.error("Failed to sync client reference number counter:", err);
       }
+    } else {
+      // Generate Reference Number
+      const { generateReferenceNumber } =
+        await import("@/lib/utils/reference-numbers");
+
+      // Determine if battery transaction by querying DB safely
+      const productIds = cart.map((i) => i.productId);
+      const validProductIds = productIds.filter((id) =>
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+          id,
+        ),
+      );
+
+      let isBatteryTransaction = false;
+      if (validProductIds.length > 0) {
+        const { products } = await import("@/lib/db/schema");
+        const { eq, inArray, and } = await import("drizzle-orm");
+        const batteryProducts = await db
+          .select({ id: products.id })
+          .from(products)
+          .where(
+            and(
+              inArray(products.id, validProductIds),
+              eq(products.isBattery, true),
+            ),
+          )
+          .limit(1);
+
+        if (batteryProducts.length > 0) {
+          isBatteryTransaction = true;
+        }
+      }
+      referenceNumber = await generateReferenceNumber(
+        transactionType,
+        isBatteryTransaction,
+        paymentMethod,
+        resolvedShopId,
+      );
     }
-    const referenceNumber = await generateReferenceNumber(
-      transactionType,
-      isBatteryTransaction,
-      paymentMethod,
-      resolvedShopId,
-    );
 
     // RETRY LOOP FOR DB OPERATION
     let lastError: any;

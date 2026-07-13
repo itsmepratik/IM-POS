@@ -44,6 +44,7 @@ export const CheckoutInputSchema = z.object({
   customerId: z.string().uuid().optional(), // Optional customer ID for linking transactions to customers
   mobilePaymentAccount: z.string().optional(), // Account used for mobile payment (Adanan or Forman)
   mobileNumber: z.string().optional(), // Mobile number used for the transaction
+  referenceNumber: z.string().optional(), // Client-side generated reference number
 });
 
 // Response schemas

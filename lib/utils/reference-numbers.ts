@@ -90,9 +90,10 @@ export async function generateReferenceNumber(
     counterValue = updateResult[0]?.counter || 1;
   }
 
-  // Format with leading zeros (3 digits: 001-999, as per example A001013190326)
-  // [SALE_NUM_MONTH]
+  // Format with leading zeros (3 digits: 001-999)
+  // New format: [PREFIX][SHOP_CODE][3-DIGIT-COUNTER][MMYY]
+  // Example: A011230726
   const paddedNumber = counterValue.toString().padStart(3, "0");
 
-  return `${prefix}${paddedNumber}${shopCode}${zipCode}${mmyy}`;
+  return `${prefix}${shopCode}${paddedNumber}${mmyy}`;
 }

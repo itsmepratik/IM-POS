@@ -188,7 +188,7 @@ export function useCheckout({
     }));
 
     const paddedNumber = newVal.toString().padStart(3, "0");
-    return `${prefix}${paddedNumber}${shopCode}${zipCode}${mmyy}`;
+    return `${prefix}${shopCode}${paddedNumber}${mmyy}`;
   }, [cart, cartContainsAnyBatteries, currentBranch, localCounters]);
 
   // Customer state
@@ -608,6 +608,7 @@ export function useCheckout({
         cart: cartForAPI,
         carPlateNumber: carPlateNumber.trim() || undefined,
         customerId: currentCustomer?.id || undefined,
+        referenceNumber: localRef,
         ...(tradeInsForAPI ? { tradeIns: tradeInsForAPI } : {}),
         ...(appliedDiscount ? { discount: appliedDiscount } : {}),
       };
@@ -685,6 +686,7 @@ export function useCheckout({
       cart: cartForAPI,
       carPlateNumber: carPlateNumber.trim() || undefined,
       customerId: currentCustomer?.id || undefined,
+      referenceNumber: localRef,
       ...(tradeInsForAPI ? { tradeIns: tradeInsForAPI } : {}),
       ...(appliedDiscount ? { discount: appliedDiscount } : {}),
       ...(selectedPaymentMethod === "mobile" && paymentRecipient
