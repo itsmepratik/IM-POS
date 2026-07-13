@@ -44,6 +44,8 @@ export type DbBranch = {
   brand_phones?: string;
   brand_whatsapp?: string;
   pos_id?: string;
+  shop_code?: string;
+  zip_code?: string;
 };
 
 interface BranchContextType {
@@ -159,6 +161,8 @@ export function BranchProvider({ children }: { children: ReactNode }) {
           brand_phones: shop.brand_phones || undefined,
           brand_whatsapp: shop.brand_whatsapp || undefined,
           pos_id: shop.pos_id || undefined,
+          shop_code: shop.shop_code || undefined,
+          zip_code: shop.zip_code || undefined,
         }));
 
         // PRIORITY 1: Check for email pattern matching (e.g. sanaiya1@hnsautomotive.com)

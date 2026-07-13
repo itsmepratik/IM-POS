@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { CartItem, TradeinBattery } from "../types";
 import {
   Product,
@@ -47,6 +47,7 @@ interface UseCheckoutProps {
   setDiscountValue: (value: number) => void;
   setAppliedTradeInAmount: (amount: number) => void;
   setShowCart: (show: boolean) => void;
+  initialCounters?: { prefix: string; counter: number }[];
 }
 
 export function useCheckout({
@@ -65,6 +66,7 @@ export function useCheckout({
   setDiscountValue,
   setAppliedTradeInAmount,
   setShowCart,
+  initialCounters,
 }: UseCheckoutProps) {
   const { toast } = useToast();
   const { currentBranch, inventoryLocationId } = useBranch();
@@ -107,6 +109,87 @@ export function useCheckout({
 
   // Payment recipient
   const [paymentRecipient, setPaymentRecipient] = useState<string | null>(null);
+
+  // Local counters state, initialized from initialCounters and synced via localStorage
+  const [localCounters, setLocalCounters] = useState<Record<string, number>>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("pos_reference_counters");
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch (_) {}
+      }
+    }
+    const initialMap: Record<string, number> = {};
+    if (initialCounters) {
+      initialCounters.forEach((c) => {
+        initialMap[c.prefix] = c.counter;
+      });
+    }
+    return initialMap;
+  });
+
+  // Save to localStorage when changed
+  useEffect(() => {
+    if (typeof window !== "undefined" && Object.keys(localCounters).length > 0) {
+      localStorage.setItem("pos_reference_counters", JSON.stringify(localCounters));
+    }
+  }, [localCounters]);
+
+  // Sync state if initialCounters changes (e.g. on manual sync or catalog load)
+  useEffect(() => {
+    if (initialCounters) {
+      setLocalCounters((prev) => {
+        const next = { ...prev };
+        let changed = false;
+        initialCounters.forEach((c) => {
+          // Only update if database is ahead of local
+          if (c.counter > (next[c.prefix] || 0)) {
+            next[c.prefix] = c.counter;
+            changed = true;
+          }
+        });
+        return changed ? next : prev;
+      });
+    }
+  }, [initialCounters]);
+
+  const generateLocalReferenceNumber = useCallback((transactionType: string) => {
+    const isBattery = cartContainsAnyBatteries(cart);
+    
+    let prefix = "A";
+    if (transactionType === "WARRANTY_CLAIM") prefix = "WB";
+    else if (transactionType === "REFUND") prefix = "R";
+    else if (transactionType === "ON_HOLD") prefix = "OH";
+    else if (transactionType === "STOCK_TRANSFER") prefix = "ST";
+    else if (isBattery) prefix = "B";
+
+    const shopCode = currentBranch?.shop_code || "01";
+    const zipCode = currentBranch?.zip_code || "319";
+
+    // Get current date mapped to UAE timezone
+    const now = new Date(
+      new Date().toLocaleString("en-US", { timeZone: "Asia/Dubai" })
+    );
+    const month = (now.getMonth() + 1).toString().padStart(2, "0");
+    const year = now.getFullYear().toString().slice(-2);
+    const mmyy = `${month}${year}`;
+
+    const counterKey = `${prefix}_${shopCode}_${mmyy}`;
+
+    // Get current counter value
+    const currentVal = localCounters[counterKey] || 0;
+    const newVal = currentVal + 1;
+
+    // Increment counter in state
+    setLocalCounters((prev) => ({
+      ...prev,
+      [counterKey]: newVal,
+    }));
+
+    const paddedNumber = newVal.toString().padStart(3, "0");
+    return `${prefix}${paddedNumber}${shopCode}${zipCode}${mmyy}`;
+  }, [cart, cartContainsAnyBatteries, currentBranch, localCounters]);
 
   // Customer state
   const [isCustomerFormOpen, setIsCustomerFormOpen] = useState(false);
@@ -490,8 +573,9 @@ export function useCheckout({
         second: "2-digit",
       });
 
+      const localRef = generateLocalReferenceNumber("ON_HOLD");
       setTransactionData({
-        receiptNumber: `OH-${Date.now()}`,
+        receiptNumber: localRef,
         currentDate: newCurrentDate,
         currentTime: newCurrentTime,
       });
@@ -566,8 +650,9 @@ export function useCheckout({
       second: "2-digit",
     });
 
+    const localRef = generateLocalReferenceNumber("SALE");
     setTransactionData({
-      receiptNumber: `OPT-${Date.now()}`,
+      receiptNumber: localRef,
       currentDate: newCurrentDate,
       currentTime: newCurrentTime,
     });

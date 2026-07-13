@@ -6,6 +6,7 @@ import {
 import { POSClient } from "./client-page";
 import { cookies } from "next/headers";
 import { getDatabase } from "@/lib/db/client";
+import { referenceNumberCounters } from "@/lib/db/schema";
 import { CategoryProvider } from "./context/CategoryContext";
 import { CartProvider } from "./context/CartContext";
 import { Suspense } from "react";
@@ -33,6 +34,19 @@ export default async function POSPage() {
   ]);
 
   let productsData: any[] = [];
+  let countersData: any[] = [];
+
+  try {
+    const db = getDatabase();
+    countersData = await db
+      .select({
+        prefix: referenceNumberCounters.prefix,
+        counter: referenceNumberCounters.counter,
+      })
+      .from(referenceNumberCounters);
+  } catch (e) {
+    console.error("Failed to pre-fetch reference counters:", e);
+  }
 
   if (branchId && shopsData) {
     const currentShop = shopsData.find((s: any) => s.id === branchId);
@@ -54,6 +68,7 @@ export default async function POSPage() {
               brands: brandsData,
               products: productsData,
               shops: shopsData,
+              counters: countersData,
             }}
           />
         </Suspense>

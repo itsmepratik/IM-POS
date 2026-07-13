@@ -30,6 +30,8 @@ export type Shop = {
   brand_phones: string | null;
   brand_whatsapp: string | null;
   pos_id: string | null;
+  shop_code: string | null;
+  zip_code: string | null;
 };
 
 // Shop update data type
@@ -87,6 +89,8 @@ export const fetchShops = async (): Promise<Shop[]> => {
         brand_phones,
         brand_whatsapp,
         pos_id,
+        shop_code,
+        zip_code,
         locations!inner (
           id,
           name
@@ -125,6 +129,8 @@ export const fetchShops = async (): Promise<Shop[]> => {
       brand_phones: string | null;
       brand_whatsapp: string | null;
       pos_id: string | null;
+      shop_code: string | null;
+      zip_code: string | null;
       locations?: { id: string; name: string } | null;
     }
 
@@ -154,6 +160,8 @@ export const fetchShops = async (): Promise<Shop[]> => {
       brand_phones: shop.brand_phones,
       brand_whatsapp: shop.brand_whatsapp,
       pos_id: shop.pos_id,
+      shop_code: shop.shop_code,
+      zip_code: shop.zip_code,
     }));
 
     return shops;

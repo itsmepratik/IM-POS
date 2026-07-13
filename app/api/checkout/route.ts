@@ -7,7 +7,7 @@ import {
   getDatabaseHealth,
   testDatabaseConnection,
 } from "@/lib/db/client";
-import { shops, inventory, products, batches } from "@/lib/db/schema";
+import { shops, inventory, products, batches, locations } from "@/lib/db/schema";
 import { eq, sql } from "drizzle-orm";
 import { CheckoutInputSchema, calculateFinalTotal } from "@/lib/types/checkout";
 import type { CheckoutInput } from "@/lib/types/checkout";
@@ -74,6 +74,53 @@ export async function POST(req: NextRequest) {
       mobileNumber,
     } = validatedInput;
 
+    const uuidRegex =
+      /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+
+    // Resolve locationId to a valid UUID if it is a placeholder string
+    let resolvedLocationId = locationId;
+    if (!uuidRegex.test(resolvedLocationId)) {
+      const [locationData] = await db
+        .select({ id: locations.id })
+        .from(locations)
+        .where(eq(sql`lower(${locations.name})`, resolvedLocationId.toLowerCase()))
+        .limit(1);
+      if (locationData) {
+        resolvedLocationId = locationData.id;
+      } else {
+        const [fallbackLoc] = await db.select({ id: locations.id }).from(locations).limit(1);
+        if (fallbackLoc) {
+          resolvedLocationId = fallbackLoc.id;
+        }
+      }
+    }
+
+    // Resolve shopId to a valid UUID if it is a placeholder string
+    let resolvedShopId = shopId;
+    if (resolvedShopId && !uuidRegex.test(resolvedShopId)) {
+      const [shopData] = await db
+        .select({ id: shops.id })
+        .from(shops)
+        .where(eq(sql`lower(${shops.name})`, resolvedShopId.toLowerCase()))
+        .limit(1);
+      if (shopData) {
+        resolvedShopId = shopData.id;
+      } else {
+        // Fallback to first shop matching location, or just first shop
+        const [fallbackShop] = await db
+          .select({ id: shops.id })
+          .from(shops)
+          .where(eq(shops.locationId, resolvedLocationId))
+          .limit(1);
+        if (fallbackShop) {
+          resolvedShopId = fallbackShop.id;
+        } else {
+          const [firstShop] = await db.select({ id: shops.id }).from(shops).limit(1);
+          if (firstShop) resolvedShopId = firstShop.id;
+        }
+      }
+    }
+
     // Validate Cashier
     let cashierId: string | undefined = cashierIdInput;
     if (
@@ -111,18 +158,18 @@ export async function POST(req: NextRequest) {
       calculateFinalTotal(cart, tradeIns, discount);
 
     // Determine Location (Lookup logic)
-    let actualLocationId = locationId;
-    if (shopId && shopId !== locationId) {
+    let actualLocationId = resolvedLocationId;
+    if (resolvedShopId && resolvedShopId !== resolvedLocationId) {
       const [shopData] = await db
         .select({ locationId: shops.locationId })
         .from(shops)
-        .where(eq(shops.id, shopId))
+        .where(eq(shops.id, resolvedShopId))
         .limit(1);
       if (shopData) {
         actualLocationId = shopData.locationId;
       } else {
         return NextResponse.json(
-          { success: false, error: `Shop ${shopId} not found` },
+          { success: false, error: `Shop ${resolvedShopId} not found` },
           { status: 400 },
         );
       }
@@ -172,7 +219,7 @@ export async function POST(req: NextRequest) {
       transactionType,
       isBatteryTransaction,
       paymentMethod,
-      shopId,
+      resolvedShopId,
     );
 
     // RETRY LOOP FOR DB OPERATION
@@ -312,11 +359,10 @@ export async function POST(req: NextRequest) {
         // Convert enhanced cart to strictly serializable object
         const cartJson = JSON.stringify(cartWithCost);
 
-        // Execute the main transaction
         const result = await db.execute(sql`
           SELECT create_checkout_transaction(
             ${actualLocationId}::uuid,
-            ${shopId}::uuid,
+            ${resolvedShopId || null}::uuid,
             ${cashierId || null}::uuid,
             ${cartJson}::jsonb,
             ${finalTotal.toString()}::numeric,

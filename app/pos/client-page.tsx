@@ -601,6 +601,7 @@ export function POSClient({ initialData }: { initialData?: any }) {
     setDiscountValue,
     setAppliedTradeInAmount,
     setShowCart,
+    initialCounters: initialData?.counters,
   });
 
   // Trade-in battery states moved above useCheckout hook call
@@ -1140,7 +1141,6 @@ export function POSClient({ initialData }: { initialData?: any }) {
   const [isDisputeDialogOpen, setIsDisputeDialogOpen] = useState(false);
   const [isWarrantyDialogOpen, setIsWarrantyDialogOpen] = useState(false);
   const [isLaborDialogOpen, setIsLaborDialogOpen] = useState(false);
-  const [laborAmount, setLaborAmount] = useState<number>(0.5);
 
   // Settlement modal state
   const [isSettlementModalOpen, setIsSettlementModalOpen] = useState(false);
@@ -2058,16 +2058,13 @@ export function POSClient({ initialData }: { initialData?: any }) {
       <LaborDialog
         open={isLaborDialogOpen}
         onOpenChange={setIsLaborDialogOpen}
-        laborAmount={laborAmount}
-        setLaborAmount={setLaborAmount}
-        onAddToCart={() => {
-          if (laborAmount > 0) {
+        onAddToCart={(amount) => {
+          if (amount > 0) {
             addToCart({
               id: 9999,
               name: "Labor - Custom Service",
-              price: laborAmount,
+              price: amount,
             });
-            setLaborAmount(0.5);
             setIsLaborDialogOpen(false);
             if (isMobile) setShowCart(true);
           }

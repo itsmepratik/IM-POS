@@ -26,7 +26,7 @@ try {
     // Configure connection with optimized settings for reliability
     queryClient = postgres(dbConfig.url, {
       max: CONNECTION_POOL_SIZE,
-      prepare: true,
+      prepare: false,
       ssl: dbConfig.ssl,
       
       // Connection settings

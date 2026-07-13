@@ -341,17 +341,18 @@ BEGIN
               v_ti_quantity := (v_trade_in->>'quantity')::INTEGER;
               v_ti_trade_in_value := (v_trade_in->>'tradeInValue')::NUMERIC;
               v_ti_product_id := NULL;
+              v_ti_inventory_id := NULL;
               
               IF v_ti_size IS NOT NULL AND v_ti_condition IS NOT NULL THEN
-                  SELECT id INTO v_ti_product_id FROM products WHERE name = v_ti_name LIMIT 1;
+                  SELECT id INTO v_ti_product_id FROM products WHERE name = v_ti_name AND battery_state = LOWER(v_ti_condition) LIMIT 1;
                   IF v_ti_product_id IS NULL THEN
                       SELECT trade_in_value INTO v_ti_selling_price 
                       FROM trade_in_prices WHERE size = v_ti_size AND condition ILIKE v_ti_condition;
                       IF v_ti_selling_price IS NULL THEN v_ti_selling_price := 0; END IF;
                       INSERT INTO products (
-                          name, category_id, type_id, description, is_battery, battery_state, cost_price
+                          name, category_id, description, is_battery, battery_state, cost_price
                       ) VALUES (
-                          v_ti_name, v_parts_category_id, v_battery_type_id, 
+                          v_ti_name, v_parts_category_id, 
                           'Trade-in battery - ' || v_ti_size || ' (' || v_ti_condition || ')',
                           TRUE, LOWER(v_ti_condition), v_ti_cost_price
                       ) RETURNING id INTO v_ti_product_id;
