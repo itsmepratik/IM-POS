@@ -368,8 +368,25 @@ export const ItemsProvider = ({
   }, [inventoryLocationId, currentBranch?.id]);
 
   const addItem = async (item: Omit<Item, "id">): Promise<Item | null> => {
+    // Generate an optimistic ID
+    const tempId = `temp-${Date.now()}`;
+    const optimisticItem: Item = {
+      ...item,
+      id: tempId,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      brand: item.brand || (item.brand_id ? brandMap.get(item.brand_id) : "") || "",
+      category: item.category || (item.category_id ? categoryMap.get(item.category_id) : "") || "",
+      image_url: item.image_url || null,
+      stock: item.stock || 0,
+      price: item.price || 0,
+      batches: item.batches || [],
+    } as Item;
+
+    // Immediately update local state
+    setItems((prev) => [...prev, optimisticItem]);
+
     try {
-      // Use overrideLocationId if provided, otherwise inventoryLocationId
       let locationIdForInventory = overrideLocationId || inventoryLocationId;
 
       if (!locationIdForInventory && !overrideLocationId && currentBranch?.id) {
@@ -386,6 +403,8 @@ export const ItemsProvider = ({
       }
 
       if (!locationIdForInventory) {
+        // Rollback
+        setItems((prev) => prev.filter((i) => i.id !== tempId));
         toast({
           title: "Error",
           description: "No location available for inventory.",
@@ -394,7 +413,6 @@ export const ItemsProvider = ({
         return null;
       }
 
-      // FIX: Pass location_id as the second argument, not just inside the object
       const newItem = await createItem({
         ...item,
       }, locationIdForInventory);
@@ -402,14 +420,9 @@ export const ItemsProvider = ({
       if (newItem) {
         // Handle batches explicitly
         if (item.batches && item.batches.length > 0) {
-          
-          // Create each batch from the provided array
           for (const batch of item.batches) {
             try {
-              // Handle potential mix of snake_case and camelCase from frontend forms
-              // Explicitly cast to any to access potential camelCase properties
               const batchAny = batch as any;
-              
               await addBatchService({
                 item_id: newItem.id,
                 purchase_date: batch.purchase_date || batchAny.purchaseDate || new Date().toISOString(),
@@ -418,49 +431,45 @@ export const ItemsProvider = ({
                 current_quantity: batch.current_quantity || batchAny.displayQuantity || batchAny.quantity || 0,
                 supplier_id: batch.supplier_id || null,
                 expiration_date: batch.expiration_date || batchAny.expirationDate || null,
-              }, locationIdForInventory); // FIX: Pass locationId
+              }, locationIdForInventory);
             } catch (err) {
               console.error("Failed to add batch for new item:", err);
             }
           }
         } else {
-          // Fallback: Create initial batch if item has stock but no specific batches defined
           const initialStock = newItem.stock || 0;
           const costPrice = newItem.costPrice || 0;
-          
           if (initialStock > 0) {
             try {
               await createInitialBatchForInventory(
-                newItem.id, // This is the inventory_id/product_id
+                newItem.id,
                 costPrice,
                 initialStock,
-                undefined // supplier
+                undefined
               );
             } catch (batchError) {
               console.error("Error creating initial batch:", batchError);
-              // Don't fail the item creation, just log the error
             }
           }
         }
         
-        setItems((prev) => {
-          // Check if item already exists (from real-time update)
-          if (prev.some((item) => item.id === newItem.id)) {
-            return prev;
-          }
-          return [...prev, newItem];
-        });
+        // Replace temp item with the real one
+        setItems((prev) => prev.map((i) => (i.id === tempId ? newItem : i)));
         toast({
           title: "Item added",
           description: `${newItem.name} has been added successfully.`,
         });
         return newItem;
       }
+      
+      // Rollback if newItem is null
+      setItems((prev) => prev.filter((i) => i.id !== tempId));
       return null;
     } catch (error) {
+      // Rollback
+      setItems((prev) => prev.filter((i) => i.id !== tempId));
       console.error("Error adding item:", error);
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
       toast({
         title: "Error adding item",
         description: errorMessage,
@@ -474,17 +483,26 @@ export const ItemsProvider = ({
     id: string,
     updatedItem: Omit<Item, "id">
   ): Promise<Item | null> => {
+    const previousItem = items.find((i) => i.id === id);
+    if (!previousItem) return null;
+
+    // Immediately update local state optimistically
+    const optimisticUpdatedItem = {
+      ...previousItem,
+      ...updatedItem,
+      brand: updatedItem.brand || (updatedItem.brand_id ? brandMap.get(updatedItem.brand_id) : previousItem.brand) || "",
+      category: updatedItem.category || (updatedItem.category_id ? categoryMap.get(updatedItem.category_id) : previousItem.category) || "",
+    } as Item;
+
+    setItems((prevItems) =>
+      prevItems.map((item) => (item.id === id ? optimisticUpdatedItem : item))
+    );
+
     try {
-      // FIX: Resolve locationId for update
       let locationIdForInventory = overrideLocationId || inventoryLocationId;
-      
-      // If we have a current location ref, use that as fallback
       if (!locationIdForInventory && currentLocationIdRef.current) {
         locationIdForInventory = currentLocationIdRef.current;
       }
-
-      // If still no location, default to undefined which service might handle or fallback to sanaiya (but at least we tried)
-      // Ideally we should warn if strictly needed.
       
       const updated = await updateItemService(id, updatedItem, locationIdForInventory || undefined);
       if (updated) {
@@ -497,6 +515,10 @@ export const ItemsProvider = ({
         });
         return updated;
       } else {
+        // Rollback
+        setItems((prevItems) =>
+          prevItems.map((item) => (item.id === id ? previousItem : item))
+        );
         toast({
           title: "Update failed",
           description: "The item could not be updated. Please try again.",
@@ -505,9 +527,12 @@ export const ItemsProvider = ({
         return null;
       }
     } catch (error) {
+      // Rollback
+      setItems((prevItems) =>
+        prevItems.map((item) => (item.id === id ? previousItem : item))
+      );
       console.error("Error updating item:", error);
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
       toast({
         title: "Error updating item",
         description: errorMessage,
@@ -518,28 +543,12 @@ export const ItemsProvider = ({
   };
 
   const deleteItem = async (id: string): Promise<boolean> => {
+    const itemToDelete = items.find((item) => item.id === id);
+    
+    // Immediately remove from list optimistically
+    setItems((prevItems) => prevItems.filter((item) => item.id !== id));
+
     try {
-      let itemToDelete = items.find((item) => item.id === id);
-      
-      // If not in local state (e.g. when using server-side pagination), fetch it
-      if (!itemToDelete) {
-         try {
-           const fetched = await fetchItem(id);
-           if (fetched) itemToDelete = fetched;
-         } catch (e) {
-           console.warn("Could not fetch item for deletion details", e);
-         }
-      }
-
-      // Proceed even if we can't get details, just use ID
-      if (!itemToDelete) {
-        // Fallback if we really can't find it - arguably we could just try to delete anyway
-        // But the user pattern seems to enforce existence check.
-        // Let's assume if fetchItem failed, it might not exist.
-        // However, we can also just proceed to try deleting.
-      }
-
-      // FIX: Resolve locationId for deletion
       let locationIdForInventory = overrideLocationId || inventoryLocationId;
       if (!locationIdForInventory && currentLocationIdRef.current) {
          locationIdForInventory = currentLocationIdRef.current;
@@ -547,13 +556,16 @@ export const ItemsProvider = ({
 
       const success = await deleteItemService(id, locationIdForInventory || undefined);
       if (success) {
-        setItems((prevItems) => prevItems.filter((item) => item.id !== id));
         toast({
           title: "Item deleted",
           description: `${itemToDelete?.name || "Item"} has been removed.`,
         });
         return true;
       } else {
+        // Rollback
+        if (itemToDelete) {
+          setItems((prevItems) => [...prevItems, itemToDelete]);
+        }
         toast({
           title: "Deletion failed",
           description: "The item could not be deleted. Please try again.",
@@ -562,9 +574,12 @@ export const ItemsProvider = ({
         return false;
       }
     } catch (error) {
+      // Rollback
+      if (itemToDelete) {
+        setItems((prevItems) => [...prevItems, itemToDelete]);
+      }
       console.error("Error deleting item:", error);
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
       toast({
         title: "Error deleting item",
         description: errorMessage,
@@ -575,8 +590,22 @@ export const ItemsProvider = ({
   };
 
   const duplicateItem = async (id: string): Promise<Item | null> => {
+    const originalItem = items.find((item) => item.id === id);
+    if (!originalItem) return null;
+
+    const tempId = `temp-dup-${Date.now()}`;
+    const optimisticDuplicate: Item = {
+      ...originalItem,
+      id: tempId,
+      name: `${originalItem.name} (Copy)`,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    // Immediately add duplicate optimistically
+    setItems((prev) => [...prev, optimisticDuplicate]);
+
     try {
-      // Use overrideLocationId if provided, otherwise inventoryLocationId
       let locationIdForInventory = overrideLocationId || inventoryLocationId;
 
       if (!locationIdForInventory && !overrideLocationId && currentBranch?.id) {
@@ -593,6 +622,8 @@ export const ItemsProvider = ({
       }
 
       if (!locationIdForInventory) {
+        // Rollback
+        setItems((prev) => prev.filter((i) => i.id !== tempId));
         toast({
           title: "Error",
           description: "No location available for inventory.",
@@ -601,40 +632,26 @@ export const ItemsProvider = ({
         return null;
       }
 
-      const originalItem = await fetchItem(id);
-      if (!originalItem) {
-        toast({
-          title: "Error",
-          description: "Original item not found.",
-          variant: "destructive",
-        });
-        return null;
-      }
-
-      // Create a duplicate with modified name
+      // Create duplicate
       const duplicateData = {
         ...originalItem,
         name: `${originalItem.name} (Copy)`,
         location_id: locationIdForInventory,
       };
-      delete (duplicateData as any).id; // Remove id to create new item
+      delete (duplicateData as any).id;
 
-      // FIX: Pass locationId as second argument
       const duplicatedItem = await createItem(duplicateData, locationIdForInventory);
       if (duplicatedItem) {
-        setItems((prev) => {
-          // Check if item already exists (from real-time update)
-          if (prev.some((item) => item.id === duplicatedItem.id)) {
-            return prev;
-          }
-          return [...prev, duplicatedItem];
-        });
+        // Replace temp item with real duplicated item
+        setItems((prev) => prev.map((i) => (i.id === tempId ? duplicatedItem : i)));
         toast({
           title: "Item duplicated",
           description: `${duplicatedItem.name} has been duplicated.`,
         });
         return duplicatedItem;
       } else {
+        // Rollback
+        setItems((prev) => prev.filter((i) => i.id !== tempId));
         toast({
           title: "Duplication failed",
           description: "The item could not be duplicated. Please try again.",
@@ -643,9 +660,10 @@ export const ItemsProvider = ({
         return null;
       }
     } catch (error) {
+      // Rollback
+      setItems((prev) => prev.filter((i) => i.id !== tempId));
       console.error("Error duplicating item:", error);
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
       toast({
         title: "Error duplicating item",
         description: errorMessage,

@@ -334,6 +334,25 @@ export function useServerInventory({
     );
   }, []);
 
+  const updateLocalItems = useCallback((updatedItems: Item[]) => {
+    setItems((prevItems) =>
+      prevItems.map((item) => {
+        const matchingUpdate = updatedItems.find(
+          (u) => u.id === item.id || (item.product_id && u.product_id === item.product_id)
+        );
+        return matchingUpdate ? matchingUpdate : item;
+      })
+    );
+  }, []);
+
+  const deleteLocalItems = useCallback((ids: string[]) => {
+    setItems((prevItems) =>
+      prevItems.filter(
+        (item) => !ids.includes(item.id) && !(item.product_id && ids.includes(item.product_id))
+      )
+    );
+  }, []);
+
   const resetFilters = useCallback(() => {
     setSearch("");
     setCategoryId("all");
@@ -396,8 +415,10 @@ export function useServerInventory({
     sortOrder,
     setSortOrder,
 
-    refresh,
-    updateLocalItem,
-    resetFilters,
-  };
-}
+     refresh,
+     updateLocalItem,
+     updateLocalItems,
+     deleteLocalItems,
+     resetFilters,
+   };
+ }

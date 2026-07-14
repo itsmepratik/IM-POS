@@ -54,3 +54,29 @@ export async function deleteItemAction(
   }
   return result;
 }
+
+export async function batchUpdateItemAction(
+  ids: string[],
+  updates: Partial<Item>,
+  locationId: string = "sanaiya",
+) {
+  const supabase = createAdminClient();
+  const results = await Promise.all(
+    ids.map((id) => serviceUpdateItem(id, updates, locationId, supabase))
+  );
+  invalidateCaches(locationId);
+  return results.every((r) => r !== null);
+}
+
+export async function batchDeleteItemAction(
+  ids: string[],
+  locationId: string = "sanaiya",
+) {
+  const supabase = createAdminClient();
+  const results = await Promise.all(
+    ids.map((id) => serviceDeleteItem(id, locationId, supabase))
+  );
+  invalidateCaches(locationId);
+  return results.every((r) => r === true);
+}
+

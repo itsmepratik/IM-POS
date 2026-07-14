@@ -44,7 +44,11 @@ import {
   ChevronDown,
   Loader2,
   ArrowUpDown,
+  FolderOpen,
+  Tag,
+  Trash2,
 } from "lucide-react";
+import { toast } from "@/components/ui/use-toast";
 import { ItemsProvider, useItems, type Item } from "../items-context";
 import { InventorySearchInput } from "../components/InventorySearchInput";
 import { useServerInventory } from "../hooks/useServerInventory";
@@ -712,6 +716,8 @@ function MobileView({
   handleDuplicate: (id: string) => void;
   refresh: (silent?: boolean) => void;
   updateLocalItem: (item: Item) => void;
+  updateLocalItems?: (items: Item[]) => void;
+  deleteLocalItems?: (ids: string[]) => void;
 }) {
   const [isPending, startTransition] = useTransition();
 
@@ -1282,6 +1288,8 @@ interface DesktopViewProps {
   setSortOrder: (s: "asc" | "desc") => void;
   refresh: (silent?: boolean) => void;
   updateLocalItem: (item: Item) => void;
+  updateLocalItems: (items: Item[]) => void;
+  deleteLocalItems: (ids: string[]) => void;
 }
 
 function DesktopView({
@@ -1368,6 +1376,147 @@ function DesktopView({
       setSelectedItems(filteredItems.map((i) => i.id));
     }
   }, [filteredItems, selectedItems]);
+
+  const { categoryMap, brandMap } = useItems();
+
+  const handleBatchCategoryUpdate = async (categoryName: string) => {
+    const categoryId = Object.keys(categoryMap).find(key => categoryMap[key] === categoryName);
+    if (!categoryId) return;
+
+    const previousItems = [...filteredItems];
+
+    // Optimistic local update
+    const updatedLocal = filteredItems.map(item => {
+      if (selectedItems.includes(item.id)) {
+        return {
+          ...item,
+          category: categoryName,
+          category_id: categoryId
+        };
+      }
+      return item;
+    });
+    updateLocalItems(updatedLocal);
+    const selectedCopy = [...selectedItems];
+    setSelectedItems([]);
+
+    try {
+      const { batchUpdateItemAction } = await import("@/lib/actions/mutations");
+      const success = await batchUpdateItemAction(selectedCopy, { category_id: categoryId }, "sanaiya");
+      if (success) {
+        toast({
+          title: "Batch update successful",
+          description: `Updated category to "${categoryName}" for ${selectedCopy.length} items.`,
+        });
+        refresh(true);
+      } else {
+        updateLocalItems(previousItems);
+        toast({
+          title: "Batch update failed",
+          description: "Could not update items. Please try again.",
+          variant: "destructive",
+        });
+      }
+    } catch (err) {
+      updateLocalItems(previousItems);
+      console.error(err);
+      toast({
+        title: "Error",
+        description: "An error occurred during batch update.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleBatchBrandUpdate = async (brandName: string) => {
+    const brandId = Object.keys(brandMap).find(key => brandMap[key] === brandName);
+    if (!brandId) return;
+
+    const previousItems = [...filteredItems];
+
+    // Optimistic local update
+    const updatedLocal = filteredItems.map(item => {
+      if (selectedItems.includes(item.id)) {
+        return {
+          ...item,
+          brand: brandName,
+          brand_id: brandId
+        };
+      }
+      return item;
+    });
+    updateLocalItems(updatedLocal);
+    const selectedCopy = [...selectedItems];
+    setSelectedItems([]);
+
+    try {
+      const { batchUpdateItemAction } = await import("@/lib/actions/mutations");
+      const success = await batchUpdateItemAction(selectedCopy, { brand_id: brandId }, "sanaiya");
+      if (success) {
+        toast({
+          title: "Batch update successful",
+          description: `Updated brand to "${brandName}" for ${selectedCopy.length} items.`,
+        });
+        refresh(true);
+      } else {
+        updateLocalItems(previousItems);
+        toast({
+          title: "Batch update failed",
+          description: "Could not update items. Please try again.",
+          variant: "destructive",
+        });
+      }
+    } catch (err) {
+      updateLocalItems(previousItems);
+      console.error(err);
+      toast({
+        title: "Error",
+        description: "An error occurred during batch update.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleBatchDelete = async () => {
+    if (!window.confirm(`Are you sure you want to delete ${selectedItems.length} selected items?`)) {
+      return;
+    }
+
+    const previousItems = [...filteredItems];
+
+    // Optimistic local delete
+    deleteLocalItems(selectedItems);
+    const selectedCopy = [...selectedItems];
+    setSelectedItems([]);
+
+    try {
+      const { batchDeleteItemAction } = await import("@/lib/actions/mutations");
+      const success = await batchDeleteItemAction(selectedCopy, "sanaiya");
+      if (success) {
+        toast({
+          title: "Batch deletion successful",
+          description: `Deleted ${selectedCopy.length} items.`,
+        });
+        refresh(true);
+      } else {
+        updateLocalItems(previousItems);
+        toast({
+          title: "Deletion failed",
+          description: "Could not delete items. Please try again.",
+          variant: "destructive",
+        });
+      }
+    } catch (err) {
+      updateLocalItems(previousItems);
+      console.error(err);
+      toast({
+        title: "Error",
+        description: "An error occurred during batch deletion.",
+        variant: "destructive",
+      });
+    }
+  };
+
 
   const [itemModalOpen, setItemModalOpen] = useState(false);
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
@@ -2003,6 +2152,86 @@ function DesktopView({
         onConfirm={handleConfirmDelete}
         isDeleting={isDeleting}
       />
+
+      {/* Floating Batch Actions Bar */}
+      {selectedItems.length > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900 text-white rounded-full px-6 py-3 shadow-2xl flex items-center gap-6 z-50 border border-slate-800 animate-in fade-in slide-in-from-bottom-4 duration-300">
+          <div className="flex items-center gap-2 border-r border-slate-700 pr-4">
+            <span className="bg-primary text-primary-foreground text-xs font-semibold px-2 py-0.5 rounded-full">
+              {selectedItems.length}
+            </span>
+            <span className="text-sm font-medium text-slate-300">selected</span>
+          </div>
+
+          {/* Batch Category */}
+          <div className="flex items-center gap-1">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="text-slate-300 hover:text-white rounded-full text-xs gap-1.5 h-8 hover:bg-slate-800">
+                  <FolderOpen className="h-3.5 w-3.5" />
+                  <span>Category</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48 bg-slate-900 border-slate-850 text-white">
+                {categories.map((catName) => (
+                  <DropdownMenuItem
+                    key={catName}
+                    className="text-slate-300 focus:bg-slate-800 focus:text-white cursor-pointer"
+                    onSelect={() => handleBatchCategoryUpdate(catName)}
+                  >
+                    {catName}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+
+          {/* Batch Brand */}
+          <div className="flex items-center gap-1">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="text-slate-300 hover:text-white rounded-full text-xs gap-1.5 h-8 hover:bg-slate-800">
+                  <Tag className="h-3.5 w-3.5" />
+                  <span>Brand</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48 bg-slate-900 border-slate-850 text-white">
+                {brands.map((brandName) => (
+                  <DropdownMenuItem
+                    key={brandName}
+                    className="text-slate-300 focus:bg-slate-800 focus:text-white cursor-pointer"
+                    onSelect={() => handleBatchBrandUpdate(brandName)}
+                  >
+                    {brandName}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+
+          {/* Batch Delete */}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-full text-xs gap-1.5 h-8"
+            onClick={handleBatchDelete}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            <span>Delete</span>
+          </Button>
+
+          <div className="border-l border-slate-700 pl-4">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-slate-400 hover:text-slate-200 rounded-full p-1 h-7 w-7 hover:bg-slate-800"
+              onClick={() => setSelectedItems([])}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -2065,6 +2294,8 @@ function ItemsPageContent() {
     },
     refresh: serverInventory.refresh,
     updateLocalItem: serverInventory.updateLocalItem,
+    updateLocalItems: serverInventory.updateLocalItems,
+    deleteLocalItems: serverInventory.deleteLocalItems,
     sortBy: serverInventory.sortBy,
     setSortBy: serverInventory.setSortBy,
     sortOrder: serverInventory.sortOrder,

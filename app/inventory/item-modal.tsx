@@ -1758,7 +1758,9 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated }: ItemModal
                                     purchase_date: isMounted
                                       ? new Date().toISOString().split("T")[0]
                                       : "2023-01-01",
-                                    cost_price: formData.costPrice ? Number(formData.costPrice) || 0 : 0,
+                                    cost_price: formData.costPrice !== undefined && formData.costPrice !== "" && formData.costPrice !== null 
+                                      ? Number(formData.costPrice) 
+                                      : 0,
                                     initial_quantity: 0,
                                     current_quantity: 0,
                                   });
@@ -2031,7 +2033,7 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated }: ItemModal
                                         id="costPrice"
                                         type="number"
                                         step="0.01"
-                                        value={editingBatch.cost_price || ""}
+                                        value={editingBatch.cost_price === 0 ? 0 : (editingBatch.cost_price || "")}
                                         onChange={(e) =>
                                           setEditingBatch({
                                             ...editingBatch,
@@ -2039,6 +2041,7 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated }: ItemModal
                                           })
                                         }
                                         className="sm:col-span-3"
+                                        placeholder={formData.costPrice ? formData.costPrice.toString() : "0"}
                                         required
                                       />
                                     </div>
