@@ -11,6 +11,7 @@ import { NotificationProvider } from "@/lib/contexts/NotificationContext";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import ServiceWorkerRegistration from "../components/service-worker-registration";
+import ChunkErrorHandler from "../components/chunk-error-handler";
 import { Toaster } from "@/components/ui/toaster";
 
 // Load Formula 1 fonts with optimized settings
@@ -20,7 +21,7 @@ const formula1 = localFont({
       path: "../public/fonts/Formula1-Regular-1.ttf",
       weight: "400",
       style: "normal",
-    },
+      },
     {
       path: "../public/fonts/Formula1-Bold-4.ttf",
       weight: "700",
@@ -118,6 +119,7 @@ export default function RootLayout({
           </>
         )}
         <ServiceWorkerRegistration />
+        <ChunkErrorHandler />
         {/* Load fullscreen handler script */}
         <script src="/fullscreen.js" async />
       </body>

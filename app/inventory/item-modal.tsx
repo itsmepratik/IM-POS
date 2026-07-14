@@ -1758,7 +1758,7 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated }: ItemModal
                                     purchase_date: isMounted
                                       ? new Date().toISOString().split("T")[0]
                                       : "2023-01-01",
-                                    cost_price: 0,
+                                    cost_price: formData.costPrice ? Number(formData.costPrice) || 0 : 0,
                                     initial_quantity: 0,
                                     current_quantity: 0,
                                   });
