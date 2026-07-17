@@ -7,7 +7,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { RotateCcw, Shield, DollarSign, MoreHorizontal } from "lucide-react";
+import { RotateCcw, Shield, DollarSign, MoreHorizontal, Ban } from "lucide-react";
 
 interface DisputeDialogProps {
   open: boolean;
@@ -16,6 +16,7 @@ interface DisputeDialogProps {
   onWarranty: () => void;
   onSettlement: () => void;
   onMiscellaneous: () => void;
+  onVoid: () => void;
 }
 
 export function DisputeDialog({
@@ -25,6 +26,7 @@ export function DisputeDialog({
   onWarranty,
   onSettlement,
   onMiscellaneous,
+  onVoid,
 }: DisputeDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -84,6 +86,27 @@ export function DisputeDialog({
             <span className="font-medium text-sm">Misc</span>
           </Button>
         </div>
+
+        <div className="relative mt-4">
+          <div className="absolute inset-0 flex items-center">
+            <span className="w-full border-t" />
+          </div>
+          <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-background px-2 text-muted-foreground">Actions</span>
+          </div>
+        </div>
+
+        <Button
+          className="flex items-center justify-center gap-2 h-12 w-full mt-3"
+          variant="destructive"
+          onClick={() => {
+            onOpenChange(false);
+            onVoid();
+          }}
+        >
+          <Ban className="h-5 w-5" />
+          <span className="font-medium text-sm">Void Transaction</span>
+        </Button>
       </DialogContent>
     </Dialog>
   );

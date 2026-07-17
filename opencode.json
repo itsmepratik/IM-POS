@@ -1,0 +1,17 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "openai/gpt-4o",
+  "default_agent": "build",
+  "instructions": ["AGENTS.md", ".agent/rules/**/*.md"],
+  "permission": {
+    "edit": "allow",
+    "bash": {
+      "npm *": "allow",
+      "bun *": "allow",
+      "npx *": "allow",
+      "git *": "ask",
+      "rm *": "deny",
+      "*": "ask"
+    }
+  }
+}

@@ -18,6 +18,7 @@ interface UseServerInventoryProps {
 }
 
 const FILTER_STORAGE_VERSION = 1 as const;
+const PRICE_DEBOUNCE_MS = 400;
 
 type StockStatus = "all" | "in-stock" | "low-stock" | "out-of-stock";
 
@@ -101,7 +102,7 @@ export function useServerInventory({
 }: UseServerInventoryProps = {}) {
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<any>(null);
+  const [error, setError] = useState<unknown>(null);
   const [page, setPage] = useState(initialPage);
   const [limit, setLimit] = useState(initialLimit);
   const [totalCount, setTotalCount] = useState(0);
@@ -232,15 +233,34 @@ export function useServerInventory({
     sortOrder,
   ]);
 
-  // Reset page when search or filters change
+  // Debounced price filters — avoid re-fetching on every keystroke
+  const [debouncedMinPrice, setDebouncedMinPrice] = useState(minPrice);
+  const [debouncedMaxPrice, setDebouncedMaxPrice] = useState(maxPrice);
+
   useEffect(() => {
-    setPage(1);
-  }, [
+    const timer = setTimeout(() => {
+      setDebouncedMinPrice(minPrice);
+    }, PRICE_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [minPrice]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedMaxPrice(maxPrice);
+    }, PRICE_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [maxPrice]);
+
+  // Stale-request guard — discard responses from outdated requests
+  const requestIdRef = useRef(0);
+
+  // Track whether filters changed so we reset page to 1 before fetching
+  const filtersChangedRef = useRef(false);
+
+  const nonPriceFiltersKey = [
     search,
     categoryId,
     brandId,
-    minPrice,
-    maxPrice,
     stockStatus,
     showLowStockOnly,
     showOutOfStockOnly,
@@ -249,23 +269,36 @@ export function useServerInventory({
     batteryState,
     sortBy,
     sortOrder,
-  ]);
+  ].join("|");
+
+  useEffect(() => {
+    filtersChangedRef.current = true;
+    setPage(1);
+  }, [nonPriceFiltersKey]);
 
   const loadData = useCallback(
     async (silent = false) => {
+      // When filters changed, always fetch from page 1
+      const currentPage = filtersChangedRef.current ? 1 : page;
+      if (filtersChangedRef.current) {
+        filtersChangedRef.current = false;
+        setPage(1);
+      }
+
+      const thisRequestId = ++requestIdRef.current;
+
       if (!silent) setLoading(true);
-      // setError(null); // Maybe keep error handling?
       try {
         const { data, count } = await getInventoryServerAction(
-          page,
+          currentPage,
           limit,
           search,
           categoryId,
           brandId,
           locationId,
           {
-            minPrice,
-            maxPrice,
+            minPrice: debouncedMinPrice,
+            maxPrice: debouncedMaxPrice,
             stockStatus,
             showLowStockOnly,
             showOutOfStockOnly,
@@ -276,10 +309,12 @@ export function useServerInventory({
             sortOrder,
           },
         );
+        // Discard stale responses
+        if (thisRequestId !== requestIdRef.current) return;
         setItems(data);
         setTotalCount(count);
       } catch (err) {
-        console.error("Failed to load inventory:", err);
+        if (thisRequestId !== requestIdRef.current) return;
         setError(err);
         toast({
           title: "Error loading inventory",
@@ -287,7 +322,9 @@ export function useServerInventory({
           variant: "destructive",
         });
       } finally {
-        setLoading(false);
+        if (thisRequestId === requestIdRef.current) {
+          setLoading(false);
+        }
       }
     },
     [
@@ -298,8 +335,8 @@ export function useServerInventory({
       brandId,
       locationId,
       toast,
-      minPrice,
-      maxPrice,
+      debouncedMinPrice,
+      debouncedMaxPrice,
       stockStatus,
       showLowStockOnly,
       showOutOfStockOnly,

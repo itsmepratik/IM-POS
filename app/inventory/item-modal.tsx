@@ -91,6 +91,7 @@ interface ItemModalProps {
   onOpenChange: (open: boolean) => void;
   item?: Item;
   onItemUpdated?: (item: Item) => void;
+  onItemSaving?: (optimisticItem: Item, oldItem: Item) => void;
 }
 
 // Define a type for the tab values
@@ -98,7 +99,7 @@ type TabType = "general" | "volumes" | "batches";
 
 // Types are now fetched from database via context
 
-export function ItemModal({ open, onOpenChange, item, onItemUpdated }: ItemModalProps) {
+export function ItemModal({ open, onOpenChange, item, onItemUpdated, onItemSaving }: ItemModalProps) {
   const {
     addItem,
     updateItem,
@@ -146,6 +147,8 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated }: ItemModal
     isBattery: item?.isBattery || false,
     batteryState: item?.batteryState || "new",
     specification: item?.specification || "",
+    types: item?.types || [],
+    selectedTypeIds: item?.types?.map((t) => t.id) || (item?.type_id ? [item.type_id] : []),
   });
   const [newBatch, setNewBatch] = useState<Omit<Batch, "id">>({
     item_id: "",
@@ -560,24 +563,75 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated }: ItemModal
     };
 
     setIsSubmitting(true);
-    try {
-      let result: Item | null = null;
-      if (item) {
-        // When updating, explicitly log key oil-related fields to help debug
-        result = await updateItem(item.product_id || item.id, itemToSave);
-      } else {
-        result = await addItem(itemToSave);
+
+    if (item) {
+      const { dismiss } = toast({
+        title: "Saving changes...",
+        description: `Updating ${itemToSave.name || item.name}`,
+        duration: Infinity,
+      });
+
+      if (onItemSaving) {
+        onItemSaving(itemToSave as Item, item);
       }
-      
-      if (result && onItemUpdated) {
-        onItemUpdated(result);
-      }
-      
+
       onOpenChange(false);
-    } catch (error) {
-      console.error("Error saving item:", error);
-    } finally {
-      setIsSubmitting(false);
+
+      const { id: _itemId, ...updatesForServer } = itemToSave;
+      updateItem(item.product_id || item.id, updatesForServer).then((result) => {
+        dismiss();
+        if (result) {
+          toast({
+            title: "Saved!",
+            description: `${result.name} has been updated.`,
+          });
+          if (onItemUpdated) onItemUpdated(result);
+        } else {
+          toast({
+            title: "Save failed",
+            description: "Could not save changes. Please try again.",
+            variant: "destructive",
+          });
+          if (onItemUpdated) onItemUpdated(item);
+        }
+      }).catch((error) => {
+        dismiss();
+        toast({
+          title: "Error saving item",
+          description: error instanceof Error ? error.message : "An unexpected error occurred.",
+          variant: "destructive",
+        });
+        if (onItemUpdated) onItemUpdated(item);
+      }).finally(() => {
+        setIsSubmitting(false);
+      });
+    } else {
+      try {
+        const { id: _newItemId, ...newItemData } = itemToSave;
+        const result = await addItem(newItemData);
+        if (result) {
+          toast({
+            title: "Item added",
+            description: `${result.name} has been added successfully.`,
+          });
+          if (onItemUpdated) onItemUpdated(result);
+          onOpenChange(false);
+        } else {
+          toast({
+            title: "Add failed",
+            description: "Could not add item. Please try again.",
+            variant: "destructive",
+          });
+        }
+      } catch (error) {
+        toast({
+          title: "Error adding item",
+          description: error instanceof Error ? error.message : "An unexpected error occurred.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsSubmitting(false);
+      }
     }
   };
 
@@ -828,8 +882,8 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated }: ItemModal
   const handleEditBatch = (batch: Batch) => {
     setEditingBatchId(batch.id);
     setNewBatch({
-      purchaseDate: batch.purchaseDate,
-      costPrice: batch.costPrice,
+      purchaseDate: batch.purchase_date || "",
+      costPrice: batch.cost_price || 0,
       quantity: (batch.current_quantity || 0),
     });
   };

@@ -484,19 +484,20 @@ export const ItemsProvider = ({
     updatedItem: Omit<Item, "id">
   ): Promise<Item | null> => {
     const previousItem = items.find((i) => i.id === id);
-    if (!previousItem) return null;
 
-    // Immediately update local state optimistically
-    const optimisticUpdatedItem = {
-      ...previousItem,
-      ...updatedItem,
-      brand: updatedItem.brand || (updatedItem.brand_id ? brandMap.get(updatedItem.brand_id) : previousItem.brand) || "",
-      category: updatedItem.category || (updatedItem.category_id ? categoryMap.get(updatedItem.category_id) : previousItem.category) || "",
-    } as Item;
+    // Only apply optimistic update if the item exists in local state
+    if (previousItem) {
+      const optimisticUpdatedItem = {
+        ...previousItem,
+        ...updatedItem,
+        brand: updatedItem.brand || (updatedItem.brand_id ? brandMap.get(updatedItem.brand_id) : previousItem.brand) || "",
+        category: updatedItem.category || (updatedItem.category_id ? categoryMap.get(updatedItem.category_id) : previousItem.category) || "",
+      } as Item;
 
-    setItems((prevItems) =>
-      prevItems.map((item) => (item.id === id ? optimisticUpdatedItem : item))
-    );
+      setItems((prevItems) =>
+        prevItems.map((item) => (item.id === id ? optimisticUpdatedItem : item))
+      );
+    }
 
     try {
       let locationIdForInventory = overrideLocationId || inventoryLocationId;
@@ -506,19 +507,25 @@ export const ItemsProvider = ({
       
       const updated = await updateItemService(id, updatedItem, locationIdForInventory || undefined);
       if (updated) {
-        setItems((prevItems) =>
-          prevItems.map((item) => (item.id === id ? { ...updated } : item))
-        );
+        setItems((prevItems) => {
+          const exists = prevItems.some((item) => item.id === id);
+          if (exists) {
+            return prevItems.map((item) => (item.id === id ? { ...updated } : item));
+          }
+          return prevItems;
+        });
         toast({
           title: "Item updated",
           description: `${updated.name} has been updated successfully.`,
         });
         return updated;
       } else {
-        // Rollback
-        setItems((prevItems) =>
-          prevItems.map((item) => (item.id === id ? previousItem : item))
-        );
+        // Rollback if we did an optimistic update
+        if (previousItem) {
+          setItems((prevItems) =>
+            prevItems.map((item) => (item.id === id ? previousItem : item))
+          );
+        }
         toast({
           title: "Update failed",
           description: "The item could not be updated. Please try again.",
@@ -527,11 +534,12 @@ export const ItemsProvider = ({
         return null;
       }
     } catch (error) {
-      // Rollback
-      setItems((prevItems) =>
-        prevItems.map((item) => (item.id === id ? previousItem : item))
-      );
-      console.error("Error updating item:", error);
+      // Rollback if we did an optimistic update
+      if (previousItem) {
+        setItems((prevItems) =>
+          prevItems.map((item) => (item.id === id ? previousItem : item))
+        );
+      }
       const errorMessage = error instanceof Error ? error.message : String(error);
       toast({
         title: "Error updating item",

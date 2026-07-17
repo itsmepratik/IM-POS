@@ -125,11 +125,8 @@ export type Supplier = {
   phone?: string;
 };
 
-export type Type = {
-  id: string;
-  name: string;
-  category_id?: string | null;
-};
+// Re-export canonical Type from typesService to avoid duplicate definitions
+export type { Type } from "@/lib/services/typesService";
 
 // Database service functions
 
@@ -274,7 +271,7 @@ export const fetchInventoryItems = async (
       );
 
       // Map RPC output to match the format expected by the transformation logic below
-      inventoryData = (rpcData || []).map((row: any) => ({
+      const rpcItems = (rpcData || []).map((row: any) => ({
         id: row.inventory_id,
         product_id: row.product_id,
         standard_stock: row.standard_stock,
@@ -297,9 +294,37 @@ export const fetchInventoryItems = async (
           brand_id: row.brand_id,
           categories: { id: row.category_id, name: row.category_name },
           brands: { id: row.brand_id, name: row.brand_name },
-          product_types: [], // Initialize to avoid crashes in .some() checks
+          product_types: [] as any[],
         },
       }));
+
+      // Batch-fetch product_types for all products returned by search RPC
+      const productIds = rpcItems
+        .map((r) => r.product_id)
+        .filter((id): id is string => Boolean(id));
+      if (productIds.length > 0) {
+        const { data: productTypes } = await sb
+          .from("product_types")
+          .select("product_id, types ( id, name, category_id )")
+          .in("product_id", productIds);
+
+        if (productTypes && productTypes.length > 0) {
+          const typesByProduct = new Map<string, any[]>();
+          for (const pt of productTypes) {
+            const list = typesByProduct.get(pt.product_id) || [];
+            list.push(pt);
+            typesByProduct.set(pt.product_id, list);
+          }
+          for (const item of rpcItems) {
+            const types = typesByProduct.get(item.product_id);
+            if (types) {
+              item.products.product_types = types;
+            }
+          }
+        }
+      }
+
+      inventoryData = rpcItems;
       count = rpcData?.[0]?.total_count || 0;
     } else {
       // Standard fetch logic for no-search scenarios
@@ -1286,8 +1311,7 @@ export const updateItem = async (
         typeof updates.price === "string"
           ? Number(updates.price)
           : updates.price;
-      inventoryUpdates.selling_price =
-        !isNaN(priceNum) && priceNum > 0 ? priceNum : null;
+      inventoryUpdates.selling_price = !isNaN(priceNum) ? priceNum : null;
     }
     // Note: is_battery, battery_state columns don't exist in inventory table
     if (updates.bottleStates?.open !== undefined)
@@ -1439,7 +1463,7 @@ export const updateItem = async (
 
       // 2. Insert new single relationship if not null
       if (updates.type_id) {
-        await supabase.from("product_types").insert({
+        await sb.from("product_types").insert({
           product_id: id,
           type_id: updates.type_id,
         });

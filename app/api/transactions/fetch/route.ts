@@ -53,6 +53,9 @@ export async function GET(req: Request) {
         mobile_number,
         receipt_html,
         battery_bill_html,
+        is_voided,
+        voided_at,
+        void_reason,
         original_reference_number,
         notes,
         discount_type,
@@ -81,7 +84,7 @@ export async function GET(req: Request) {
           id,
           name
         ),
-        staff (
+        staff!transactions_cashier_id_staff_id_fk (
           id,
           staff_id,
           name

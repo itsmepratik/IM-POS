@@ -263,6 +263,13 @@ const ClearCartConfirm = dynamic(
     ),
   { ssr: false },
 );
+const VoidDialog = dynamic(
+  () =>
+    import("./components/modals/VoidDialog").then(
+      (mod) => mod.VoidDialog,
+    ),
+  { ssr: false },
+);
 
 // Extracted cart panel components
 import { DesktopCart } from "./components/cart/DesktopCart";
@@ -1139,6 +1146,7 @@ export function POSClient({ initialData }: { initialData?: any }) {
   // cartContainsOnlyBatteries, cartContainsAnyBatteries — provided by useCartHelpers
 
   const [isDisputeDialogOpen, setIsDisputeDialogOpen] = useState(false);
+  const [isVoidDialogOpen, setIsVoidDialogOpen] = useState(false);
   const [isWarrantyDialogOpen, setIsWarrantyDialogOpen] = useState(false);
   const [isLaborDialogOpen, setIsLaborDialogOpen] = useState(false);
 
@@ -2046,6 +2054,10 @@ export function POSClient({ initialData }: { initialData?: any }) {
           setIsDisputeDialogOpen(false);
           setIsMiscellaneousDialogOpen(true);
         }}
+        onVoid={() => {
+          setIsDisputeDialogOpen(false);
+          setIsVoidDialogOpen(true);
+        }}
       />
 
       {/* Warranty Dialog */}
@@ -2081,6 +2093,12 @@ export function POSClient({ initialData }: { initialData?: any }) {
       <MiscellaneousDialog
         open={isMiscellaneousDialogOpen}
         onOpenChange={setIsMiscellaneousDialogOpen}
+      />
+
+      {/* Void Transaction Modal */}
+      <VoidDialog
+        open={isVoidDialogOpen}
+        onOpenChange={setIsVoidDialogOpen}
       />
 
       {/* Add Customer Form Dialog */}

@@ -29,6 +29,7 @@ export interface ItemModalProps {
   onOpenChange: (open: boolean) => void;
   item?: Item;
   onItemUpdated?: (item: Item) => void;
+  onItemSaving?: (optimisticItem: Item, oldItem: Item) => void;
 }
 
 // Define a type for the tab values

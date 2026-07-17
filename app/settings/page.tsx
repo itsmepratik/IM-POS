@@ -76,6 +76,7 @@ import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSettingsUsers } from "@/lib/hooks/data/useSettingsUsers";
+import { SupervisorPasswordCard } from "./components/SupervisorPasswordCard";
 
 // User type definition
 interface UserType {
@@ -643,10 +644,11 @@ function SettingsContent() {
         onValueChange={setActiveTab}
         className="mt-4"
       >
-        <TabsList className="grid w-full grid-cols-3 mb-4">
+        <TabsList className="grid w-full grid-cols-4 mb-4">
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="branches">Shops</TabsTrigger>
           <TabsTrigger value="users">Users</TabsTrigger>
+          <TabsTrigger value="supervisor">Supervisor</TabsTrigger>
         </TabsList>
 
         <TabsContent value="general" className="space-y-4">
@@ -1033,6 +1035,11 @@ function SettingsContent() {
               </Card>
             ))}
           </div>
+        </TabsContent>
+
+        {/* Supervisor Password Tab */}
+        <TabsContent value="supervisor" className="space-y-4">
+          <SupervisorPasswordCard />
         </TabsContent>
       </Tabs>
 

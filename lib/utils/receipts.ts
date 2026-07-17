@@ -365,6 +365,7 @@ export async function generateBatteryBill(data: ReceiptData): Promise<string> {
     subtotalBeforeDiscount,
     date,
     time,
+    cashier,
     carPlateNumber,
   } = data;
 
@@ -583,6 +584,7 @@ export async function generateBatteryBill(data: ReceiptData): Promise<string> {
           <span><strong>OMR ${totalAmount}</strong></span>
         </div>
         <p><strong>Payment Method:</strong> ${paymentMethod}</p>
+        ${cashier ? `<p><strong>Cashier:</strong> ${cashier}</p>` : ""}
       </div>
       
       <div class="warranty">

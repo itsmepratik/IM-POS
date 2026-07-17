@@ -699,14 +699,14 @@ function MobileView({
   setShowOutOfStockOnly: (b: boolean) => void;
   showBatteries: boolean;
   setShowBatteries: (b: boolean) => void;
-  batteryState: any;
-  setBatteryState: (s: any) => void;
-  minPrice: any;
-  setMinPrice: (s: any) => void;
-  maxPrice: any;
-  setMaxPrice: (s: any) => void;
-  stockStatus: any;
-  setStockStatus: (s: any) => void;
+  batteryState: "new" | "scrap" | "resellable";
+  setBatteryState: (s: "new" | "scrap" | "resellable") => void;
+  minPrice: number | undefined;
+  setMinPrice: (s: number | undefined) => void;
+  maxPrice: number | undefined;
+  setMaxPrice: (s: number | undefined) => void;
+  stockStatus: "all" | "in-stock" | "low-stock" | "out-of-stock";
+  setStockStatus: (s: "all" | "in-stock" | "low-stock" | "out-of-stock") => void;
   resetFilters: () => void;
   currentPage: number;
   setCurrentPage: (p: number) => void;
@@ -1219,9 +1219,12 @@ function MobileView({
         open={itemModalOpen}
         onOpenChange={handleItemModalOpenChange}
         item={editingItem}
+        onItemSaving={(optimisticItem) => {
+          updateLocalItem(optimisticItem);
+        }}
         onItemUpdated={(item) => {
           updateLocalItem(item);
-          refresh(true); // Silent refresh
+          refresh(true);
         }}
       />
       <CategoryModal
@@ -1263,14 +1266,14 @@ interface DesktopViewProps {
   setShowOutOfStockOnly: (b: boolean) => void;
   showBatteries: boolean;
   setShowBatteries: (b: boolean) => void;
-  batteryState: any;
-  setBatteryState: (s: any) => void;
-  minPrice: any;
-  setMinPrice: (s: any) => void;
-  maxPrice: any;
-  setMaxPrice: (s: any) => void;
-  stockStatus: any;
-  setStockStatus: (s: any) => void;
+  batteryState: "new" | "scrap" | "resellable";
+  setBatteryState: (s: "new" | "scrap" | "resellable") => void;
+  minPrice: number | undefined;
+  setMinPrice: (s: number | undefined) => void;
+  maxPrice: number | undefined;
+  setMaxPrice: (s: number | undefined) => void;
+  stockStatus: "all" | "in-stock" | "low-stock" | "out-of-stock";
+  setStockStatus: (s: "all" | "in-stock" | "low-stock" | "out-of-stock") => void;
   resetFilters: () => void;
 
   // Pagination
@@ -2130,9 +2133,12 @@ function DesktopView({
         open={itemModalOpen}
         onOpenChange={handleItemModalOpenChange}
         item={editingItem}
+        onItemSaving={(optimisticItem) => {
+          updateLocalItem(optimisticItem);
+        }}
         onItemUpdated={(item) => {
           updateLocalItem(item);
-          refresh(true); // Silent refresh
+          refresh(true);
         }}
       />
       <CategoryModal

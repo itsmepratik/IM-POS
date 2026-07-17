@@ -6,8 +6,8 @@ export type Type = {
   id: string;
   category_id: string;
   name: string;
-  created_at: string;
-  updated_at: string;
+  created_at?: string;
+  updated_at?: string;
 };
 
 // Fetch all types or types for a specific category

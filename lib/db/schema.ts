@@ -28,6 +28,7 @@ export const shops = pgTable("shops", {
   shopCode: text("shop_code").default("01"),
   zipCode: text("zip_code").default("319"),
   brandWhatsapp: text("brand_whatsapp"), // Whatsapp number for the shop/brand
+  supervisorPasswordHash: text("supervisor_password_hash"), // bcrypt hash for void authorization
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
@@ -204,6 +205,12 @@ export const transactions = pgTable(
     discountValue: numeric("discount_value"), // Discount percentage (0-100) or fixed amount in OMR
     discountAmount: numeric("discount_amount"), // Calculated discount amount in OMR
     subtotalBeforeDiscount: numeric("subtotal_before_discount"), // Original subtotal before discount
+    isVoided: boolean("is_voided").default(false),
+    voidedAt: timestamp("voided_at", { withTimezone: true }),
+    voidedByStaffId: uuid("voided_by_staff_id").references(() => staff.id, {
+      onDelete: "set null",
+    }),
+    voidReason: text("void_reason"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   },
   (table) => ({

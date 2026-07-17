@@ -104,6 +104,7 @@ interface TransactionDisplay extends Omit<Transaction, "items"> {
   discountValue?: string | null;
   discountAmount?: string | null;
   subtotalBeforeDiscount?: string | null;
+  isVoided?: boolean;
 }
 
 type DayTime = "morning" | "evening" | "full";
@@ -193,22 +194,29 @@ const TransactionCard = memo(
     };
 
     const typeStyles = getTypeStyles(transaction.type);
+    const isVoided = transaction.isVoided;
 
     return (
-      <Card
-        className={cn(
-          "group relative bg-white dark:bg-zinc-950 overflow-hidden transition-all duration-300 border-[2.5px] ease-out backdrop-blur-sm",
-          typeStyles,
-          isExpanded
-            ? "ring-2 shadow-md"
-            : "hover:shadow-lg hover:-translate-y-0.5",
-        )}
-      >
+        <Card
+          className={cn(
+            "group relative bg-white dark:bg-zinc-950 overflow-hidden transition-all duration-300 border-[2.5px] ease-out backdrop-blur-sm",
+            typeStyles,
+            isExpanded
+              ? "ring-2 shadow-md"
+              : "hover:shadow-lg hover:-translate-y-0.5",
+            isVoided && "opacity-80 border-red-400",
+          )}
+        >
+          {isVoided && (
+            <div className="absolute top-8 -right-10 w-40 rotate-45 bg-red-600 text-white text-[10px] font-bold uppercase tracking-widest text-center py-1 shadow-md z-10">
+              Voided
+            </div>
+          )}
         <div className="p-4 sm:p-5 flex flex-col gap-4 sm:gap-5">
           <div className="flex items-start sm:items-center justify-between">
             <div className="flex flex-col gap-1.5 sm:gap-2">
               <div className="flex items-center gap-2.5">
-                <span className="text-sm sm:text-base font-bold uppercase tracking-wider font-formula1">
+                <span className={cn("text-sm sm:text-base font-bold uppercase tracking-wider font-formula1", isVoided && "line-through opacity-60")}>
                   {transaction.type === "refund"
                     ? "Refund"
                     : transaction.type === "warranty-claim"
@@ -227,6 +235,11 @@ const TransactionCard = memo(
                                   ? "Credit Paid"
                                   : "Sale"}
                 </span>
+                {isVoided && (
+                  <span className="px-2 py-0.5 rounded-full border text-[10px] font-bold uppercase tracking-widest bg-red-600/10 text-red-600 border-red-300 dark:border-red-800 animate-pulse">
+                    Voided
+                  </span>
+                )}
                 <span className="text-xs sm:text-sm text-muted-foreground font-mono bg-background/50 px-2 py-0.5 rounded-full border">
                   {transaction.time || transaction.date}
                 </span>
@@ -251,7 +264,7 @@ const TransactionCard = memo(
                 </span>
                 <div className="flex items-baseline gap-1 font-mono">
                   <span className="text-sm sm:text-base opacity-80">OMR</span>
-                  <span className="text-xl sm:text-3xl font-bold tracking-tight">
+                  <span className={cn("text-xl sm:text-3xl font-bold tracking-tight", isVoided && "line-through text-red-500")}>
                     {transaction.type === "refund" ? "-" : ""}
                     {Math.abs(transaction.amount).toFixed(2)}
                   </span>
@@ -1171,6 +1184,7 @@ export default function TransactionsPage() {
         discountValue: t.discount_value || null,
         discountAmount: t.discount_amount || null,
         subtotalBeforeDiscount: t.subtotal_before_discount || null,
+        isVoided: t.is_voided ?? false,
       };
     });
   }, [apiTransactions]);
@@ -1540,10 +1554,12 @@ export default function TransactionsPage() {
         second: "2-digit",
       });
 
-      // Get cashier name
+      // Get cashier name — prefer API-returned staff data, fall back to client-side lookup
       let cashierName: string | undefined;
-      if (tx.cashier_id && staffMembers) {
-        const cashier = staffMembers.find((s) => s.id === tx.cashier_id);
+      if (tx.staff?.name) {
+        cashierName = tx.staff.name;
+      } else if (tx.cashier_id && staffMembers) {
+        const cashier = staffMembers.find((s) => s.uuid === tx.cashier_id);
         cashierName = cashier?.name;
       }
 
@@ -1574,7 +1590,7 @@ export default function TransactionsPage() {
             "Guest",
           cashier: cashierName,
           appliedDiscount: discount,
-          appliedTradeInAmount: undefined, // TODO: Calculate from trade-in transactions if needed
+          appliedTradeInAmount: tx.tradeInTotal || 0,
           isWarrantyClaim: isWarrantyClaim,
         });
         setIsBillPreviewOpen(true);
@@ -1883,6 +1899,7 @@ export default function TransactionsPage() {
                   </TableHeader>
                   <TableBody>
                     {displayTransactions.map((transaction) => {
+                      const isVoided = transaction.isVoided;
                       const getTypeColor = (type: string) => {
                         switch (type) {
                           case "refund":
@@ -1912,6 +1929,7 @@ export default function TransactionsPage() {
                               expandedTransactionId === transaction.id
                                 ? "bg-muted/30"
                                 : "hover:bg-muted/30",
+                              isVoided && "opacity-60",
                             )}
                             onClick={() => {
                               toggleTransaction(transaction.id);
@@ -1921,14 +1939,22 @@ export default function TransactionsPage() {
                               {transaction.time || transaction.date}
                             </TableCell>
                             <TableCell>
-                              <span
-                                className={cn(
-                                  "px-2.5 py-1 rounded-full border text-[11px] font-bold uppercase tracking-wider whitespace-nowrap",
-                                  getTypeColor(transaction.type),
+                              <div className="flex items-center gap-1.5">
+                                <span
+                                  className={cn(
+                                    "px-2.5 py-1 rounded-full border text-[11px] font-bold uppercase tracking-wider whitespace-nowrap",
+                                    getTypeColor(transaction.type),
+                                    isVoided && "line-through opacity-60",
+                                  )}
+                                >
+                                  {transaction.type.replace("-", " ")}
+                                </span>
+                                {isVoided && (
+                                  <span className="px-2 py-0.5 rounded-full border text-[9px] font-bold uppercase tracking-widest bg-red-600/10 text-red-600 border-red-300 dark:border-red-800">
+                                    Voided
+                                  </span>
                                 )}
-                              >
-                                {transaction.type.replace("-", " ")}
-                              </span>
+                              </div>
                             </TableCell>
                             <TableCell className="font-medium whitespace-nowrap">
                               {transaction.cashier}
