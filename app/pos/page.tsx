@@ -18,20 +18,22 @@ export default async function POSPage() {
   const cookieStore = await cookies();
   const branchId = cookieStore.get("pos_branch_id")?.value;
 
-  // Fetch global static data
-  const brandsRequest = getCachedBrands();
-  const shopsRequest = getCachedShops();
+  // Fetch global static data — each wrapped in try/catch so a transient
+  // DB failure on one query doesn't crash the entire server render.
+  let brandsData: any[] = [];
+  let shopsData: any[] = [];
 
-  // Fetch products if branch is known
-  // We need to resolve branchId to locationId.
-  // The cookie stores 'branchId' (which is actually shop ID in this system context).
-  // We need to find the locationId for this shop.
-  // Since we are fetching shops anyway, we can find it there.
+  try {
+    brandsData = await getCachedBrands();
+  } catch (e) {
+    console.error("Failed to pre-fetch brands:", e);
+  }
 
-  const [brandsData, shopsData] = await Promise.all([
-    brandsRequest,
-    shopsRequest,
-  ]);
+  try {
+    shopsData = await getCachedShops();
+  } catch (e) {
+    console.error("Failed to pre-fetch shops:", e);
+  }
 
   let productsData: any[] = [];
   let countersData: any[] = [];

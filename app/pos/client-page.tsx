@@ -249,6 +249,13 @@ const LaborDialog = dynamic(
     import("./components/modals/LaborDialog").then((mod) => mod.LaborDialog),
   { ssr: false },
 );
+const LaborChargeDialog = dynamic(
+  () =>
+    import("./components/modals/LaborChargeDialog").then(
+      (mod) => mod.LaborChargeDialog,
+    ),
+  { ssr: false },
+);
 const CustomerSuccessDialog = dynamic(
   () =>
     import("./components/modals/CustomerSuccessDialog").then(
@@ -1171,6 +1178,8 @@ export function POSClient({ initialData }: { initialData?: any }) {
   const [isVoidDialogOpen, setIsVoidDialogOpen] = useState(false);
   const [isWarrantyDialogOpen, setIsWarrantyDialogOpen] = useState(false);
   const [isLaborDialogOpen, setIsLaborDialogOpen] = useState(false);
+  const [isLaborChargeDialogOpen, setIsLaborChargeDialogOpen] =
+    useState(false);
 
   // Settlement modal state
   const [isSettlementModalOpen, setIsSettlementModalOpen] = useState(false);
@@ -1320,14 +1329,24 @@ export function POSClient({ initialData }: { initialData?: any }) {
                     />
 
                     {/* Labor Pill Button */}
-                    <Button
-                      variant="outline"
-                      className="w-full rounded-[12px] border-2 border-muted-foreground/30 bg-muted-foreground/5 hover:bg-muted-foreground/10 text-foreground px-4 py-[9px] font-medium transition-colors shadow-sm mt-2 mb-2"
-                      onClick={() => setIsLaborDialogOpen(true)}
-                    >
-                      <Wrench className="h-4 w-4 mr-2" />
-                      Labor Service
-                    </Button>
+                    <div className="grid grid-cols-2 gap-2 mt-2 mb-2">
+                      <Button
+                        variant="outline"
+                        className="rounded-[12px] border-2 border-muted-foreground/30 bg-muted-foreground/5 hover:bg-muted-foreground/10 text-foreground px-4 py-[9px] font-medium transition-colors shadow-sm"
+                        onClick={() => setIsLaborChargeDialogOpen(true)}
+                      >
+                        <Wrench className="h-4 w-4 mr-2" />
+                        Labor Service
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="rounded-[12px] border-2 border-primary/30 bg-primary/5 hover:bg-primary/10 text-foreground px-4 py-[9px] font-medium transition-colors shadow-sm"
+                        onClick={() => setIsLaborDialogOpen(true)}
+                      >
+                        <Wrench className="h-4 w-4 mr-2" />
+                        Custom Service
+                      </Button>
+                    </div>
 
                     <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 h-auto p-1 gap-1">
                       <TabsTrigger value="Lubricants">Lubricants</TabsTrigger>
@@ -2094,7 +2113,7 @@ export function POSClient({ initialData }: { initialData?: any }) {
         onOpenChange={setIsLaborDialogOpen}
         onAddToCart={(data) => {
           if (data.price > 0) {
-            addToCart({
+            contextAddToCart({
               isService: true,
               name: data.name,
               price: data.price,
@@ -2108,6 +2127,23 @@ export function POSClient({ initialData }: { initialData?: any }) {
         }}
         services={services}
         staff={staffMembers}
+      />
+
+      {/* Labor Charge Dialog (Simple) */}
+      <LaborChargeDialog
+        open={isLaborChargeDialogOpen}
+        onOpenChange={setIsLaborChargeDialogOpen}
+        onAddToCart={(amount) => {
+          if (amount > 0) {
+            contextAddToCart({
+              isService: true,
+              name: "Labor - Custom Service",
+              price: amount,
+            });
+            setIsLaborChargeDialogOpen(false);
+            if (isMobile) setShowCart(true);
+          }
+        }}
       />
 
       {/* Settlement Modal */}

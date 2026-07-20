@@ -440,8 +440,10 @@ export function useInventoryPOSSync(
   // Auto-sync setup
   useEffect(() => {
     if (finalConfig.enableRealTimeSync && locationId) {
-      // Initial sync (not background)
-      syncProducts(false, false);
+      // If initial data was provided, treat the first sync as background
+      // so we don't flash a loading state over already-rendered content.
+      const isInitialSyncBackground = !!config.initialData;
+      syncProducts(false, isInitialSyncBackground);
 
       // Set up periodic background sync
       if (syncTimeoutRef.current) {
