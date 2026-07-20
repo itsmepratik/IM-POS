@@ -275,6 +275,19 @@ export function MobileNav({ className }: { className?: string }) {
                         <Building className="h-4 w-4" />
                         <span>Branch</span>
                       </Link>
+                      <Link
+                        href="/inventory/services"
+                        onClick={() => setOpen(false)}
+                        className={cn(
+                          "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
+                          mounted && pathname === "/inventory/services"
+                            ? "bg-accent text-accent-foreground shadow-sm ring-1 ring-muted-foreground/30"
+                            : "transparent",
+                        )}
+                      >
+                        <Wrench className="h-4 w-4" />
+                        <span>Services</span>
+                      </Link>
                     </div>
                   )}
                 </div>

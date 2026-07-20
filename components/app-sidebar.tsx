@@ -204,6 +204,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       permission: "inventory.access",
       adminOnly: false,
     },
+    {
+      title: "Services",
+      href: "/inventory/services",
+      icon: Wrench,
+      permission: "inventory.access",
+      adminOnly: false,
+    },
   ];
 
   const orderItems = [
