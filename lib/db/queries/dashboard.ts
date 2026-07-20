@@ -45,7 +45,8 @@ export const getDashboardSummary = unstable_cache(
       and(
         branchId && branchId !== "all" ? eq(transactions.shopId, branchId) : undefined,
         gte(transactions.createdAt, yesterdayStart),
-        lte(transactions.createdAt, todayEnd)
+        lte(transactions.createdAt, todayEnd),
+        eq(transactions.isVoided, false)
       )
     );
 

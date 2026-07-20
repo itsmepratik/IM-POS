@@ -37,6 +37,7 @@ interface ReceiptComponentProps {
   currentDate: string;
   currentTime: string;
   onClose?: () => void;
+  isVoided?: boolean;
 }
 
 export const ReceiptComponent = ({
@@ -49,6 +50,7 @@ export const ReceiptComponent = ({
   currentDate,
   currentTime,
   onClose,
+  isVoided,
 }: ReceiptComponentProps) => {
   const { brand } = useCompanyInfo();
   const POS_ID = brand.posId || "";
@@ -222,9 +224,46 @@ export const ReceiptComponent = ({
               color: #22c55e;
               font-weight: bold;
             }
+            .print-wrapper {
+              position: relative;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+            }
+            .voided-watermark {
+              position: absolute;
+              top: 0;
+              left: 0;
+              width: 100%;
+              height: 100%;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              pointer-events: none;
+              z-index: 9999;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+            }
+            .voided-watermark span {
+              font-size: 60px;
+              font-weight: bold;
+              color: #000;
+              opacity: 0.1;
+              transform: rotate(-35deg);
+              white-space: nowrap;
+              letter-spacing: 10px;
+              text-transform: uppercase;
+              border: 4px solid #000;
+              border-color: rgba(0,0,0,0.1);
+              padding: 10px 20px;
+              border-radius: 8px;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+            }
           </style>
         </head>
         <body>
+          <div class="print-wrapper">
+          ${isVoided ? `<div class="voided-watermark"><span>VOIDED</span></div>` : ""}
           <div class="receipt-container">
             <div class="receipt-header">
               <h2>${brand.name}</h2>
@@ -365,6 +404,7 @@ export const ReceiptComponent = ({
                 : ""
             }
           </div>
+        </div>
         </body>
       </html>
     `;
@@ -401,6 +441,7 @@ export const ReceiptComponent = ({
     brand,
     POS_ID,
     barcodeHtml,
+    isVoided,
   ]);
 
   if (!showReceipt) return null;
@@ -638,6 +679,14 @@ export const ReceiptComponent = ({
               ></div>
             ))}
           </div>
+
+          {isVoided && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-50">
+              <span className="text-[60px] font-bold text-red-500/15 rotate-[-35deg] select-none uppercase tracking-[10px] border-4 border-red-500/15 rounded-lg px-5 py-2">
+                VOIDED
+              </span>
+            </div>
+          )}
         </div>
       </div>
 

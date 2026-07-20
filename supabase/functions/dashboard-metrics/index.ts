@@ -95,13 +95,14 @@ Deno.serve(async (req) => {
          break;
 
       case 'transaction-count':
-        // Count transactions directly
+        // Count transactions directly (exclude voided)
         let query = supabaseClient
             .from('transactions')
             .select('*', { count: 'exact', head: true })
             .gte('created_at', startDate)
             .lte('created_at', endDate)
-            .in('type', ['SALE', 'ON_HOLD_PAID', 'CREDIT_PAID']);
+            .in('type', ['SALE', 'ON_HOLD_PAID', 'CREDIT_PAID'])
+            .eq('is_voided', false);
         
         if (shopId) {
             query = query.eq('shop_id', shopId); 

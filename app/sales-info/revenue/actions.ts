@@ -86,7 +86,10 @@ export async function getRevenueData(
     const brandMap = new Map(allBrands.map((b) => [b.id, b.name]));
 
     // Build Conditions
-    const conditions = [eq(transactions.type, "SALE")];
+    const conditions = [
+      eq(transactions.type, "SALE"),
+      eq(transactions.isVoided, false),
+    ];
 
     if (startDate) {
       const strStart =
@@ -126,6 +129,11 @@ export async function getRevenueData(
     const getCategoryName = (
       productId: string,
     ): "fluid" | "part" | "service" => {
+      // Non-UUID product IDs (like '9999') are always services
+      if (!productId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(productId)) {
+        return "service";
+      }
+
       const product = productMap.get(productId);
       if (!product) return "part";
 
@@ -224,8 +232,10 @@ export async function getRevenueData(
             displayTitle = `Unknown Item (${productId || "No ID"})`;
           }
 
+          // Override category for non-UUID items (services/labor)
           if (
             productId === "9999" ||
+            !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(productId || "") ||
             displayTitle.toLowerCase().includes("labor") ||
             displayTitle.toLowerCase().includes("service")
           ) {

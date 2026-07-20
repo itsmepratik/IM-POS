@@ -7,14 +7,22 @@ import React, {
   useEffect,
   ReactNode,
 } from "react";
-import { CartItem } from "../types";
+import { CartItem, LaborSplit } from "../types";
 
 interface CartContextType {
   cart: CartItem[];
   addToCart: (
     itemOrProduct:
       | CartItem[]
-      | { id: number; name: string; price: number; brand?: string },
+      | { id: number; name: string; price: number; brand?: string }
+      | {
+          isService: true;
+          name: string;
+          price: number;
+          serviceId?: string;
+          description?: string;
+          splits?: LaborSplit[];
+        },
     details?: string,
     quantity?: number,
     source?: string,
@@ -61,22 +69,47 @@ export function CartProvider({ children }: CartProviderProps) {
   const addToCart = (
     itemOrProduct:
       | CartItem[]
-      | { id: number; name: string; price: number; brand?: string },
+      | { id: number; name: string; price: number; brand?: string }
+      | {
+          isService: true;
+          name: string;
+          price: number;
+          serviceId?: string;
+          description?: string;
+          splits?: LaborSplit[];
+        },
     details?: string,
     quantity?: number,
     source?: string,
     bottleType?: string,
   ) => {
-    // Support both signatures:
-    // 1. Array: addToCart(CartItem[])
-    // 2. Single item: addToCart(product, details?, quantity?, source?, bottleType?)
     let items: CartItem[];
 
     if (Array.isArray(itemOrProduct)) {
       items = itemOrProduct;
+    } else if ("isService" in itemOrProduct && itemOrProduct.isService) {
+      // Service/Labor item
+      const svc = itemOrProduct;
+      const qty = quantity ?? 1;
+      const uniqueId = `service-${svc.name}-${svc.price}-${Date.now()}`;
+      items = [
+        {
+          id: 0,
+          name: svc.name,
+          price: svc.price,
+          quantity: qty,
+          details: svc.description || "",
+          uniqueId,
+          isService: true,
+          serviceName: svc.name,
+          serviceId: svc.serviceId,
+          serviceDescription: svc.description,
+          splits: svc.splits,
+        } as CartItem,
+      ];
     } else {
       // Build a CartItem from the legacy single-item signature
-      const product = itemOrProduct;
+      const product = itemOrProduct as { id: number; name: string; price: number; brand?: string };
       const qty = quantity ?? 1;
       const brand = product.brand || "";
       let finalName = product.name;
@@ -86,7 +119,6 @@ export function CartProvider({ children }: CartProviderProps) {
         const brandLower = brand.toLowerCase().trim();
         const nameLower = finalName.toLowerCase().trim();
 
-        // If the name doesn't already start with or contain the brand name as a word
         if (!nameLower.includes(brandLower)) {
           finalName = `${brand} ${finalName}`;
         }

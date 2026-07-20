@@ -616,6 +616,28 @@ export function POSClient({ initialData }: { initialData?: any }) {
   // Get cashier data from the hook
   const { staffMembers } = useStaffIDs();
 
+  // Service catalog state
+  const [services, setServices] = useState<any[]>([]);
+
+  // Fetch services on mount
+  useEffect(() => {
+    import("@/lib/actions/services")
+      .then(({ getServices }) => {
+        getServices()
+          .then((data) => {
+            setServices(data || []);
+          })
+          .catch((err) => {
+            console.warn("Failed to fetch services (table may not exist yet):", err);
+            setServices([]);
+          });
+      })
+      .catch(() => {
+        // Module import failed - services action may not be available
+        setServices([]);
+      });
+  }, []);
+
   // Trade-in helper functions
   const calculateTotalTradeInAmount = () => {
     return tradeinBatteries.reduce(
@@ -2070,17 +2092,22 @@ export function POSClient({ initialData }: { initialData?: any }) {
       <LaborDialog
         open={isLaborDialogOpen}
         onOpenChange={setIsLaborDialogOpen}
-        onAddToCart={(amount) => {
-          if (amount > 0) {
+        onAddToCart={(data) => {
+          if (data.price > 0) {
             addToCart({
-              id: 9999,
-              name: "Labor - Custom Service",
-              price: amount,
+              isService: true,
+              name: data.name,
+              price: data.price,
+              serviceId: data.serviceId,
+              description: data.description,
+              splits: data.splits,
             });
             setIsLaborDialogOpen(false);
             if (isMobile) setShowCart(true);
           }
         }}
+        services={services}
+        staff={staffMembers}
       />
 
       {/* Settlement Modal */}

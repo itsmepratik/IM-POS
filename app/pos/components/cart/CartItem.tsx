@@ -2,7 +2,7 @@
 
 import { useState, memo } from "react";
 import { Button } from "@/components/ui/button";
-import { X, Minus, Plus } from "lucide-react";
+import { X, Minus, Plus, Wrench } from "lucide-react";
 import { CartItem as CartItemType } from "../../types";
 import { QuantityModal } from "../modals/QuantityModal";
 
@@ -28,14 +28,26 @@ export const CartItem = memo(
       }
     };
 
+    const isService = item.isService;
+
     return (
       <>
         <div className="grid grid-cols-[1fr_auto] gap-3 py-3 first:pt-0 items-start border-b last:border-b-0">
           {/* Item details */}
           <div className="min-w-0">
-            <div className="font-medium text-[clamp(0.875rem,2vw,1rem)] mb-1">
-              {item.name}
+            <div className="font-medium text-[clamp(0.875rem,2vw,1rem)] mb-1 flex items-center gap-1.5">
+              {isService && (
+                <Wrench className="h-3.5 w-3.5 text-primary flex-shrink-0" />
+              )}
+              <span className="truncate">
+                {isService ? item.serviceName || item.name : item.name}
+              </span>
             </div>
+            {isService && item.splits && item.splits.length > 0 && (
+              <div className="text-[0.7rem] text-muted-foreground mb-1">
+                {item.splits.length} split(s) assigned
+              </div>
+            )}
             <div className="text-[clamp(0.75rem,1.5vw,0.875rem)] text-muted-foreground">
               OMR {item.price.toFixed(3)} each
             </div>

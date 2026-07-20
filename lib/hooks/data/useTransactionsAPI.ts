@@ -15,10 +15,10 @@ export interface TransactionAPI {
   payment_method: string | null;
   receipt_html: string | null;
   battery_bill_html: string | null;
+  original_reference_number: string | null;
   is_voided: boolean | null;
   voided_at: string | null;
   void_reason: string | null;
-  original_reference_number: string | null;
   car_plate_number: string | null;
   mobile_payment_account: string | null;
   mobile_number: string | null;

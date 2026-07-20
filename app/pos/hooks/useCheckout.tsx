@@ -236,8 +236,8 @@ export function useCheckout({
       // Validate stock
       const stockValidationErrors: string[] = [];
       for (const cartItem of cart) {
-        if (cartItem.id === 9999 || cartItem.name === "Labor - Custom Service")
-          continue;
+        // Skip stock validation for service/labor items
+        if (cartItem.isService) continue;
 
         try {
           const availability = getAvailabilityByNumericId(cartItem.id);
@@ -344,16 +344,18 @@ export function useCheckout({
 
   /** Prepare cart items for the checkout API */
   const prepareCartForAPI = useCallback(() => {
-    return cart.map((item) => {
-      if (item.id === 9999 || item.name === "Labor - Custom Service") {
-        return {
-          productId: "9999",
-          quantity: item.quantity,
-          sellingPrice: item.price,
-          volumeDescription: item.name,
-        };
-      }
-
+    // Separate service items from regular product items
+    const productItems: Array<{
+      productId: string;
+      quantity: number;
+      sellingPrice: number;
+      volumeDescription?: string;
+      source?: "OPEN" | "CLOSED";
+    }> = [];
+    
+    for (const item of cart) {
+      if (item.isService) continue; // Services are handled separately
+      
       const productInfo = products.find((p) => p.id === item.id);
       const lubricantProductInfo = lubricantProducts.find(
         (p) => p.id === item.id,
@@ -368,7 +370,7 @@ export function useCheckout({
         throw new Error(`Original ID not found for product ${item.id}`);
       }
 
-      return {
+      productItems.push({
         productId: originalId,
         quantity: item.quantity,
         sellingPrice: item.price,
@@ -378,9 +380,32 @@ export function useCheckout({
             ? "OPEN"
             : "CLOSED"
           : undefined) as "OPEN" | "CLOSED" | undefined,
-      };
-    });
+      });
+    }
+    
+    return productItems;
   }, [cart, products, lubricantProducts]);
+
+  /** Prepare service items for the checkout API */
+  const prepareServicesForAPI = useCallback(() => {
+    const serviceItems = cart
+      .filter((item) => item.isService)
+      .map((item) => ({
+        serviceId: item.serviceId,
+        name: item.serviceName || item.name,
+        amount: item.price,
+        quantity: item.quantity,
+        description: item.serviceDescription || item.details,
+        splits: item.splits?.map((s) => ({
+          staffId: s.staffId,
+          splitType: s.splitType,
+          amount: s.amount,
+          percentage: s.percentage,
+          description: s.description,
+        })),
+      }));
+    return serviceItems.length > 0 ? serviceItems : undefined;
+  }, [cart]);
 
   /** Prepare trade-in entries for the API */
   const prepareTradeInsForAPI = useCallback(() => {
@@ -599,6 +624,7 @@ export function useCheckout({
       resetPOSState();
 
       // Fire API in background
+      const servicesForAPI = prepareServicesForAPI();
       const payload = {
         locationId:
           inventoryLocationId || currentBranch?.id || "default-location",
@@ -611,6 +637,7 @@ export function useCheckout({
         referenceNumber: localRef,
         ...(tradeInsForAPI ? { tradeIns: tradeInsForAPI } : {}),
         ...(appliedDiscount ? { discount: appliedDiscount } : {}),
+        ...(servicesForAPI ? { services: servicesForAPI } : {}),
       };
 
       processOnHoldInBackground(payload as any);
@@ -677,6 +704,7 @@ export function useCheckout({
     resetPOSState();
 
     // ── Fire API in background (non-blocking) ──────────────────────
+    const servicesForAPI = prepareServicesForAPI();
     const payload = {
       locationId:
         inventoryLocationId || currentBranch?.id || "default-location",
@@ -689,6 +717,7 @@ export function useCheckout({
       referenceNumber: localRef,
       ...(tradeInsForAPI ? { tradeIns: tradeInsForAPI } : {}),
       ...(appliedDiscount ? { discount: appliedDiscount } : {}),
+      ...(servicesForAPI ? { services: servicesForAPI } : {}),
       ...(selectedPaymentMethod === "mobile" && paymentRecipient
         ? { mobilePaymentAccount: paymentRecipient }
         : {}),
@@ -705,6 +734,7 @@ export function useCheckout({
     selectedCashier,
     selectedPaymentMethod,
     prepareCartForAPI,
+    prepareServicesForAPI,
     prepareTradeInsForAPI,
     appliedDiscount,
     appliedTradeInAmount,

@@ -49,6 +49,9 @@ export async function GET(
         discount_value,
         discount_amount,
         subtotal_before_discount,
+        is_voided,
+        voided_at,
+        void_reason,
         created_at,
         customer_id,
         customers (

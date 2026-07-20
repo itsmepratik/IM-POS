@@ -30,6 +30,7 @@ interface BillComponentProps {
   hideButton?: boolean;
   carPlateNumber?: string;
   onClose?: () => void;
+  isVoided?: boolean;
 }
 
 export const BillComponent: React.FC<BillComponentProps> = ({
@@ -44,6 +45,7 @@ export const BillComponent: React.FC<BillComponentProps> = ({
   hideButton = false,
   carPlateNumber,
   onClose,
+  isVoided,
 }) => {
   const billRef = useRef<HTMLDivElement>(null);
   const [isClient, setIsClient] = useState(false);
@@ -388,9 +390,38 @@ export const BillComponent: React.FC<BillComponentProps> = ({
             -webkit-text-size-adjust: none;
             line-height: 1.2;
           }
+          .print-wrapper {
+            position: relative;
+          }
+          .voided-watermark {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+            z-index: 9999;
+          }
+          .voided-watermark span {
+            font-size: 80px;
+            font-weight: bold;
+            color: rgba(220, 38, 38, 0.12);
+            transform: rotate(-35deg);
+            white-space: nowrap;
+            letter-spacing: 15px;
+            text-transform: uppercase;
+            border: 5px solid rgba(220, 38, 38, 0.12);
+            padding: 15px 30px;
+            border-radius: 10px;
+          }
         </style>
       </head>
       <body>
+        <div class="print-wrapper">
+        ${isVoided ? `<div class="voided-watermark"><span>VOIDED</span></div>` : ""}
         <div class="bill-container">
           <!-- Header with three columns -->
           <!-- Company Name Top Section -->
@@ -551,6 +582,7 @@ export const BillComponent: React.FC<BillComponentProps> = ({
             ${barcodeHtml ? `<div style="text-align: center; margin-top: 15px;">${barcodeHtml}</div>` : ""}
           </div>
         </div>
+        </div>
       </body>
       </html>
     `;
@@ -584,6 +616,7 @@ export const BillComponent: React.FC<BillComponentProps> = ({
     appliedDiscount,
     appliedTradeInAmount,
     barcodeHtml,
+    isVoided,
   ]);
 
   if (!isClient) {
@@ -632,7 +665,7 @@ export const BillComponent: React.FC<BillComponentProps> = ({
       className="w-full flex flex-col"
       data-bill-component
     >
-      <div className="max-h-[40vh] overflow-auto mb-4">
+      <div className="max-h-[40vh] overflow-auto mb-4 relative">
         <div
           ref={billRef}
           data-bill-ref
@@ -795,6 +828,14 @@ export const BillComponent: React.FC<BillComponentProps> = ({
               />
             )}
           </div>
+
+          {isVoided && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-50">
+              <span className="text-[80px] font-bold text-red-500/12 rotate-[-35deg] select-none uppercase tracking-[15px] border-[5px] border-red-500/12 rounded-lg px-8 py-3">
+                VOIDED
+              </span>
+            </div>
+          )}
         </div>
       </div>
 

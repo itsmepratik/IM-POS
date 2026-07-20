@@ -8,6 +8,7 @@ export const CACHE_TAGS = {
   CATEGORIES: 'categories-list',
   SHOPS: 'shops-list',
   TYPES: 'types-list',
+  SERVICES: 'services-list',
   
   // Dashboard and metrics
   DASHBOARD: 'dashboard-metrics',

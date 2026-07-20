@@ -70,6 +70,9 @@ export async function getProfitsReport(
   // We keep SALE, ON_HOLD_PAID, CREDIT_PAID, RETURN, etc.
   conditions.push(not(inArray(transactions.type, ["ON_HOLD", "CREDIT"])));
 
+  // Exclude voided transactions
+  conditions.push(eq(transactions.isVoided, false));
+
   // 3. Fetch Transactions
   // We don't rely on the join for the store name anymore, but we keep it for reference
   const transactionData = await db.query.transactions.findMany({
@@ -263,14 +266,20 @@ export async function getProfitsReport(
        
        const nameKey = displayTitle.trim(); // Normalize
 
-       let category: "fluid" | "part" | "service" = "part";
-       const catName = product?.category?.name?.toLowerCase() || "";
-       if (catName.includes('fluid') || catName.includes('oil') || catName.includes('lubricant')) category = "fluid";
-       else if (catName.includes('service') || catName.includes('labor')) category = "service";
-       // Also check if the item itself implies service/labor (e.g. ID 9999)
-       if (item.productId === '9999' || displayTitle.toLowerCase().includes('labor') || displayTitle.toLowerCase().includes('service')) {
-           category = "service";
-       }
+        let category: "fluid" | "part" | "service" = "part";
+        const catName = product?.category?.name?.toLowerCase() || "";
+        if (catName.includes('fluid') || catName.includes('oil') || catName.includes('lubricant')) category = "fluid";
+        else if (catName.includes('service') || catName.includes('labor')) category = "service";
+        // Also check if the item itself implies service/labor (e.g. non-UUID product IDs)
+        if (
+          !item.productId ||
+          item.productId === '9999' ||
+          !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(item.productId) ||
+          displayTitle.toLowerCase().includes('labor') ||
+          displayTitle.toLowerCase().includes('service')
+        ) {
+            category = "service";
+        }
 
        // Store Name Mapping
        const txStoreId = tx.shopId;

@@ -55,6 +55,7 @@ export async function getTopSellingProducts(
           AND t.created_at <= ${endDate.toISOString()}
           ${shopFilter}
           AND t.type IN ('SALE', 'ON_HOLD_PAID', 'CREDIT_PAID')
+          AND t.is_voided = false
       )
       SELECT
         product_name as name,

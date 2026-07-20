@@ -1,5 +1,14 @@
 import { Product } from "@/lib/hooks/data/useIntegratedPOSData";
 
+export interface LaborSplit {
+  staffId?: string;
+  staffName?: string;
+  splitType: "technician_share" | "parts_portion" | "labor_portion";
+  amount: number;
+  percentage?: number;
+  description?: string;
+}
+
 export interface CartItem extends Omit<
   Product,
   "category" | "quantity" | "availableQuantity" | "isAvailable" | "originalId"
@@ -15,6 +24,12 @@ export interface CartItem extends Omit<
   availableQuantity?: number;
   isAvailable?: boolean;
   originalId?: string;
+  // Service/Labor fields
+  isService?: boolean;
+  serviceName?: string;
+  serviceId?: string;
+  serviceDescription?: string;
+  splits?: LaborSplit[];
 }
 
 export interface SelectedVolume {

@@ -354,6 +354,96 @@ export const appointments = pgTable("appointments", {
 export type Appointment = typeof appointments.$inferSelect;
 export type NewAppointment = typeof appointments.$inferInsert;
 
+// ── Services & Labor Splits ────────────────────────────────────────────────
+
+export const services = pgTable(
+  "services",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    nameAr: text("name_ar"),
+    description: text("description"),
+    category: text("category").notNull().default("labor"), // 'labor' | 'diagnostic' | 'composite'
+    defaultPrice: numeric("default_price"),
+    estimatedDurationMinutes: integer("estimated_duration_minutes"),
+    isActive: boolean("is_active").default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  },
+  (table) => ({
+    categoryIdx: index("services_category_idx").on(table.category),
+    nameLowerIdx: index("services_name_lower_idx").on(sql`lower(${table.name})`),
+  }),
+);
+
+export type Service = typeof services.$inferSelect;
+export type NewService = typeof services.$inferInsert;
+
+export const serviceItems = pgTable(
+  "service_items",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    transactionId: uuid("transaction_id")
+      .notNull()
+      .references(() => transactions.id, { onDelete: "cascade" }),
+    itemType: text("item_type").notNull(), // 'product' | 'service' | 'labor' | 'composite'
+    productId: uuid("product_id").references(() => products.id, {
+      onDelete: "restrict",
+    }),
+    serviceId: uuid("service_id").references(() => services.id, {
+      onDelete: "restrict",
+    }),
+    name: text("name").notNull(),
+    quantity: numeric("quantity").notNull().default("1"),
+    unitPrice: numeric("unit_price").notNull(),
+    costPrice: numeric("cost_price").default("0"),
+    discountAmount: numeric("discount_amount").default("0"),
+    volumeDescription: text("volume_description"),
+    source: text("source"), // 'OPEN' | 'CLOSED'
+    batchId: uuid("batch_id").references(() => batches.id),
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  },
+  (table) => ({
+    transactionIdx: index("service_items_transaction_idx").on(
+      table.transactionId,
+    ),
+    productIdx: index("service_items_product_idx").on(table.productId),
+    serviceIdx: index("service_items_service_idx").on(table.serviceId),
+    typeIdx: index("service_items_type_idx").on(table.itemType),
+  }),
+);
+
+export type ServiceItem = typeof serviceItems.$inferSelect;
+export type NewServiceItem = typeof serviceItems.$inferInsert;
+
+export const laborSplits = pgTable(
+  "labor_splits",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    serviceItemId: uuid("service_item_id")
+      .notNull()
+      .references(() => serviceItems.id, { onDelete: "cascade" }),
+    staffId: uuid("staff_id").references(() => staff.id, {
+      onDelete: "restrict",
+    }),
+    splitType: text("split_type").notNull(), // 'technician_share' | 'parts_portion' | 'labor_portion'
+    amount: numeric("amount").notNull(),
+    percentage: numeric("percentage"),
+    description: text("description"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  },
+  (table) => ({
+    serviceItemIdx: index("labor_splits_service_item_idx").on(
+      table.serviceItemId,
+    ),
+    staffIdx: index("labor_splits_staff_idx").on(table.staffId),
+  }),
+);
+
+export type LaborSplit = typeof laborSplits.$inferSelect;
+export type NewLaborSplit = typeof laborSplits.$inferInsert;
+
 import { relations } from "drizzle-orm";
 
 export const locationsRelations = relations(locations, ({ many }) => ({
@@ -449,9 +539,45 @@ export const transactionsRelations = relations(
       fields: [transactions.customerId],
       references: [customers.id],
     }),
+    serviceItems: many(serviceItems),
   }),
 );
 
 export const staffRelations = relations(staff, ({ many }) => ({
   transactions: many(transactions),
+  laborSplits: many(laborSplits),
+}));
+
+export const servicesRelations = relations(services, ({ many }) => ({
+  serviceItems: many(serviceItems),
+}));
+
+export const serviceItemsRelations = relations(
+  serviceItems,
+  ({ one, many }) => ({
+    transaction: one(transactions, {
+      fields: [serviceItems.transactionId],
+      references: [transactions.id],
+    }),
+    product: one(products, {
+      fields: [serviceItems.productId],
+      references: [products.id],
+    }),
+    service: one(services, {
+      fields: [serviceItems.serviceId],
+      references: [services.id],
+    }),
+    laborSplits: many(laborSplits),
+  }),
+);
+
+export const laborSplitsRelations = relations(laborSplits, ({ one }) => ({
+  serviceItem: one(serviceItems, {
+    fields: [laborSplits.serviceItemId],
+    references: [serviceItems.id],
+  }),
+  staff: one(staff, {
+    fields: [laborSplits.staffId],
+    references: [staff.id],
+  }),
 }));

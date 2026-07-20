@@ -73,6 +73,7 @@ export async function POST(req: NextRequest) {
       mobilePaymentAccount,
       mobileNumber,
       referenceNumber: clientReferenceNumber,
+      services,
     } = validatedInput;
 
     const uuidRegex =
@@ -427,9 +428,10 @@ export async function POST(req: NextRequest) {
             ${carPlateNumber || null}::text,
             ${paymentMethod?.toUpperCase() === "MOBILE" && mobilePaymentAccount ? mobilePaymentAccount : null}::text,
             ${paymentMethod?.toUpperCase() === "MOBILE" && mobileNumber ? mobileNumber : null}::text,
-            null::text,
+            ${null}::text,
             ${JSON.stringify(tradeIns || [])}::jsonb,
-            ${referenceNumber}::text
+            ${referenceNumber}::text,
+            ${services ? JSON.stringify(services) : null}::jsonb
           ) as data
         `);
 

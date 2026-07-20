@@ -45,6 +45,21 @@ export interface CheckoutRequest {
   customerId?: string; // Optional customer ID for linking transactions to customers
   mobilePaymentAccount?: string; // Account used for mobile payment (Adanan or Forman)
   mobileNumber?: string; // Mobile number used for the transaction
+  referenceNumber?: string; // Client-side generated reference number
+  services?: {
+    serviceId?: string;
+    name: string;
+    amount: number;
+    quantity?: number;
+    description?: string;
+    splits?: {
+      staffId?: string;
+      splitType: "technician_share" | "parts_portion" | "labor_portion";
+      amount: number;
+      percentage?: number;
+      description?: string;
+    }[];
+  }[];
 }
 
 export interface CheckoutResponse {

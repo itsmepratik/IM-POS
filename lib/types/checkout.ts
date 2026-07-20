@@ -2,17 +2,17 @@ import { z } from "zod";
 
 // Cart item schema
 export const CartItemSchema = z.object({
-  productId: z.string().min(1), // Changed from .uuid() to support non-UUID IDs
-  name: z.string().optional(), // Added to capture snapshot name
+  productId: z.string().min(1),
+  name: z.string().optional(),
   quantity: z.number().positive(),
   sellingPrice: z.number().nonnegative(),
   volumeDescription: z.string().optional(),
-  source: z.enum(["CLOSED", "OPEN"]).optional(), // For lubricant products - will be defaulted to CLOSED if missing
+  source: z.enum(["CLOSED", "OPEN"]).optional(),
 });
 
 // Trade-in item schema
 export const TradeInItemSchema = z.object({
-  productId: z.string().min(1), // Changed from .uuid() to support non-UUID IDs
+  productId: z.string().min(1),
   quantity: z.number().positive(),
   tradeInValue: z.number().nonnegative(),
   size: z.string().min(1, "Battery size is required"),
@@ -21,8 +21,8 @@ export const TradeInItemSchema = z.object({
       message: "Condition must be either 'scrap' or 'resellable'",
     }),
   }),
-  name: z.string().min(1, "Battery name is required"), // Battery size used as product name
-  costPrice: z.number().nonnegative(), // Trade-in value used as cost price
+  name: z.string().min(1, "Battery name is required"),
+  costPrice: z.number().nonnegative(),
 });
 
 // Discount schema
@@ -31,20 +31,40 @@ export const DiscountSchema = z.object({
   value: z.number().nonnegative(),
 });
 
+// Labor split schema
+export const LaborSplitSchema = z.object({
+  staffId: z.string().optional(),
+  splitType: z.enum(["technician_share", "parts_portion", "labor_portion"]),
+  amount: z.number().nonnegative(),
+  percentage: z.number().min(0).max(100).optional(),
+  description: z.string().optional(),
+});
+
+// Service item schema (for checkout)
+export const ServiceItemSchema = z.object({
+  serviceId: z.string().optional(),
+  name: z.string().min(1),
+  amount: z.number().nonnegative(),
+  quantity: z.number().positive().default(1),
+  description: z.string().optional(),
+  splits: z.array(LaborSplitSchema).optional(),
+});
+
 // Checkout input schema
 export const CheckoutInputSchema = z.object({
-  locationId: z.string().min(1), // Changed from .uuid() to support non-UUID IDs
-  shopId: z.string().min(1).optional(), // Changed from .uuid() to support non-UUID IDs
+  locationId: z.string().min(1),
+  shopId: z.string().min(1).optional(),
   paymentMethod: z.string().min(1),
-  cashierId: z.string().min(1).optional(), // Changed from .uuid() to support non-UUID IDs
+  cashierId: z.string().min(1).optional(),
   cart: z.array(CartItemSchema),
   tradeIns: z.array(TradeInItemSchema).optional(),
-  discount: DiscountSchema.optional(), // Optional discount to apply
-  carPlateNumber: z.string().min(1).optional(), // For 'on hold' payments
-  customerId: z.string().uuid().optional(), // Optional customer ID for linking transactions to customers
-  mobilePaymentAccount: z.string().optional(), // Account used for mobile payment (Adanan or Forman)
-  mobileNumber: z.string().optional(), // Mobile number used for the transaction
-  referenceNumber: z.string().optional(), // Client-side generated reference number
+  discount: DiscountSchema.optional(),
+  carPlateNumber: z.string().min(1).optional(),
+  customerId: z.string().uuid().optional(),
+  mobilePaymentAccount: z.string().optional(),
+  mobileNumber: z.string().optional(),
+  referenceNumber: z.string().optional(),
+  services: z.array(ServiceItemSchema).optional(),
 });
 
 // Response schemas
@@ -82,11 +102,10 @@ export type TradeInItem = z.infer<typeof TradeInItemSchema>;
 export type Discount = z.infer<typeof DiscountSchema>;
 export type CheckoutInput = z.infer<typeof CheckoutInputSchema>;
 export type CheckoutResponse = z.infer<typeof CheckoutResponseSchema>;
+export type LaborSplit = z.infer<typeof LaborSplitSchema>;
+export type ServiceItem = z.infer<typeof ServiceItemSchema>;
 
 // Utility functions
-// Note: generateReferenceNumber() has been moved to lib/utils/reference-numbers.ts
-// to support sequential numbering with type-specific prefixes
-
 export function calculateCartTotal(cart: CartItem[]): number {
   return cart.reduce((sum, item) => sum + item.sellingPrice * item.quantity, 0);
 }
@@ -103,27 +122,22 @@ export function calculateTradeInTotal(tradeIns: TradeInItem[]): number {
  */
 export function calculateDiscountAmount(
   subtotal: number,
-  discount: Discount
+  discount: Discount,
 ): number {
   if (discount.type === "percentage") {
     return subtotal * (discount.value / 100);
   } else {
-    // For fixed amount, ensure discount doesn't exceed subtotal
     return Math.min(discount.value, subtotal);
   }
 }
 
 /**
  * Calculate the final total after applying discount and trade-ins
- * @param cart - Array of cart items
- * @param tradeIns - Optional array of trade-in items
- * @param discount - Optional discount to apply
- * @returns Object containing subtotal, discount amount, trade-in total, and final total
  */
 export function calculateFinalTotal(
   cart: CartItem[],
   tradeIns?: TradeInItem[],
-  discount?: Discount
+  discount?: Discount,
 ): {
   subtotalBeforeDiscount: number;
   discountAmount: number;
@@ -148,6 +162,7 @@ export function calculateFinalTotal(
 
 export function isBatteryTransaction(items: CartItem[]): boolean {
   return items.every(
-    (item) => item.volumeDescription?.toLowerCase().includes("battery") || false // We'll need to check product type from database
+    (item) =>
+      item.volumeDescription?.toLowerCase().includes("battery") || false,
   );
 }

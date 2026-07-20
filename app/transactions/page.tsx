@@ -171,7 +171,10 @@ const TransactionCard = memo(
     onToggle: () => void;
     onViewReceipt: (transaction: TransactionDisplay) => void;
   }) => {
-    const getTypeStyles = (type: string) => {
+    const getTypeStyles = (type: string, isVoided?: boolean) => {
+      if (isVoided) {
+        return "border-red-400 bg-red-50/60 hover:bg-red-100/60 text-red-600 dark:text-red-400 dark:bg-red-950/20";
+      }
       switch (type) {
         case "refund":
           return "border-red-500 bg-red-500/5 hover:bg-red-500/10 text-red-600 dark:text-red-400";
@@ -193,51 +196,46 @@ const TransactionCard = memo(
       }
     };
 
-    const typeStyles = getTypeStyles(transaction.type);
-    const isVoided = transaction.isVoided;
+    const typeStyles = getTypeStyles(transaction.type, transaction.isVoided);
 
     return (
-        <Card
-          className={cn(
-            "group relative bg-white dark:bg-zinc-950 overflow-hidden transition-all duration-300 border-[2.5px] ease-out backdrop-blur-sm",
-            typeStyles,
-            isExpanded
-              ? "ring-2 shadow-md"
-              : "hover:shadow-lg hover:-translate-y-0.5",
-            isVoided && "opacity-80 border-red-400",
-          )}
-        >
-          {isVoided && (
-            <div className="absolute top-8 -right-10 w-40 rotate-45 bg-red-600 text-white text-[10px] font-bold uppercase tracking-widest text-center py-1 shadow-md z-10">
-              Voided
-            </div>
-          )}
+      <Card
+        className={cn(
+          "group relative bg-white dark:bg-zinc-950 overflow-hidden transition-all duration-300 border-[2.5px] ease-out backdrop-blur-sm",
+          typeStyles,
+          isExpanded
+            ? "ring-2 shadow-md"
+            : "hover:shadow-lg hover:-translate-y-0.5",
+        )}
+      >
         <div className="p-4 sm:p-5 flex flex-col gap-4 sm:gap-5">
           <div className="flex items-start sm:items-center justify-between">
             <div className="flex flex-col gap-1.5 sm:gap-2">
               <div className="flex items-center gap-2.5">
-                <span className={cn("text-sm sm:text-base font-bold uppercase tracking-wider font-formula1", isVoided && "line-through opacity-60")}>
-                  {transaction.type === "refund"
-                    ? "Refund"
-                    : transaction.type === "warranty-claim"
-                      ? "Warranty Claim"
-                      : transaction.type === "expense"
-                        ? "Expense"
-                        : transaction.type === "credit"
-                          ? "Credit"
-                          : transaction.type === "on-hold"
-                            ? "On Hold"
-                            : transaction.type === "stock-transfer"
-                              ? "Stock Transfer"
-                              : transaction.type === "on-hold-paid"
-                                ? "On-Hold Paid"
-                                : transaction.type === "credit-paid"
-                                  ? "Credit Paid"
-                                  : "Sale"}
+                <span className="text-sm sm:text-base font-bold uppercase tracking-wider font-formula1">
+                  {transaction.isVoided
+                    ? "Voided"
+                    : transaction.type === "refund"
+                      ? "Refund"
+                      : transaction.type === "warranty-claim"
+                        ? "Warranty Claim"
+                        : transaction.type === "expense"
+                          ? "Expense"
+                          : transaction.type === "credit"
+                            ? "Credit"
+                            : transaction.type === "on-hold"
+                              ? "On Hold"
+                              : transaction.type === "stock-transfer"
+                                ? "Stock Transfer"
+                                : transaction.type === "on-hold-paid"
+                                  ? "On-Hold Paid"
+                                  : transaction.type === "credit-paid"
+                                    ? "Credit Paid"
+                                    : "Sale"}
                 </span>
-                {isVoided && (
-                  <span className="px-2 py-0.5 rounded-full border text-[10px] font-bold uppercase tracking-widest bg-red-600/10 text-red-600 border-red-300 dark:border-red-800 animate-pulse">
-                    Voided
+                {transaction.isVoided && (
+                  <span className="text-xs font-mono px-2 py-0.5 rounded-full border border-red-300 bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400 dark:border-red-800">
+                    VOIDED
                   </span>
                 )}
                 <span className="text-xs sm:text-sm text-muted-foreground font-mono bg-background/50 px-2 py-0.5 rounded-full border">
@@ -264,7 +262,7 @@ const TransactionCard = memo(
                 </span>
                 <div className="flex items-baseline gap-1 font-mono">
                   <span className="text-sm sm:text-base opacity-80">OMR</span>
-                  <span className={cn("text-xl sm:text-3xl font-bold tracking-tight", isVoided && "line-through text-red-500")}>
+                  <span className={cn("text-xl sm:text-3xl font-bold tracking-tight", transaction.isVoided && "line-through text-red-400/60")}>
                     {transaction.type === "refund" ? "-" : ""}
                     {Math.abs(transaction.amount).toFixed(2)}
                   </span>
@@ -417,62 +415,66 @@ function FixedSalesCard({
       className={`flex flex-row justify-between p-4 sm:p-5 border shadow-md rounded-md ${
         !transaction
           ? "bg-gray-600"
-          : transaction.type === "refund"
+          : transaction.isVoided
             ? "bg-red-500"
-            : transaction.type === "expense"
-              ? "bg-purple-600"
-              : transaction.type === "credit"
-                ? "bg-blue-600"
-                : transaction.type === "on-hold"
-                  ? "bg-yellow-600"
-                  : transaction.type === "stock-transfer"
-                    ? "bg-blue-600"
-                    : transaction.type === "warranty-claim"
-                      ? "bg-cyan-600"
-                      : transaction.type === "on-hold-paid" ||
-                          transaction.type === "credit-paid"
-                        ? "bg-green-600"
-                        : "bg-green-600"
+            : transaction.type === "refund"
+              ? "bg-red-500"
+              : transaction.type === "expense"
+                ? "bg-purple-600"
+                : transaction.type === "credit"
+                  ? "bg-blue-600"
+                  : transaction.type === "on-hold"
+                    ? "bg-yellow-600"
+                    : transaction.type === "stock-transfer"
+                      ? "bg-blue-600"
+                      : transaction.type === "warranty-claim"
+                        ? "bg-cyan-600"
+                        : transaction.type === "on-hold-paid" ||
+                            transaction.type === "credit-paid"
+                          ? "bg-green-600"
+                          : "bg-green-600"
       }`}
     >
-      <div className="flex flex-col text-white">
-        <div className="text-lg sm:text-xl font-semibold">
-          {!transaction
-            ? "No transactions"
-            : transaction.type === "refund"
-              ? "Refund"
-              : transaction.type === "expense"
-                ? "Expense"
-                : transaction.type === "credit"
-                  ? "Credit"
-                  : transaction.type === "on-hold"
-                    ? "On Hold"
-                    : transaction.type === "stock-transfer"
-                      ? "Stock Transfer"
-                      : transaction.type === "warranty-claim"
-                        ? "Warranty Claim"
-                        : transaction.type === "on-hold-paid"
-                          ? "On-Hold Paid"
-                          : transaction.type === "credit-paid"
-                            ? "Credit Paid"
-                            : "Sale"}
-        </div>
-        {transaction && (
-          <div className="text-sm sm:text-base opacity-90 mt-1 sm:mt-1.5">
-            {transaction.items[0]}
+        <div className="flex flex-col text-white">
+          <div className="text-lg sm:text-xl font-semibold">
+            {!transaction
+              ? "No transactions"
+              : transaction.isVoided
+                ? "Voided"
+                : transaction.type === "refund"
+                  ? "Refund"
+                  : transaction.type === "expense"
+                    ? "Expense"
+                    : transaction.type === "credit"
+                      ? "Credit"
+                      : transaction.type === "on-hold"
+                        ? "On Hold"
+                        : transaction.type === "stock-transfer"
+                          ? "Stock Transfer"
+                          : transaction.type === "warranty-claim"
+                            ? "Warranty Claim"
+                            : transaction.type === "on-hold-paid"
+                              ? "On-Hold Paid"
+                              : transaction.type === "credit-paid"
+                                ? "Credit Paid"
+                                : "Sale"}
           </div>
-        )}
-      </div>
-      <div className="flex flex-col items-end text-white">
-        {transaction && (
-          <>
-            <span className="text-sm sm:text-base">OMR</span>
-            <span className="text-lg sm:text-2xl font-bold">
-              {Math.abs(transaction.amount).toFixed(2)}
-            </span>
-          </>
-        )}
-      </div>
+          {transaction && (
+            <div className="text-sm sm:text-base opacity-90 mt-1 sm:mt-1.5">
+              {transaction.items[0]}
+            </div>
+          )}
+        </div>
+        <div className="flex flex-col items-end text-white">
+          {transaction && (
+            <>
+              <span className="text-sm sm:text-base">OMR</span>
+              <span className={cn("text-lg sm:text-2xl font-bold", transaction.isVoided && "line-through")}>
+                {Math.abs(transaction.amount).toFixed(2)}
+              </span>
+            </>
+          )}
+        </div>
     </div>
   );
 }
@@ -678,9 +680,46 @@ function Receipt({ transaction }: { transaction: TransactionDisplay | null }) {
                 color: #22c55e;
                 font-weight: bold;
               }
+              .print-wrapper {
+                position: relative;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+              }
+              .voided-watermark {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                pointer-events: none;
+                z-index: 9999;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+              }
+              .voided-watermark span {
+                font-size: 60px;
+                font-weight: bold;
+                color: #000;
+                opacity: 0.1;
+                transform: rotate(-35deg);
+                white-space: nowrap;
+                letter-spacing: 10px;
+                text-transform: uppercase;
+                border: 4px solid #000;
+                border-color: rgba(0,0,0,0.1);
+                padding: 10px 20px;
+                border-radius: 8px;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+              }
             </style>
           </head>
           <body>
+            <div class="print-wrapper">
+            ${transaction.isVoided ? `<div class="voided-watermark"><span>VOIDED</span></div>` : ""}
             <div class="receipt-container">
               <div class="receipt-header">
                 <h2>H Automotives</h2>
@@ -765,6 +804,7 @@ function Receipt({ transaction }: { transaction: TransactionDisplay | null }) {
                 ${receiptNumber}
               </div>
             </div>
+          </div>
           </body>
         </html>
       `);
@@ -799,11 +839,18 @@ function Receipt({ transaction }: { transaction: TransactionDisplay | null }) {
             </p>
           </div>
         )}
-        <div
-          id="receipt-content"
-          className="bg-white border rounded-lg p-4 w-full max-w-sm mx-auto"
-        >
-          {/* Receipt Preview */}
+      <div
+        id="receipt-content"
+        className="bg-white border rounded-lg p-4 w-full max-w-sm mx-auto relative"
+      >
+        {/* Receipt Preview */}
+        {transaction.isVoided && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-50">
+            <span className="text-[60px] font-bold text-red-500/15 rotate-[-35deg] select-none uppercase tracking-[10px] border-4 border-red-500/15 rounded-lg px-5 py-2">
+              VOIDED
+            </span>
+          </div>
+        )}
           <div className="text-center mb-2">
             <h3 className="font-bold text-lg">H Automotives</h3>
             <p className="text-xs text-gray-500">Saham, Sultanate of Oman</p>
@@ -1134,6 +1181,7 @@ export default function TransactionsPage() {
         customer: customerName, // Use customer name from joined data
         items: t.items_sold?.length || 0,
         cashier: cashierName,
+        isVoided: !!t.is_voided,
         status:
           t.type === "REFUND"
             ? "refunded"
@@ -1184,7 +1232,6 @@ export default function TransactionsPage() {
         discountValue: t.discount_value || null,
         discountAmount: t.discount_amount || null,
         subtotalBeforeDiscount: t.subtotal_before_discount || null,
-        isVoided: t.is_voided ?? false,
       };
     });
   }, [apiTransactions]);
@@ -1250,10 +1297,13 @@ export default function TransactionsPage() {
   ]);
 
   // Calculate total credit (total amount considering sale as positive and refund as negative)
+  // Excludes voided transactions from the total
   const totalCredit = useMemo(() => {
     if (!displayTransactions || displayTransactions.length === 0) return 0;
 
     return displayTransactions.reduce((total, transaction) => {
+      // Skip voided transactions entirely
+      if (transaction.isVoided) return total;
       // transaction.amount already contains the correct sign from the database
       // Sales are positive, refunds are negative
       return total + transaction.amount;
@@ -1293,6 +1343,7 @@ export default function TransactionsPage() {
     receiptNumber: string;
     currentDate: string;
     currentTime: string;
+    isVoided?: boolean;
   } | null>(null);
   const [billTransactionData, setBillTransactionData] = useState<{
     cart: Array<{
@@ -1311,6 +1362,7 @@ export default function TransactionsPage() {
     appliedDiscount?: { type: "percentage" | "amount"; value: number } | null;
     appliedTradeInAmount?: number;
     isWarrantyClaim: boolean;
+    isVoided?: boolean;
   } | null>(null);
   const [isReceiptPreviewOpen, setIsReceiptPreviewOpen] = useState(false);
   const [isBillPreviewOpen, setIsBillPreviewOpen] = useState(false);
@@ -1453,8 +1505,9 @@ export default function TransactionsPage() {
 
         // Get product name from map, with proper fallback
         let productName: string;
-        if (productId === "9999" || productId === "") {
-          productName = item.volumeDescription || "Labor - Custom Service";
+        // Non-UUID product IDs (services/labor) - use name from item
+        if (!productId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(productId)) {
+          productName = item.name || item.volumeDescription || "Service";
         } else {
           // Ensure we're using normalized productId for lookup
           const normalizedProductId = String(productId).trim();
@@ -1592,6 +1645,7 @@ export default function TransactionsPage() {
           appliedDiscount: discount,
           appliedTradeInAmount: tx.tradeInTotal || 0,
           isWarrantyClaim: isWarrantyClaim,
+          isVoided: transaction.isVoided,
         });
         setIsBillPreviewOpen(true);
       } else {
@@ -1605,6 +1659,7 @@ export default function TransactionsPage() {
           receiptNumber: tx.reference_number || transaction.reference,
           currentDate,
           currentTime,
+          isVoided: transaction.isVoided,
         });
         setIsReceiptPreviewOpen(true);
       }
@@ -1899,8 +1954,10 @@ export default function TransactionsPage() {
                   </TableHeader>
                   <TableBody>
                     {displayTransactions.map((transaction) => {
-                      const isVoided = transaction.isVoided;
-                      const getTypeColor = (type: string) => {
+                      const getTypeColor = (type: string, isVoided?: boolean) => {
+                        if (isVoided) {
+                          return "text-red-600 bg-red-500/10 border-red-200 dark:border-red-900";
+                        }
                         switch (type) {
                           case "refund":
                             return "text-red-600 bg-red-500/10 border-red-200 dark:border-red-900";
@@ -1929,7 +1986,6 @@ export default function TransactionsPage() {
                               expandedTransactionId === transaction.id
                                 ? "bg-muted/30"
                                 : "hover:bg-muted/30",
-                              isVoided && "opacity-60",
                             )}
                             onClick={() => {
                               toggleTransaction(transaction.id);
@@ -1939,22 +1995,14 @@ export default function TransactionsPage() {
                               {transaction.time || transaction.date}
                             </TableCell>
                             <TableCell>
-                              <div className="flex items-center gap-1.5">
-                                <span
-                                  className={cn(
-                                    "px-2.5 py-1 rounded-full border text-[11px] font-bold uppercase tracking-wider whitespace-nowrap",
-                                    getTypeColor(transaction.type),
-                                    isVoided && "line-through opacity-60",
-                                  )}
-                                >
-                                  {transaction.type.replace("-", " ")}
-                                </span>
-                                {isVoided && (
-                                  <span className="px-2 py-0.5 rounded-full border text-[9px] font-bold uppercase tracking-widest bg-red-600/10 text-red-600 border-red-300 dark:border-red-800">
-                                    Voided
-                                  </span>
+                              <span
+                                className={cn(
+                                  "px-2.5 py-1 rounded-full border text-[11px] font-bold uppercase tracking-wider whitespace-nowrap",
+                                  getTypeColor(transaction.type, transaction.isVoided),
                                 )}
-                              </div>
+                              >
+                                {transaction.isVoided ? "Voided" : transaction.type.replace("-", " ")}
+                              </span>
                             </TableCell>
                             <TableCell className="font-medium whitespace-nowrap">
                               {transaction.cashier}
@@ -1965,7 +2013,7 @@ export default function TransactionsPage() {
                             >
                               {transaction.items[0]}
                             </TableCell>
-                            <TableCell className="text-right font-mono font-bold text-base whitespace-nowrap">
+                            <TableCell className={cn("text-right font-mono font-bold text-base whitespace-nowrap", transaction.isVoided && "line-through text-red-400/60")}>
                               {transaction.type === "refund" ? "-" : ""}
                               {Math.abs(transaction.amount).toFixed(2)}
                             </TableCell>
@@ -2205,6 +2253,7 @@ export default function TransactionsPage() {
                 currentDate={receiptTransactionData.currentDate}
                 currentTime={receiptTransactionData.currentTime}
                 onClose={() => setIsReceiptPreviewOpen(false)}
+                isVoided={receiptTransactionData.isVoided}
               />
             )}
           </div>
@@ -2236,6 +2285,7 @@ export default function TransactionsPage() {
                 hideButton={false}
                 isWarrantyClaim={billTransactionData.isWarrantyClaim}
                 onClose={() => setIsBillPreviewOpen(false)}
+                isVoided={billTransactionData.isVoided}
               />
             )}
           </div>
