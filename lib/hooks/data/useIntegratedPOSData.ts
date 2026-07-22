@@ -75,27 +75,40 @@ export function useIntegratedPOSData(
   const [brandsError, setBrandsError] = useState<string | null>(null);
 
   // Fetch brands data
+  const loadBrands = async () => {
+    setBrandsLoading(true);
+    setBrandsError(null);
+    try {
+      const brandsData = await fetchBrands();
+      setBrands(brandsData);
+    } catch (err) {
+      setBrandsError(
+        err instanceof Error ? err.message : "Failed to load brands"
+      );
+      console.error("Error loading brands:", err);
+    } finally {
+      setBrandsLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (config?.initialData?.brands) return;
+    loadBrands();
+  }, [config?.initialData?.brands]);
 
-    const loadBrands = async () => {
-      setBrandsLoading(true);
-      setBrandsError(null);
-      try {
-        const brandsData = await fetchBrands();
-        setBrands(brandsData);
-      } catch (err) {
-        setBrandsError(
-          err instanceof Error ? err.message : "Failed to load brands"
-        );
-        console.error("Error loading brands:", err);
-      } finally {
-        setBrandsLoading(false);
+  // Re-fetch brands when page becomes visible (e.g. after editing brands in inventory)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        loadBrands();
       }
     };
 
-    loadBrands();
-  }, [config?.initialData?.brands]);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, []);
 
 
   const {
