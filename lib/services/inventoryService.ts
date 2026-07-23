@@ -135,7 +135,7 @@ const revalidateProducts = async () => {
   try {
     if (typeof window !== "undefined") {
       await fetch("/api/revalidate?tag=products", { method: "POST" });
-      await fetch("/api/revalidate?tag=brands", { method: "POST" });
+      await fetch("/api/revalidate?tag=brands-list", { method: "POST" });
       await fetch("/api/revalidate?tag=categories", { method: "POST" });
     }
   } catch (e) {

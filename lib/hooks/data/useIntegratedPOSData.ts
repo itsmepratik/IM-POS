@@ -13,6 +13,7 @@ import { useInventoryPOSSync } from "@/lib/services/inventory-pos-sync";
 import { fetchBrands, Brand } from "@/lib/services/inventoryService";
 import { POSProduct, POSLubricantProduct } from "@/lib/types/unified-product";
 import { useState, useEffect } from "react";
+import { createClient } from "@/supabase/client";
 
 // Keep the same interfaces for compatibility with existing POS components
 export interface LubricantProduct extends POSLubricantProduct {}
@@ -74,9 +75,12 @@ export function useIntegratedPOSData(
   const [brandsLoading, setBrandsLoading] = useState(!config?.initialData?.brands);
   const [brandsError, setBrandsError] = useState<string | null>(null);
 
-  // Fetch brands data
-  const loadBrands = async () => {
-    setBrandsLoading(true);
+  // Fetch brands data from DB (client-side, bypasses server cache).
+  // `showLoading` controls whether to flip the loading flag — set to false
+  // for background refetches (realtime updates, initial hydration) to avoid
+  // a flash of loading state when we already have data on screen.
+  const loadBrands = async (showLoading = false) => {
+    if (showLoading) setBrandsLoading(true);
     setBrandsError(null);
     try {
       const brandsData = await fetchBrands();
@@ -87,27 +91,44 @@ export function useIntegratedPOSData(
       );
       console.error("Error loading brands:", err);
     } finally {
-      setBrandsLoading(false);
+      if (showLoading) setBrandsLoading(false);
     }
   };
 
+  // Initial load — even when initialData is provided from the server, re-fetch
+  // from the client to get the freshest data after the cache tag is busted.
+  // Only show loading on the very first mount when we have no initialData.
   useEffect(() => {
-    if (config?.initialData?.brands) return;
-    loadBrands();
-  }, [config?.initialData?.brands]);
+    loadBrands(!config?.initialData?.brands);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  // Re-fetch brands when page becomes visible (e.g. after editing brands in inventory)
+  // Subscribe to brands table changes via Supabase Realtime so the POS
+  // reflects brand updates (name, photo) immediately without a manual refresh.
   useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        loadBrands();
-      }
-    };
+    const supabase = createClient();
+    const channel = supabase
+      .channel("brands-changes")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "brands",
+        },
+        () => {
+          // Small delay to ensure the DB transaction is committed
+          setTimeout(() => {
+            loadBrands(false);
+          }, 100);
+        }
+      )
+      .subscribe();
 
-    document.addEventListener("visibilitychange", handleVisibilityChange);
     return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      supabase.removeChannel(channel);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
 

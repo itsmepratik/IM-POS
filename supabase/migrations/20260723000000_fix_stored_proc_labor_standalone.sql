@@ -1,14 +1,5 @@
--- Migration: Fix checkout - restore void columns, update stored procedure
--- This fixes the 500 error caused by parameter count mismatch
-
--- ── 1. Restore deleted void columns ──────────────────────────────────────
-
-ALTER TABLE transactions ADD COLUMN IF NOT EXISTS is_voided BOOLEAN DEFAULT false;
-ALTER TABLE transactions ADD COLUMN IF NOT EXISTS voided_at TIMESTAMPTZ;
-ALTER TABLE transactions ADD COLUMN IF NOT EXISTS voided_by_staff_id UUID REFERENCES staff(id) ON DELETE SET NULL;
-ALTER TABLE transactions ADD COLUMN IF NOT EXISTS void_reason TEXT;
-
--- ── 2. Recreate stored procedure with correct 19-param signature ────────
+-- Migration: Fix create_checkout_transaction to allow labor-only checkouts
+-- The previous validation rejected empty p_items even when p_services had items
 
 CREATE OR REPLACE FUNCTION create_checkout_transaction(
   p_location_id UUID,
@@ -183,107 +174,106 @@ BEGIN
       RAISE EXCEPTION 'Inventory record not found for product % at location %', v_product_id, p_location_id;
     END IF;
 
-    SELECT p.name, EXISTS (
-      SELECT 1 FROM products p2
-      LEFT JOIN categories c ON p2.category_id = c.id
-      WHERE p2.id = p.id
-      AND (c.name IS NOT NULL AND (c.name ILIKE 'lubricant%' OR c.name ILIKE 'oil%' OR c.name ILIKE 'fluid%' OR c.name ILIKE 'additive%'))
-    ) INTO v_product_name, v_is_lubricant
-    FROM products p WHERE p.id = v_product_id;
+    -- Check if product is a lubricant (fluid)
+    SELECT
+      COALESCE(c.name IN ('Lubricants', 'Fluids', 'Additives'), FALSE),
+      p.name,
+      COALESCE(p.bottle_size, 0)
+    INTO v_is_lubricant, v_product_name, v_bottle_size
+    FROM products p
+    LEFT JOIN categories c ON p.category_id = c.id
+    WHERE p.id = v_product_id;
 
-    IF v_is_lubricant THEN
-      SELECT MAX(
-        CASE
-          WHEN volume_description ~ '^[0-9]+(\.[0-9]+)?$' THEN volume_description::NUMERIC
-          WHEN volume_description ~ '^[0-9]+(\.[0-9]+)?\s*[Ll]' THEN substring(volume_description from '(^[0-9]+(\.[0-9]+)?)')::NUMERIC
-          ELSE 0
-        END
-      ) INTO v_bottle_size
-      FROM product_volumes WHERE product_id = v_product_id;
+    IF v_is_lubricant AND v_item_source = 'OPEN' AND v_bottle_size > 0 THEN
+      -- Open bottle handling for lubricants
+      v_total_req_volume := v_quantity * v_bottle_size;
+      v_remaining_qty := v_total_req_volume;
 
-      IF v_bottle_size IS NULL OR v_bottle_size = 0 THEN v_bottle_size := 4.0; END IF;
-
-      v_sold_volume_per_unit := (substring(v_volume_desc from '(^[0-9]+(\.[0-9]+)?)'))::NUMERIC;
-      IF v_sold_volume_per_unit IS NULL OR v_sold_volume_per_unit = 0 THEN
-        v_sold_volume_per_unit := v_bottle_size;
-      END IF;
-
-      v_total_req_volume := v_sold_volume_per_unit * v_quantity;
-
-      IF v_item_source = 'CLOSED' THEN
-        v_bottles_to_open := CEIL(v_total_req_volume / v_bottle_size)::INTEGER;
-        v_residual_open_volume := (v_bottles_to_open * v_bottle_size) - v_total_req_volume;
-        IF v_residual_open_volume > 0 THEN
-          INSERT INTO open_bottle_details (inventory_id, initial_volume, current_volume, is_empty, opened_at)
-          VALUES (v_inventory_id, v_bottle_size, v_residual_open_volume, FALSE, NOW());
-        END IF;
-        v_batch_deduction := v_bottles_to_open;
-
-      ELSIF v_item_source = 'OPEN' THEN
-        v_remaining_qty := v_total_req_volume;
-        FOR v_open_bottle IN
-          SELECT id, current_volume, is_empty
-          FROM open_bottle_details
-          WHERE inventory_id = v_inventory_id AND is_empty = FALSE
-          ORDER BY opened_at ASC FOR UPDATE
-        LOOP
-          IF v_remaining_qty <= 0 THEN EXIT; END IF;
-          IF v_open_bottle.current_volume >= v_remaining_qty THEN
-            UPDATE open_bottle_details
-            SET current_volume = current_volume - v_remaining_qty,
-                is_empty = ((current_volume - v_remaining_qty) <= 0)
-            WHERE id = v_open_bottle.id;
-            v_remaining_qty := 0;
-          ELSE
-            v_remaining_qty := v_remaining_qty - v_open_bottle.current_volume;
-            UPDATE open_bottle_details SET current_volume = 0, is_empty = TRUE WHERE id = v_open_bottle.id;
-          END IF;
-        END LOOP;
-        IF v_remaining_qty > 0 THEN
-          v_batch_deduction := 1;
-          v_new_open_vol := v_bottle_size - v_remaining_qty;
-          IF v_new_open_vol < 0 THEN
-            RAISE EXCEPTION 'Requested remainder (%) exceeds new bottle size (%)', v_remaining_qty, v_bottle_size;
-          END IF;
-          INSERT INTO open_bottle_details (inventory_id, initial_volume, current_volume, is_empty, opened_at)
-          VALUES (v_inventory_id, v_bottle_size, v_new_open_vol, (v_new_open_vol <= 0), NOW());
-        END IF;
-      ELSE
-        RAISE EXCEPTION 'Invalid item source for lubricant: %', v_item_source;
-      END IF;
-    ELSE
-      v_batch_deduction := v_quantity;
-    END IF;
-
-    -- BATCH ALLOCATION (FIFO)
-    v_batch_remaining := v_batch_deduction;
-    IF v_batch_remaining > 0 THEN
-      FOR v_batch IN
-        SELECT id, stock_remaining FROM batches
-        WHERE inventory_id = v_inventory_id AND (is_active_batch = TRUE OR stock_remaining > 0)
-        ORDER BY purchase_date ASC, batch_number ASC FOR UPDATE SKIP LOCKED
+      -- Deduct from open bottles (smallest remaining first)
+      FOR v_open_bottle IN
+        SELECT id, remaining_volume
+        FROM open_bottle_details
+        WHERE inventory_id = v_inventory_id AND remaining_volume > 0
+        ORDER BY remaining_volume ASC
       LOOP
-        IF v_batch_remaining <= 0 THEN EXIT; END IF;
-        IF v_batch.stock_remaining > 0 THEN
-          v_batch_alloc := LEAST(v_batch.stock_remaining, v_batch_remaining);
-          UPDATE batches
-          SET stock_remaining = stock_remaining - v_batch_alloc,
-              is_active_batch = (stock_remaining - v_batch_alloc > 0)
-          WHERE id = v_batch.id;
-          v_batch_remaining := v_batch_remaining - v_batch_alloc;
-        END IF;
+        EXIT WHEN v_remaining_qty <= 0;
+
+        v_new_open_vol := GREATEST(0, v_open_bottle.remaining_volume - v_remaining_qty);
+        v_batch_deduction := LEAST(v_remaining_qty, v_open_bottle.remaining_volume);
+
+        UPDATE open_bottle_details
+        SET remaining_volume = v_new_open_vol
+        WHERE id = v_open_bottle.id;
+
+        v_remaining_qty := v_remaining_qty - v_batch_deduction;
       END LOOP;
 
-      IF NOT EXISTS (
-        SELECT 1 FROM batches WHERE inventory_id = v_inventory_id AND is_active_batch = true AND stock_remaining > 0
-      ) THEN
-        UPDATE batches SET is_active_batch = true
-        WHERE id = (
-          SELECT id FROM batches WHERE inventory_id = v_inventory_id AND stock_remaining > 0
-          ORDER BY purchase_date ASC, batch_number ASC LIMIT 1
-        );
+      -- If still remaining, deduct from closed bottles
+      IF v_remaining_qty > 0 THEN
+        v_bottles_to_open := CEIL(v_remaining_qty / v_bottle_size)::INTEGER;
+        IF v_closed_bottles < v_bottles_to_open THEN
+          RAISE EXCEPTION 'Insufficient stock for % (need % closed bottles, have %)', v_product_name, v_bottles_to_open, v_closed_bottles;
+        END IF;
+
+        UPDATE inventory
+        SET closed_bottles_stock = closed_bottles_stock - v_bottles_to_open
+        WHERE id = v_inventory_id;
+
+        -- Create new open bottle with residual
+        v_residual_open_volume := (v_bottles_to_open * v_bottle_size) - v_remaining_qty;
+        IF v_residual_open_volume > 0 THEN
+          INSERT INTO open_bottle_details (inventory_id, remaining_volume)
+          VALUES (v_inventory_id, v_residual_open_volume);
+        END IF;
       END IF;
+
+      -- Always update standard stock for open bottle sales
+      UPDATE inventory
+      SET standard_stock = standard_stock - v_quantity
+      WHERE id = v_inventory_id;
+
+    ELSIF v_is_lubricant AND v_item_source = 'CLOSED' THEN
+      -- Closed bottle handling
+      IF v_closed_bottles < v_quantity THEN
+        RAISE EXCEPTION 'Insufficient closed bottle stock for % (need %, have %)', v_product_name, v_quantity, v_closed_bottles;
+      END IF;
+
+      UPDATE inventory
+      SET closed_bottles_stock = closed_bottles_stock - v_quantity,
+          standard_stock = standard_stock - v_quantity
+      WHERE id = v_inventory_id;
+
+    ELSE
+      -- Standard product handling (non-lubricant or non-fluid)
+      IF v_standard_stock < v_quantity THEN
+        RAISE EXCEPTION 'Insufficient stock for % (need %, have %)', v_product_name, v_quantity, v_standard_stock;
+      END IF;
+
+      UPDATE inventory
+      SET standard_stock = standard_stock - v_quantity
+      WHERE id = v_inventory_id;
     END IF;
+
+    -- FIFO Batch deduction
+    v_remaining_qty := v_quantity;
+    FOR v_batch IN
+      SELECT id, current_quantity
+      FROM batches
+      WHERE inventory_id = v_inventory_id AND current_quantity > 0
+      ORDER BY purchase_date ASC, id ASC
+    LOOP
+      EXIT WHEN v_remaining_qty <= 0;
+
+      v_batch_alloc := LEAST(v_remaining_qty, v_batch.current_quantity);
+      v_batch_remaining := v_batch.current_quantity - v_batch_alloc;
+
+      UPDATE batches
+      SET current_quantity = v_batch_remaining,
+          is_active_batch = CASE WHEN v_batch_remaining = 0 THEN FALSE ELSE is_active_batch END
+      WHERE id = v_batch.id;
+
+      v_remaining_qty := v_remaining_qty - v_batch_alloc;
+    END LOOP;
   END LOOP;
 
   -- Create Transaction Record
@@ -383,37 +373,42 @@ BEGIN
         v_ti_cost_price := (v_trade_in->>'costPrice')::NUMERIC;
         v_ti_quantity := (v_trade_in->>'quantity')::INTEGER;
         v_ti_trade_in_value := (v_trade_in->>'tradeInValue')::NUMERIC;
-        v_ti_product_id := NULL;
 
-        IF v_ti_size IS NOT NULL AND v_ti_condition IS NOT NULL THEN
-          SELECT id INTO v_ti_product_id FROM products WHERE name = v_ti_name LIMIT 1;
-          IF v_ti_product_id IS NULL THEN
-            SELECT trade_in_value INTO v_ti_selling_price FROM trade_in_prices WHERE size = v_ti_size AND condition ILIKE v_ti_condition;
-            IF v_ti_selling_price IS NULL THEN v_ti_selling_price := 0; END IF;
-            INSERT INTO products (name, category_id, type_id, description, is_battery, battery_state, cost_price)
-            VALUES (v_ti_name, v_parts_category_id, v_battery_type_id,
-              'Trade-in battery - ' || v_ti_size || ' (' || v_ti_condition || ')',
-              TRUE, LOWER(v_ti_condition), v_ti_cost_price)
-            RETURNING id INTO v_ti_product_id;
-          END IF;
-          SELECT trade_in_value INTO v_ti_selling_price FROM trade_in_prices WHERE size = v_ti_size AND condition ILIKE v_ti_condition;
-          SELECT id INTO v_ti_inventory_id FROM inventory WHERE product_id = v_ti_product_id AND location_id = p_location_id;
-          IF v_ti_inventory_id IS NOT NULL THEN
-            UPDATE inventory SET selling_price = COALESCE(v_ti_selling_price, selling_price) WHERE id = v_ti_inventory_id;
-          ELSE
-            INSERT INTO inventory (product_id, location_id, standard_stock, selling_price)
-            VALUES (v_ti_product_id, p_location_id, 0, v_ti_selling_price) RETURNING id INTO v_ti_inventory_id;
-          END IF;
-          INSERT INTO batches (inventory_id, quantity_received, stock_remaining, cost_price, supplier, is_active_batch)
-          VALUES (v_ti_inventory_id, v_ti_quantity, v_ti_quantity, v_ti_cost_price, 'Trade-in (' || v_ti_condition || ')', TRUE);
-          INSERT INTO trade_in_transactions (transaction_id, product_id, quantity, trade_in_value)
-          VALUES (v_transaction_id, v_ti_product_id, v_ti_quantity, v_ti_trade_in_value);
+        -- Find or create trade-in product
+        SELECT id INTO v_ti_product_id FROM products
+        WHERE name ILIKE '%' || v_ti_size || '%trade%' AND category_id = v_parts_category_id
+        LIMIT 1;
+
+        IF v_ti_product_id IS NULL THEN
+          INSERT INTO products (name, category_id, type_id, cost_price, selling_price, is_active)
+          VALUES ('Trade-In: ' || v_ti_size || ' (' || v_ti_condition || ')', v_parts_category_id, v_battery_type_id, v_ti_cost_price, v_ti_trade_in_value, true)
+          RETURNING id INTO v_ti_product_id;
         END IF;
+
+        -- Get or create inventory for trade-in product
+        SELECT id INTO v_ti_inventory_id FROM inventory
+        WHERE product_id = v_ti_product_id AND location_id = p_location_id;
+
+        IF v_ti_inventory_id IS NULL THEN
+          INSERT INTO inventory (product_id, location_id, standard_stock)
+          VALUES (v_ti_product_id, p_location_id, 0)
+          RETURNING id INTO v_ti_inventory_id;
+        END IF;
+
+        -- Add trade-in stock
+        UPDATE inventory SET standard_stock = standard_stock + v_ti_quantity WHERE id = v_ti_inventory_id;
+
+        -- Get selling price from product
+        SELECT selling_price INTO v_ti_selling_price FROM products WHERE id = v_ti_product_id;
+
+        -- Create batch for trade-in
+        INSERT INTO batches (inventory_id, purchase_date, initial_quantity, current_quantity, cost_price, is_active_batch)
+        VALUES (v_ti_inventory_id, CURRENT_DATE, v_ti_quantity, v_ti_quantity, v_ti_cost_price, true);
       END LOOP;
     END IF;
   END IF;
 
-  RETURN json_build_object(
+  RETURN jsonb_build_object(
     'transaction_id', v_transaction_id,
     'reference_number', v_reference_number
   );

@@ -141,8 +141,9 @@ export async function POST(req: NextRequest) {
       cashierId = staffUuid;
     }
 
-    // Process Cart
-    if (!cart || cart.length === 0) {
+    // Process Cart — allow empty cart when services (labor) are present
+    const hasServices = services && services.length > 0;
+    if ((!cart || cart.length === 0) && !hasServices) {
       return NextResponse.json(
         { success: false, error: "Cart cannot be empty" },
         { status: 400 },
@@ -155,9 +156,14 @@ export async function POST(req: NextRequest) {
       source: item.source || "CLOSED",
     }));
 
-    // Calculate Totals
-    const { subtotalBeforeDiscount, discountAmount, finalTotal } =
+    // Calculate Totals — include services (labor) in subtotal
+    const { subtotalBeforeDiscount: cartSubtotal, discountAmount, finalTotal: cartFinalTotal } =
       calculateFinalTotal(cart, tradeIns, discount);
+    const servicesTotal = services
+      ? services.reduce((sum, s) => sum + s.amount * (s.quantity || 1), 0)
+      : 0;
+    const subtotalBeforeDiscount = cartSubtotal + servicesTotal;
+    const finalTotal = cartFinalTotal + servicesTotal;
 
     // Determine Location (Lookup logic)
     let actualLocationId = resolvedLocationId;
