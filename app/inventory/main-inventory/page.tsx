@@ -2259,7 +2259,7 @@ function ItemsPageContent() {
     brands,
     isLoading: serverInventory.loading,
     searchQuery: serverInventory.search,
-    setSearchQuery: serverInventory.setSearch,
+    setSearchQuery: serverInventory.handleSearchChange,
     selectedCategory: serverInventory.categoryId,
     setSelectedCategory: serverInventory.setCategoryId,
     selectedBrand: serverInventory.brandId,

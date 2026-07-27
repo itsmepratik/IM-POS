@@ -1,5 +1,13 @@
--- Migration: Fix create_checkout_transaction to allow labor-only checkouts
--- The previous validation rejected empty p_items even when p_services had items
+-- Migration: Fix CLOSED lubricant branch to properly open bottles and track volume
+-- Root cause: CLOSED branch was deducting v_quantity (1) from standard_stock
+-- instead of parsing volumeDescription and opening bottles with residual tracking
+--
+-- The CLOSED branch now:
+-- 1. Parses volumeDescription to get actual sold volume (e.g., 1L, 500ml)
+-- 2. Opens the correct number of closed bottles
+-- 3. Creates open_bottle_details entries with residual volume
+-- 4. Decrements closed_bottles_stock by bottles opened
+-- 5. Decrements standard_stock by actual volume sold (not v_quantity)
 
 CREATE OR REPLACE FUNCTION create_checkout_transaction(
   p_location_id UUID,
@@ -185,7 +193,7 @@ BEGIN
     WHERE p.id = v_product_id;
 
     IF v_is_lubricant AND v_item_source = 'OPEN' AND v_bottle_size > 0 THEN
-      -- Open bottle handling for lubricants
+      -- OPEN bottle handling: consume from existing open bottles first, then open new ones
       v_sold_volume_per_unit := (substring(v_volume_desc from '(^[0-9]+(\.[0-9]+)?)'))::NUMERIC;
       IF v_sold_volume_per_unit IS NULL OR v_sold_volume_per_unit = 0 THEN
         v_sold_volume_per_unit := v_bottle_size;
@@ -237,15 +245,45 @@ BEGIN
       SET standard_stock = standard_stock - v_quantity
       WHERE id = v_inventory_id;
 
-    ELSIF v_is_lubricant AND v_item_source = 'CLOSED' THEN
-      -- Closed bottle handling
-      IF v_closed_bottles < v_quantity THEN
-        RAISE EXCEPTION 'Insufficient closed bottle stock for % (need %, have %)', v_product_name, v_quantity, v_closed_bottles;
+    ELSIF v_is_lubricant AND v_item_source = 'CLOSED' AND v_bottle_size > 0 THEN
+      -- CLOSED bottle handling: always open new bottles and track residual
+      -- Parse the actual volume from volumeDescription (e.g., "1L closed bottle" -> 1, "500ml closed bottle" -> 0.5)
+      v_sold_volume_per_unit := (substring(v_volume_desc from '(^[0-9]+(\.[0-9]+)?)'))::NUMERIC;
+      IF v_sold_volume_per_unit IS NULL OR v_sold_volume_per_unit = 0 THEN
+        -- If we can't parse volume, default to full bottle size
+        v_sold_volume_per_unit := v_bottle_size;
       END IF;
 
+      -- Handle ml vs L: if volume_description contains 'ml' (case insensitive), divide by 1000
+      IF v_volume_desc ~* 'ml' AND v_sold_volume_per_unit > 1 THEN
+        v_sold_volume_per_unit := v_sold_volume_per_unit / 1000.0;
+      END IF;
+
+      v_total_req_volume := v_sold_volume_per_unit * v_quantity;
+      v_remaining_qty := v_total_req_volume;
+
+      -- Open new closed bottles (no consuming from existing open bottles for CLOSED sales)
+      IF v_remaining_qty > 0 THEN
+        v_bottles_to_open := CEIL(v_remaining_qty / v_bottle_size)::INTEGER;
+        IF v_closed_bottles < v_bottles_to_open THEN
+          RAISE EXCEPTION 'Insufficient closed bottle stock for % (need %, have %)', v_product_name, v_bottles_to_open, v_closed_bottles;
+        END IF;
+
+        UPDATE inventory
+        SET closed_bottles_stock = closed_bottles_stock - v_bottles_to_open
+        WHERE id = v_inventory_id;
+
+        -- Create new open bottle with residual volume
+        v_residual_open_volume := (v_bottles_to_open * v_bottle_size) - v_remaining_qty;
+        IF v_residual_open_volume > 0 THEN
+          INSERT INTO open_bottle_details (inventory_id, initial_volume, current_volume, is_empty, opened_at)
+          VALUES (v_inventory_id, v_bottle_size, v_residual_open_volume, FALSE, NOW());
+        END IF;
+      END IF;
+
+      -- Update standard stock by actual volume sold
       UPDATE inventory
-      SET closed_bottles_stock = closed_bottles_stock - v_quantity,
-          standard_stock = standard_stock - v_quantity
+      SET standard_stock = standard_stock - v_total_req_volume
       WHERE id = v_inventory_id;
 
     ELSE

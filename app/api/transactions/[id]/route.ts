@@ -64,11 +64,6 @@ export async function GET(
           id,
           name,
           display_name
-        ),
-        staff!transactions_cashier_id_staff_id_fk (
-          id,
-          staff_id,
-          name
         )
       `
       )
@@ -88,6 +83,17 @@ export async function GET(
         { error: "Transaction not found" },
         { status: 404 }
       );
+    }
+
+    // Resolve staff name separately since FK constraint may not exist in Supabase cache
+    let staffData = null;
+    if (transactionData.cashier_id) {
+      const { data } = await supabase
+        .from("staff")
+        .select("id, staff_id, name")
+        .eq("id", transactionData.cashier_id)
+        .single();
+      staffData = data;
     }
 
     // Fetch trade-in transactions for this transaction
@@ -137,6 +143,7 @@ export async function GET(
       ok: true,
       transaction: {
         ...transactionData,
+        staff: staffData,
         tradeIns: tradeIns || [],
         tradeInTotal,
       },

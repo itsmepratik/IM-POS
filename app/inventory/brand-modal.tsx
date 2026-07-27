@@ -288,7 +288,7 @@ export default function BrandModal({ open, onOpenChange }: BrandModalProps) {
                       value={newBrandImage}
                       onUpload={(url) => setNewBrandImage(url)}
                       onRemove={() => setNewBrandImage("")}
-                      bucketName="Brand Images"
+                      bucketName="brand-images"
                       folderName="brands"
                       className="h-36" // Increased from h-32 for better visibility
                     />
@@ -446,7 +446,7 @@ export default function BrandModal({ open, onOpenChange }: BrandModalProps) {
                                 value={editImage}
                                 onUpload={(url) => setEditImage(url)}
                                 onRemove={() => setEditImage("")}
-                                bucketName="Brand Images"
+                                bucketName="brand-images"
                                 folderName="brands"
                                 className="h-32" // Increased from h-24 to prevent clipping and show icon/text clearly
                               />

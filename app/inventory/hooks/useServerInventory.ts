@@ -17,7 +17,7 @@ interface UseServerInventoryProps {
   persistFilters?: boolean;
 }
 
-const FILTER_STORAGE_VERSION = 1 as const;
+const FILTER_STORAGE_VERSION = 2 as const;
 const PRICE_DEBOUNCE_MS = 400;
 
 type StockStatus = "all" | "in-stock" | "low-stock" | "out-of-stock";
@@ -97,7 +97,7 @@ function parseStoredFilters(raw: string | null): Partial<{
 export function useServerInventory({
   initialPage = 1,
   initialLimit = 50,
-  locationId = "sanaiya",
+  locationId = "",
   persistFilters = true,
 }: UseServerInventoryProps = {}) {
   const [items, setItems] = useState<Item[]>([]);
@@ -253,6 +253,40 @@ export function useServerInventory({
 
   // Stale-request guard — discard responses from outdated requests
   const requestIdRef = useRef(0);
+
+  const handleSearchChange = useCallback(
+    (term: string) => {
+      setSearch(term);
+      setPage(1);
+      // Persist the NEW value immediately (setSearch is async, persistFilters would capture stale value)
+      if (persistFilters && typeof window !== "undefined") {
+        try {
+          const toStore = {
+            v: FILTER_STORAGE_VERSION,
+            search: term,
+            categoryId,
+            brandId,
+            minPrice,
+            maxPrice,
+            stockStatus,
+            showLowStockOnly,
+            showOutOfStockOnly,
+            showInStock,
+            showBatteries,
+            batteryState,
+            sortBy,
+            sortOrder,
+          };
+          if (term === "" && categoryId === "all" && brandId === "all" && stockStatus === "all") {
+            sessionStorage.removeItem(storageKey);
+          } else {
+            sessionStorage.setItem(storageKey, JSON.stringify(toStore));
+          }
+        } catch { /* ignore */ }
+      }
+    },
+    [persistFilters, storageKey, categoryId, brandId, minPrice, maxPrice, stockStatus, showLowStockOnly, showOutOfStockOnly, showInStock, showBatteries, batteryState, sortBy, sortOrder],
+  );
 
   // Track whether filters changed so we reset page to 1 before fetching
   const filtersChangedRef = useRef(false);
@@ -427,6 +461,7 @@ export function useServerInventory({
     // Filters
     search,
     setSearch,
+    handleSearchChange,
     categoryId,
     setCategoryId,
     brandId,

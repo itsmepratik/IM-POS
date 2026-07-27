@@ -203,9 +203,10 @@ export async function POST(req: Request) {
     if (isLubricant) {
       const open = body.open_bottles_stock ?? 0;
       const closed = body.closed_bottles_stock ?? 0;
+
       invValues.open_bottles_stock = open;
       invValues.closed_bottles_stock = closed;
-      invValues.standard_stock = open + closed;
+      invValues.standard_stock = open + closed; // bottle count
       invValues.selling_price = null; // Prices are in product_volumes for lubricants
     } else {
       invValues.standard_stock = body.standard_stock ?? 0;

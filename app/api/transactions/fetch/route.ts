@@ -83,11 +83,6 @@ export async function GET(req: Request) {
         locations (
           id,
           name
-        ),
-        staff!transactions_cashier_id_staff_id_fk (
-          id,
-          staff_id,
-          name
         )
       `
       )
@@ -125,13 +120,37 @@ export async function GET(req: Request) {
       );
     }
 
-    // Debug: Log first transaction to check customer data structure
+    // Resolve staff names separately since FK constraint may not exist in Supabase cache
+    let staffMap: Record<string, { id: string; staff_id: string; name: string }> = {};
     if (transactionsData && transactionsData.length > 0) {
+      const cashierIds = [
+        ...new Set(
+          transactionsData
+            .map((t: { cashier_id: string | null }) => t.cashier_id)
+            .filter((id): id is string => !!id)
+        ),
+      ];
+      if (cashierIds.length > 0) {
+        const { data: staffData } = await supabase
+          .from("staff")
+          .select("id, staff_id, name")
+          .in("id", cashierIds);
+        if (staffData) {
+          staffMap = Object.fromEntries(staffData.map((s) => [s.id, s]));
+        }
+      }
     }
+
+    const enrichedTransactions = (transactionsData || []).map(
+      (t: Record<string, unknown>) => ({
+        ...t,
+        staff: t.cashier_id ? staffMap[t.cashier_id as string] || null : null,
+      })
+    );
 
     return NextResponse.json({
       ok: true,
-      transactions: transactionsData || [],
+      transactions: enrichedTransactions,
     });
   } catch (error) {
     console.error("Error fetching transactions:", error);

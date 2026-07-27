@@ -25,8 +25,7 @@ export function useInventory(locationId?: string) {
     setError(null)
     
     try {
-      // Use "sanaiya" as default location if not provided
-      const locationToFetch = locationId || "sanaiya"
+      const locationToFetch = locationId || ""
       
       // Fetch real inventory items from database
       const dbItems = await fetchItems(locationToFetch)

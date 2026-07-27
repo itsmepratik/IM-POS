@@ -72,6 +72,8 @@ export type Item = {
   costPrice?: number;
   manufacturingDate?: string | null;
   totalOpenVolume?: number; // Total volume in liters from open_bottle_details (for lubricants)
+  totalClosedVolume?: number; // Total volume in liters from closed bottles (closed_count * bottle_size)
+  bottleSize?: number; // Size of a single full bottle in litres
   specification?: string | null;
   types?: Type[]; // Array of associated types
   bottleStates?: BottleStates;
@@ -153,30 +155,25 @@ const resolveLocationId = async (
   const uuidRegex =
     /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 
-  // Check known locations first
-  if (locId === "sanaiya") {
+  if (uuidRegex.test(locId)) return locId;
+
+  // Try to look up by name
+  if (locId) {
     const { data: location } = await sb
       .from("locations")
       .select("id")
-      .ilike("name", "Sanaiya")
-      .single();
-    if (location) return location.id;
-  } else if (locId === "abu-durus") {
-    const { data: location } = await sb
-      .from("locations")
-      .select("id")
-      .ilike("name", "Abu Dhurus")
-      .single();
-    if (location) return location.id;
-  } else if (!uuidRegex.test(locId)) {
-    // If it's not a UUID, try to look it up by name
-    const { data: location } = await sb
-      .from("locations")
-      .select("id")
-      .eq("name", locId)
+      .ilike("name", locId)
       .single();
     if (location) return location.id;
   }
+
+  // Default to Saniya (main location)
+  const { data: saniya } = await sb
+    .from("locations")
+    .select("id")
+    .ilike("name", "saniya")
+    .single();
+  if (saniya) return saniya.id;
 
   return locId;
 };
@@ -190,7 +187,7 @@ export const fetchInventoryItems = async (
   search: string = "",
   categoryId: string = "all",
   brandId: string = "all",
-  locationId: string = "sanaiya",
+  locationId: string = "",
   filters: {
     minPrice?: number;
     maxPrice?: number;
@@ -350,17 +347,18 @@ export const fetchInventoryItems = async (
           closed_bottles_stock,
           total_stock,
           products!inner (
-            id,
-            name,
-            name,
-            description,
-            image_url,
-            low_stock_threshold,
-            cost_price,
-            manufacturing_date,
-            is_battery,
-            battery_state,
-            specification,
+          id,
+          name,
+          name,
+          description,
+          image_url,
+          low_stock_threshold,
+          cost_price,
+          manufacturing_date,
+          is_battery,
+          battery_state,
+          bottle_size,
+          specification,
             category_id,
             brand_id,
             ${categoryJoin} ( id, name ),
@@ -642,6 +640,10 @@ export const fetchInventoryItems = async (
           },
           ...(isOilProduct &&
             totalOpenVolume !== undefined && { totalOpenVolume }),
+          ...(isOilProduct && {
+            totalClosedVolume: derivedClosedBottles * (product?.bottle_size || 0),
+            bottleSize: product?.bottle_size || undefined,
+          }),
         };
       }),
     );
@@ -679,7 +681,7 @@ export const fetchInventoryItems = async (
 };
 
 export const fetchItems = async (
-  locationId: string = "sanaiya",
+  locationId: string = "",
   customSupabase?: any,
 ): Promise<Item[]> => {
   const sb = customSupabase || supabase;
@@ -969,6 +971,10 @@ export const fetchItems = async (
           }),
           ...(isOilProduct &&
             totalOpenVolume !== undefined && { totalOpenVolume }),
+          ...(isOilProduct && {
+            totalClosedVolume: derivedClosedBottles * (product?.bottle_size || 0),
+            bottleSize: product?.bottle_size || undefined,
+          }),
         };
       }),
     );
@@ -994,7 +1000,7 @@ export const fetchItems = async (
 // Fetch a single item
 export const fetchItem = async (
   id: string,
-  locationId: string = "sanaiya",
+  locationId: string = "",
   customSupabase?: any,
 ): Promise<Item | null> => {
   try {
@@ -1009,7 +1015,7 @@ export const fetchItem = async (
 // Create a new item
 export const createItem = async (
   item: Omit<Item, "id" | "created_at" | "updated_at">,
-  locationId: string = "sanaiya",
+  locationId: string = "",
   customSupabase?: any,
 ): Promise<Item | null> => {
   const sb = customSupabase || supabase;
@@ -1215,7 +1221,7 @@ export const createItem = async (
 export const updateItem = async (
   id: string,
   updates: Partial<Item>,
-  locationId: string = "sanaiya",
+  locationId: string = "",
   customSupabase?: any,
 ): Promise<Item | null> => {
   const sb = customSupabase || supabase;
@@ -1486,7 +1492,7 @@ export const updateItem = async (
 // Delete an item
 export const deleteItem = async (
   id: string,
-  locationId: string = "sanaiya",
+  locationId: string = "",
   customSupabase?: any,
 ): Promise<boolean> => {
   const sb = customSupabase || supabase;
@@ -2170,7 +2176,7 @@ export const deleteBrand = async (id: string): Promise<boolean> => {
 // Batch management functions
 export const addBatch = async (
   batch: Omit<Batch, "id" | "created_at" | "updated_at">,
-  locationId: string = "sanaiya",
+  locationId: string = "",
   customSupabase?: any,
 ): Promise<Batch | null> => {
   const sb = customSupabase || supabase;

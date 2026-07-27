@@ -1,5 +1,61 @@
--- Migration: Fix create_checkout_transaction to allow labor-only checkouts
--- The previous validation rejected empty p_items even when p_services had items
+-- Migration: Fix lubricant stock tracking discrepancies
+--
+-- Root cause analysis:
+-- 1. standard_stock was INTEGER — cannot store fractional volumes (0.5L, 0.25L)
+-- 2. CLOSED branch subtracted volume (NUMERIC) from INTEGER column → silent truncation
+-- 3. OPEN branch subtracted v_quantity (count) instead of actual volume → wrong stock level
+-- 4. open_bottles_stock was NEVER incremented when opening sealed bottles
+-- 5. open_bottles_stock was NEVER decremented when bottles became empty
+-- 6. total_stock generated column mixed volume (standard_stock) with counts (open/closed)
+--
+-- Fix:
+-- 1. standard_stock → NUMERIC(10,2) for proper fractional volume tracking
+-- 2. total_stock → GENERATED ALWAYS AS (standard_stock) — single source of truth
+-- 3. OPEN branch: decrement by actual volume, maintain open/closed counts
+-- 4. CLOSED branch: decrement by actual volume, maintain open/closed counts
+-- 5. Backfill existing records: standard_stock = closed * bottle_size + SUM(open_bottle_details.current_volume)
+
+BEGIN;
+
+-- ============================================================
+-- Step 1: Drop generated column, alter type, re-add
+-- ============================================================
+
+ALTER TABLE inventory DROP COLUMN IF EXISTS total_stock;
+
+ALTER TABLE inventory ALTER COLUMN standard_stock TYPE NUMERIC(10,2)
+  USING COALESCE(standard_stock, 0)::NUMERIC(10,2);
+
+ALTER TABLE inventory ADD COLUMN total_stock NUMERIC(10,2)
+  GENERATED ALWAYS AS (COALESCE(standard_stock, 0)) STORED;
+
+-- ============================================================
+-- Step 2: Backfill existing data for lubricants
+-- Formula: standard_stock = closed_bottles_stock * bottle_size
+--           + SUM(open_bottle_details.current_volume)
+-- ============================================================
+
+WITH lub_volumes AS (
+  SELECT
+    i.id AS inv_id,
+    COALESCE(p.bottle_size, 0) AS bottle_size,
+    i.closed_bottles_stock,
+    COALESCE(SUM(obd.current_volume), 0) AS open_volume
+  FROM inventory i
+  JOIN products p ON i.product_id = p.id
+  JOIN categories c ON p.category_id = c.id
+  LEFT JOIN open_bottle_details obd ON obd.inventory_id = i.id AND obd.is_empty = FALSE
+  WHERE c.name IN ('Lubricants', 'Fluids', 'Additives')
+  GROUP BY i.id, p.bottle_size, i.closed_bottles_stock
+)
+UPDATE inventory i
+SET standard_stock = (lv.closed_bottles_stock * lv.bottle_size) + lv.open_volume
+FROM lub_volumes lv
+WHERE i.id = lv.inv_id;
+
+-- ============================================================
+-- Step 3: Rewrite the stored procedure
+-- ============================================================
 
 CREATE OR REPLACE FUNCTION create_checkout_transaction(
   p_location_id UUID,
@@ -36,7 +92,7 @@ DECLARE
   v_item_source TEXT;
   v_volume_desc TEXT;
   v_inventory_id UUID;
-  v_standard_stock INTEGER;
+  v_standard_stock NUMERIC;
   v_closed_bottles INTEGER;
   v_open_bottles INTEGER;
   v_product_name TEXT;
@@ -185,11 +241,22 @@ BEGIN
     WHERE p.id = v_product_id;
 
     IF v_is_lubricant AND v_item_source = 'OPEN' AND v_bottle_size > 0 THEN
-      -- Open bottle handling for lubricants
+      -- ================================================================
+      -- OPEN branch: consume from existing open bottles first,
+      -- then open new closed bottles if needed
+      -- ================================================================
+
+      -- Parse the actual volume per unit from volumeDescription
       v_sold_volume_per_unit := (substring(v_volume_desc from '(^[0-9]+(\.[0-9]+)?)'))::NUMERIC;
       IF v_sold_volume_per_unit IS NULL OR v_sold_volume_per_unit = 0 THEN
         v_sold_volume_per_unit := v_bottle_size;
       END IF;
+
+      -- Handle ml → L conversion
+      IF v_volume_desc ~* 'ml' AND v_sold_volume_per_unit > 1 THEN
+        v_sold_volume_per_unit := v_sold_volume_per_unit / 1000.0;
+      END IF;
+
       v_total_req_volume := v_sold_volume_per_unit * v_quantity;
       v_remaining_qty := v_total_req_volume;
 
@@ -210,21 +277,24 @@ BEGIN
             is_empty = (v_new_open_vol <= 0)
         WHERE id = v_open_bottle.id;
 
+        -- If the bottle just became empty, decrement open_bottles_stock
+        IF v_new_open_vol <= 0 THEN
+          v_open_bottles := v_open_bottles - 1;
+        END IF;
+
         v_remaining_qty := v_remaining_qty - v_batch_deduction;
       END LOOP;
 
-      -- If still remaining, deduct from closed bottles
+      -- If still remaining, open new closed bottles
       IF v_remaining_qty > 0 THEN
         v_bottles_to_open := CEIL(v_remaining_qty / v_bottle_size)::INTEGER;
         IF v_closed_bottles < v_bottles_to_open THEN
           RAISE EXCEPTION 'Insufficient stock for % (need % closed bottles, have %)', v_product_name, v_bottles_to_open, v_closed_bottles;
         END IF;
 
-        UPDATE inventory
-        SET closed_bottles_stock = closed_bottles_stock - v_bottles_to_open
-        WHERE id = v_inventory_id;
+        v_closed_bottles := v_closed_bottles - v_bottles_to_open;
+        v_open_bottles := v_open_bottles + v_bottles_to_open;
 
-        -- Create new open bottle with residual
         v_residual_open_volume := (v_bottles_to_open * v_bottle_size) - v_remaining_qty;
         IF v_residual_open_volume > 0 THEN
           INSERT INTO open_bottle_details (inventory_id, initial_volume, current_volume, is_empty, opened_at)
@@ -232,20 +302,54 @@ BEGIN
         END IF;
       END IF;
 
-      -- Always update standard stock for open bottle sales
+      -- Update inventory: standard_stock decremented by actual volume sold
       UPDATE inventory
-      SET standard_stock = standard_stock - v_quantity
+      SET standard_stock = v_standard_stock - v_total_req_volume,
+          closed_bottles_stock = v_closed_bottles,
+          open_bottles_stock = v_open_bottles
       WHERE id = v_inventory_id;
 
-    ELSIF v_is_lubricant AND v_item_source = 'CLOSED' THEN
-      -- Closed bottle handling
-      IF v_closed_bottles < v_quantity THEN
-        RAISE EXCEPTION 'Insufficient closed bottle stock for % (need %, have %)', v_product_name, v_quantity, v_closed_bottles;
+    ELSIF v_is_lubricant AND v_item_source = 'CLOSED' AND v_bottle_size > 0 THEN
+      -- ================================================================
+      -- CLOSED branch: always open new bottles, track residual
+      -- ================================================================
+
+      -- Parse the actual volume per unit from volumeDescription
+      v_sold_volume_per_unit := (substring(v_volume_desc from '(^[0-9]+(\.[0-9]+)?)'))::NUMERIC;
+      IF v_sold_volume_per_unit IS NULL OR v_sold_volume_per_unit = 0 THEN
+        v_sold_volume_per_unit := v_bottle_size;
       END IF;
 
+      -- Handle ml → L conversion
+      IF v_volume_desc ~* 'ml' AND v_sold_volume_per_unit > 1 THEN
+        v_sold_volume_per_unit := v_sold_volume_per_unit / 1000.0;
+      END IF;
+
+      v_total_req_volume := v_sold_volume_per_unit * v_quantity;
+      v_remaining_qty := v_total_req_volume;
+
+      -- Open new closed bottles
+      IF v_remaining_qty > 0 THEN
+        v_bottles_to_open := CEIL(v_remaining_qty / v_bottle_size)::INTEGER;
+        IF v_closed_bottles < v_bottles_to_open THEN
+          RAISE EXCEPTION 'Insufficient closed bottle stock for % (need %, have %)', v_product_name, v_bottles_to_open, v_closed_bottles;
+        END IF;
+
+        v_closed_bottles := v_closed_bottles - v_bottles_to_open;
+        v_open_bottles := v_open_bottles + v_bottles_to_open;
+
+        v_residual_open_volume := (v_bottles_to_open * v_bottle_size) - v_remaining_qty;
+        IF v_residual_open_volume > 0 THEN
+          INSERT INTO open_bottle_details (inventory_id, initial_volume, current_volume, is_empty, opened_at)
+          VALUES (v_inventory_id, v_bottle_size, v_residual_open_volume, FALSE, NOW());
+        END IF;
+      END IF;
+
+      -- Update inventory: standard_stock decremented by actual volume sold
       UPDATE inventory
-      SET closed_bottles_stock = closed_bottles_stock - v_quantity,
-          standard_stock = standard_stock - v_quantity
+      SET standard_stock = v_standard_stock - v_total_req_volume,
+          closed_bottles_stock = v_closed_bottles,
+          open_bottles_stock = v_open_bottles
       WHERE id = v_inventory_id;
 
     ELSE
@@ -255,7 +359,7 @@ BEGIN
       END IF;
 
       UPDATE inventory
-      SET standard_stock = standard_stock - v_quantity
+      SET standard_stock = v_standard_stock - v_quantity
       WHERE id = v_inventory_id;
     END IF;
 
@@ -416,3 +520,5 @@ BEGIN
   );
 END;
 $$;
+
+COMMIT;

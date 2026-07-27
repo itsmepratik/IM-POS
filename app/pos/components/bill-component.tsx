@@ -52,18 +52,12 @@ export const BillComponent: React.FC<BillComponentProps> = ({
   const [barcodeHtml, setBarcodeHtml] = useState<string>("");
   const { registered, thankYouMessage } = useCompanyInfo();
 
-  // Filter out Sanaiya from address lines
-  const displayAddressLines =
-    registered?.addressLines.filter(
-      (line) => !line.toLowerCase().includes("sanaiya"),
-    ) || [];
-
-  // Flatten address lines for compatibility with existing template
+  // Use address lines directly from DB without filtering
   const companyDetails = {
     ...registered,
-    addressLine1: displayAddressLines[0] || "",
-    addressLine2: displayAddressLines[1] || "",
-    addressLine3: displayAddressLines[2] || "",
+    addressLine1: registered?.addressLines?.[0] || "",
+    addressLine2: registered?.addressLines?.[1] || "",
+    addressLine3: registered?.addressLines?.[2] || "",
   };
   const serviceDescriptionContent = registered.serviceDescription || {
     english: "",
@@ -150,13 +144,15 @@ export const BillComponent: React.FC<BillComponentProps> = ({
             font-style: normal;
           }
 
-          html, body {
-            height: 100%; /* Ensure html and body take full height */
+          html {
+            height: 100%;
             margin: 0;
             padding: 0;
-            font-family: 'Formula1', sans-serif;
           }
           body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
             font-family: 'Formula1', sans-serif;
             font-size: 10pt;
             line-height: 1.3;
@@ -166,15 +162,21 @@ export const BillComponent: React.FC<BillComponentProps> = ({
           * {
             font-family: 'Formula1', sans-serif !important;
           }
+          .print-wrapper {
+            position: relative;
+            width: 100%;
+            min-height: 100%;
+            height: 100%;
+          }
           .bill-container {
             width: calc(100% - 4mm); 
-            height: 100%; /* Make bill container take full printable height */
+            min-height: 100%;
+            height: 100%;
             padding: 2mm;
+            padding-bottom: 45mm;
             margin: 0 auto; 
             box-sizing: border-box;
-            display: flex; /* Enable flexbox for vertical alignment */
-            flex-direction: column; /* Stack children vertically */
-            justify-content: space-between; /* Push footer to bottom */
+            position: relative;
           }
           /* Header styling */
           .header-table {
@@ -373,9 +375,6 @@ export const BillComponent: React.FC<BillComponentProps> = ({
             padding-top: 0;
             margin-top: 0;
             margin-bottom: 0;
-            position: relative;
-            left: 0;
-            right: 0;
           }
           .footer-contact {
             font-weight: bold;
@@ -390,8 +389,11 @@ export const BillComponent: React.FC<BillComponentProps> = ({
             -webkit-text-size-adjust: none;
             line-height: 1.2;
           }
-          .print-wrapper {
-            position: relative;
+          .bill-bottom {
+            position: absolute;
+            bottom: 2mm;
+            left: 2mm;
+            right: 2mm;
           }
           .voided-watermark {
             position: absolute;
@@ -435,16 +437,16 @@ export const BillComponent: React.FC<BillComponentProps> = ({
             <tr>
               <td class="left-header">
                 <div class="cr-number-line">C.R. No.: ${companyDetails.crNumber}</div>
-                <div class="address-line">${companyDetails.addressLine1}</div>
-                <div class="address-line">${companyDetails.addressLine2}</div>
-                <div class="address-line">${companyDetails.addressLine3}</div>
+                ${companyDetails.addressLine1 ? `<div class="address-line">${companyDetails.addressLine1}</div>` : ""}
+                ${companyDetails.addressLine2 && companyDetails.addressLine2 !== companyDetails.addressLine1 ? `<div class="address-line">${companyDetails.addressLine2}</div>` : ""}
+                ${companyDetails.addressLine3 && companyDetails.addressLine3 !== companyDetails.addressLine2 ? `<div class="address-line">${companyDetails.addressLine3}</div>` : ""}
               </td>
               <td class="right-header">
                 <div class="cr-number" style="white-space: nowrap">السجل التجاري: ${
                   companyDetails.crNumber
                 }</div>
-                <div class="address-line" style="white-space: nowrap">${companyDetails.arabicAddressLines?.[0] || ""}</div>
-                <div class="address-line" style="white-space: nowrap">${companyDetails.arabicAddressLines?.[1] || ""}</div>
+                ${companyDetails.arabicAddressLines?.[0] ? `<div class="address-line" style="white-space: nowrap">${companyDetails.arabicAddressLines[0]}</div>` : ""}
+                ${companyDetails.arabicAddressLines?.[1] && companyDetails.arabicAddressLines[1] !== companyDetails.arabicAddressLines[0] ? `<div class="address-line" style="white-space: nowrap">${companyDetails.arabicAddressLines[1]}</div>` : ""}
               </td>
             </tr>
           </table>
@@ -561,25 +563,25 @@ export const BillComponent: React.FC<BillComponentProps> = ({
             </tr>
           </table>
           
-          <div style="flex-grow: 1;"></div>
-          
-          <div class="cashier-section">
-            <div class="cashier-info">Cashier: ${cashier || ""}</div>
-            <div class="signature-line">
-              <div class="line">Authorized Signature</div>
+          <div class="bill-bottom">
+            <div class="cashier-section">
+              <div class="cashier-info">Cashier: ${cashier || ""}</div>
+              <div class="signature-line">
+                <div class="line">Authorized Signature</div>
+              </div>
             </div>
-          </div>
 
-          <div class="footer" style="border-top: none;">
-            <div class="footer-contact">Contact no.: ${
-              companyDetails.contactNumber
-            }</div>
-            <div class="footer-phone-numbers" style="direction: rtl;">رقم الاتصال: ${companyDetails.contactNumberArabic || ""}</div>
-            <div class="footer-thank-you" style="white-space: pre-line;">${
-              thankYouMessage?.english + "\n" + thankYouMessage?.arabic
-            }</div>
-            
-            ${barcodeHtml ? `<div style="text-align: center; margin-top: 15px;">${barcodeHtml}</div>` : ""}
+            <div class="footer" style="border-top: none;">
+              <div class="footer-contact">Contact no.: ${
+                companyDetails.contactNumber
+              }</div>
+              <div class="footer-phone-numbers" style="direction: rtl;">رقم الاتصال: ${companyDetails.contactNumberArabic || ""}</div>
+              <div class="footer-thank-you" style="white-space: pre-line;">${
+                thankYouMessage?.english + "\n" + thankYouMessage?.arabic
+              }</div>
+              
+              ${barcodeHtml ? `<div style="text-align: center; margin-top: 15px;">${barcodeHtml}</div>` : ""}
+            </div>
           </div>
         </div>
         </div>
@@ -682,15 +684,20 @@ export const BillComponent: React.FC<BillComponentProps> = ({
             <div className="grid grid-cols-2 gap-4 text-xs text-gray-500 mt-1">
               <div className="text-left">
                 <div>C.R. No.: {companyDetails.crNumber}</div>
-                <div>{companyDetails.addressLine1}</div>
-                <div>{companyDetails.addressLine2}</div>
-                <div>{companyDetails.addressLine3}</div>
+                {companyDetails.addressLine1 && <div>{companyDetails.addressLine1}</div>}
+                {companyDetails.addressLine2 && companyDetails.addressLine2.trim() !== companyDetails.addressLine1.trim() && (
+                  <div>{companyDetails.addressLine2}</div>
+                )}
+                {companyDetails.addressLine3 && companyDetails.addressLine3.trim() !== companyDetails.addressLine2.trim() && (
+                  <div>{companyDetails.addressLine3}</div>
+                )}
               </div>
               <div className="text-right rtl">
                 <div>السجل التجاري: {companyDetails.crNumber}</div>
-                <div>ولاية صحم</div>
-                <div>الصناعية</div>
-                <div>سلطنة عمان</div>
+                {companyDetails.arabicAddressLines?.[0] && <div>{companyDetails.arabicAddressLines[0]}</div>}
+                {companyDetails.arabicAddressLines?.[1] && companyDetails.arabicAddressLines[1] !== companyDetails.arabicAddressLines[0] && (
+                  <div>{companyDetails.arabicAddressLines[1]}</div>
+                )}
               </div>
             </div>
           </div>

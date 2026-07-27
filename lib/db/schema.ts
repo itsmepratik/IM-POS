@@ -127,7 +127,7 @@ export const inventory = pgTable(
       .notNull()
       .references(() => locations.id, { onDelete: "restrict" }),
 
-    // Generic product stock
+    // Generic product stock (bottle count — max ~1000 from orders)
     standardStock: integer("standard_stock").default(0),
     sellingPrice: numeric("selling_price"),
 
@@ -135,9 +135,9 @@ export const inventory = pgTable(
     openBottlesStock: integer("open_bottles_stock").default(0),
     closedBottlesStock: integer("closed_bottles_stock").default(0),
 
-    // Generated total stock
+    // Generated total stock (mirrors standard_stock as source of truth)
     totalStock: integer("total_stock").generatedAlwaysAs(
-      sql`COALESCE("standard_stock", 0) + COALESCE("open_bottles_stock", 0) + COALESCE("closed_bottles_stock", 0)`,
+      sql`COALESCE("standard_stock", 0)`,
     ),
   },
   (table) => ({

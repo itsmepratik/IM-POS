@@ -111,14 +111,14 @@ export function useCompanyInfo(): CompanyInfo {
       arabicName: currentBranch.company_name_arabic || context.registered.arabicName,
       crNumber: currentBranch.cr_number || context.registered.crNumber,
       addressLines: [
-        currentBranch.address_line_1 || context.registered.addressLines[0],
+        currentBranch.address_line_1 || context.registered.addressLines[0] || "",
         currentBranch.address_line_2 || "",
         currentBranch.address_line_3 || "",
-      ].filter(Boolean),
+      ].filter((line, index, arr) => line && arr.findIndex(l => l.trim() === line.trim()) === index),
       arabicAddressLines: [
         currentBranch.address_line_arabic_1 || context.registered.arabicAddressLines?.[0] || "",
         currentBranch.address_line_arabic_2 || context.registered.arabicAddressLines?.[1] || "",
-      ].filter(Boolean),
+      ],
       contactNumber: currentBranch.contact_number || context.registered.contactNumber,
       contactNumberArabic: currentBranch.contact_number_arabic || "",
       serviceDescription: {

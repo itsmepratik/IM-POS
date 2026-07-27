@@ -10,7 +10,7 @@ export async function getInventoryServerAction(
   search: string = "",
   categoryId: string = "all",
   brandId: string = "all",
-  locationId: string = "sanaiya",
+  locationId: string = "",
   filters: {
     minPrice?: number;
     maxPrice?: number;

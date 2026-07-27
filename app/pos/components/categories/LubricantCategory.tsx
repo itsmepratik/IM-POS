@@ -295,7 +295,7 @@ export function LubricantCategory({
                                   0) > 0 && (
                                   <div
                                     className="bg-muted px-1.5 py-1 rounded-md border border-border shadow-sm flex items-center gap-1"
-                                    title={`${lubricant.volumes?.[0]?.bottleStates?.closed ?? lubricant.volumes?.reduce((s, v) => s + (v.availableQuantity || 0), 0)} Closed Bottles`}
+                                    title={`${lubricant.volumes?.[0]?.bottleStates?.closed ?? lubricant.volumes?.reduce((s, v) => s + (v.availableQuantity || 0), 0)} Closed Bottles (${lubricant.totalClosedVolume?.toFixed(2)}L)`}
                                   >
                                     <ClosedBottleIcon className="w-3 h-3 text-muted-foreground" />
                                     <span className="text-[10px] font-medium text-muted-foreground leading-none">
@@ -305,6 +305,17 @@ export function LubricantCategory({
                                           (s, v) =>
                                             s + (v.availableQuantity || 0),
                                           0,
+                                        )}
+                                      {lubricant.totalClosedVolume !==
+                                        undefined &&
+                                        lubricant.totalClosedVolume > 0 && (
+                                          <span className="ml-0.5 text-[9px] opacity-80">
+                                            (
+                                            {Number(
+                                              lubricant.totalClosedVolume,
+                                            ).toFixed(1)}
+                                            L)
+                                          </span>
                                         )}
                                     </span>
                                   </div>
@@ -445,7 +456,7 @@ export function LubricantCategory({
                                   0) > 0 && (
                                   <div
                                     className="bg-muted px-1.5 py-1 rounded-md border border-border shadow-sm flex items-center gap-1"
-                                    title={`${lubricant.volumes?.[0]?.bottleStates?.closed ?? lubricant.volumes?.reduce((s, v) => s + (v.availableQuantity || 0), 0)} Closed Bottles`}
+                                    title={`${lubricant.volumes?.[0]?.bottleStates?.closed ?? lubricant.volumes?.reduce((s, v) => s + (v.availableQuantity || 0), 0)} Closed Bottles (${lubricant.totalClosedVolume?.toFixed(2)}L)`}
                                   >
                                     <ClosedBottleIcon className="w-3 h-3 text-muted-foreground" />
                                     <span className="text-[10px] font-medium text-muted-foreground leading-none">
@@ -456,6 +467,17 @@ export function LubricantCategory({
                                             s + (v.availableQuantity || 0),
                                           0,
                                         )}
+                                      {lubricant.totalClosedVolume !==
+                                        undefined &&
+                                        lubricant.totalClosedVolume > 0 && (
+                                          <span className="ml-0.5 text-[9px] opacity-80">
+                                            (
+                                            {Number(
+                                              lubricant.totalClosedVolume,
+                                            ).toFixed(1)}
+                                            L)
+                                          </span>
+                                        )}
                                     </span>
                                   </div>
                                 )}
@@ -463,7 +485,7 @@ export function LubricantCategory({
                                   0) > 0 && (
                                   <div
                                     className="bg-blue-100 px-1.5 py-1 rounded-md border border-blue-200 shadow-sm flex items-center gap-1"
-                                    title={`${lubricant.volumes?.[0]?.bottleStates?.open} Open Bottles`}
+                                    title={`${lubricant.volumes?.[0]?.bottleStates?.open} Open Bottles (${lubricant.totalOpenVolume?.toFixed(2)}L)`}
                                   >
                                     <OpenBottleIcon className="w-3 h-3 text-blue-700" />
                                     <span className="text-[10px] font-bold text-blue-700 leading-none">
@@ -471,6 +493,17 @@ export function LubricantCategory({
                                         lubricant.volumes?.[0]?.bottleStates
                                           ?.open
                                       }
+                                      {lubricant.totalOpenVolume !==
+                                        undefined &&
+                                        lubricant.totalOpenVolume > 0 && (
+                                          <span className="ml-0.5 text-[9px] opacity-80">
+                                            (
+                                            {Number(
+                                              lubricant.totalOpenVolume,
+                                            ).toFixed(1)}
+                                            L)
+                                          </span>
+                                        )}
                                     </span>
                                   </div>
                                 )}
@@ -556,10 +589,10 @@ export function LubricantCategory({
                         .filter(
                           (p) =>
                             p.brand === brand &&
-                            p.specification !== "Petrol" &&
-                            p.specification !== "Diesel",
-                        )
-                        .map((lubricant) => (
+                              p.specification !== "Petrol" &&
+                              p.specification !== "Diesel",
+                          )
+                          .map((lubricant) => (
                           <Button
                             key={lubricant.id}
                             variant="outline"
@@ -596,7 +629,7 @@ export function LubricantCategory({
                                   0) > 0 && (
                                   <div
                                     className="bg-muted px-1.5 py-1 rounded-md border border-border shadow-sm flex items-center gap-1"
-                                    title={`${lubricant.volumes?.[0]?.bottleStates?.closed ?? lubricant.volumes?.reduce((s, v) => s + (v.availableQuantity || 0), 0)} Closed Bottles`}
+                                    title={`${lubricant.volumes?.[0]?.bottleStates?.closed ?? lubricant.volumes?.reduce((s, v) => s + (v.availableQuantity || 0), 0)} Closed Bottles (${lubricant.totalClosedVolume?.toFixed(2)}L)`}
                                   >
                                     <ClosedBottleIcon className="w-3 h-3 text-muted-foreground" />
                                     <span className="text-[10px] font-medium text-muted-foreground leading-none">
@@ -607,6 +640,17 @@ export function LubricantCategory({
                                             s + (v.availableQuantity || 0),
                                           0,
                                         )}
+                                      {lubricant.totalClosedVolume !==
+                                        undefined &&
+                                        lubricant.totalClosedVolume > 0 && (
+                                          <span className="ml-0.5 text-[9px] opacity-80">
+                                            (
+                                            {Number(
+                                              lubricant.totalClosedVolume,
+                                            ).toFixed(1)}
+                                            L)
+                                          </span>
+                                        )}
                                     </span>
                                   </div>
                                 )}
@@ -614,7 +658,7 @@ export function LubricantCategory({
                                   0) > 0 && (
                                   <div
                                     className="bg-blue-100 px-1.5 py-1 rounded-md border border-blue-200 shadow-sm flex items-center gap-1"
-                                    title={`${lubricant.volumes?.[0]?.bottleStates?.open} Open Bottles`}
+                                    title={`${lubricant.volumes?.[0]?.bottleStates?.open} Open Bottles (${lubricant.totalOpenVolume?.toFixed(2)}L)`}
                                   >
                                     <OpenBottleIcon className="w-3 h-3 text-blue-700" />
                                     <span className="text-[10px] font-bold text-blue-700 leading-none">
@@ -622,6 +666,17 @@ export function LubricantCategory({
                                         lubricant.volumes?.[0]?.bottleStates
                                           ?.open
                                       }
+                                      {lubricant.totalOpenVolume !==
+                                        undefined &&
+                                        lubricant.totalOpenVolume > 0 && (
+                                          <span className="ml-0.5 text-[9px] opacity-80">
+                                            (
+                                            {Number(
+                                              lubricant.totalOpenVolume,
+                                            ).toFixed(1)}
+                                            L)
+                                          </span>
+                                        )}
                                     </span>
                                   </div>
                                 )}

@@ -21,7 +21,7 @@ BEGIN
   WHERE created_at >= start_date
     AND created_at <= end_date
     AND (filter_shop_id IS NULL OR shop_id = filter_shop_id)
-    AND type IN ('SALE', 'ON_HOLD_PAID', 'REFUND')
+    AND type IN ('SALE', 'ON_HOLD_PAID', 'CREDIT_PAID', 'REFUND')
     AND is_voided = false
   GROUP BY 1
   ORDER BY 1;

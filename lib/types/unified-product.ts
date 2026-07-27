@@ -115,6 +115,8 @@ export interface POSLubricantProduct {
   isAvailable: boolean;
   hasOpenBottles?: boolean; // Whether any non-empty open bottles exist
   totalOpenVolume?: number; // Total volume available in open bottles
+  totalClosedVolume?: number; // Total volume in closed bottles (closed_count * bottle_size)
+  bottleSize?: number; // Size of a single full bottle in litres
   specification?: string;
   category?: "Lubricants"; // Always Lubricants for this type
 }

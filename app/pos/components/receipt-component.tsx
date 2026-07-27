@@ -107,6 +107,9 @@ export const ReceiptComponent = ({
             }
             .receipt-container {
               padding: 2mm 1mm 2mm 1mm;
+              display: flex;
+              flex-direction: column;
+              min-height: 100%;
             }
             .receipt-header {
               text-align: center;
@@ -265,107 +268,109 @@ export const ReceiptComponent = ({
           <div class="print-wrapper">
           ${isVoided ? `<div class="voided-watermark"><span>VOIDED</span></div>` : ""}
           <div class="receipt-container">
-            <div class="receipt-header">
-              <h2>${brand.name}</h2>
-              <p>${brand.addressLines.join(" ")}</p>
-              <p>Ph: ${brand.phones.join(" | ")}</p>
-            </div>
-            
-            <div class="receipt-info">
-              <p style="display:flex;justify-content:space-between;align-items:center;">
-                <span>Invoice: ${receiptNumber}</span>
-                <span>POS ID: ${POS_ID}</span>
-              </p>
-              <p style="display:flex;justify-content:space-between;align-items:center;">
-                <span>Date: ${currentDate}</span>
-                <span>Time: ${currentTime}</span>
-              </p>
-            </div>
-            
-            <table class="receipt-table">
-              <thead>
-                <tr>
-                  <th class="sno">#</th>
-                  <th class="description">Description</th>
-                  <th class="price">Price</th>
-                  <th class="qty">Qty</th>
-                  <th class="amount">Amt</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${cart
-                  .map(
-                    (item, _index) => `
-                  <tr class="row-top">
-                    <td class="sno">${_index + 1}</td>
-                    <td class="description" colspan="4">${(() => {
-                      // Clean up name by removing bottle info if present
-                      let cleanName = item.name
-                        .replace(
-                          /\s*\(?(\d+(\.\d+)?[Ll])\s+(open|closed)\s+bottle\)?/i,
-                          "",
-                        ) // Remove "(1L closed bottle)" or similar
-                        .replace(/\s*\(?(open|closed)\s+bottle\)?/i, "") // Remove "(open bottle)" etc
-                        .trim();
-
-                      // Clean up details similarly
-                      let cleanDetails = item.details
-                        ? item.details
-                            .replace(
-                              /\s*\(?(\d+(\.\d+)?[Ll])\s+(open|closed)\s+bottle\)?/i,
-                              "$1",
-                            ) // Keep size e.g. "1L"
-                            .replace(/\s*\(?(open|closed)\s+bottle\)?/i, "")
-                            .trim()
-                        : "";
-
-                      // Combine carefully
-                      if (cleanDetails && !cleanName.includes(cleanDetails)) {
-                        return `${cleanName} (${cleanDetails})`;
-                      }
-                      return cleanName;
-                    })()}</td>
-                    <td class="price" style="display:none;"></td>
-                    <td class="qty" style="display:none;"></td>
-                    <td class="amount" style="display:none;"></td>
+            <div style="flex: 1;">
+              <div class="receipt-header">
+                <h2>${brand.name}</h2>
+                <p>${brand.addressLines.join(" ")}</p>
+                <p>Ph: ${brand.phones.join(" | ")}</p>
+              </div>
+              
+              <div class="receipt-info">
+                <p style="display:flex;justify-content:space-between;align-items:center;">
+                  <span>Invoice: ${receiptNumber}</span>
+                  <span>POS ID: ${POS_ID}</span>
+                </p>
+                <p style="display:flex;justify-content:space-between;align-items:center;">
+                  <span>Date: ${currentDate}</span>
+                  <span>Time: ${currentTime}</span>
+                </p>
+              </div>
+              
+              <table class="receipt-table">
+                <thead>
+                  <tr>
+                    <th class="sno">#</th>
+                    <th class="description">Description</th>
+                    <th class="price">Price</th>
+                    <th class="qty">Qty</th>
+                    <th class="amount">Amt</th>
                   </tr>
-                  <tr class="row-bottom">
-                    <td class="sno"></td>
-                    <td class="description"></td>
-                    <td class="price">${item.price.toFixed(3)}</td>
-                    <td class="qty">(x${item.quantity})</td>
-                    <td class="amount">${(item.price * item.quantity).toFixed(3)}</td>
-                  </tr>
-                `,
-                  )
-                  .join("")}
-              </tbody>
-            </table>
-            
-            <div class="receipt-summary">
-              <table>
-                <tr>
-                  <td class="total-label">Subtotal</td>
-                  <td class="total-amount">OMR ${subtotal.toFixed(3)}</td>
-                </tr>
-                ${
-                  localDiscount
-                    ? `
-                <tr class="discount-row" style="color: #22c55e; font-weight: bold;">
-                  <td style="color: #22c55e; font-weight: bold;">Discount ${
-                    localDiscount.type === "percentage"
-                      ? `(${localDiscount.value}%)`
-                      : "(Amount)"
-                  }</td>
-                  <td class="total-amount" style="color: #22c55e; font-weight: bold;">- OMR ${discountAmount.toFixed(3)}</td>
-                </tr>`
-                    : ""
-                }
-                <tr>
-                  <td class="total-label" style="border-top: 1px solid #000; padding-top: 5px;">Total</td>
-                  <td class="total-amount" style="border-top: 1px solid #000; padding-top: 5px; font-size: 14px;">OMR ${total.toFixed(3)}</td>
-                </tr>
+                </thead>
+                <tbody>
+                  ${cart
+                    .map(
+                      (item, _index) => `
+                    <tr class="row-top">
+                      <td class="sno">${_index + 1}</td>
+                      <td class="description" colspan="4">${(() => {
+                        // Clean up name by removing bottle info if present
+                        let cleanName = item.name
+                          .replace(
+                            /\s*\(?(\d+(\.\d+)?[Ll])\s+(open|closed)\s+bottle\)?/i,
+                            "",
+                          ) // Remove "(1L closed bottle)" or similar
+                          .replace(/\s*\(?(open|closed)\s+bottle\)?/i, "") // Remove "(open bottle)" etc
+                          .trim();
+
+                        // Clean up details similarly
+                        let cleanDetails = item.details
+                          ? item.details
+                              .replace(
+                                /\s*\(?(\d+(\.\d+)?[Ll])\s+(open|closed)\s+bottle\)?/i,
+                                "$1",
+                              ) // Keep size e.g. "1L"
+                              .replace(/\s*\(?(open|closed)\s+bottle\)?/i, "")
+                              .trim()
+                          : "";
+
+                        // Combine carefully
+                        if (cleanDetails && !cleanName.includes(cleanDetails)) {
+                          return `${cleanName} (${cleanDetails})`;
+                        }
+                        return cleanName;
+                      })()}</td>
+                      <td class="price" style="display:none;"></td>
+                      <td class="qty" style="display:none;"></td>
+                      <td class="amount" style="display:none;"></td>
+                    </tr>
+                    <tr class="row-bottom">
+                      <td class="sno"></td>
+                      <td class="description"></td>
+                      <td class="price">${item.price.toFixed(3)}</td>
+                      <td class="qty">(x${item.quantity})</td>
+                      <td class="amount">${(item.price * item.quantity).toFixed(3)}</td>
+                    </tr>
+                  `,
+                    )
+                    .join("")}
+                </tbody>
               </table>
+              
+              <div class="receipt-summary">
+                <table>
+                  <tr>
+                    <td class="total-label">Subtotal</td>
+                    <td class="total-amount">OMR ${subtotal.toFixed(3)}</td>
+                  </tr>
+                  ${
+                    localDiscount
+                      ? `
+                  <tr class="discount-row" style="color: #22c55e; font-weight: bold;">
+                    <td style="color: #22c55e; font-weight: bold;">Discount ${
+                      localDiscount.type === "percentage"
+                        ? `(${localDiscount.value}%)`
+                        : "(Amount)"
+                    }</td>
+                    <td class="total-amount" style="color: #22c55e; font-weight: bold;">- OMR ${discountAmount.toFixed(3)}</td>
+                  </tr>`
+                      : ""
+                  }
+                  <tr>
+                    <td class="total-label" style="border-top: 1px solid #000; padding-top: 5px;">Total</td>
+                    <td class="total-amount" style="border-top: 1px solid #000; padding-top: 5px; font-size: 14px;">OMR ${total.toFixed(3)}</td>
+                  </tr>
+                </table>
+              </div>
             </div>
             
             <div class="receipt-footer">
@@ -486,7 +491,7 @@ export const ReceiptComponent = ({
     >
       <div className="max-h-[55vh] md:max-h-[65vh] overflow-auto mb-4 bg-muted/30 rounded-xl p-4 sm:p-6 flex justify-center items-start border inner-shadow-sm">
         <div
-          className="bg-white w-full max-w-[380px] shrink-0 font-sans text-black mx-auto overflow-hidden relative"
+          className="bg-white w-full max-w-[380px] shrink-0 font-sans text-black mx-auto overflow-hidden relative flex flex-col"
           style={{
             boxShadow:
               "rgba(0, 0, 0, 0.1) 0px 4px 6px -1px, rgba(0, 0, 0, 0.06) 0px 2px 4px -1px, rgba(0, 0, 0, 0.05) 0px 0px 0px 1px",
@@ -494,7 +499,7 @@ export const ReceiptComponent = ({
           ref={receiptRef}
         >
           <div
-            className="p-[2mm] pt-[4mm] pb-[6mm] px-[3mm]"
+            className="p-[2mm] pt-[4mm] pb-[6mm] px-[3mm] flex-1"
             style={{ fontFamily: "sans-serif" }}
           >
             {/* Header */}
@@ -630,7 +635,7 @@ export const ReceiptComponent = ({
               </table>
             </div>
 
-            <div className="border-t border-dashed border-black pt-1.5 mt-2.5 text-center text-[12px] text-black">
+            <div className="border-t border-dashed border-black pt-1.5 mt-auto text-center text-[12px] text-black">
               <p className="m-0 my-[3px]">Number of Items: {itemCount}</p>
               <p className="m-0 my-[3px]">
                 Payment Method: {getFormattedPaymentMethod(paymentMethod)}

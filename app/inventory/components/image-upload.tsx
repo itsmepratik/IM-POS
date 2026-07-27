@@ -25,7 +25,7 @@ export function ImageUpload({
   value,
   disabled = false,
   className,
-  bucketName = "Product Images",
+  bucketName = "product-images",
   folderName = "products",
 }: ImageUploadProps) {
   const [isDragging, setIsDragging] = useState(false);

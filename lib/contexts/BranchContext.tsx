@@ -333,7 +333,7 @@ export function BranchProvider({ children }: { children: ReactNode }) {
       // Fallback to mock data with real database UUIDs as last resort
       const fallbackBranches: DbBranch[] = [
         {
-          id: "9c284f57-22db-40ce-9703-c5290d8769be", // Real Saniya1 location ID from database
+          id: "c967451d-abbe-4e9d-8f1a-be27b2a59229",
           name: "Saniya1",
           address: "Saniya1 Shop, Al Ain",
           phone: "+971-3-711-2347",
@@ -342,7 +342,7 @@ export function BranchProvider({ children }: { children: ReactNode }) {
           created_at: new Date().toISOString(),
         },
         {
-          id: "5b0ee3e7-8a72-4747-8547-cf27f26974ee", // Real Saniya2 location ID from database
+          id: "072ad5fc-b982-491b-83aa-a7c91db19534",
           name: "Saniya2",
           address: "Saniya2 Shop, Al Ain",
           phone: "+971-3-711-2348",
@@ -351,7 +351,7 @@ export function BranchProvider({ children }: { children: ReactNode }) {
           created_at: new Date().toISOString(),
         },
         {
-          id: "93922a5e-5327-4561-8395-97a4653c720c", // Real Hafith location ID from database
+          id: "5d2fd9a6-755f-4380-a684-2527827860ee",
           name: "Hafith",
           address: "Hafith Area, Al Ain",
           phone: "+971-3-711-2345",
@@ -360,7 +360,7 @@ export function BranchProvider({ children }: { children: ReactNode }) {
           created_at: new Date().toISOString(),
         },
         {
-          id: "d2f3b51b-2e86-4c4b-831c-96b468bd48db", // Real Abudhurus location ID from database
+          id: "25223b95-a4cc-4bac-a92c-108904e69fe7",
           name: "Abu Dhurus",
           address: "Abu Dhurus Area, Al Ain",
           phone: "+971-3-711-2346",

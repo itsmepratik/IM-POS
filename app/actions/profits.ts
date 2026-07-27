@@ -1,7 +1,7 @@
 "use server";
 
 import { getDatabase } from "@/lib/db/client";
-import { transactions, shops, products, inventory, batches, productVolumes, categories, brands, locations } from "@/lib/db/schema";
+import { transactions, shops, products, inventory, batches, productVolumes, categories, brands, locations, serviceItems } from "@/lib/db/schema";
 import { desc, eq, and, gte, lte, sql, inArray, not } from "drizzle-orm";
 import { calculateItemCost, resolveCostPrice } from "@/lib/utils/cost-calc";
 
@@ -82,7 +82,9 @@ export async function getProfitsReport(
 
   // 4. Collect Product IDs for Batch Aggregation
   const allProductIds = new Set<string>();
+  const transactionIds: string[] = [];
   transactionData.forEach(tx => {
+    transactionIds.push(tx.id);
     const items = tx.itemsSold as any[];
     if (Array.isArray(items)) {
        items.forEach(item => {
@@ -91,6 +93,30 @@ export async function getProfitsReport(
          }
        });
     }
+  });
+
+  // 4b. Fetch Service Items (labor/custom charges not in items_sold)
+  let serviceItemsData: any[] = [];
+  if (transactionIds.length > 0) {
+    try {
+      serviceItemsData = await db
+        .select()
+        .from(serviceItems)
+        .where(
+          and(
+            inArray(serviceItems.transactionId, transactionIds),
+            inArray(serviceItems.itemType, ['service', 'labor', 'composite'])
+          )
+        );
+    } catch (e) {
+      console.error("Failed to fetch service items:", e);
+    }
+  }
+  const serviceItemsByTx = new Map<string, any[]>();
+  serviceItemsData.forEach(si => {
+    const existing = serviceItemsByTx.get(si.transactionId) || [];
+    existing.push(si);
+    serviceItemsByTx.set(si.transactionId, existing);
   });
 
   // 5. Bulk Fetch Product Metadata & Costs using EXPLICIT separate queries
@@ -366,7 +392,48 @@ export async function getProfitsReport(
            variant.totalSales += revenue;
            variant.totalCost += finalCost;
            variant.profit += (revenue - finalCost);
+        }
+    }
+
+    // Process service items (labor/custom charges from service_items table)
+    const txServiceItems = serviceItemsByTx.get(tx.id) || [];
+    for (const si of txServiceItems) {
+       const quantity = Number(si.quantity) || 0;
+       const sellingPrice = Number(si.unitPrice) || 0;
+       const costPrice = Number(si.costPrice) || 0;
+       if (quantity === 0) continue;
+
+       const revenue = sellingPrice * quantity * revenueRatio;
+       const finalCost = costPrice * quantity;
+
+       const displayTitle = si.name || "Labor Service";
+       const nameKey = displayTitle.trim();
+       const finalStoreId = "unknown";
+       const uniqueKey = `${nameKey}::${finalStoreId}`;
+
+       if (!aggregation.has(uniqueKey)) {
+          aggregation.set(uniqueKey, {
+              id: uniqueKey,
+              name: displayTitle,
+              category: "service",
+              quantity: 0,
+              unitPrice: 0,
+              unitCost: 0,
+              totalSales: 0,
+              totalCost: 0,
+              profit: 0,
+              profitMargin: 0,
+              storeId: "unknown",
+              storeName: "Labor Services",
+              variants: []
+          });
        }
+
+       const entry = aggregation.get(uniqueKey)!;
+       entry.quantity += quantity;
+       entry.totalSales += revenue;
+       entry.totalCost += finalCost;
+       entry.profit += (revenue - finalCost);
     }
   }
 

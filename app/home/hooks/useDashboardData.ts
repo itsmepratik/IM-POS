@@ -310,11 +310,12 @@ export function useDashboardData(initialSalesMetrics?: SalesMetrics): UseDashboa
     let topProducts: TopProduct[] = []
     let salesTrend: TrendPoint[] = []
     let realTransactionCount = 0
+    let fetchSucceeded = false
     
     try {
         setIsSalesLoading(true)
-        // Parallel Fetching for speed
-        const [todayRevenue, yesterdayRevenue, topItemsData, trendData, todayTxCount, yesterdayTxCount] = await Promise.all([
+        // Use Promise.allSettled so one failure doesn't kill all results
+        const [todayRevResult, yesterdayRevResult, topItemsResult, trendResult, todayTxResult, yesterdayTxResult] = await Promise.allSettled([
             fetchMetric('revenue', { startDate: todayStart, endDate: todayEnd, shopId }),
             fetchMetric('revenue', { startDate: yesterdayStart, endDate: yesterdayEnd, shopId }),
             fetchMetric('top-items', { startDate: new Date(0), endDate: new Date(), shopId }),
@@ -323,14 +324,15 @@ export function useDashboardData(initialSalesMetrics?: SalesMetrics): UseDashboa
             fetchMetric('transaction-count', { startDate: yesterdayStart, endDate: yesterdayEnd, shopId })
         ])
 
-        totalSales = Number(todayRevenue) || 0
-        previousPeriodSales = Number(yesterdayRevenue) || 0
-        topProducts = topItemsData || []
-        // Use real transaction count
-        realTransactionCount = todayTxCount || 0
+        totalSales = todayRevResult.status === 'fulfilled' ? Number(todayRevResult.value) || 0 : 0
+        previousPeriodSales = yesterdayRevResult.status === 'fulfilled' ? Number(yesterdayRevResult.value) || 0 : 0
+        topProducts = topItemsResult.status === 'fulfilled' ? (topItemsResult.value || []) : []
+        realTransactionCount = todayTxResult.status === 'fulfilled' ? (todayTxResult.value || 0) : 0
+        fetchSucceeded = todayRevResult.status === 'fulfilled'
         
         // Process trend data
         const salesMap = new Map<string, number>()
+        const trendData = trendResult.status === 'fulfilled' ? trendResult.value : []
         if (Array.isArray(trendData)) {
             trendData.forEach((item: any) => {
                 salesMap.set(item.sale_date, Number(item.total_sales))
@@ -405,8 +407,11 @@ export function useDashboardData(initialSalesMetrics?: SalesMetrics): UseDashboa
       bestSellingDay
     }
 
-    setSalesMetrics(metrics)
-    return metrics
+    // Only update state if fetch succeeded or we have no initial data to preserve
+    if (fetchSucceeded || !initialSalesMetrics) {
+      setSalesMetrics(metrics)
+    }
+    return fetchSucceeded ? metrics : (initialSalesMetrics || metrics)
   }
   
   const fetchProfitMetrics = async (currentSalesMetrics: SalesMetrics) => {
@@ -436,14 +441,17 @@ export function useDashboardData(initialSalesMetrics?: SalesMetrics): UseDashboa
             shopId 
         })
 
+        const grossProfitNum = Number(grossProfit) || 0
+        const previousPeriodProfitNum = Number(previousPeriodProfit) || 0
+
         // Calculate profit change percentage
-        const profitChangePercentage = previousPeriodProfit > 0
-          ? ((grossProfit - previousPeriodProfit) / previousPeriodProfit) * 100
+        const profitChangePercentage = previousPeriodProfitNum > 0
+          ? ((grossProfitNum - previousPeriodProfitNum) / previousPeriodProfitNum) * 100
           : 0
         
         // Calculate profit margin
         const profitMargin = currentSalesMetrics.totalSales > 0
-          ? (grossProfit / currentSalesMetrics.totalSales) * 100
+          ? (grossProfitNum / currentSalesMetrics.totalSales) * 100
           : 0
         
         // Profit by category (Still mocking distribution for now as detailed breakdown is heavy)
@@ -454,7 +462,7 @@ export function useDashboardData(initialSalesMetrics?: SalesMetrics): UseDashboa
           return {
             category: category.category,
             amount: amount,
-            percentage: grossProfit > 0 ? (amount / grossProfit) * 100 : 0,
+            percentage: grossProfitNum > 0 ? (amount / grossProfitNum) * 100 : 0,
             margin: profitMargin
           }
         })
@@ -466,8 +474,8 @@ export function useDashboardData(initialSalesMetrics?: SalesMetrics): UseDashboa
         }))
         
         setProfitMetrics({
-          grossProfit,
-          previousPeriodProfit,
+          grossProfit: grossProfitNum,
+          previousPeriodProfit: previousPeriodProfitNum,
           profitChangePercentage,
           profitMargin,
           profitByCategory,
@@ -475,7 +483,7 @@ export function useDashboardData(initialSalesMetrics?: SalesMetrics): UseDashboa
         })
     } catch (error) {
         console.error("Error fetching profit metrics:", error)
-        // Fallback to 0 or keep existing
+        // Keep existing profit metrics on failure
     } finally {
         setIsProfitLoading(false)
     }
@@ -667,9 +675,11 @@ export function useDashboardData(initialSalesMetrics?: SalesMetrics): UseDashboa
       // Sales metrics is the dependency for others
       const currentSalesMetrics = await fetchSalesMetrics()
       
-      // Once sales is done, fetch dependents
-      fetchProfitMetrics(currentSalesMetrics)
-      fetchCustomerMetrics(currentSalesMetrics)
+      // Once sales is done, fetch dependents in parallel (await so loading states resolve)
+      await Promise.allSettled([
+        fetchProfitMetrics(currentSalesMetrics),
+        fetchCustomerMetrics(currentSalesMetrics)
+      ])
       
       setLastUpdated(new Date())
     } catch (error) {
@@ -679,25 +689,28 @@ export function useDashboardData(initialSalesMetrics?: SalesMetrics): UseDashboa
     }
   }
   
-  // Immediate data fetch when component mounts
+  // Single effect: fetch on mount + on filter changes, with 5-min auto-refresh
   useEffect(() => {
-    // Load data immediately when component mounts
-    refreshData()
-  }, []) // Empty dependency array ensures it only runs once on mount
-  
-  // Effect to re-fetch data when filters change
-  useEffect(() => {
-    refreshData()
+    let cancelled = false
     
-    // In a real implementation, we'd set up real-time subscriptions here
-    // with Supabase for live updates
+    const fetchData = async () => {
+      if (!cancelled) {
+        await refreshData()
+      }
+    }
     
-    // For demo purposes, simulate periodic updates
+    fetchData()
+    
     const interval = setInterval(() => {
-      refreshData()
+      if (!cancelled) {
+        refreshData()
+      }
     }, 5 * 60 * 1000) // Refresh every 5 minutes
     
-    return () => clearInterval(interval)
+    return () => {
+      cancelled = true
+      clearInterval(interval)
+    }
   }, [
     dateRange.start.toISOString(),
     dateRange.end.toISOString(),
