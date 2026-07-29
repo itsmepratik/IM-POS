@@ -1,23 +1,35 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { createClient } from "@/supabase/server";
 import { getAllStaff, getStaffByTextId } from "@/lib/utils/staff-validation";
 
 /**
  * GET /api/staff
- * Fetch all active staff members
+ * Fetch all staff members
  */
 export async function GET(req: NextRequest) {
   try {
-    // For settings, we want ALL staff members
-    const staffMembers = await getAllStaff();
+    const { searchParams } = new URL(req.url);
+    const role = searchParams.get("role");
+    const activeOnly = searchParams.get("active") === "true";
+    const shopId = searchParams.get("shop_id");
+
+    let staffMembers = await getAllStaff();
+
+    if (role) {
+      staffMembers = staffMembers.filter((s) => s.role === role);
+    }
+    if (activeOnly) {
+      staffMembers = staffMembers.filter((s) => s.is_active);
+    }
+    if (shopId) {
+      staffMembers = staffMembers.filter((s) => s.shop_id === shopId);
+    }
 
     return NextResponse.json({
       success: true,
       data: staffMembers,
     });
   } catch (error) {
-    console.error("Error fetching staff members:", error);
     return NextResponse.json(
       {
         success: false,
@@ -29,16 +41,29 @@ export async function GET(req: NextRequest) {
   }
 }
 
-/**
- * POST /api/staff
- * Create a new staff member (admin only - add auth check if needed)
- */
 const CreateStaffSchema = z.object({
   staff_id: z.string().min(1, "Staff ID is required"),
   name: z.string().min(1, "Name is required"),
+  email: z.string().email().nullable().optional(),
+  phone: z.string().nullable().optional(),
+  role: z.enum(["admin", "manager", "technician", "cashier", "staff"]).default("staff"),
+  salary: z.coerce.number().nullable().optional(),
+  hire_date: z.string().nullable().optional(),
+  date_of_birth: z.string().nullable().optional(),
+  address: z.string().nullable().optional(),
+  national_id: z.string().nullable().optional(),
+  emergency_contact: z.string().nullable().optional(),
+  emergency_phone: z.string().nullable().optional(),
+  profile_image_url: z.string().nullable().optional(),
+  shop_id: z.string().uuid().nullable().optional(),
+  notes: z.string().nullable().optional(),
   is_active: z.boolean().default(true).optional(),
 });
 
+/**
+ * POST /api/staff
+ * Create a new staff member
+ */
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -55,9 +80,25 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { staff_id, name, is_active = true } = validation.data;
+    const {
+      staff_id,
+      name,
+      email,
+      phone,
+      role,
+      salary,
+      hire_date,
+      date_of_birth,
+      address,
+      national_id,
+      emergency_contact,
+      emergency_phone,
+      profile_image_url,
+      shop_id,
+      notes,
+      is_active,
+    } = validation.data;
 
-    // Check if staff_id already exists (globally unique)
     const existing = await getStaffByTextId(staff_id);
     if (existing) {
       return NextResponse.json(
@@ -73,14 +114,30 @@ export async function POST(req: NextRequest) {
     const { createClient } = await import("@/supabase/server");
     const supabase = await createClient();
 
+    const insertData: Record<string, unknown> = {
+      staff_id,
+      name,
+      is_active: is_active ?? true,
+    };
+
+    if (email !== undefined) insertData.email = email;
+    if (phone !== undefined) insertData.phone = phone;
+    if (role !== undefined) insertData.role = role;
+    if (salary !== undefined) insertData.salary = salary;
+    if (hire_date !== undefined) insertData.hire_date = hire_date;
+    if (date_of_birth !== undefined) insertData.date_of_birth = date_of_birth;
+    if (address !== undefined) insertData.address = address;
+    if (national_id !== undefined) insertData.national_id = national_id;
+    if (emergency_contact !== undefined) insertData.emergency_contact = emergency_contact;
+    if (emergency_phone !== undefined) insertData.emergency_phone = emergency_phone;
+    if (profile_image_url !== undefined) insertData.profile_image_url = profile_image_url;
+    if (shop_id !== undefined) insertData.shop_id = shop_id;
+    if (notes !== undefined) insertData.notes = notes;
+
     const { data: newStaff, error } = await supabase
       .from("staff")
-      .insert({
-        staff_id,
-        name,
-        is_active,
-      })
-      .select("id, staff_id, name, is_active")
+      .insert(insertData)
+      .select()
       .single();
 
     if (error || !newStaff) {
@@ -94,20 +151,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    return NextResponse.json(
-      {
-        success: true,
-        data: {
-          id: newStaff.id, // UUID
-          staff_id: newStaff.staff_id, // Text ID like "0010"
-          name: newStaff.name,
-          is_active: newStaff.is_active,
-        },
-      },
-      { status: 201 }
-    );
+    return NextResponse.json({ success: true, data: newStaff }, { status: 201 });
   } catch (error) {
-    console.error("Error creating staff member:", error);
     return NextResponse.json(
       {
         success: false,
@@ -118,4 +163,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-

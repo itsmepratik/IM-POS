@@ -64,17 +64,12 @@ export const WarrantyClaimBill = forwardRef<
     const [barcodeHtml, setBarcodeHtml] = useState<string>("");
     const { registered, thankYouMessage } = useCompanyInfo();
 
-    // Filter out Sanaiya from address lines
-    const filteredAddressLines = (registered.addressLines || []).filter(
-      (line) => !line.toLowerCase().includes("al-sanaiya"),
-    );
-
-    // Flatten address lines for compatibility with existing template
+    // Use address lines directly from DB without filtering
     const companyDetails = {
       ...registered,
-      addressLine1: filteredAddressLines[0] || "",
-      addressLine2: filteredAddressLines[1] || "",
-      addressLine3: filteredAddressLines[2] || "",
+      addressLine1: registered?.addressLines?.[0] || "",
+      addressLine2: registered?.addressLines?.[1] || "",
+      addressLine3: registered?.addressLines?.[2] || "",
     };
     const serviceDescriptionContent = registered.serviceDescription || {
       english: "",
@@ -415,16 +410,16 @@ export const WarrantyClaimBill = forwardRef<
             <tr>
               <td class="left-header">
                 <div class="cr-number-line">C.R. No.: ${companyDetails.crNumber}</div>
-                <div class="address-line">${companyDetails.addressLine1}</div>
-                <div class="address-line">${companyDetails.addressLine2}</div>
-                <div class="address-line">${companyDetails.addressLine3}</div>
+                ${companyDetails.addressLine1 ? `<div class="address-line">${companyDetails.addressLine1}</div>` : ""}
+                ${companyDetails.addressLine2 && companyDetails.addressLine2 !== companyDetails.addressLine1 ? `<div class="address-line">${companyDetails.addressLine2}</div>` : ""}
+                ${companyDetails.addressLine3 && companyDetails.addressLine3 !== companyDetails.addressLine2 ? `<div class="address-line">${companyDetails.addressLine3}</div>` : ""}
               </td>
               <td class="right-header">
                 <div class="cr-number" style="white-space: nowrap">السجل التجاري: ${
                   companyDetails.crNumber
                 }</div>
-                <div class="address-line" style="white-space: nowrap">${companyDetails.arabicAddressLines?.[0] || ""}</div>
-                <div class="address-line" style="white-space: nowrap">${companyDetails.arabicAddressLines?.[1] || ""}</div>
+                ${companyDetails.arabicAddressLines?.[0] ? `<div class="address-line" style="white-space: nowrap">${companyDetails.arabicAddressLines[0]}</div>` : ""}
+                ${companyDetails.arabicAddressLines?.[1] && companyDetails.arabicAddressLines[1] !== companyDetails.arabicAddressLines[0] ? `<div class="address-line" style="white-space: nowrap">${companyDetails.arabicAddressLines[1]}</div>` : ""}
               </td>
             </tr>
           </table>
@@ -478,7 +473,7 @@ export const WarrantyClaimBill = forwardRef<
                 <tr>
                   <td>${index + 1}</td>
                   <td>${item.name}${
-                    item.details ? " (" + item.details + ")" : ""
+                    item.details && item.details.trim() !== item.name.trim() ? " (" + item.details + ")" : ""
                   }</td>
                   <td>${item.quantity}</td>
                   <td>${item.price.toFixed(3)}</td>
@@ -597,15 +592,20 @@ export const WarrantyClaimBill = forwardRef<
               <div className="grid grid-cols-2 gap-4 text-xs text-gray-500 mt-1">
                 <div className="text-left">
                   <div>C.R. No.: {companyDetails.crNumber}</div>
-                  <div>{companyDetails.addressLine1}</div>
-                  <div>{companyDetails.addressLine2}</div>
-                  <div>{companyDetails.addressLine3}</div>
+                  {companyDetails.addressLine1 && <div>{companyDetails.addressLine1}</div>}
+                  {companyDetails.addressLine2 && companyDetails.addressLine2.trim() !== companyDetails.addressLine1.trim() && (
+                    <div>{companyDetails.addressLine2}</div>
+                  )}
+                  {companyDetails.addressLine3 && companyDetails.addressLine3.trim() !== companyDetails.addressLine2.trim() && (
+                    <div>{companyDetails.addressLine3}</div>
+                  )}
                 </div>
                 <div className="text-right rtl">
                   <div>السجل التجاري: {companyDetails.crNumber}</div>
-                  <div>ولاية صحم</div>
-                  <div>الصناعية</div>
-                  <div>سلطنة عمان</div>
+                  {companyDetails.arabicAddressLines?.[0] && <div>{companyDetails.arabicAddressLines[0]}</div>}
+                  {companyDetails.arabicAddressLines?.[1] && companyDetails.arabicAddressLines[1] !== companyDetails.arabicAddressLines[0] && (
+                    <div>{companyDetails.arabicAddressLines[1]}</div>
+                  )}
                 </div>
               </div>
             </div>
@@ -661,7 +661,7 @@ export const WarrantyClaimBill = forwardRef<
                 >
                   <span className="col-span-1">{index + 1}</span>
                   <span className="col-span-5 break-words">
-                    {item.name} {item.details ? `(${item.details})` : ""}
+                    {item.name}{item.details && item.details.trim() !== item.name.trim() ? ` (${item.details})` : ""}
                   </span>
                   <span className="col-span-2 text-right">{item.quantity}</span>
                   <span className="col-span-2 text-right">

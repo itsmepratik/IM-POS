@@ -216,13 +216,7 @@ const CashierDialog = dynamic(
     ),
   { ssr: false },
 );
-const SuccessDialog = dynamic(
-  () =>
-    import("./components/modals/SuccessDialog").then(
-      (mod) => mod.SuccessDialog,
-    ),
-  { ssr: false },
-);
+
 const ReceiptPreviewDialog = dynamic(
   () =>
     import("./components/modals/ReceiptPreviewDialog").then(
@@ -556,8 +550,7 @@ export function POSClient({ initialData }: { initialData?: any }) {
     setIsCheckoutModalOpen,
     selectedPaymentMethod,
     setSelectedPaymentMethod,
-    showSuccess,
-    setShowSuccess,
+
     showReceiptDialog,
     setShowReceiptDialog,
     showOtherOptions,
@@ -1604,7 +1597,7 @@ export function POSClient({ initialData }: { initialData?: any }) {
             cartContainsAnyBatteries={cartContainsAnyBatteries}
             staffMembers={staffMembers}
             onPaymentComplete={handlePaymentComplete}
-            showSuccess={showSuccess}
+            showSuccess={false}
           />
         </div>
       </div>
@@ -1963,28 +1956,7 @@ export function POSClient({ initialData }: { initialData?: any }) {
         onFinalizePayment={handleFinalizePayment}
       />
 
-      {/* Success dialog shown after cashier selection */}
-      <SuccessDialog
-        open={showSuccess}
-        onOpenChange={(open) => {
-          if (!open) {
-            setShowSuccess(false);
-            receiptSnapshotRef.current = null;
-            resetPOSState();
-          }
-        }}
-        cartContainsOnlyBatteries={cartContainsOnlyBatteries}
-        cart={receiptSnapshotRef.current?.cart || cart}
-        onViewReceipt={() => {
-          setShowSuccess(false);
-          setShowReceiptDialog(true);
-        }}
-        onClose={() => {
-          setShowSuccess(false);
-          receiptSnapshotRef.current = null;
-          resetPOSState();
-        }}
-      />
+
 
       {/* Receipt/Bill Preview Dialog */}
       <ReceiptPreviewDialog

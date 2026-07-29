@@ -8,17 +8,14 @@ import { z } from "zod";
  */
 export async function GET(
   req: NextRequest,
-  { params }: { params: { staff_id: string } }
+  { params }: { params: Promise<{ staff_id: string }> }
 ) {
   try {
-    const { staff_id } = params;
+    const { staff_id } = await params;
 
     if (!staff_id) {
       return NextResponse.json(
-        {
-          success: false,
-          error: "Staff ID is required",
-        },
+        { success: false, error: "Staff ID is required" },
         { status: 400 }
       );
     }
@@ -36,12 +33,8 @@ export async function GET(
       );
     }
 
-    return NextResponse.json({
-      success: true,
-      data: staff,
-    });
+    return NextResponse.json({ success: true, data: staff });
   } catch (error) {
-    console.error("Error fetching staff member:", error);
     return NextResponse.json(
       {
         success: false,
@@ -53,33 +46,42 @@ export async function GET(
   }
 }
 
-/**
- * PATCH /api/staff/[staff_id]
- * Update a staff member (admin only - add auth check if needed)
- */
 const UpdateStaffSchema = z.object({
   name: z.string().min(1, "Name is required").optional(),
+  email: z.string().email().nullable().optional(),
+  phone: z.string().nullable().optional(),
+  role: z.enum(["admin", "manager", "technician", "cashier", "staff"]).optional(),
+  salary: z.coerce.number().nullable().optional(),
+  hire_date: z.string().nullable().optional(),
+  date_of_birth: z.string().nullable().optional(),
+  address: z.string().nullable().optional(),
+  national_id: z.string().nullable().optional(),
+  emergency_contact: z.string().nullable().optional(),
+  emergency_phone: z.string().nullable().optional(),
+  profile_image_url: z.string().nullable().optional(),
+  shop_id: z.string().uuid().nullable().optional(),
+  notes: z.string().nullable().optional(),
   is_active: z.boolean().optional(),
 });
 
+/**
+ * PATCH /api/staff/[staff_id]
+ * Update a staff member
+ */
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { staff_id: string } }
+  { params }: { params: Promise<{ staff_id: string }> }
 ) {
   try {
-    const { staff_id } = params;
+    const { staff_id } = await params;
 
     if (!staff_id) {
       return NextResponse.json(
-        {
-          success: false,
-          error: "Staff ID is required",
-        },
+        { success: false, error: "Staff ID is required" },
         { status: 400 }
       );
     }
 
-    // Check if staff exists
     const existing = await getStaffByTextId(staff_id);
     if (!existing) {
       return NextResponse.json(
@@ -106,14 +108,21 @@ export async function PATCH(
       );
     }
 
-    const updateData: { name?: string; is_active?: boolean; updated_at?: string } = {};
-    if (validation.data.name !== undefined) {
-      updateData.name = validation.data.name;
+    const updateData: Record<string, unknown> = {
+      updated_at: new Date().toISOString(),
+    };
+
+    const fields = [
+      "name", "email", "phone", "role", "salary", "hire_date",
+      "date_of_birth", "address", "national_id", "emergency_contact",
+      "emergency_phone", "profile_image_url", "shop_id", "notes", "is_active",
+    ] as const;
+
+    for (const field of fields) {
+      if (validation.data[field] !== undefined) {
+        updateData[field] = validation.data[field];
+      }
     }
-    if (validation.data.is_active !== undefined) {
-      updateData.is_active = validation.data.is_active;
-    }
-    updateData.updated_at = new Date().toISOString();
 
     const { createClient } = await import("@/supabase/server");
     const supabase = await createClient();
@@ -122,7 +131,7 @@ export async function PATCH(
       .from("staff")
       .update(updateData)
       .eq("staff_id", staff_id)
-      .select("id, staff_id, name, is_active")
+      .select()
       .single();
 
     if (error || !updatedStaff) {
@@ -136,17 +145,8 @@ export async function PATCH(
       );
     }
 
-    return NextResponse.json({
-      success: true,
-      data: {
-        id: updatedStaff.id, // UUID
-        staff_id: updatedStaff.staff_id, // Text ID like "0010"
-        name: updatedStaff.name,
-        is_active: updatedStaff.is_active,
-      },
-    });
+    return NextResponse.json({ success: true, data: updatedStaff });
   } catch (error) {
-    console.error("Error updating staff member:", error);
     return NextResponse.json(
       {
         success: false,
@@ -158,24 +158,20 @@ export async function PATCH(
   }
 }
 
-
 /**
  * DELETE /api/staff/[staff_id]
- * Delete (or deactivate) a staff member
+ * Delete a staff member
  */
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { staff_id: string } }
+  { params }: { params: Promise<{ staff_id: string }> }
 ) {
   try {
-    const { staff_id } = params;
+    const { staff_id } = await params;
 
     if (!staff_id) {
       return NextResponse.json(
-        {
-          success: false,
-          error: "Staff ID is required",
-        },
+        { success: false, error: "Staff ID is required" },
         { status: 400 }
       );
     }
@@ -183,14 +179,10 @@ export async function DELETE(
     const { createClient } = await import("@/supabase/server");
     const supabase = await createClient();
 
-    // Check if staff exists
     const existing = await getStaffByTextId(staff_id);
     if (!existing) {
       return NextResponse.json(
-        {
-          success: false,
-          error: "Staff member not found",
-        },
+        { success: false, error: "Staff member not found" },
         { status: 404 }
       );
     }
@@ -216,7 +208,6 @@ export async function DELETE(
       message: "Staff member deleted successfully",
     });
   } catch (error) {
-    console.error("Error deleting staff member:", error);
     return NextResponse.json(
       {
         success: false,

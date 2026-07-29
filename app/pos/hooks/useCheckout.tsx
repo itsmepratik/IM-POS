@@ -698,9 +698,9 @@ export function useCheckout({
       tradeinBatteries: [...tradeinBatteries],
     };
 
-    // ── Show success IMMEDIATELY and clear the cart behind the scenes ──
+    // ── Show receipt IMMEDIATELY and clear the cart behind the scenes ──
     setIsCashierSelectOpen(false);
-    setShowSuccess(true);
+    setShowReceiptDialog(true);
     resetPOSState();
 
     // ── Fire API in background (non-blocking) ──────────────────────

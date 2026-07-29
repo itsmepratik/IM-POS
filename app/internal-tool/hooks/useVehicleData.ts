@@ -8,7 +8,16 @@ export interface VehicleData {
   year: number;
   engine: string;
   oil_capacity: number;
-  oil_filter_part_number: string | null;
+  oil_filter_part_number: string | null; // Kept for backward compatibility
+}
+
+export interface VehicleFilter {
+  id: string;
+  vehicle_id: string;
+  filter_part_number: string;
+  filter_type: string;
+  is_primary: boolean;
+  notes: string | null;
 }
 
 export interface LubricantProduct {
@@ -39,6 +48,7 @@ export const useVehicleData = () => {
   const [years, setYears] = useState<number[]>([]);
   const [engines, setEngines] = useState<string[]>([]);
   const [vehicle, setVehicle] = useState<VehicleData | null>(null);
+  const [vehicleFilters, setVehicleFilters] = useState<VehicleFilter[]>([]);
   
   const [lubricants, setLubricants] = useState<LubricantProduct[]>([]);
   const [filterProducts, setFilterProducts] = useState<FilterProduct[]>([]);
@@ -133,10 +143,27 @@ export const useVehicleData = () => {
 
     if (data) {
       setVehicle(data);
-      if (data.oil_filter_part_number) {
-        fetchFilterProducts(data.oil_filter_part_number);
+      
+      // Fetch filters from vehicle_filters junction table
+      const { data: filtersData } = await supabase
+        .from("vehicle_filters")
+        .select("*")
+        .eq("vehicle_id", data.id)
+        .order("is_primary", { ascending: false });
+
+      if (filtersData && filtersData.length > 0) {
+        setVehicleFilters(filtersData);
+        // Fetch product details for all filter part numbers
+        const filterPartNumbers = filtersData.map((f: VehicleFilter) => f.filter_part_number);
+        fetchFilterProducts(filterPartNumbers);
       } else {
-        setFilterProducts([]);
+        setVehicleFilters([]);
+        // Fallback to legacy oil_filter_part_number if no filters in junction table
+        if (data.oil_filter_part_number) {
+          fetchFilterProducts([data.oil_filter_part_number]);
+        } else {
+          setFilterProducts([]);
+        }
       }
     }
     setLoading(false);
@@ -151,7 +178,7 @@ export const useVehicleData = () => {
   };
 
   const fetchLubricants = async () => {
-    // Lubricants Category ID: c9a58df4-eb3d-424a-a9d6-7c26f3f57c1b
+    // Lubricants Category ID: 65d5e301-82a3-4df4-8f6c-83148fa5b3b2
     const { data: products, error } = await supabase
       .from("products")
       .select(`
@@ -175,7 +202,7 @@ export const useVehicleData = () => {
           name
         )
       `)
-      .eq("category_id", "c9a58df4-eb3d-424a-a9d6-7c26f3f57c1b");
+      .eq("category_id", "65d5e301-82a3-4df4-8f6c-83148fa5b3b2");
 
     if (products) {
       const mappedLubricants: LubricantProduct[] = products.map((p: any) => {
@@ -212,9 +239,7 @@ export const useVehicleData = () => {
     }
   };
 
-  const fetchFilterProducts = async (partNumber: string) => {
-    setFilterLoading(true);
-    
+  const generateVariants = (partNumber: string): string[] => {
     // 1. Standard cleaning
     const stripped = partNumber.replace(/[^a-zA-Z0-9]/g, "");
     
@@ -235,8 +260,20 @@ export const useVehicleData = () => {
        variants.push(`${stripped.substring(0, 5)} ${stripped.substring(5)}`);
     }
 
+    return variants;
+  };
+
+  const fetchFilterProducts = async (partNumbers: string[]) => {
+    setFilterLoading(true);
+    
+    // Generate variants for all part numbers
+    const allVariants: string[] = [];
+    for (const partNumber of partNumbers) {
+      allVariants.push(...generateVariants(partNumber));
+    }
+
     // Remove duplicates
-    const uniqueVariants = Array.from(new Set(variants));
+    const uniqueVariants = Array.from(new Set(allVariants));
 
     const { data, error } = await supabase
       .from("products")
@@ -279,6 +316,7 @@ export const useVehicleData = () => {
     years,
     engines,
     vehicle,
+    vehicleFilters,
     lubricants,
     filterProducts,
     filterLoading,

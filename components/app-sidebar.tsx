@@ -132,6 +132,20 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       adminOnly: true,
     },
     {
+      title: "Employees",
+      href: "/employees",
+      icon: () => (
+        <HugeiconsIcon
+          icon={UserGroupIcon}
+          size={22}
+          strokeWidth={2.2}
+          className="!size-[22px]"
+        />
+      ),
+      permission: "users.access",
+      adminOnly: true,
+    },
+    {
       title: "Customers",
       href: "/customers",
       icon: () => (

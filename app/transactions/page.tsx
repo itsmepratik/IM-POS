@@ -1361,6 +1361,14 @@ export default function TransactionsPage() {
     cashier?: string;
     appliedDiscount?: { type: "percentage" | "amount"; value: number } | null;
     appliedTradeInAmount?: number;
+    tradeIns?: Array<{
+      id: string;
+      product_id: string;
+      quantity: number;
+      trade_in_value: number;
+      products?: { name: string };
+    }>;
+    carPlateNumber?: string;
     isWarrantyClaim: boolean;
     isVoided?: boolean;
   } | null>(null);
@@ -1631,19 +1639,25 @@ export default function TransactionsPage() {
 
       if (isWarrantyClaim || (tx.type === "SALE" && isBatteryOnly)) {
         // Use BillComponent for warranty claims or battery-only sales
+        // For customer name: prefer actual customer name, fall back to car plate for battery transactions
+        const resolvedCustomerName = tx.customers?.name || transaction.customerName || "Guest";
+        // If customer name is purely numeric (likely a plate/phone entered by mistake), use car plate instead
+        const isNumericName = /^\d+$/.test(resolvedCustomerName);
+        const finalCustomerName = isNumericName && tx.car_plate_number
+          ? tx.car_plate_number
+          : resolvedCustomerName;
+
         setBillTransactionData({
           cart,
           billNumber: tx.reference_number || transaction.reference,
           currentDate,
           currentTime,
-          customerName:
-            tx.customers?.name ||
-            tx.car_plate_number ||
-            transaction.customerName ||
-            "Guest",
+          customerName: finalCustomerName,
           cashier: cashierName,
           appliedDiscount: discount,
           appliedTradeInAmount: tx.tradeInTotal || 0,
+          tradeIns: tx.tradeIns || [],
+          carPlateNumber: tx.car_plate_number || transaction.carPlateNumber || undefined,
           isWarrantyClaim: isWarrantyClaim,
           isVoided: transaction.isVoided,
         });
@@ -2282,6 +2296,8 @@ export default function TransactionsPage() {
                 cashier={billTransactionData.cashier}
                 appliedDiscount={billTransactionData.appliedDiscount}
                 appliedTradeInAmount={billTransactionData.appliedTradeInAmount}
+                tradeIns={billTransactionData.tradeIns}
+                carPlateNumber={billTransactionData.carPlateNumber}
                 hideButton={false}
                 isWarrantyClaim={billTransactionData.isWarrantyClaim}
                 onClose={() => setIsBillPreviewOpen(false)}

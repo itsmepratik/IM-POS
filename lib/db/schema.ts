@@ -320,14 +320,37 @@ export const referenceNumberCounters = pgTable("reference_number_counters", {
     .notNull(),
 });
 
-export const staff = pgTable("staff", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  staffId: text("staff_id").notNull().unique(),
-  name: text("name").notNull(),
-  isActive: boolean("is_active").default(true),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
-});
+export const staff = pgTable(
+  "staff",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    staffId: text("staff_id").notNull().unique(),
+    name: text("name").notNull(),
+    email: text("email"),
+    phone: text("phone"),
+    role: text("role").notNull().default("staff"), // 'admin' | 'manager' | 'technician' | 'cashier' | 'staff'
+    salary: numeric("salary"),
+    hireDate: timestamp("hire_date", { withTimezone: true }),
+    dateOfBirth: timestamp("date_of_birth", { withTimezone: true }),
+    address: text("address"),
+    nationalId: text("national_id"),
+    emergencyContact: text("emergency_contact"),
+    emergencyPhone: text("emergency_phone"),
+    profileImageUrl: text("profile_image_url"),
+    shopId: uuid("shop_id").references(() => shops.id, {
+      onDelete: "set null",
+    }),
+    notes: text("notes"),
+    isActive: boolean("is_active").default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  },
+  (table) => ({
+    emailIdx: index("staff_email_idx").on(table.email),
+    roleIdx: index("staff_role_idx").on(table.role),
+    shopIdx: index("staff_shop_idx").on(table.shopId),
+  }),
+);
 
 // Type inference for staff table
 export type Staff = typeof staff.$inferSelect;
@@ -543,7 +566,11 @@ export const transactionsRelations = relations(
   }),
 );
 
-export const staffRelations = relations(staff, ({ many }) => ({
+export const staffRelations = relations(staff, ({ one, many }) => ({
+  shop: one(shops, {
+    fields: [staff.shopId],
+    references: [shops.id],
+  }),
   transactions: many(transactions),
   laborSplits: many(laborSplits),
 }));

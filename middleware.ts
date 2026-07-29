@@ -89,6 +89,7 @@ export async function middleware(request: NextRequest) {
       "/home",
       "/reports",
       "/settings",
+      "/employees",
       "/restock-orders",
       "/transfer",
       "/transfer-2",

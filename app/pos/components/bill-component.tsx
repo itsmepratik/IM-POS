@@ -27,9 +27,17 @@ interface BillComponentProps {
   cashier?: string;
   appliedDiscount?: { type: "percentage" | "amount"; value: number } | null;
   appliedTradeInAmount?: number;
+  tradeIns?: Array<{
+    id: string;
+    product_id: string;
+    quantity: number;
+    trade_in_value: number;
+    products?: { name: string };
+  }>;
   hideButton?: boolean;
   carPlateNumber?: string;
   onClose?: () => void;
+  isWarrantyClaim?: boolean;
   isVoided?: boolean;
 }
 
@@ -42,9 +50,11 @@ export const BillComponent: React.FC<BillComponentProps> = ({
   cashier,
   appliedDiscount,
   appliedTradeInAmount,
+  tradeIns,
   hideButton = false,
   carPlateNumber,
   onClose,
+  isWarrantyClaim,
   isVoided,
 }) => {
   const billRef = useRef<HTMLDivElement>(null);
@@ -494,7 +504,7 @@ export const BillComponent: React.FC<BillComponentProps> = ({
                 <tr>
                   <td>${index + 1}</td>
                   <td>${item.name}${
-                    item.details ? " (" + item.details + ")" : ""
+                    item.details && item.details.trim() !== item.name.trim() ? " (" + item.details + ")" : ""
                   }</td>
                   <td>${item.quantity}</td>
                   <td>${item.price.toFixed(3)}</td>
@@ -505,6 +515,41 @@ export const BillComponent: React.FC<BillComponentProps> = ({
                 .join("")}
             </tbody>
           </table>
+
+          ${
+            tradeIns && tradeIns.length > 0
+              ? `
+          <!-- Trade-In Items -->
+          <table class="items-table" style="margin-top: 8px;">
+            <thead>
+              <tr>
+                <th colspan="4" style="text-align: left; color: #D9534E; font-weight: bold;">Traded-In Batteries</th>
+              </tr>
+              <tr>
+                <th>#</th>
+                <th>Item</th>
+                <th>Qty</th>
+                <th style="text-align: right;">Value</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${tradeIns
+                .map(
+                  (ti, index) => `
+                <tr>
+                  <td>${index + 1}</td>
+                  <td>${ti.products?.name || "Battery"}</td>
+                  <td>${ti.quantity}</td>
+                  <td style="text-align: right; color: #D9534E;">- ${parseFloat(String(ti.trade_in_value)).toFixed(3)}</td>
+                </tr>
+              `,
+                )
+                .join("")}
+            </tbody>
+          </table>
+          `
+              : ""
+          }
 
           <!-- Summary section -->
           <table class="summary-table">
@@ -751,7 +796,7 @@ export const BillComponent: React.FC<BillComponentProps> = ({
                 >
                   <span className="col-span-1">{index + 1}</span>
                   <span className="col-span-5 break-words">
-                    {item.name} {item.details ? `(${item.details})` : ""}
+                    {item.name}{item.details && item.details.trim() !== item.name.trim() ? ` (${item.details})` : ""}
                   </span>
                   <span className="col-span-2 text-right">{item.quantity}</span>
                   <span className="col-span-2 text-right">
@@ -763,6 +808,31 @@ export const BillComponent: React.FC<BillComponentProps> = ({
                 </div>
               ))}
           </div>
+
+          {/* Trade-In Items */}
+          {tradeIns && tradeIns.length > 0 && (
+            <div className="text-xs mb-3 border-t border-dashed pt-2">
+              <div className="font-bold mb-1 text-[#D9534E]">Traded-In Batteries:</div>
+              <div className="grid grid-cols-12 gap-1 font-medium mb-1">
+                <span className="col-span-1">#</span>
+                <span className="col-span-5">Item</span>
+                <span className="col-span-2 text-right">Qty</span>
+                <span className="col-span-4 text-right">Value</span>
+              </div>
+              {tradeIns.map((ti, index) => (
+                <div key={ti.id} className="grid grid-cols-12 gap-1 mb-1">
+                  <span className="col-span-1">{index + 1}</span>
+                  <span className="col-span-5 break-words">
+                    {ti.products?.name || "Battery"}
+                  </span>
+                  <span className="col-span-2 text-right">{ti.quantity}</span>
+                  <span className="col-span-4 text-right text-[#D9534E]">
+                    - OMR {parseFloat(String(ti.trade_in_value)).toFixed(3)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* Summary section */}
           <div className="border-t border-dashed pt-2 mb-3">

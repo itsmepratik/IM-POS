@@ -35,6 +35,7 @@ export function Layout({ children, pageTitle }: LayoutProps) {
     if (pathname === "/restock-orders") return "Restock Order History";
     if (pathname === "/purchase-orders") return "Purchase Orders";
     if (pathname === "/admins") return "Admin";
+    if (pathname === "/employees") return "Employees";
 
     // Extract the last part of the path and capitalize it
     const parts = pathname.split("/").filter(Boolean);
