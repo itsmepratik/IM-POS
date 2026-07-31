@@ -301,7 +301,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                     isActive={pathname === item.href}
                     tooltip={item.title}
                   >
-                    <Link href={item.href}>
+                    <Link href={item.href} prefetch={true}>
                       <item.icon />
                       <span>{item.title}</span>
                     </Link>
@@ -352,7 +352,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                                 asChild
                                 isActive={pathname === item.href}
                               >
-                                <Link href={item.href}>
+                                <Link href={item.href} prefetch={true}>
                                   <span>{item.title}</span>
                                 </Link>
                               </SidebarMenuSubButton>
@@ -403,7 +403,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                                 asChild
                                 isActive={pathname === item.href}
                               >
-                                <Link href={item.href}>
+                                <Link href={item.href} prefetch={true}>
                                   <span>{item.title}</span>
                                 </Link>
                               </SidebarMenuSubButton>
@@ -428,7 +428,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 isActive={pathname === "/notifications"}
                 tooltip="Notifications"
               >
-                <Link href="/notifications">
+                <Link href="/notifications" prefetch={true}>
                   <HugeiconsIcon
                     icon={InboxIcon}
                     size={22}
@@ -562,13 +562,13 @@ function NavUser() {
             sideOffset={4}
           >
             <DropdownMenuItem asChild>
-              <Link href="/settings" className="flex w-full items-center">
+              <Link href="/settings" prefetch={true} className="flex w-full items-center">
                 <User className="mr-2 h-4 w-4" />
                 Profile
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
-              <Link href="/settings" className="flex w-full items-center">
+              <Link href="/settings" prefetch={true} className="flex w-full items-center">
                 <Settings className="mr-2 h-4 w-4" />
                 Settings
               </Link>
