@@ -219,7 +219,9 @@ export function validateDatabaseUrl(url?: string): {
     // Check hostname format for Supabase
     if (
       !parsedUrl.hostname.includes("supabase.co") &&
-      !parsedUrl.hostname.includes("localhost")
+      !parsedUrl.hostname.includes("sslip.io") &&
+      !parsedUrl.hostname.includes("localhost") &&
+      !parsedUrl.hostname.includes("127.0.0.1")
     ) {
       issues.push(
         `Hostname ${parsedUrl.hostname} doesn't appear to be a Supabase database`

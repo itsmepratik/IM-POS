@@ -1,5 +1,5 @@
 const {Client}=require('pg');
-const c=new Client({connectionString:'postgresql://postgres.yswnbtmhjspgchautipr:Prtkdev11111.@aws-1-ap-south-1.pooler.supabase.com:5432/postgres'});
+const c=new Client({connectionString:'postgresql://postgres:wdnm4gvg2dlfaa3cvz8eakpv2efybssn@hns-automotive-supabase-0e27e3-193-123-80-33.sslip.io:5432/postgres'});
 
 (async () => {
   try {
