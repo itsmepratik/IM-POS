@@ -46,7 +46,7 @@ export const supabaseConfig = {
 // Database configuration
 export const dbConfig = {
   url: env.DATABASE_URL,
-  ssl: env.NODE_ENV === "production" ? "allow" : "prefer",
+  ssl: false,
 } as const;
 
 // Application configuration
