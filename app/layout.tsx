@@ -14,6 +14,8 @@ import ServiceWorkerRegistration from "../components/service-worker-registration
 import ChunkErrorHandler from "../components/chunk-error-handler";
 import { Toaster } from "@/components/ui/toaster";
 
+export const dynamic = "force-dynamic";
+
 // Load Formula 1 fonts with optimized settings
 const formula1 = localFont({
   src: [

@@ -104,11 +104,17 @@ try {
       }
     };
 
-    // Initial health check
-    void performHealthCheck();
+    // Initial health check only when not in Next.js build phase
+    const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
+    if (!isBuildPhase) {
+      void performHealthCheck();
 
-    // Set up periodic health checks
-    setInterval(performHealthCheck, HEALTH_CHECK_INTERVAL);
+      // Set up periodic health checks
+      const timer = setInterval(performHealthCheck, HEALTH_CHECK_INTERVAL);
+      if (timer && typeof timer === "object" && "unref" in timer) {
+        timer.unref();
+      }
+    }
   } else {
     console.warn(
       "DATABASE_URL is not configured. Database operations will fail."

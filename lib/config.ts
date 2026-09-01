@@ -44,9 +44,29 @@ export const supabaseConfig = {
 } as const;
 
 // Database configuration
+const getSslConfig = (): boolean | "require" | "prefer" | "allow" => {
+  const dbSsl = process.env.DB_SSL?.toLowerCase();
+  if (dbSsl === "false" || dbSsl === "disable" || dbSsl === "off") {
+    return false;
+  }
+  if (dbSsl === "require" || dbSsl === "true") {
+    return "require";
+  }
+  if (dbSsl === "prefer" || dbSsl === "allow") {
+    return dbSsl;
+  }
+  if (env.DATABASE_URL.includes("sslmode=disable")) {
+    return false;
+  }
+  if (env.DATABASE_URL.includes("sslmode=require")) {
+    return "require";
+  }
+  return env.NODE_ENV === "production" ? "require" : "prefer";
+};
+
 export const dbConfig = {
   url: env.DATABASE_URL,
-  ssl: env.NODE_ENV === "production" ? "allow" : "prefer",
+  ssl: getSslConfig(),
 } as const;
 
 // Application configuration
