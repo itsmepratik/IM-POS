@@ -4,12 +4,11 @@ import * as schema from "./schema";
 import { dbConfig } from "../config";
 
 // Connection pool configuration
-const CONNECTION_POOL_SIZE = 10; // Increased pool size for better concurrency
-const CONNECTION_TIMEOUT = 15; // 15 seconds connection timeout
-const IDLE_TIMEOUT = 60; // 60 seconds idle timeout
-const MAX_LIFETIME = 60 * 60; // 1 hour max connection lifetime
+const CONNECTION_POOL_SIZE = 10;
+const CONNECTION_TIMEOUT = 15;
+const IDLE_TIMEOUT = 60;
+const MAX_LIFETIME = 60 * 60;
 
-// Initialize the database connection with enhanced error handling
 let queryClient: postgres.Sql | undefined;
 let db: ReturnType<typeof drizzle> | undefined;
 let connectionHealth = {
@@ -18,72 +17,64 @@ let connectionHealth = {
   consecutiveFailures: 0,
 };
 
-// Health check interval (5 minutes)
-const HEALTH_CHECK_INTERVAL = 5 * 60 * 1000;
+let initialized = false;
 
-try {
-  if (dbConfig.url) {
-    // Configure connection with optimized settings for reliability
+function initializeConnection() {
+  if (initialized || !dbConfig.url) return;
+  initialized = true;
+
+  try {
     queryClient = postgres(dbConfig.url, {
       max: CONNECTION_POOL_SIZE,
       prepare: false,
       ssl: dbConfig.ssl,
-      
-      // Connection settings
       application_name: "pos-system",
-      connect_timeout: CONNECTION_TIMEOUT, // 15 seconds
-      max_lifetime: MAX_LIFETIME, // 1 hour
-      idle_timeout: IDLE_TIMEOUT, // 60 seconds
-      
-      // Keepalive settings
-      keep_alive_tcp: 10000, // 10 seconds (postgres.js uses milliseconds for this one or specific option names, checking docs is safer but standard TCP keepalive is usually OS level or driver specific)
-      // Postgres.js specific options for keepalive:
-      // keep_alive: true is not a standard option in recent docs, it uses socket options.
-      // But let's stick to known working standard or minimal config.
-      
-      // Enhanced reliability
+      connect_timeout: CONNECTION_TIMEOUT,
+      max_lifetime: MAX_LIFETIME,
+      idle_timeout: IDLE_TIMEOUT,
       transform: {
         undefined: null,
       },
-      
-      // Connection retry options
-      fetch_types: false, // Disable automatic type fetching for better performance
-      publications: "alltables", // Enable logical replication awareness
-      
-      // Enhanced error handling
-      onnotice: (notice: any) => {
-        // Log notices if needed, e.g. console.log(notice)
-      },
-      // Connection event handling
+      fetch_types: false,
+      publications: "alltables",
+      onnotice: () => {},
       onclose: () => {
         connectionHealth.isHealthy = false;
-        // Trigger immediate health check attempt
         setTimeout(() => void performHealthCheck(), 1000);
       },
-      onparameter: (key: string, value: string) => {
-        // Parameter updates
-      },
+      onparameter: () => {},
     });
 
     db = drizzle(queryClient, { schema });
 
-    // Enhanced connection health monitoring
-    const performHealthCheck = async () => {
-      try {
-        // Use a simpler query to avoid potential issues with complex queries
-        const result = await queryClient!`SELECT 1 as test_value`;
-        connectionHealth.isHealthy = true;
-        connectionHealth.consecutiveFailures = 0;
-        connectionHealth.lastCheck = Date.now();
-      } catch (error) {
-        connectionHealth.isHealthy = false;
-        connectionHealth.consecutiveFailures++;
-        connectionHealth.lastCheck = Date.now();
+    void performHealthCheck();
+    setInterval(performHealthCheck, 5 * 60 * 1000);
+  } catch (error) {
+    console.error("Failed to initialize database client:", error);
+    queryClient = undefined;
+    db = undefined;
+    connectionHealth.isHealthy = false;
+  }
+}
 
-        console.error(
-          `❌ Database health check failed (${connectionHealth.consecutiveFailures} consecutive failures):`,
-          error
-        );
+const performHealthCheck = async () => {
+  if (!queryClient) return;
+  try {
+    await queryClient`SELECT 1 as test_value`;
+    connectionHealth.isHealthy = true;
+    connectionHealth.consecutiveFailures = 0;
+    connectionHealth.lastCheck = Date.now();
+  } catch (error) {
+    connectionHealth.isHealthy = false;
+    connectionHealth.consecutiveFailures++;
+    connectionHealth.lastCheck = Date.now();
+
+    if (connectionHealth.consecutiveFailures <= 10) {
+      console.error(
+        `❌ Database health check failed (${connectionHealth.consecutiveFailures} consecutive failures):`,
+        error
+      );
+    }
 
         // Log additional connection info on repeated failures
         if (connectionHealth.consecutiveFailures >= 3) {
@@ -130,36 +121,36 @@ try {
 export { queryClient };
 export { db };
 
-// Helper function to check if database is available with health status
-export function isDatabaseAvailable(): boolean {
-  const isConfigured = db !== undefined && queryClient !== undefined;
+// Override exports to lazy-init
+export function getQueryClient() {
+  ensureInitialized();
+  return queryClient;
+}
 
-  if (!isConfigured) {
-    return false;
-  }
+export function getDb() {
+  ensureInitialized();
+  return db;
+}
+
+export function isDatabaseAvailable(): boolean {
+  ensureInitialized();
+  const isConfigured = db !== undefined && queryClient !== undefined;
+  if (!isConfigured) return false;
 
   const isHealthy = connectionHealth.isHealthy;
-  const recentlyChecked =
-    Date.now() - connectionHealth.lastCheck < HEALTH_CHECK_INTERVAL * 2;
-
-  // During startup (when lastCheck is 0), we assume the database is available if configured
-  // This prevents 503 errors during the initial health check period
   const isStartup = connectionHealth.lastCheck === 0;
-
-  // If configured and either healthy, recently checked, or during startup, consider available
-  // Also allow if consecutive failures are low (< 5) to be more permissive for development
   const maxConsecutiveFailures = 5;
   return (
     isConfigured &&
     (isHealthy ||
       isStartup ||
       (connectionHealth.consecutiveFailures < maxConsecutiveFailures &&
-        connectionHealth.consecutiveFailures === 0)) // Only trust "not checked recently" if we haven't had failure recently
+        connectionHealth.consecutiveFailures === 0))
   );
 }
 
-// Helper function to get database instance with enhanced error handling
 export function getDatabase() {
+  ensureInitialized();
   if (!isDatabaseAvailable()) {
     const errorDetails = {
       configured: db !== undefined && queryClient !== undefined,
@@ -167,21 +158,14 @@ export function getDatabase() {
       lastCheck: new Date(connectionHealth.lastCheck).toISOString(),
       consecutiveFailures: connectionHealth.consecutiveFailures,
     };
-
     console.error("Database unavailable:", errorDetails);
-
     throw new Error(
-      `Database is not available. Status: ${JSON.stringify(
-        errorDetails,
-        null,
-        2
-      )}`
+      `Database is not available. Status: ${JSON.stringify(errorDetails, null, 2)}`
     );
   }
   return db!;
 }
 
-// Helper function to get connection health status
 export function getDatabaseHealth() {
   return {
     ...connectionHealth,
@@ -191,8 +175,6 @@ export function getDatabaseHealth() {
   };
 }
 
-// Helper function to test database connection manually
-// Helper function to validate DATABASE_URL format
 export function validateDatabaseUrl(url?: string): {
   isValid: boolean;
   issues: string[];
@@ -210,90 +192,60 @@ export function validateDatabaseUrl(url?: string): {
 
   try {
     const parsedUrl = new URL(dbUrl);
-
-    // Check protocol
     if (
       parsedUrl.protocol !== "postgres:" &&
       parsedUrl.protocol !== "postgresql:"
     ) {
-      issues.push(
-        `Invalid protocol: ${parsedUrl.protocol}. Expected 'postgres:' or 'postgresql:'`
-      );
+      issues.push(`Invalid protocol: ${parsedUrl.protocol}. Expected 'postgres:' or 'postgresql:'`);
       suggestions.push("Use 'postgres://' or 'postgresql://' as the protocol");
     }
-
-    // Check hostname format for Supabase
     if (
       !parsedUrl.hostname.includes("supabase.co") &&
       !parsedUrl.hostname.includes("sslip.io") &&
       !parsedUrl.hostname.includes("localhost") &&
       !parsedUrl.hostname.includes("127.0.0.1")
     ) {
-      issues.push(
-        `Hostname ${parsedUrl.hostname} doesn't appear to be a Supabase database`
-      );
+      issues.push(`Hostname ${parsedUrl.hostname} doesn't appear to be a Supabase database`);
       suggestions.push("Verify this is your correct Supabase database URL");
     }
-
-    // Check port
-    if (
-      parsedUrl.port &&
-      parsedUrl.port !== "5432" &&
-      parsedUrl.port !== "6543"
-    ) {
-      issues.push(
-        `Unusual port: ${parsedUrl.port}. Expected 5432 for standard PostgreSQL or 6543 for Supabase pooling`
-      );
-      suggestions.push(
-        "Use port 5432 for direct connection or 6543 for connection pooling"
-      );
+    if (parsedUrl.port && parsedUrl.port !== "5432" && parsedUrl.port !== "6543") {
+      issues.push(`Unusual port: ${parsedUrl.port}. Expected 5432 for standard PostgreSQL or 6543 for Supabase pooling`);
+      suggestions.push("Use port 5432 for direct connection or 6543 for connection pooling");
     }
-
-    // Check username
     if (parsedUrl.username !== "postgres") {
       issues.push(`Username ${parsedUrl.username} is not 'postgres'`);
       suggestions.push("Use 'postgres' as the username for Supabase databases");
     }
-
-    // Check database name
     if (parsedUrl.pathname !== "/postgres") {
       issues.push(`Database name ${parsedUrl.pathname} is not '/postgres'`);
       suggestions.push("Use '/postgres' as the database name for Supabase");
     }
-  } catch (error) {
+  } catch {
     issues.push("DATABASE_URL is not a valid URL format");
-    suggestions.push(
-      "Check that your DATABASE_URL follows the format: postgres://username:password@host:port/database"
-    );
+    suggestions.push("Check that your DATABASE_URL follows the format: postgres://username:password@host:port/database");
   }
 
-  return {
-    isValid: issues.length === 0,
-    issues,
-    suggestions,
-  };
+  return { isValid: issues.length === 0, issues, suggestions };
 }
 
 export async function testDatabaseConnection(): Promise<{
   success: boolean;
   latency?: number;
   error?: string;
-  details?: any;
+  details?: Record<string, unknown>;
 }> {
-  if (!queryClient) {
+  const client = getQueryClient();
+  if (!client) {
     return {
       success: false,
       error: "Database client not initialized",
-      details: {
-        configured: !!dbConfig.url,
-        ssl: dbConfig.ssl,
-      },
+      details: { configured: !!dbConfig.url, ssl: dbConfig.ssl },
     };
   }
 
   try {
     const startTime = Date.now();
-    const result = await queryClient`SELECT 
+    const result = await client`SELECT 
       1 as test_query,
       current_timestamp as server_time,
       version() as postgres_version,

@@ -10,6 +10,8 @@ import { Layout } from "@/components/layout";
 
 import { NewAppointmentDialog } from "@/components/appointments/new-appointment-dialog";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = {
   title: "Appointments | HNS Automotive",
   description: "Manage service appointments.",
