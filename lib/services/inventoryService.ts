@@ -445,206 +445,252 @@ export const fetchInventoryItems = async (
     // specifically "Low Stock" which depends on row-by-row threshold
     let items: Item[] = await Promise.all(
       (inventoryData || []).map(async (inv: any) => {
-        const product = inv.products;
-
-        // ... (Existing transformation logic)
-        let imageUrl = product.image_url;
-        if (imageUrl && !imageUrl.startsWith("http")) {
-          const { data: publicUrlData } = sb.storage
-            .from("product-images")
-            .getPublicUrl(imageUrl);
-          imageUrl = publicUrlData.publicUrl;
-        }
-
-        // Fetch batches for this inventory item
-        let batches: Batch[] = [];
         try {
-          const { data: batchData } = await sb
-            .from("batches")
-            .select("*")
-            .eq("inventory_id", inv.id)
-            .order("batch_number", { ascending: true });
+          const product = inv.products;
 
-          if (batchData && batchData.length > 0) {
-            batches = batchData.map((b: any) => ({
-              id: b.id,
-              item_id: inv.id,
-              batch_number: b.batch_number,
-              purchase_date: b.purchase_date,
-              expiration_date: null,
-              supplier_id: b.supplier,
-              cost_price: b.cost_price ? parseFloat(b.cost_price) : null,
-              initial_quantity: b.quantity_received,
-              current_quantity: b.stock_remaining,
-              is_active_batch: b.is_active_batch,
-              created_at: b.created_at,
-              updated_at: b.updated_at,
-            }));
+          let imageUrl = product.image_url;
+          if (imageUrl && !imageUrl.startsWith("http")) {
+            const { data: publicUrlData } = sb.storage
+              .from("product-images")
+              .getPublicUrl(imageUrl);
+            imageUrl = publicUrlData.publicUrl;
           }
-        } catch (batchError) {
-          console.error(
-            "Error fetching batches for inventory:",
-            inv.id,
-            batchError,
-          );
-        }
 
-        let volumes: Volume[] = [];
-        // Safety check for product and categories
-        const categoryName = Array.isArray(product.categories)
-          ? product.categories[0]?.name
-          : product.categories?.name;
+          let batches: Batch[] = [];
+          try {
+            const { data: batchData } = await sb
+              .from("batches")
+              .select("*")
+              .eq("inventory_id", inv.id)
+              .order("batch_number", { ascending: true });
 
-        const isOilProduct =
-          categoryName === "Lubricants" ||
-          categoryName === "Additives" ||
-          product?.product_types?.some(
-            (pt: any) =>
-              pt.types?.name?.toLowerCase() === "lubricant" ||
-              pt.types?.name?.toLowerCase() === "synthetic" ||
-              pt.types?.name?.toLowerCase() === "semi-synthetic" ||
-              pt.types?.name?.toLowerCase() === "oil",
-          );
-
-        if (isOilProduct) {
-          const { data: volData } = await sb
-            .from("product_volumes")
-            .select("*")
-            // FIX: Use product_id, not item_id (which doesn't exist and refers to inventory)
-            .eq("product_id", inv.product_id);
-
-          if (volData) {
-            volumes = volData.map((v: any) => ({
-              ...v,
-              item_id: inv.product_id, // Map back to product ID for consistency
-              size: v.volume_description, // Map DB column to frontend property
-              price: parseFloat(v.selling_price),
-            }));
+            if (batchData && batchData.length > 0) {
+              batches = batchData.map((b: any) => ({
+                id: b.id,
+                item_id: inv.id,
+                batch_number: b.batch_number,
+                purchase_date: b.purchase_date,
+                expiration_date: null,
+                supplier_id: b.supplier,
+                cost_price: b.cost_price ? parseFloat(b.cost_price) : null,
+                initial_quantity: b.quantity_received,
+                current_quantity: b.stock_remaining,
+                is_active_batch: b.is_active_batch,
+                created_at: b.created_at,
+                updated_at: b.updated_at,
+              }));
+            }
+          } catch (batchError) {
+            console.error(
+              "Error fetching batches for inventory:",
+              inv.id,
+              batchError,
+            );
           }
-        }
 
-        // Calculate total stock from batches if they exist
-        const batchStock =
-          batches.length > 0
-            ? batches.reduce((sum, b) => sum + (b.current_quantity || 0), 0)
-            : null;
+          let volumes: Volume[] = [];
+          const categoryName = Array.isArray(product.categories)
+            ? product.categories[0]?.name
+            : product.categories?.name;
 
-        // For lubricants, calculate stock correctly using batches and open_bottle_details
-        let derivedOpenBottles = inv.open_bottles_stock || 0;
-        let derivedClosedBottles = inv.closed_bottles_stock || 0;
-        let totalOpenVolume = 0;
-
-        if (isOilProduct && inv.id) {
-          // Fetch open bottle details for lubricants
-          const { data: openBottleRows } = await sb
-            .from("open_bottle_details")
-            .select("current_volume")
-            .eq("inventory_id", inv.id)
-            .eq("is_empty", false);
-
-          // Convert volumes to VolumeInfo format for the utility
-          const volumeInfos: VolumeInfo[] = volumes.map((v: any) => ({
-            size: v.size,
-            price: v.price,
-          }));
-
-          if (batchStock !== null) {
-            // Use the centralized stock calculation utility
-            const stockResult = calculateLubricantStock(
-              batchStock,
-              openBottleRows,
-              volumeInfos,
+          const isOilProduct =
+            categoryName === "Lubricants" ||
+            categoryName === "Additives" ||
+            product?.product_types?.some(
+              (pt: any) =>
+                pt.types?.name?.toLowerCase() === "lubricant" ||
+                pt.types?.name?.toLowerCase() === "synthetic" ||
+                pt.types?.name?.toLowerCase() === "semi-synthetic" ||
+                pt.types?.name?.toLowerCase() === "oil",
             );
-            const merged = applyLubricantBatchReadFallback(
-              stockResult,
-              batchStock,
-              openBottleRows?.length ?? 0,
-              inv.open_bottles_stock,
-              inv.closed_bottles_stock,
-            );
-            derivedOpenBottles = merged.open;
-            derivedClosedBottles = merged.closed;
-            totalOpenVolume = merged.totalOpenVolume;
-          } else {
-            // No batch rows: closed bottles still come from inventory columns;
-            // open bottle count MUST come from open_bottle_details (not
-            // open_bottles_stock), which drifted historically for many SKUs.
-            const legacyResult = calculateLubricantStockLegacy(
-              inv.open_bottles_stock,
-              inv.closed_bottles_stock,
-            );
-            derivedOpenBottles = openBottleRows?.length ?? 0;
-            derivedClosedBottles = legacyResult.closedBottleCount;
-            totalOpenVolume = (openBottleRows ?? []).reduce(
-              (sum: number, b: { current_volume: string | number }) =>
-                sum + (parseFloat(String(b.current_volume)) || 0),
-              0,
-            );
-            if (
-              (openBottleRows?.length ?? 0) === 0 &&
-              (inv.open_bottles_stock ?? 0) > 0
-            ) {
-              derivedOpenBottles = inv.open_bottles_stock ?? 0;
-              totalOpenVolume =
-                derivedOpenBottles * determineBottleSize(volumeInfos, 4.0);
+
+          if (isOilProduct) {
+            try {
+              const { data: volData } = await sb
+                .from("product_volumes")
+                .select("*")
+                .eq("product_id", inv.product_id);
+
+              if (volData) {
+                volumes = volData.map((v: any) => ({
+                  ...v,
+                  item_id: inv.product_id,
+                  size: v.volume_description,
+                  price: parseFloat(v.selling_price),
+                }));
+              }
+            } catch (volError) {
+              console.error(
+                "Error fetching volumes for inventory:",
+                inv.id,
+                volError,
+              );
             }
           }
+
+          const batchStock =
+            batches.length > 0
+              ? batches.reduce((sum, b) => sum + (b.current_quantity || 0), 0)
+              : null;
+
+          let derivedOpenBottles = inv.open_bottles_stock || 0;
+          let derivedClosedBottles = inv.closed_bottles_stock || 0;
+          let totalOpenVolume = 0;
+
+          if (isOilProduct && inv.id) {
+            try {
+              const { data: openBottleRows } = await sb
+                .from("open_bottle_details")
+                .select("current_volume")
+                .eq("inventory_id", inv.id)
+                .eq("is_empty", false);
+
+              const volumeInfos: VolumeInfo[] = volumes.map((v: any) => ({
+                size: v.size,
+                price: v.price,
+              }));
+
+              if (batchStock !== null) {
+                const stockResult = calculateLubricantStock(
+                  batchStock,
+                  openBottleRows,
+                  volumeInfos,
+                );
+                const merged = applyLubricantBatchReadFallback(
+                  stockResult,
+                  batchStock,
+                  openBottleRows?.length ?? 0,
+                  inv.open_bottles_stock,
+                  inv.closed_bottles_stock,
+                );
+                derivedOpenBottles = merged.open;
+                derivedClosedBottles = merged.closed;
+                totalOpenVolume = merged.totalOpenVolume;
+              } else {
+                const legacyResult = calculateLubricantStockLegacy(
+                  inv.open_bottles_stock,
+                  inv.closed_bottles_stock,
+                );
+                derivedOpenBottles = openBottleRows?.length ?? 0;
+                derivedClosedBottles = legacyResult.closedBottleCount;
+                totalOpenVolume = (openBottleRows ?? []).reduce(
+                  (sum: number, b: { current_volume: string | number }) =>
+                    sum + (parseFloat(String(b.current_volume)) || 0),
+                  0,
+                );
+                if (
+                  (openBottleRows?.length ?? 0) === 0 &&
+                  (inv.open_bottles_stock ?? 0) > 0
+                ) {
+                  derivedOpenBottles = inv.open_bottles_stock ?? 0;
+                  totalOpenVolume =
+                    derivedOpenBottles * determineBottleSize(volumeInfos, 4.0);
+                }
+              }
+            } catch (openBottleError) {
+              console.error(
+                "Error fetching open bottle details for inventory:",
+                inv.id,
+                openBottleError,
+              );
+            }
+          }
+
+          const finalStock = isOilProduct
+            ? derivedClosedBottles + derivedOpenBottles
+            : batchStock !== null
+              ? batchStock
+              : inv.standard_stock || 0;
+
+          return {
+            id: inv.product_id || product?.id,
+            product_id: inv.product_id || product?.id,
+            name: product?.name || "Unknown Product",
+            price: inv.selling_price || 0,
+            stock: finalStock,
+            category: product?.categories?.name || "Uncategorized",
+            brand: product?.brands?.name || "Unknown Brand",
+            brand_id: product?.brand_id,
+            category_id: product?.category_id,
+            type:
+              product?.product_types?.[0]?.types?.name ||
+              product?.types?.name ||
+              "Unknown Type",
+            type_id: product?.type_id,
+            type_name: product?.types?.name,
+            types:
+              product?.product_types
+                ?.map((pt: any) => pt.types)
+                .filter(Boolean) || [],
+            description: product?.description,
+            isOil: isOilProduct,
+            imageUrl: imageUrl,
+            image_url: product?.image_url,
+            volumes: volumes,
+            batches: batches,
+            created_at: inv.created_at || new Date().toISOString(),
+            updated_at: inv.updated_at || new Date().toISOString(),
+            lowStockAlert: product?.low_stock_threshold || 10,
+            isBattery: product?.is_battery || false,
+            batteryState: product?.battery_state,
+            costPrice: product?.cost_price || 0,
+            manufacturingDate: product?.manufacturing_date,
+            specification: product?.specification,
+            open_bottles_stock: derivedOpenBottles,
+            closed_bottles_stock: derivedClosedBottles,
+            bottleStates: {
+              open: derivedOpenBottles,
+              closed: derivedClosedBottles,
+            },
+            ...(isOilProduct &&
+              totalOpenVolume !== undefined && { totalOpenVolume }),
+            ...(isOilProduct && {
+              totalClosedVolume: derivedClosedBottles * (product?.bottle_size || 0),
+              bottleSize: product?.bottle_size || undefined,
+            }),
+          };
+        } catch (itemError) {
+          console.error(
+            "Error transforming inventory item:",
+            inv?.id,
+            itemError,
+          );
+          return {
+            id: inv.product_id || inv.products?.id || "unknown",
+            product_id: inv.product_id || inv.products?.id || "unknown",
+            name: inv.products?.name || "Unknown Product",
+            price: inv.selling_price || 0,
+            stock: inv.standard_stock || 0,
+            category: inv.products?.categories?.name || "Uncategorized",
+            brand: inv.products?.brands?.name || "Unknown Brand",
+            brand_id: inv.products?.brand_id || "",
+            category_id: inv.products?.category_id || "",
+            type: inv.products?.product_types?.[0]?.types?.name || "Unknown Type",
+            type_id: inv.products?.type_id || null,
+            type_name: inv.products?.types?.name || null,
+            types: [],
+            description: inv.products?.description || null,
+            isOil: false,
+            imageUrl: inv.products?.image_url || null,
+            image_url: inv.products?.image_url || null,
+            volumes: [],
+            batches: [],
+            created_at: inv.created_at || new Date().toISOString(),
+            updated_at: inv.updated_at || new Date().toISOString(),
+            lowStockAlert: inv.products?.low_stock_threshold || 10,
+            isBattery: inv.products?.is_battery || false,
+            batteryState: inv.products?.battery_state,
+            costPrice: inv.products?.cost_price || 0,
+            manufacturingDate: inv.products?.manufacturing_date || null,
+            specification: inv.products?.specification || null,
+            open_bottles_stock: inv.open_bottles_stock || 0,
+            closed_bottles_stock: inv.closed_bottles_stock || 0,
+            bottleStates: {
+              open: inv.open_bottles_stock || 0,
+              closed: inv.closed_bottles_stock || 0,
+            },
+          };
         }
-
-        // Calculate final stock value
-        const finalStock = isOilProduct
-          ? derivedClosedBottles + derivedOpenBottles
-          : batchStock !== null
-            ? batchStock
-            : inv.standard_stock || 0;
-
-        return {
-          id: inv.product_id || product?.id,
-          product_id: inv.product_id || product?.id,
-          name: product?.name || "Unknown Product",
-          price: inv.selling_price || 0,
-          stock: finalStock,
-          category: product?.categories?.name || "Uncategorized",
-          brand: product?.brands?.name || "Unknown Brand",
-          brand_id: product?.brand_id,
-          category_id: product?.category_id,
-          type:
-            product?.product_types?.[0]?.types?.name ||
-            product?.types?.name ||
-            "Unknown Type",
-          type_id: product?.type_id,
-          type_name: product?.types?.name,
-          types:
-            product?.product_types
-              ?.map((pt: any) => pt.types)
-              .filter(Boolean) || [],
-          description: product?.description,
-          isOil: isOilProduct,
-          imageUrl: imageUrl,
-          image_url: product?.image_url,
-          volumes: volumes,
-          batches: batches,
-          created_at: inv.created_at || new Date().toISOString(),
-          updated_at: inv.updated_at || new Date().toISOString(),
-          lowStockAlert: product?.low_stock_threshold || 10,
-          isBattery: product?.is_battery || false,
-          batteryState: product?.battery_state,
-          costPrice: product?.cost_price || 0,
-          manufacturingDate: product?.manufacturing_date,
-          specification: product?.specification,
-          open_bottles_stock: derivedOpenBottles,
-          closed_bottles_stock: derivedClosedBottles,
-          bottleStates: {
-            open: derivedOpenBottles,
-            closed: derivedClosedBottles,
-          },
-          ...(isOilProduct &&
-            totalOpenVolume !== undefined && { totalOpenVolume }),
-          ...(isOilProduct && {
-            totalClosedVolume: derivedClosedBottles * (product?.bottle_size || 0),
-            bottleSize: product?.bottle_size || undefined,
-          }),
-        };
       }),
     );
 

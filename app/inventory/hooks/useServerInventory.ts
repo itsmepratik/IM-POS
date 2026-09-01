@@ -350,11 +350,16 @@ export function useServerInventory({
       } catch (err) {
         if (thisRequestId !== requestIdRef.current) return;
         setError(err);
-        toast({
-          title: "Error loading inventory",
-          description: "Please try again later.",
-          variant: "destructive",
-        });
+        if (search && search.trim() !== "") {
+          setItems([]);
+          setTotalCount(0);
+        } else {
+          toast({
+            title: "Error loading inventory",
+            description: "Please try again later.",
+            variant: "destructive",
+          });
+        }
       } finally {
         if (thisRequestId === requestIdRef.current) {
           setLoading(false);
