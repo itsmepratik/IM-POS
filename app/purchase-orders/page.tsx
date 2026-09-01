@@ -1,8 +1,10 @@
-import { db } from "@/lib/db/client";
+import { getDb } from "@/lib/db/client";
 import { locations, products, brands } from "@/lib/db/schema";
 import { asc, eq } from "drizzle-orm";
 import { PurchaseOrdersClient } from "./client-page";
 import { Layout } from "@/components/layout";
+
+export const dynamic = "force-dynamic";
 
 export const metadata = {
   title: "Purchase Orders | HNS Automotive",
@@ -10,6 +12,7 @@ export const metadata = {
 };
 
 export default async function PurchaseOrdersPage() {
+  const db = getDb();
   const allLocations = await db.query.locations.findMany({
     orderBy: [asc(locations.name)],
   });
