@@ -36,6 +36,8 @@ interface MobileCartProps {
   currentCustomer: any | null;
   onOpenCustomer: () => void;
   onRemoveCustomer: () => void;
+  parkedOrdersCount?: number;
+  onOpenParkedOrders?: () => void;
 }
 
 export function MobileCart({
@@ -60,6 +62,8 @@ export function MobileCart({
   currentCustomer,
   onOpenCustomer,
   onRemoveCustomer,
+  parkedOrdersCount,
+  onOpenParkedOrders,
 }: MobileCartProps) {
   const mobileCartEndRef = useRef<HTMLDivElement>(null);
 
@@ -144,6 +148,8 @@ export function MobileCart({
                 currentCustomer={currentCustomer}
                 onOpenCustomer={onOpenCustomer}
                 onRemoveCustomer={onRemoveCustomer}
+                parkedOrdersCount={parkedOrdersCount}
+                onOpenParkedOrders={onOpenParkedOrders}
               />
             </div>
           </CardContent>

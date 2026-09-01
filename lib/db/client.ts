@@ -47,8 +47,14 @@ function initializeConnection() {
 
     db = drizzle(queryClient, { schema });
 
-    void performHealthCheck();
-    setInterval(performHealthCheck, 5 * 60 * 1000);
+    const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
+    if (!isBuildPhase) {
+      void performHealthCheck();
+      const timer = setInterval(performHealthCheck, 5 * 60 * 1000);
+      if (timer && typeof timer === "object" && "unref" in timer) {
+        timer.unref();
+      }
+    }
   } catch (error) {
     console.error("Failed to initialize database client:", error);
     queryClient = undefined;
@@ -76,46 +82,19 @@ const performHealthCheck = async () => {
       );
     }
 
-        // Log additional connection info on repeated failures
-        if (connectionHealth.consecutiveFailures >= 3) {
-          console.error("Database connection details:", {
-            url: dbConfig.url ? "configured" : "missing",
-            ssl: dbConfig.ssl,
-            poolSize: CONNECTION_POOL_SIZE,
-            timeout: CONNECTION_TIMEOUT,
-          });
-
-          // Log URL format issue if detected
-          if (dbConfig.url && dbConfig.url.includes("postgresql://")) {
-            console.error(
-              "⚠️ DATABASE_URL uses 'postgresql://' protocol. Consider using 'postgres://' for better compatibility."
-            );
-          }
-        }
-      }
-    };
-
-    // Initial health check only when not in Next.js build phase
-    const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
-    if (!isBuildPhase) {
-      void performHealthCheck();
-
-      // Set up periodic health checks
-      const timer = setInterval(performHealthCheck, HEALTH_CHECK_INTERVAL);
-      if (timer && typeof timer === "object" && "unref" in timer) {
-        timer.unref();
-      }
+    if (connectionHealth.consecutiveFailures === 3) {
+      console.error("Database connection details:", {
+        url: dbConfig.url ? "configured" : "missing",
+        ssl: dbConfig.ssl,
+        poolSize: CONNECTION_POOL_SIZE,
+        timeout: CONNECTION_TIMEOUT,
+      });
     }
-  } else {
-    console.warn(
-      "DATABASE_URL is not configured. Database operations will fail."
-    );
   }
-} catch (error) {
-  console.error("Failed to initialize database client:", error);
-  queryClient = undefined;
-  db = undefined;
-  connectionHealth.isHealthy = false;
+};
+
+function ensureInitialized() {
+  initializeConnection();
 }
 
 export { queryClient };

@@ -13,6 +13,10 @@ export const CACHE_TAGS = {
   // Dashboard and metrics
   DASHBOARD: 'dashboard-metrics',
   
+  // Cash Shifts and reconciliation
+  CASH_SHIFTS: 'cash-shifts-list',
+  cashShift: (shopId: string) => `cash-shift-${shopId}`,
+  
   // Helpers for location-specific data
   products: (locationId: string) => `products-${locationId}`,
   inventory: (locationId: string, queryHash?: string) => 

@@ -52,3 +52,18 @@ export interface TradeinBattery {
   status: "scrap" | "resellable";
   amount: number;
 }
+
+export interface ParkedOrder {
+  id: string;
+  orderNumber: string;
+  createdAt: string;
+  cart: CartItem[];
+  appliedDiscount: { type: "percentage" | "amount"; value: number } | null;
+  appliedTradeInAmount: number;
+  tradeinBatteries?: TradeinBattery[];
+  currentCustomer: any | null;
+  carPlateNumber?: string;
+  subtotal: number;
+  total: number;
+  note?: string;
+}

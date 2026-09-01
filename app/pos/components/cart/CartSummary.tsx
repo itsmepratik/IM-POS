@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { X, Scissors, PercentIcon, User } from "lucide-react";
+import { X, Scissors, PercentIcon, User, SquareParking } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Spinner } from "@/components/ui/spinner";
 import { CartItem as CartItemType } from "../../types";
@@ -22,6 +22,8 @@ interface CartSummaryProps {
   currentCustomer: any | null;
   onOpenCustomer: () => void;
   onRemoveCustomer: () => void;
+  parkedOrdersCount?: number;
+  onOpenParkedOrders?: () => void;
 }
 
 export function CartSummary({
@@ -40,6 +42,8 @@ export function CartSummary({
   currentCustomer,
   onOpenCustomer,
   onRemoveCustomer,
+  parkedOrdersCount = 0,
+  onOpenParkedOrders,
 }: CartSummaryProps) {
   return (
     <>
@@ -137,10 +141,7 @@ export function CartSummary({
           {/* Discount Button */}
           <Button
             variant="chonky-secondary"
-            className={cn(
-              "h-auto py-[9px] rounded-[12px] flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-800",
-              cartContainsAnyBatteries(cart) ? "flex-[0.5]" : "flex-[0.5]",
-            )}
+            className="h-auto py-[9px] rounded-[12px] flex items-center justify-center gap-1.5 bg-gray-100 hover:bg-gray-200 text-gray-800 shrink-0 px-3"
             onClick={onOpenDiscount}
             disabled={cart.length === 0}
           >
@@ -154,7 +155,7 @@ export function CartSummary({
           {cartContainsAnyBatteries(cart) && (
             <Button
               variant="chonky-secondary"
-              className="h-auto py-[9px] rounded-[12px] flex-[0.5] flex items-center justify-center gap-2 bg-secondary hover:bg-accent text-foreground border-input border"
+              className="h-auto py-[9px] rounded-[12px] flex items-center justify-center gap-1.5 bg-secondary hover:bg-accent text-foreground border-input border shrink-0 px-3"
               onClick={onOpenTradeIn}
               disabled={cart.length === 0}
             >
@@ -164,6 +165,30 @@ export function CartSummary({
               </span>
             </Button>
           )}
+
+          {/* Park Order Button */}
+          <Button
+            variant="chonky-secondary"
+            className={cn(
+              "h-auto py-[9px] rounded-[12px] flex items-center justify-center gap-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 shrink-0 px-3 transition-colors",
+              cart.length === 0 && parkedOrdersCount === 0 && "opacity-50 cursor-not-allowed",
+            )}
+            onClick={onOpenParkedOrders}
+            disabled={cart.length === 0 && parkedOrdersCount === 0}
+            title={
+              parkedOrdersCount > 0
+                ? `${parkedOrdersCount} parked order(s) available`
+                : "Park current order"
+            }
+          >
+            <SquareParking className="h-4 w-4 shrink-0 text-amber-700" />
+            <span className="truncate hidden sm:inline-block">Park</span>
+            {parkedOrdersCount > 0 && (
+              <span className="inline-flex items-center justify-center px-1.5 py-0.5 text-[11px] font-bold leading-none text-amber-900 bg-amber-200 rounded-full border border-amber-300">
+                {parkedOrdersCount}
+              </span>
+            )}
+          </Button>
 
           {/* Checkout Button */}
           <Button

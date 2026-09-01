@@ -1,4 +1,6 @@
-import { createClient } from "@/supabase/server";
+import { getDatabase } from "@/lib/db/client";
+import { staff, type Staff } from "@/lib/db/schema";
+import { eq, and, asc } from "drizzle-orm";
 
 export interface StaffMember {
   id: string;
@@ -22,30 +24,27 @@ export interface StaffMember {
   updated_at: string | null;
 }
 
-const STAFF_SELECT_FIELDS =
-  "id, staff_id, name, email, phone, role, salary, hire_date, date_of_birth, address, national_id, emergency_contact, emergency_phone, profile_image_url, shop_id, notes, is_active, created_at, updated_at";
-
-function mapStaff(row: Record<string, unknown>): StaffMember {
+function mapStaff(row: Staff): StaffMember {
   return {
-    id: row.id as string,
-    staff_id: row.staff_id as string,
-    name: row.name as string,
-    email: (row.email as string) ?? null,
-    phone: (row.phone as string) ?? null,
-    role: (row.role as string) ?? "staff",
-    salary: (row.salary as string) ?? null,
-    hire_date: (row.hire_date as string) ?? null,
-    date_of_birth: (row.date_of_birth as string) ?? null,
-    address: (row.address as string) ?? null,
-    national_id: (row.national_id as string) ?? null,
-    emergency_contact: (row.emergency_contact as string) ?? null,
-    emergency_phone: (row.emergency_phone as string) ?? null,
-    profile_image_url: (row.profile_image_url as string) ?? null,
-    shop_id: (row.shop_id as string) ?? null,
-    notes: (row.notes as string) ?? null,
-    is_active: row.is_active as boolean,
-    created_at: (row.created_at as string) ?? null,
-    updated_at: (row.updated_at as string) ?? null,
+    id: row.id,
+    staff_id: row.staffId,
+    name: row.name,
+    email: row.email ?? null,
+    phone: row.phone ?? null,
+    role: row.role ?? "staff",
+    salary: row.salary ?? null,
+    hire_date: row.hireDate ? row.hireDate.toISOString() : null,
+    date_of_birth: row.dateOfBirth ? row.dateOfBirth.toISOString() : null,
+    address: row.address ?? null,
+    national_id: row.nationalId ?? null,
+    emergency_contact: row.emergencyContact ?? null,
+    emergency_phone: row.emergencyPhone ?? null,
+    profile_image_url: row.profileImageUrl ?? null,
+    shop_id: row.shopId ?? null,
+    notes: row.notes ?? null,
+    is_active: row.isActive ?? true,
+    created_at: row.createdAt ? row.createdAt.toISOString() : null,
+    updated_at: row.updatedAt ? row.updatedAt.toISOString() : null,
   };
 }
 
@@ -59,20 +58,18 @@ export async function validateStaffId(
     return null;
   }
 
-  const supabase = await createClient();
+  const db = getDatabase();
+  const [member] = await db
+    .select()
+    .from(staff)
+    .where(and(eq(staff.staffId, staffId.trim()), eq(staff.isActive, true)))
+    .limit(1);
 
-  const { data: staff, error } = await supabase
-    .from("staff")
-    .select(STAFF_SELECT_FIELDS)
-    .eq("staff_id", staffId)
-    .eq("is_active", true)
-    .single();
-
-  if (error || !staff) {
+  if (!member) {
     return null;
   }
 
-  return mapStaff(staff);
+  return mapStaff(member);
 }
 
 /**
@@ -81,8 +78,8 @@ export async function validateStaffId(
 export async function getStaffUuidById(
   staffId: string
 ): Promise<string | null> {
-  const staff = await validateStaffId(staffId);
-  return staff?.id || null;
+  const staffMember = await validateStaffId(staffId);
+  return staffMember?.id || null;
 }
 
 /**
@@ -98,17 +95,12 @@ export async function getStaffById(
  * Fetches all active staff members
  */
 export async function getAllActiveStaff(): Promise<StaffMember[]> {
-  const supabase = await createClient();
-
-  const { data: staffMembers, error } = await supabase
-    .from("staff")
-    .select(STAFF_SELECT_FIELDS)
-    .eq("is_active", true)
-    .order("staff_id", { ascending: true });
-
-  if (error || !staffMembers) {
-    return [];
-  }
+  const db = getDatabase();
+  const staffMembers = await db
+    .select()
+    .from(staff)
+    .where(eq(staff.isActive, true))
+    .orderBy(asc(staff.staffId));
 
   return staffMembers.map(mapStaff);
 }
@@ -117,16 +109,11 @@ export async function getAllActiveStaff(): Promise<StaffMember[]> {
  * Fetches ALL staff members (active and inactive)
  */
 export async function getAllStaff(): Promise<StaffMember[]> {
-  const supabase = await createClient();
-
-  const { data: staffMembers, error } = await supabase
-    .from("staff")
-    .select(STAFF_SELECT_FIELDS)
-    .order("staff_id", { ascending: true });
-
-  if (error || !staffMembers) {
-    return [];
-  }
+  const db = getDatabase();
+  const staffMembers = await db
+    .select()
+    .from(staff)
+    .orderBy(asc(staff.staffId));
 
   return staffMembers.map(mapStaff);
 }
@@ -139,17 +126,17 @@ export async function getStaffByTextId(
 ): Promise<StaffMember | null> {
   if (!staffId) return null;
 
-  const supabase = await createClient();
+  const db = getDatabase();
+  const [member] = await db
+    .select()
+    .from(staff)
+    .where(eq(staff.staffId, staffId.trim()))
+    .limit(1);
 
-  const { data: staff, error } = await supabase
-    .from("staff")
-    .select(STAFF_SELECT_FIELDS)
-    .eq("staff_id", staffId)
-    .single();
-
-  if (error || !staff) {
+  if (!member) {
     return null;
   }
 
-  return mapStaff(staff);
+  return mapStaff(member);
 }
+

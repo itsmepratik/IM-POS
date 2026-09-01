@@ -283,11 +283,8 @@ export function BranchProvider({ children }: { children: ReactNode }) {
           // Validate that we are actually switching or setting
           if (!currentBranch || currentBranch.id !== defaultBranch.id) {
             setCurrentBranch(defaultBranch);
-            // We DON'T load from localStorage for admins to ensure strict default
-            // But we DO update localStorage so if they reload, it's consistent until they leave?
-            // Wait, requirement is "always on sanaiya1 by default".
-            // So we should OVERWRITE localStorage with Sanaiya1 ID.
             localStorage.setItem("selectedBranchId", defaultBranch.id);
+            document.cookie = `pos_branch_id=${defaultBranch.id}; path=/; max-age=31536000; SameSite=Lax`;
           }
 
           // Set inventory location from shop's location_id
@@ -295,6 +292,7 @@ export function BranchProvider({ children }: { children: ReactNode }) {
           if (defaultShop) {
             setInventoryLocationId(defaultShop.locationId);
           }
+          document.cookie = `pos_branch_id=${defaultBranch.id}; path=/; max-age=31536000; SameSite=Lax`;
           setBranchLoadError(false);
           return;
         }

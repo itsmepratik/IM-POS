@@ -44,6 +44,7 @@ export default async function POSPage() {
 
   let productsData: any[] = [];
   let countersData: any[] = [];
+  let activeShiftData: any = null;
 
   try {
     const db = getDatabase();
@@ -55,6 +56,17 @@ export default async function POSPage() {
       .from(referenceNumberCounters);
   } catch (e) {
     console.error("Failed to pre-fetch reference counters:", e);
+  }
+
+  const effectiveShopId = branchId || shopsData[0]?.id;
+
+  if (effectiveShopId) {
+    try {
+      const { getActiveShift } = await import("@/lib/actions/cash-shifts");
+      activeShiftData = await getActiveShift(effectiveShopId);
+    } catch (e) {
+      console.error("Failed to pre-fetch active cash shift:", e);
+    }
   }
 
   if (branchId && shopsData) {
@@ -78,6 +90,7 @@ export default async function POSPage() {
               products: productsData,
               shops: shopsData,
               counters: countersData,
+              activeShift: activeShiftData,
             }}
           />
         </Suspense>
@@ -85,3 +98,4 @@ export default async function POSPage() {
     </CategoryProvider>
   );
 }
+

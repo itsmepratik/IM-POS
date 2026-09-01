@@ -32,6 +32,8 @@ interface DesktopCartProps {
   currentCustomer: any | null;
   onOpenCustomer: () => void;
   onRemoveCustomer: () => void;
+  parkedOrdersCount?: number;
+  onOpenParkedOrders?: () => void;
 }
 
 export function DesktopCart({
@@ -53,6 +55,8 @@ export function DesktopCart({
   currentCustomer,
   onOpenCustomer,
   onRemoveCustomer,
+  parkedOrdersCount,
+  onOpenParkedOrders,
 }: DesktopCartProps) {
   const desktopCartEndRef = useRef<HTMLDivElement>(null);
 
@@ -111,6 +115,8 @@ export function DesktopCart({
               currentCustomer={currentCustomer}
               onOpenCustomer={onOpenCustomer}
               onRemoveCustomer={onRemoveCustomer}
+              parkedOrdersCount={parkedOrdersCount}
+              onOpenParkedOrders={onOpenParkedOrders}
             />
           </div>
         </CardContent>

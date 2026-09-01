@@ -31,6 +31,7 @@ interface CartContextType {
   removeFromCart: (uniqueId: string) => void;
   updateQuantity: (uniqueId: string, quantity: number) => void;
   clearCart: () => void;
+  setCartItems: (items: CartItem[]) => void;
   getTotal: () => number;
   getItemCount: () => number;
 }
@@ -196,6 +197,10 @@ export function CartProvider({ children }: CartProviderProps) {
     setCart([]);
   };
 
+  const setCartItems = (items: CartItem[]) => {
+    setCart(items);
+  };
+
   const getTotal = () => {
     return cart.reduce((total, item) => total + item.price * item.quantity, 0);
   };
@@ -212,6 +217,7 @@ export function CartProvider({ children }: CartProviderProps) {
         removeFromCart,
         updateQuantity,
         clearCart,
+        setCartItems,
         getTotal,
         getItemCount,
       }}

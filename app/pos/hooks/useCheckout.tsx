@@ -48,6 +48,7 @@ interface UseCheckoutProps {
   setAppliedTradeInAmount: (amount: number) => void;
   setShowCart: (show: boolean) => void;
   initialCounters?: { prefix: string; counter: number }[];
+  onCheckoutSuccess?: () => void;
 }
 
 export function useCheckout({
@@ -67,6 +68,7 @@ export function useCheckout({
   setAppliedTradeInAmount,
   setShowCart,
   initialCounters,
+  onCheckoutSuccess,
 }: UseCheckoutProps) {
   const { toast } = useToast();
   const { currentBranch, inventoryLocationId } = useBranch();
@@ -442,6 +444,13 @@ export function useCheckout({
               (result.data as any)?.referenceNumber;
             if (ref) {
               setTransactionData((prev) => ({ ...prev, receiptNumber: ref }));
+            }
+
+            // Refresh active cash shift drawer totals
+            if (onCheckoutSuccess) {
+              try {
+                onCheckoutSuccess();
+              } catch (_) {}
             }
 
             // Silent inventory refresh in the background

@@ -271,6 +271,34 @@ const VoidDialog = dynamic(
     ),
   { ssr: false },
 );
+const ParkedOrdersDialog = dynamic(
+  () =>
+    import("./components/modals/ParkedOrdersDialog").then(
+      (mod) => mod.ParkedOrdersDialog,
+    ),
+  { ssr: false },
+);
+const POSShiftLockOverlay = dynamic(
+  () =>
+    import("./components/modals/POSShiftLockOverlay").then(
+      (mod) => mod.POSShiftLockOverlay,
+    ),
+  { ssr: false },
+);
+const CloseShiftModal = dynamic(
+  () =>
+    import("./components/modals/CloseShiftModal").then(
+      (mod) => mod.CloseShiftModal,
+    ),
+  { ssr: false },
+);
+const CashMovementModal = dynamic(
+  () =>
+    import("./components/modals/CashMovementModal").then(
+      (mod) => mod.CashMovementModal,
+    ),
+  { ssr: false },
+);
 
 // Extracted cart panel components
 import { DesktopCart } from "./components/cart/DesktopCart";
@@ -287,6 +315,8 @@ import { useParts } from "./hooks/useParts";
 import { useAdditivesFluids } from "./hooks/useAdditivesFluids";
 import { useLubricantVolume } from "./hooks/useLubricantVolume";
 import { useCheckout } from "./hooks/useCheckout";
+import { useParkedOrders } from "./hooks/useParkedOrders";
+import { ParkedOrder } from "./types";
 
 // Note: useTradeIn and useDiscount hooks are available in ./hooks/ for future use
 
@@ -345,7 +375,53 @@ export function POSClient({ initialData }: { initialData?: any }) {
 
   const { currentBranch, inventoryLocationId } = useBranch();
   const companyInfo = useCompanyInfo();
-  // lastNotificationRef and addPersistentNotification moved to useLubricantVolume hook
+
+  // Cash shift management state
+  const [activeShift, setActiveShift] = useState<any>(initialData?.activeShift || null);
+  const [isLoadingShift, setIsLoadingShift] = useState(false);
+  const [isCloseShiftModalOpen, setIsCloseShiftModalOpen] = useState(false);
+  const [isCashMovementModalOpen, setIsCashMovementModalOpen] = useState(false);
+
+  // Refresh active shift when current branch changes
+  const refreshActiveShift = useCallback(async (shopId?: string) => {
+    const targetShopId = shopId || currentBranch?.id;
+    if (!targetShopId) return;
+
+    try {
+      const { getActiveShift } = await import("@/lib/actions/cash-shifts");
+      const current = await getActiveShift(targetShopId);
+      setActiveShift(current);
+    } catch (err) {
+      console.error("Failed to refresh active cash shift:", err);
+    } finally {
+      setIsLoadingShift(false);
+    }
+  }, [currentBranch?.id]);
+
+  useEffect(() => {
+    if (currentBranch?.id) {
+      refreshActiveShift(currentBranch.id);
+    }
+  }, [currentBranch?.id, refreshActiveShift]);
+
+  // Periodic polling & window focus sync for active cash shift
+  useEffect(() => {
+    if (!currentBranch?.id) return;
+
+    const interval = setInterval(() => {
+      refreshActiveShift(currentBranch.id);
+    }, 10000);
+
+    const handleFocus = () => {
+      refreshActiveShift(currentBranch.id);
+    };
+
+    window.addEventListener("focus", handleFocus);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [currentBranch?.id, refreshActiveShift]);
 
   const {
     cart,
@@ -353,7 +429,17 @@ export function POSClient({ initialData }: { initialData?: any }) {
     removeFromCart: contextRemoveFromCart,
     updateQuantity: contextUpdateQuantity,
     clearCart: contextClearCart,
+    setCartItems: contextSetCartItems,
   } = useCart();
+
+  const {
+    parkedOrders,
+    parkedCount,
+    parkOrder,
+    deleteParkedOrder,
+  } = useParkedOrders();
+
+  const [isParkedOrdersModalOpen, setIsParkedOrdersModalOpen] = useState(false);
 
   // Cart helper functions (stock validation, battery detection, etc.)
   const {
@@ -609,6 +695,9 @@ export function POSClient({ initialData }: { initialData?: any }) {
     setAppliedTradeInAmount,
     setShowCart,
     initialCounters: initialData?.counters,
+    onCheckoutSuccess: () => {
+      refreshActiveShift();
+    },
   });
 
   // Trade-in battery states moved above useCheckout hook call
@@ -1147,6 +1236,69 @@ export function POSClient({ initialData }: { initialData?: any }) {
     setDiscountValue(0);
   };
 
+  // Park current active cart
+  const handleParkCurrentCart = (note?: string) => {
+    if (cart.length === 0) {
+      toast({
+        title: "Cart is empty",
+        description: "Add items to your cart before parking.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const newParked = parkOrder({
+      cart: [...cart],
+      appliedDiscount,
+      appliedTradeInAmount,
+      tradeinBatteries: [...tradeinBatteries],
+      currentCustomer,
+      carPlateNumber: carPlateNumber.trim() || undefined,
+      subtotal,
+      total,
+      note,
+    });
+
+    // Clear active cart state
+    contextClearCart();
+    setAppliedDiscount(null);
+    setDiscountValue(0);
+    setAppliedTradeInAmount(0);
+    setTradeinBatteries([]);
+    setCurrentCustomer(null);
+    setCarPlateNumber("");
+    setSelectedCustomerId(null);
+
+    toast({
+      title: "Order Parked",
+      description: `Order #${newParked.orderNumber} parked successfully (${cart.length} item${cart.length > 1 ? "s" : ""}).`,
+    });
+  };
+
+  // Resume a parked order
+  const handleResumeParkedOrder = (order: ParkedOrder) => {
+    contextSetCartItems(order.cart);
+    setAppliedDiscount(order.appliedDiscount);
+    if (order.appliedDiscount) {
+      setDiscountType(order.appliedDiscount.type);
+      setDiscountValue(order.appliedDiscount.value);
+    } else {
+      setDiscountValue(0);
+    }
+    setAppliedTradeInAmount(order.appliedTradeInAmount || 0);
+    setTradeinBatteries(order.tradeinBatteries || []);
+    setCurrentCustomer(order.currentCustomer || null);
+    setSelectedCustomerId(order.currentCustomer?.id || null);
+    setCarPlateNumber(order.carPlateNumber || "");
+
+    deleteParkedOrder(order.id);
+
+    toast({
+      title: "Order Resumed",
+      description: `Order #${order.orderNumber} resumed successfully.`,
+    });
+  };
+
   // Debug discount state
   useEffect(() => {}, [appliedDiscount]);
 
@@ -1222,33 +1374,55 @@ export function POSClient({ initialData }: { initialData?: any }) {
                   <BranchSelector compact={true} showLabel={false} />
                 </div>
 
-                {/* Mobile: Show branch selector first, then title below */}
+                {/* Mobile: Show branch selector first, then shift actions, then title below */}
                 <div className="flex lg:hidden flex-col gap-2 w-full">
                   <div className="flex items-center justify-between w-full">
                     <BranchSelector compact={true} showLabel={false} />
                     <div className="flex gap-2 items-center lg:hidden">
+                      {activeShift && (
+                        <>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-9 px-2.5 rounded-xl text-xs font-semibold bg-amber-50 border-amber-200 text-amber-900"
+                            onClick={() => setIsCashMovementModalOpen(true)}
+                          >
+                            <Banknote className="w-3.5 h-3.5 mr-1" />
+                            Cash
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            className="h-9 px-2.5 rounded-xl text-xs font-semibold"
+                            onClick={() => setIsCloseShiftModalOpen(true)}
+                          >
+                            End Shift
+                          </Button>
+                        </>
+                      )}
+
                       <Button
                         variant="outline"
                         size="default"
-                        className="dispute-button h-auto px-4 py-[9px] rounded-[12px] flex items-center gap-2 relative transition-all duration-200 ease-in-out active:transition-none"
+                        className="dispute-button h-auto px-3 py-[7px] rounded-[12px] flex items-center gap-1.5 relative transition-all duration-200 ease-in-out active:transition-none"
                         onClick={() => setIsDisputeDialogOpen(true)}
                       >
                         <HugeiconsIcon
                           icon={Cashier02Icon}
-                          size={22}
+                          size={20}
                           strokeWidth={2.2}
-                          className="!size-[22px]"
+                          className="!size-[20px]"
                         />
-                        <span className="font-medium">Dispute</span>
+                        <span className="font-medium text-xs">Dispute</span>
                       </Button>
 
                       <Button
                         variant="outline"
                         size="icon"
-                        className="cart-button h-10 w-10 relative transition-all duration-200 ease-in-out active:transition-none"
+                        className="cart-button h-9 w-9 relative transition-all duration-200 ease-in-out active:transition-none"
                         onClick={() => setShowCart(true)}
                       >
-                        <ShoppingCart className="h-5 w-5" />
+                        <ShoppingCart className="h-4 w-4" />
                         {totalCartQuantity > 0 && (
                           <Badge
                             className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0"
@@ -1266,12 +1440,46 @@ export function POSClient({ initialData }: { initialData?: any }) {
                 </div>
 
                 {/* Desktop: Show status indicators and buttons on the right */}
-                <div className="hidden lg:flex gap-4 items-center">
-                  {/* Status Indicator */}
+                <div className="hidden lg:flex gap-3 items-center">
+                  {/* Active Shift Badge & Balance */}
+                  {activeShift && (
+                    <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5">
+                      <div className="h-2 w-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.6)]" />
+                      <div className="flex flex-col text-left">
+                        <span className="text-[11px] font-semibold text-slate-700 leading-tight">
+                          Shift: {activeShift.openedByStaffName || "Active"}
+                        </span>
+                        <span className="text-[10px] font-mono text-emerald-700 font-bold leading-tight">
+                          Drawer: OMR {(activeShift.currentCashInDrawer || 0).toFixed(3)}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1 ml-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-2 text-xs font-semibold text-slate-700 hover:bg-slate-200/60 rounded-lg"
+                          onClick={() => setIsCashMovementModalOpen(true)}
+                          title="Cash Drawer In/Out / Drop"
+                        >
+                          <Banknote className="w-3.5 h-3.5 mr-1 text-amber-600" />
+                          Drawer
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          className="h-7 px-2.5 text-xs font-semibold rounded-lg shadow-sm"
+                          onClick={() => setIsCloseShiftModalOpen(true)}
+                        >
+                          End Shift
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Clock Indicator */}
                   <div className="flex items-center gap-2">
-                    <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.6)]" />
                     <span
-                      className="font-mono text-sm text-gray-600"
+                      className="font-mono text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-md"
                       suppressHydrationWarning
                     >
                       {(currentTime || new Date()).toLocaleTimeString([], {
@@ -1285,16 +1493,16 @@ export function POSClient({ initialData }: { initialData?: any }) {
                   <Button
                     variant="outline"
                     size="default"
-                    className="dispute-button h-auto px-4 py-[9px] flex items-center gap-2 relative transition-all duration-200 ease-in-out active:transition-none"
+                    className="dispute-button h-auto px-4 py-[8px] flex items-center gap-2 relative transition-all duration-200 ease-in-out active:transition-none rounded-xl"
                     onClick={() => setIsDisputeDialogOpen(true)}
                   >
                     <HugeiconsIcon
                       icon={Cashier02Icon}
-                      size={22}
+                      size={20}
                       strokeWidth={2.2}
-                      className="!size-[22px]"
+                      className="!size-[20px]"
                     />
-                    <span className="font-medium">Dispute</span>
+                    <span className="font-medium text-sm">Dispute</span>
                   </Button>
                 </div>
               </CardHeader>
@@ -1455,6 +1663,8 @@ export function POSClient({ initialData }: { initialData?: any }) {
             currentCustomer={currentCustomer}
             onOpenCustomer={() => setIsCustomerFormOpen(true)}
             onRemoveCustomer={() => setCurrentCustomer(null)}
+            parkedOrdersCount={parkedCount}
+            onOpenParkedOrders={() => setIsParkedOrdersModalOpen(true)}
           />
 
           {/* Mobile Cart */}
@@ -1489,6 +1699,8 @@ export function POSClient({ initialData }: { initialData?: any }) {
             currentCustomer={currentCustomer}
             onOpenCustomer={() => setIsCustomerFormOpen(true)}
             onRemoveCustomer={() => setCurrentCustomer(null)}
+            parkedOrdersCount={parkedCount}
+            onOpenParkedOrders={() => setIsParkedOrdersModalOpen(true)}
           />
 
           {/* Volume Selection Modal */}
@@ -2012,6 +2224,28 @@ export function POSClient({ initialData }: { initialData?: any }) {
         onApply={applyDiscount}
       />
 
+      {/* Parked Orders Dialog */}
+      <ParkedOrdersDialog
+        isOpen={isParkedOrdersModalOpen}
+        onOpenChange={setIsParkedOrdersModalOpen}
+        parkedOrders={parkedOrders}
+        activeCart={cart}
+        activeSubtotal={subtotal}
+        activeTotal={total}
+        activeCustomer={currentCustomer}
+        activeDiscount={appliedDiscount}
+        activeCarPlateNumber={carPlateNumber}
+        onParkActiveCart={handleParkCurrentCart}
+        onResumeOrder={handleResumeParkedOrder}
+        onDeleteOrder={(orderId) => {
+          deleteParkedOrder(orderId);
+          toast({
+            title: "Parked Order Deleted",
+            description: "The parked order was removed.",
+          });
+        }}
+      />
+
       {/* Parts Modal */}
       <PartsModal
         isOpen={isPartBrandModalOpen}
@@ -2147,6 +2381,41 @@ export function POSClient({ initialData }: { initialData?: any }) {
 
       {/* Customer Add Success Animation */}
       <CustomerSuccessDialog open={showCustomerSuccess} />
+
+      {/* Strict POS Shift Lock Overlay: POS is locked and unusable if no shift is open */}
+      {!activeShift && !isLoadingShift && (
+        <POSShiftLockOverlay
+          shopName={currentBranch?.name || "Current Register"}
+          shopId={currentBranch?.id}
+          locationId={inventoryLocationId || currentBranch?.id}
+          onShiftOpened={(newShift) => {
+            setActiveShift(newShift);
+            refreshActiveShift();
+          }}
+        />
+      )}
+
+      {/* Close Shift Modal */}
+      <CloseShiftModal
+        isOpen={isCloseShiftModalOpen}
+        onClose={() => setIsCloseShiftModalOpen(false)}
+        activeShift={activeShift}
+        onShiftClosed={() => {
+          setActiveShift(null);
+          contextClearCart();
+          refreshActiveShift();
+        }}
+      />
+
+      {/* Cash Drawer Movement Modal (Safe Drop / Petty Cash / Cash In) */}
+      {activeShift && (
+        <CashMovementModal
+          isOpen={isCashMovementModalOpen}
+          onClose={() => setIsCashMovementModalOpen(false)}
+          shiftId={activeShift.id}
+          onSuccess={() => refreshActiveShift()}
+        />
+      )}
     </Layout>
   );
 }

@@ -141,6 +141,28 @@ export async function POST(req: NextRequest) {
       cashierId = staffUuid;
     }
 
+    // STRICT CASH SHIFT VALIDATION:
+    // Every sale, credit, and on-hold transaction requires an active cash shift for this shop.
+    const { cashShifts } = await import("@/lib/db/schema");
+    const { and } = await import("drizzle-orm");
+    const [activeShift] = await db
+      .select({ id: cashShifts.id })
+      .from(cashShifts)
+      .where(and(eq(cashShifts.shopId, resolvedShopId), eq(cashShifts.status, "open")))
+      .limit(1);
+
+    if (!activeShift) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "No active cash shift found for this register. POS is locked. Please open a cash shift first.",
+        },
+        { status: 403 },
+      );
+    }
+
+    const activeCashShiftId = activeShift.id;
+
     // Process Cart — allow empty cart when services (labor) are present
     const hasServices = services && services.length > 0;
     if ((!cart || cart.length === 0) && !hasServices) {
@@ -449,6 +471,19 @@ export async function POST(req: NextRequest) {
 
         const transactionData = result[0].data as any;
 
+        // Atomically associate this transaction with the active cash shift
+        if (transactionData.transaction_id && activeCashShiftId) {
+          try {
+            const { transactions } = await import("@/lib/db/schema");
+            await db
+              .update(transactions)
+              .set({ cashShiftId: activeCashShiftId })
+              .where(eq(transactions.id, transactionData.transaction_id));
+          } catch (shiftLinkErr) {
+            console.error("Failed to link transaction to active cash shift:", shiftLinkErr);
+          }
+        }
+
         const processingTime = Date.now() - startTime;
 
         // Revalidate cache
@@ -456,6 +491,10 @@ export async function POST(req: NextRequest) {
         revalidateTag(CACHE_TAGS.products(actualLocationId));
         revalidateTag(CACHE_TAGS.ALL_PRODUCTS);
         revalidateTag(CACHE_TAGS.DASHBOARD);
+        revalidateTag(CACHE_TAGS.CASH_SHIFTS);
+        if (resolvedShopId) {
+          revalidateTag(CACHE_TAGS.cashShift(resolvedShopId));
+        }
         revalidateTag("brands"); // Just in case, though brands strictly shouldn't change in checkout
 
         return NextResponse.json({

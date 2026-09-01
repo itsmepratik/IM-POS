@@ -211,6 +211,9 @@ export const transactions = pgTable(
       onDelete: "set null",
     }),
     voidReason: text("void_reason"),
+    cashShiftId: uuid("cash_shift_id").references(() => cashShifts.id, {
+      onDelete: "set null",
+    }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   },
   (table) => ({
@@ -218,6 +221,7 @@ export const transactions = pgTable(
     createdAtIdx: index("transactions_date_idx").on(table.createdAt),
     customerIdIdx: index("transactions_customer_idx").on(table.customerId),
     shopIdIdx: index("transactions_shop_idx").on(table.shopId),
+    cashShiftIdx: index("transactions_cash_shift_idx").on(table.cashShiftId),
   }),
 );
 
@@ -467,12 +471,108 @@ export const laborSplits = pgTable(
 export type LaborSplit = typeof laborSplits.$inferSelect;
 export type NewLaborSplit = typeof laborSplits.$inferInsert;
 
+// ── Cash Shifts & Cash Drawer Movements ────────────────────────────────────
+
+export interface DenominationBreakdown {
+  fiftyNote?: number;    // 50 OMR
+  twentyNote?: number;   // 20 OMR
+  tenNote?: number;      // 10 OMR
+  fiveNote?: number;     // 5 OMR
+  oneNote?: number;      // 1 OMR
+  halfNote?: number;     // 1/2 OMR (500 baisa)
+  hundredBaisa?: number; // 100 baisa (0.100 OMR)
+  coins?: number;        // Other small coins/baisa total in OMR
+}
+
+export const cashShifts = pgTable(
+  "cash_shifts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    shopId: uuid("shop_id")
+      .notNull()
+      .references(() => shops.id, { onDelete: "restrict" }),
+    locationId: uuid("location_id")
+      .notNull()
+      .references(() => locations.id, { onDelete: "restrict" }),
+    openedByStaffId: uuid("opened_by_staff_id")
+      .notNull()
+      .references(() => staff.id, { onDelete: "restrict" }),
+    closedByStaffId: uuid("closed_by_staff_id").references(() => staff.id, {
+      onDelete: "set null",
+    }),
+    status: text("status").notNull().default("open"), // 'open' | 'closed' | 'reconciled'
+    startTime: timestamp("start_time", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    endTime: timestamp("end_time", { withTimezone: true }),
+    openingCash: numeric("opening_cash").notNull().default("0"),
+    openingDenominations: jsonb("opening_denominations").$type<DenominationBreakdown>(),
+    openingNotes: text("opening_notes"),
+    expectedClosingCash: numeric("expected_closing_cash"),
+    actualClosingCash: numeric("actual_closing_cash"),
+    closingDenominations: jsonb("closing_denominations").$type<DenominationBreakdown>(),
+    cashDifference: numeric("cash_difference"),
+    closingNotes: text("closing_notes"),
+    totalCashSales: numeric("total_cash_sales").default("0"),
+    totalCardSales: numeric("total_card_sales").default("0"),
+    totalMobileSales: numeric("total_mobile_sales").default("0"),
+    totalCreditSales: numeric("total_credit_sales").default("0"),
+    totalRefunds: numeric("total_refunds").default("0"),
+    totalTransactions: integer("total_transactions").default(0),
+    reconciledByStaffId: uuid("reconciled_by_staff_id").references(
+      () => staff.id,
+      { onDelete: "set null" },
+    ),
+    reconciledAt: timestamp("reconciled_at", { withTimezone: true }),
+    reconciliationNotes: text("reconciliation_notes"),
+    reconciliationStatus: text("reconciliation_status").default("pending"), // 'pending' | 'balanced' | 'overage' | 'shortage' | 'approved'
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  },
+  (table) => ({
+    shopStatusIdx: index("cash_shifts_shop_status_idx").on(
+      table.shopId,
+      table.status,
+    ),
+    startTimeIdx: index("cash_shifts_start_time_idx").on(table.startTime),
+    openedByIdx: index("cash_shifts_opened_by_idx").on(table.openedByStaffId),
+  }),
+);
+
+export type CashShift = typeof cashShifts.$inferSelect;
+export type NewCashShift = typeof cashShifts.$inferInsert;
+
+export const cashShiftMovements = pgTable(
+  "cash_shift_movements",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    shiftId: uuid("shift_id")
+      .notNull()
+      .references(() => cashShifts.id, { onDelete: "cascade" }),
+    staffId: uuid("staff_id")
+      .notNull()
+      .references(() => staff.id, { onDelete: "restrict" }),
+    type: text("type").notNull(), // 'CASH_IN' | 'CASH_OUT' | 'DROP' | 'PAY_IN' | 'PAY_OUT'
+    amount: numeric("amount").notNull(),
+    reason: text("reason").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  },
+  (table) => ({
+    shiftIdx: index("cash_shift_movements_shift_idx").on(table.shiftId),
+    staffIdx: index("cash_shift_movements_staff_idx").on(table.staffId),
+  }),
+);
+
+export type CashShiftMovement = typeof cashShiftMovements.$inferSelect;
+export type NewCashShiftMovement = typeof cashShiftMovements.$inferInsert;
+
 import { relations } from "drizzle-orm";
 
 export const locationsRelations = relations(locations, ({ many }) => ({
   shops: many(shops),
   inventory: many(inventory),
   transactions: many(transactions),
+  cashShifts: many(cashShifts),
 }));
 
 export const shopsRelations = relations(shops, ({ one, many }) => ({
@@ -481,6 +581,7 @@ export const shopsRelations = relations(shops, ({ one, many }) => ({
     references: [locations.id],
   }),
   transactions: many(transactions),
+  cashShifts: many(cashShifts),
 }));
 
 export const categoriesRelations = relations(categories, ({ many }) => ({
@@ -562,6 +663,10 @@ export const transactionsRelations = relations(
       fields: [transactions.customerId],
       references: [customers.id],
     }),
+    cashShift: one(cashShifts, {
+      fields: [transactions.cashShiftId],
+      references: [cashShifts.id],
+    }),
     serviceItems: many(serviceItems),
   }),
 );
@@ -573,7 +678,51 @@ export const staffRelations = relations(staff, ({ one, many }) => ({
   }),
   transactions: many(transactions),
   laborSplits: many(laborSplits),
+  openedShifts: many(cashShifts, { relationName: "openedByStaff" }),
+  closedShifts: many(cashShifts, { relationName: "closedByStaff" }),
+  cashMovements: many(cashShiftMovements),
 }));
+
+export const cashShiftsRelations = relations(cashShifts, ({ one, many }) => ({
+  shop: one(shops, {
+    fields: [cashShifts.shopId],
+    references: [shops.id],
+  }),
+  location: one(locations, {
+    fields: [cashShifts.locationId],
+    references: [locations.id],
+  }),
+  openedByStaff: one(staff, {
+    fields: [cashShifts.openedByStaffId],
+    references: [staff.id],
+    relationName: "openedByStaff",
+  }),
+  closedByStaff: one(staff, {
+    fields: [cashShifts.closedByStaffId],
+    references: [staff.id],
+    relationName: "closedByStaff",
+  }),
+  reconciledByStaff: one(staff, {
+    fields: [cashShifts.reconciledByStaffId],
+    references: [staff.id],
+  }),
+  transactions: many(transactions),
+  movements: many(cashShiftMovements),
+}));
+
+export const cashShiftMovementsRelations = relations(
+  cashShiftMovements,
+  ({ one }) => ({
+    shift: one(cashShifts, {
+      fields: [cashShiftMovements.shiftId],
+      references: [cashShifts.id],
+    }),
+    staff: one(staff, {
+      fields: [cashShiftMovements.staffId],
+      references: [staff.id],
+    }),
+  }),
+);
 
 export const servicesRelations = relations(services, ({ many }) => ({
   serviceItems: many(serviceItems),
@@ -608,3 +757,4 @@ export const laborSplitsRelations = relations(laborSplits, ({ one }) => ({
     references: [staff.id],
   }),
 }));
+

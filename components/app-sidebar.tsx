@@ -41,6 +41,7 @@ import {
   ContainerTruck02Icon,
   InboxIcon,
   Calendar03Icon,
+  Cashier02Icon,
 } from "hugeicons-react";
 import HugeiconsIcon from "@/components/HugeiconsIcon";
 
@@ -109,6 +110,20 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       icon: () => (
         <HugeiconsIcon
           icon={DiscountTag02Icon}
+          size={22}
+          strokeWidth={2.2}
+          className="!size-[22px]"
+        />
+      ),
+      permission: "pos.access",
+      adminOnly: false,
+    },
+    {
+      title: "Cash Shifts",
+      href: "/cash-shifts",
+      icon: () => (
+        <HugeiconsIcon
+          icon={Cashier02Icon}
           size={22}
           strokeWidth={2.2}
           className="!size-[22px]"
