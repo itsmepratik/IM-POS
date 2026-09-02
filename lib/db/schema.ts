@@ -116,6 +116,24 @@ export const productVolumes = pgTable(
   }),
 );
 
+export const productTypes = pgTable(
+  "product_types",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id, { onDelete: "cascade" }),
+    typeId: uuid("type_id")
+      .notNull()
+      .references(() => types.id, { onDelete: "cascade" }),
+  },
+  (table) => ({
+    productIdx: index("product_types_product_idx").on(table.productId),
+    typeIdx: index("product_types_type_idx").on(table.typeId),
+    uniqueProductType: unique("product_types_product_type_key").on(table.productId, table.typeId),
+  }),
+);
+
 export const inventory = pgTable(
   "inventory",
   {
@@ -595,6 +613,7 @@ export const typesRelations = relations(types, ({ one, many }) => ({
     references: [categories.id],
   }),
   products: many(products),
+  productTypes: many(productTypes),
 }));
 
 export const brandsRelations = relations(brands, ({ many }) => ({
@@ -616,12 +635,24 @@ export const productsRelations = relations(products, ({ one, many }) => ({
   // }),
   inventory: many(inventory),
   volumes: many(productVolumes),
+  productTypes: many(productTypes),
 }));
 
 export const productVolumesRelations = relations(productVolumes, ({ one }) => ({
   product: one(products, {
     fields: [productVolumes.productId],
     references: [products.id],
+  }),
+}));
+
+export const productTypesRelations = relations(productTypes, ({ one }) => ({
+  product: one(products, {
+    fields: [productTypes.productId],
+    references: [products.id],
+  }),
+  type: one(types, {
+    fields: [productTypes.typeId],
+    references: [types.id],
   }),
 }));
 

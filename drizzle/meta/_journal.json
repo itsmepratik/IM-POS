@@ -50,6 +50,13 @@
       "when": 1788282144956,
       "tag": "0006_unknown_taskmaster",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1788327936693,
+      "tag": "0007_material_spiral",
+      "breakpoints": true
     }
   ]
 }

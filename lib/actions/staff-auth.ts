@@ -1,6 +1,6 @@
 "use server";
 
-import { getDatabase } from "@/lib/db/client";
+import { getDb } from "@/lib/db/client";
 import { staff, type Staff } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 
@@ -20,7 +20,11 @@ export async function validateStaffCodeAction(code: string): Promise<StaffValida
   if (!code || typeof code !== "string") return null;
 
   try {
-    const db = getDatabase();
+    const db = getDb();
+    if (!db) {
+      console.error("Database client not initialized during staff validation");
+      return null;
+    }
     const cleanCode = code.trim();
 
     const [member] = await db

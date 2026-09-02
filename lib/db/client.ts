@@ -129,18 +129,6 @@ export function isDatabaseAvailable(): boolean {
 
 export function getDatabase() {
   ensureInitialized();
-  if (!isDatabaseAvailable()) {
-    const errorDetails = {
-      configured: db !== undefined && queryClient !== undefined,
-      healthy: connectionHealth.isHealthy,
-      lastCheck: new Date(connectionHealth.lastCheck).toISOString(),
-      consecutiveFailures: connectionHealth.consecutiveFailures,
-    };
-    console.error("Database unavailable:", errorDetails);
-    throw new Error(
-      `Database is not available. Status: ${JSON.stringify(errorDetails, null, 2)}`
-    );
-  }
   return db!;
 }
 
