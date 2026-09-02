@@ -1,7 +1,9 @@
 import { migrate } from "drizzle-orm/postgres-js/migrator";
-import { db, queryClient } from "./client";
+import { getDb, getQueryClient } from "./client";
 
 async function main() {
+  const db = getDb();
+  const queryClient = getQueryClient();
   if (!db || !queryClient) {
     // eslint-disable-next-line no-console
     console.error("DATABASE_URL is not set. Cannot run migrations.");

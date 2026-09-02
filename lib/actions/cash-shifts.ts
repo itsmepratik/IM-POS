@@ -499,7 +499,7 @@ export async function getCashShiftsHistory(options: CashShiftFilterOptions = {})
 
   const whereClause = conditions.length === 0 ? undefined : conditions.length === 1 ? conditions[0] : and(...conditions);
 
-  const query = db
+  let query = db
     .select({
       shift: cashShifts,
       shopName: shops.name,
@@ -516,7 +516,7 @@ export async function getCashShiftsHistory(options: CashShiftFilterOptions = {})
     .offset(options.offset || 0);
 
   if (whereClause) {
-    query.where(whereClause);
+    query = query.where(whereClause);
   }
 
   const results = await query;

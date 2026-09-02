@@ -15,8 +15,13 @@ export const metadata: Metadata = {
 export default async function HomePage() {
   const cookieStore = await cookies();
   const branchId = cookieStore.get("pos_branch_id")?.value;
-  
-  const dashboardData = await getDashboardSummary(branchId);
+
+  let dashboardData = null;
+  try {
+    dashboardData = await getDashboardSummary(branchId);
+  } catch (e) {
+    console.error("Failed to fetch dashboard summary:", e);
+  }
 
   return (
     <RouteProtection adminOnly={true} fallbackPath="/pos">

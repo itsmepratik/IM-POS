@@ -123,8 +123,7 @@ export function isDatabaseAvailable(): boolean {
     isConfigured &&
     (isHealthy ||
       isStartup ||
-      (connectionHealth.consecutiveFailures < maxConsecutiveFailures &&
-        connectionHealth.consecutiveFailures === 0))
+      connectionHealth.consecutiveFailures < maxConsecutiveFailures)
   );
 }
 
