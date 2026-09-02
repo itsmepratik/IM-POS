@@ -260,9 +260,12 @@ export function BranchProvider({ children }: { children: ReactNode }) {
           if (assignedBranch) {
             setCurrentBranch(assignedBranch);
             localStorage.setItem("selectedBranchId", assignedBranch.id);
+            document.cookie = `pos_branch_id=${assignedBranch.id}; path=/; max-age=31536000; SameSite=Lax`;
           }
 
+          setBranches(dbBranches);
           setBranchLoadError(false);
+          setIsLoadingBranches(false);
           return;
         } else {
           // Admin users can access all shops
@@ -294,6 +297,7 @@ export function BranchProvider({ children }: { children: ReactNode }) {
           }
           document.cookie = `pos_branch_id=${defaultBranch.id}; path=/; max-age=31536000; SameSite=Lax`;
           setBranchLoadError(false);
+          setIsLoadingBranches(false);
           return;
         }
 
@@ -322,6 +326,7 @@ export function BranchProvider({ children }: { children: ReactNode }) {
         }
 
         setBranchLoadError(false);
+        setIsLoadingBranches(false);
       } else {
         throw new Error("No branches returned from database");
       }
@@ -434,6 +439,7 @@ export function BranchProvider({ children }: { children: ReactNode }) {
       setInventoryLocationId(null);
       setIsBranchLocked(false);
       setBranchLoadError(false);
+      setIsLoadingBranches(false);
     }
   }, [currentUser, isLoadingUser]);
 
@@ -498,7 +504,6 @@ export function BranchProvider({ children }: { children: ReactNode }) {
         fetchShopLocation();
       }
 
-      setCurrentBranch(branch);
       setCurrentBranch(branch);
       localStorage.setItem("selectedBranchId", branchId);
       // Set cookie for Server Component access (1 year expiry)

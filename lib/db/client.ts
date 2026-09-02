@@ -40,7 +40,6 @@ function initializeConnection() {
       onnotice: () => {},
       onclose: () => {
         connectionHealth.isHealthy = false;
-        setTimeout(() => void performHealthCheck(), 1000);
       },
       onparameter: () => {},
     });

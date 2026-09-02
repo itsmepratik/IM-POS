@@ -56,19 +56,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .single();
 
       if (error) {
-        // Handle case where profile doesn't exist (e.g., new user)
-        if (error.code === "PGRST116") {
+        // Handle case where profile doesn't exist (e.g., new user or not yet created)
+        if (error.code === "PGRST116" || !error.message) {
           setProfile(null);
           return;
         }
-        console.error("Error loading user profile:", error);
+        console.warn("User profile not found or could not be loaded:", error.message || error.code || error);
+        setProfile(null);
         return;
       }
 
       setProfile(profileData);
-    } catch (error) {
-      console.error("Error loading user profile:", error);
-      // Don't throw error, just set profile to null
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg && msg !== "[object Object]") {
+        console.warn("Exception loading user profile:", msg);
+      }
       setProfile(null);
     }
   };
