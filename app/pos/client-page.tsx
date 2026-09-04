@@ -373,12 +373,12 @@ export function POSClient({ initialData }: { initialData?: any }) {
     return () => clearInterval(timer);
   }, []);
 
-  const { currentBranch, inventoryLocationId } = useBranch();
+  const { currentBranch, inventoryLocationId, isLoadingBranches } = useBranch();
   const companyInfo = useCompanyInfo();
 
   // Cash shift management state
   const [activeShift, setActiveShift] = useState<any>(initialData?.activeShift || null);
-  const [isLoadingShift, setIsLoadingShift] = useState(!initialData?.activeShift);
+  const [isLoadingShift, setIsLoadingShift] = useState(true);
   const [isCloseShiftModalOpen, setIsCloseShiftModalOpen] = useState(false);
   const [isCashMovementModalOpen, setIsCashMovementModalOpen] = useState(false);
 
@@ -386,11 +386,15 @@ export function POSClient({ initialData }: { initialData?: any }) {
   const refreshActiveShift = useCallback(async (shopId?: string) => {
     const targetShopId = shopId || currentBranch?.id || inventoryLocationId;
     if (!targetShopId) {
-      setIsLoadingShift(false);
+      // If branches are still loading, keep waiting
+      if (!isLoadingBranches) {
+        setIsLoadingShift(false);
+      }
       return;
     }
 
     try {
+      setIsLoadingShift(true);
       const { getActiveShift } = await import("@/lib/actions/cash-shifts");
       const current = await getActiveShift(targetShopId);
       setActiveShift(current);
@@ -399,13 +403,17 @@ export function POSClient({ initialData }: { initialData?: any }) {
     } finally {
       setIsLoadingShift(false);
     }
-  }, [currentBranch?.id, inventoryLocationId]);
+  }, [currentBranch?.id, inventoryLocationId, isLoadingBranches]);
 
   useEffect(() => {
-    if (currentBranch?.id || inventoryLocationId) {
-      refreshActiveShift(currentBranch?.id || inventoryLocationId || undefined);
+    if (isLoadingBranches) return;
+    const targetId = currentBranch?.id || inventoryLocationId;
+    if (targetId) {
+      refreshActiveShift(targetId);
+    } else {
+      setIsLoadingShift(false);
     }
-  }, [currentBranch?.id, inventoryLocationId, refreshActiveShift]);
+  }, [currentBranch?.id, inventoryLocationId, isLoadingBranches, refreshActiveShift]);
 
   // Periodic polling & window focus sync for active cash shift
   useEffect(() => {
@@ -2386,7 +2394,7 @@ export function POSClient({ initialData }: { initialData?: any }) {
       <CustomerSuccessDialog open={showCustomerSuccess} />
 
       {/* Strict POS Shift Lock Overlay: POS is locked and unusable if no shift is open */}
-      {!activeShift && !isLoadingShift && (
+      {!activeShift && !isLoadingShift && !isLoadingBranches && (
         <POSShiftLockOverlay
           shopName={currentBranch?.name || "Current Register"}
           shopId={currentBranch?.id}

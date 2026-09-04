@@ -58,7 +58,12 @@ export default async function POSPage() {
     console.error("Failed to pre-fetch reference counters:", e);
   }
 
-  const effectiveShopId = branchId || shopsData[0]?.id;
+  const saniyaShop = shopsData.find(
+    (s: any) =>
+      s.name?.toLowerCase().includes("saniya1") ||
+      s.name?.toLowerCase().includes("sanaiya1")
+  );
+  const effectiveShopId = branchId || saniyaShop?.id || shopsData[0]?.id;
 
   if (effectiveShopId) {
     try {

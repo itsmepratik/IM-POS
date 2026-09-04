@@ -57,7 +57,8 @@ export async function getActiveShift(shopId: string): Promise<ActiveShiftDetails
   if (!shopId) return null;
   const db = getDatabase();
 
-  const [shift] = await db
+  // Try matching directly by shopId or locationId first
+  let [shift] = await db
     .select({
       shift: cashShifts,
       staffName: staff.name,
@@ -77,6 +78,56 @@ export async function getActiveShift(shopId: string): Promise<ActiveShiftDetails
     )
     .orderBy(desc(cashShifts.startTime))
     .limit(1);
+
+  // If not found, check if shopId might be a shop name or if we need to resolve shop via name matching
+  if (!shift) {
+    const matchedShops = await db
+      .select({ id: shops.id, locationId: shops.locationId, name: shops.name })
+      .from(shops)
+      .where(or(
+        eq(shops.id, shopId),
+        sql`LOWER(${shops.name}) = LOWER(${shopId})`,
+        sql`LOWER(REPLACE(${shops.name}, ' ', '')) = LOWER(REPLACE(${shopId}, ' ', ''))`
+      ));
+
+    if (matchedShops.length > 0) {
+      const candidateIds = Array.from(
+        new Set(
+          matchedShops.flatMap((s) => [s.id, s.locationId]).filter(Boolean) as string[]
+        )
+      );
+
+      if (candidateIds.length > 0) {
+        const [fallbackShift] = await db
+          .select({
+            shift: cashShifts,
+            staffName: staff.name,
+            staffCode: staff.staffId,
+            shopName: shops.name,
+            locationName: locations.name,
+          })
+          .from(cashShifts)
+          .leftJoin(staff, eq(cashShifts.openedByStaffId, staff.id))
+          .leftJoin(shops, eq(cashShifts.shopId, shops.id))
+          .leftJoin(locations, eq(cashShifts.locationId, locations.id))
+          .where(
+            and(
+              or(
+                inArray(cashShifts.shopId, candidateIds),
+                inArray(cashShifts.locationId, candidateIds)
+              ),
+              eq(cashShifts.status, "open")
+            )
+          )
+          .orderBy(desc(cashShifts.startTime))
+          .limit(1);
+
+        if (fallbackShift) {
+          shift = fallbackShift;
+        }
+      }
+    }
+  }
 
   if (!shift) return null;
 
