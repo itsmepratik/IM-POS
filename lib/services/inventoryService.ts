@@ -493,10 +493,16 @@ export const fetchInventoryItems = async (
             ? product.categories[0]?.name
             : product.categories?.name;
 
+          const rawProductTypes = Array.isArray(product?.product_types)
+            ? product.product_types
+            : product?.product_types
+              ? [product.product_types]
+              : [];
+
           const isOilProduct =
             categoryName === "Lubricants" ||
             categoryName === "Additives" ||
-            product?.product_types?.some(
+            rawProductTypes.some(
               (pt: any) =>
                 pt.types?.name?.toLowerCase() === "lubricant" ||
                 pt.types?.name?.toLowerCase() === "synthetic" ||
@@ -613,14 +619,14 @@ export const fetchInventoryItems = async (
             brand_id: product?.brand_id,
             category_id: product?.category_id,
             type:
-              product?.product_types?.[0]?.types?.name ||
+              rawProductTypes[0]?.types?.name ||
               product?.types?.name ||
               "Unknown Type",
             type_id: product?.type_id,
             type_name: product?.types?.name,
             types:
-              product?.product_types
-                ?.map((pt: any) => pt.types)
+              rawProductTypes
+                .map((pt: any) => pt.types)
                 .filter(Boolean) || [],
             description: product?.description,
             isOil: isOilProduct,
@@ -817,11 +823,17 @@ export const fetchItems = async (
           ? product.categories[0]?.name
           : product.categories?.name;
 
+        const rawProductTypes = Array.isArray(product?.product_types)
+          ? product.product_types
+          : product?.product_types
+            ? [product.product_types]
+            : [];
+
         // Determine if this is an oil product based on category and types
         const isOilProduct =
           categoryName === "Lubricants" ||
           categoryName === "Additives" ||
-          product?.product_types?.some(
+          rawProductTypes.some(
             (pt: any) =>
               pt.types?.name?.toLowerCase() === "lubricant" ||
               pt.types?.name?.toLowerCase() === "synthetic" ||
@@ -832,14 +844,14 @@ export const fetchItems = async (
         // Fetch volumes for oil products
         let volumes: Volume[] = [];
         if (isOilProduct) {
-          const { data: volData } = await supabase
+          const { data: volData } = await sb
             .from("product_volumes")
             .select("*")
             // FIX: Use product_id, not item_id
             .eq("product_id", inv.product_id);
 
           if (volData) {
-            volumes = volData.map((v) => ({
+            volumes = volData.map((v: any) => ({
               ...v,
               item_id: inv.product_id, // Map back to product ID
               size: v.volume_description,
@@ -974,16 +986,14 @@ export const fetchItems = async (
                 closed: derivedClosedBottles,
               }
             : undefined,
-          types: product.product_types
-            ? product.product_types.map((pt: any) => pt.types).filter(Boolean)
-            : [],
+          types: rawProductTypes.map((pt: any) => pt.types).filter(Boolean),
           category: product.categories?.name || "Uncategorized", // Using the actual category name
           brand: product.brands?.name || "N/A", // Use brands table via brand_id foreign key
           brand_id: product.brand_id,
           category_id: product.category_id,
           type:
             product.types?.name ||
-            (product.product_types && product.product_types[0]?.types?.name) ||
+            rawProductTypes[0]?.types?.name ||
             null,
           type_id: product.type_id || null,
           type_name: product.types?.name || null,

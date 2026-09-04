@@ -378,14 +378,17 @@ export function POSClient({ initialData }: { initialData?: any }) {
 
   // Cash shift management state
   const [activeShift, setActiveShift] = useState<any>(initialData?.activeShift || null);
-  const [isLoadingShift, setIsLoadingShift] = useState(false);
+  const [isLoadingShift, setIsLoadingShift] = useState(!initialData?.activeShift);
   const [isCloseShiftModalOpen, setIsCloseShiftModalOpen] = useState(false);
   const [isCashMovementModalOpen, setIsCashMovementModalOpen] = useState(false);
 
   // Refresh active shift when current branch changes
   const refreshActiveShift = useCallback(async (shopId?: string) => {
-    const targetShopId = shopId || currentBranch?.id;
-    if (!targetShopId) return;
+    const targetShopId = shopId || currentBranch?.id || inventoryLocationId;
+    if (!targetShopId) {
+      setIsLoadingShift(false);
+      return;
+    }
 
     try {
       const { getActiveShift } = await import("@/lib/actions/cash-shifts");
@@ -396,13 +399,13 @@ export function POSClient({ initialData }: { initialData?: any }) {
     } finally {
       setIsLoadingShift(false);
     }
-  }, [currentBranch?.id]);
+  }, [currentBranch?.id, inventoryLocationId]);
 
   useEffect(() => {
-    if (currentBranch?.id) {
-      refreshActiveShift(currentBranch.id);
+    if (currentBranch?.id || inventoryLocationId) {
+      refreshActiveShift(currentBranch?.id || inventoryLocationId || undefined);
     }
-  }, [currentBranch?.id, refreshActiveShift]);
+  }, [currentBranch?.id, inventoryLocationId, refreshActiveShift]);
 
   // Periodic polling & window focus sync for active cash shift
   useEffect(() => {

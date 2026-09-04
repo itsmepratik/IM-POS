@@ -69,7 +69,12 @@ export async function getActiveShift(shopId: string): Promise<ActiveShiftDetails
     .leftJoin(staff, eq(cashShifts.openedByStaffId, staff.id))
     .leftJoin(shops, eq(cashShifts.shopId, shops.id))
     .leftJoin(locations, eq(cashShifts.locationId, locations.id))
-    .where(and(eq(cashShifts.shopId, shopId), eq(cashShifts.status, "open")))
+    .where(
+      and(
+        or(eq(cashShifts.shopId, shopId), eq(cashShifts.locationId, shopId)),
+        eq(cashShifts.status, "open")
+      )
+    )
     .orderBy(desc(cashShifts.startTime))
     .limit(1);
 
@@ -107,7 +112,7 @@ export async function getActiveShift(shopId: string): Promise<ActiveShiftDetails
     .from(transactions)
     .where(
       and(
-        eq(transactions.shopId, shopId),
+        eq(transactions.shopId, currentShift.shopId),
         eq(transactions.isVoided, false),
         or(
           eq(transactions.cashShiftId, currentShift.id),
