@@ -152,28 +152,27 @@ export async function getActiveShift(shopId: string): Promise<ActiveShiftDetails
   });
 
   // Calculate live sales from transactions tied to this shift or created during shift
-  const shiftTxns = await db
-    .select({
-      id: transactions.id,
-      paymentMethod: transactions.paymentMethod,
-      totalAmount: transactions.totalAmount,
-      type: transactions.type,
-      isVoided: transactions.isVoided,
-    })
-    .from(transactions)
-    .where(
-      and(
-        eq(transactions.shopId, currentShift.shopId),
-        eq(transactions.isVoided, false),
-        or(
-          eq(transactions.cashShiftId, currentShift.id),
-          and(
-            isNull(transactions.cashShiftId),
-            gte(transactions.createdAt, currentShift.startTime)
-          )
+  let shiftTxns: { id: string; paymentMethod: string | null; totalAmount: string; type: string; isVoided: boolean | null }[] = [];
+  try {
+    shiftTxns = await db
+      .select({
+        id: transactions.id,
+        paymentMethod: transactions.paymentMethod,
+        totalAmount: transactions.totalAmount,
+        type: transactions.type,
+        isVoided: transactions.isVoided,
+      })
+      .from(transactions)
+      .where(
+        and(
+          eq(transactions.shopId, currentShift.shopId),
+          eq(transactions.isVoided, false),
+          gte(transactions.createdAt, currentShift.startTime)
         )
-      )
-    );
+      );
+  } catch (txnQueryError) {
+    console.warn("[getActiveShift] Failed to query shift transactions:", txnQueryError);
+  }
 
   let calculatedCashSales = 0;
   let calculatedCardSales = 0;
@@ -334,23 +333,22 @@ export async function closeCashShift(input: CloseShiftInput): Promise<{ success:
     });
 
     // Fetch all transactions that occurred during this shift
-    const shiftTxns = await db
-      .select()
-      .from(transactions)
-      .where(
-        and(
-          eq(transactions.shopId, existingShift.shopId),
-          eq(transactions.isVoided, false),
-          or(
-            eq(transactions.cashShiftId, existingShift.id),
-            and(
-              isNull(transactions.cashShiftId),
-              gte(transactions.createdAt, existingShift.startTime),
-              lte(transactions.createdAt, endTime)
-            )
+    let shiftTxns: any[] = [];
+    try {
+      shiftTxns = await db
+        .select()
+        .from(transactions)
+        .where(
+          and(
+            eq(transactions.shopId, existingShift.shopId),
+            eq(transactions.isVoided, false),
+            gte(transactions.createdAt, existingShift.startTime),
+            lte(transactions.createdAt, endTime)
           )
-        )
-      );
+        );
+    } catch (txnError) {
+      console.warn("[closeCashShift] Failed to query shift transactions:", txnError);
+    }
 
     let totalCashSales = 0;
     let totalCardSales = 0;
@@ -359,10 +357,7 @@ export async function closeCashShift(input: CloseShiftInput): Promise<{ success:
     let totalRefunds = 0;
     let totalTransactionsCount = 0;
 
-    const txnIdsToLink: string[] = [];
-
     shiftTxns.forEach((txn) => {
-      txnIdsToLink.push(txn.id);
       const amt = parseFloat(txn.totalAmount) || 0;
       const method = (txn.paymentMethod || "").toUpperCase();
 
@@ -377,14 +372,6 @@ export async function closeCashShift(input: CloseShiftInput): Promise<{ success:
         else if (method === "CREDIT" || txn.type === "CREDIT") totalCreditSales += amt;
       }
     });
-
-    // Link any unlinked transactions to this shift
-    if (txnIdsToLink.length > 0) {
-      await db
-        .update(transactions)
-        .set({ cashShiftId: existingShift.id })
-        .where(inArray(transactions.id, txnIdsToLink));
-    }
 
     const openingCash = parseFloat(existingShift.openingCash) || 0;
     const expectedClosingCash = openingCash + totalCashSales + totalCashIn - totalCashOut;
@@ -645,14 +632,8 @@ export async function getCashShiftFullDetails(shiftId: string) {
   // Transactions
   const shiftTxnConditions = [
     eq(transactions.shopId, shiftData.shift.shopId),
-    or(
-      eq(transactions.cashShiftId, shiftId),
-      and(
-        isNull(transactions.cashShiftId),
-        gte(transactions.createdAt, shiftData.shift.startTime),
-        ...(shiftData.shift.endTime ? [lte(transactions.createdAt, shiftData.shift.endTime)] : [])
-      )
-    ),
+    gte(transactions.createdAt, shiftData.shift.startTime),
+    ...(shiftData.shift.endTime ? [lte(transactions.createdAt, shiftData.shift.endTime)] : []),
   ];
 
   const shiftTransactions = await db
