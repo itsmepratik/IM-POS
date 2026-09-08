@@ -164,10 +164,13 @@ export async function getActiveShift(shopId: string): Promise<ActiveShiftDetails
       })
       .from(transactions)
       .where(
-        and(
-          eq(transactions.shopId, currentShift.shopId),
-          eq(transactions.isVoided, false),
-          gte(transactions.createdAt, currentShift.startTime)
+        or(
+          eq(transactions.cashShiftId, currentShift.id),
+          and(
+            eq(transactions.shopId, currentShift.shopId),
+            eq(transactions.isVoided, false),
+            gte(transactions.createdAt, currentShift.startTime)
+          )
         )
       );
   } catch (txnQueryError) {
@@ -339,11 +342,14 @@ export async function closeCashShift(input: CloseShiftInput): Promise<{ success:
         .select()
         .from(transactions)
         .where(
-          and(
-            eq(transactions.shopId, existingShift.shopId),
-            eq(transactions.isVoided, false),
-            gte(transactions.createdAt, existingShift.startTime),
-            lte(transactions.createdAt, endTime)
+          or(
+            eq(transactions.cashShiftId, existingShift.id),
+            and(
+              eq(transactions.shopId, existingShift.shopId),
+              eq(transactions.isVoided, false),
+              gte(transactions.createdAt, existingShift.startTime),
+              lte(transactions.createdAt, endTime)
+            )
           )
         );
     } catch (txnError) {
@@ -549,11 +555,53 @@ export async function getCashShiftsHistory(options: CashShiftFilterOptions = {})
       locationName: locations.name,
       openedByName: staff.name,
       openedByCode: staff.staffId,
+      computedCashSales: sql<string>`COALESCE(agg.computed_cash_sales, 0)::numeric`,
+      computedCardSales: sql<string>`COALESCE(agg.computed_card_sales, 0)::numeric`,
+      computedMobileSales: sql<string>`COALESCE(agg.computed_mobile_sales, 0)::numeric`,
+      computedCreditSales: sql<string>`COALESCE(agg.computed_credit_sales, 0)::numeric`,
+      computedRefunds: sql<string>`COALESCE(agg.computed_refunds, 0)::numeric`,
+      computedTxnCount: sql<number>`COALESCE(agg.computed_txn_count, 0)::int`,
     })
     .from(cashShifts)
     .leftJoin(shops, eq(cashShifts.shopId, shops.id))
     .leftJoin(locations, eq(cashShifts.locationId, locations.id))
     .leftJoin(staff, eq(cashShifts.openedByStaffId, staff.id))
+    .leftJoin(
+      sql`(
+        SELECT
+          t.cash_shift_id,
+          t.shop_id,
+          t.created_at,
+          t.payment_method,
+          t.total_amount,
+          t.type,
+          t.is_voided
+        FROM transactions t
+      ) t_all`,
+      sql`false`
+    ) // lateral join below via raw sql lateral
+    .leftJoin(
+      sql`LATERAL (
+        SELECT
+          SUM(CASE WHEN UPPER(COALESCE(t.payment_method, '')) = 'CASH' AND t.type != 'REFUND' THEN CAST(t.total_amount AS numeric) WHEN UPPER(COALESCE(t.payment_method, '')) = 'CASH' AND t.type = 'REFUND' THEN -CAST(t.total_amount AS numeric) ELSE 0 END) as computed_cash_sales,
+          SUM(CASE WHEN UPPER(COALESCE(t.payment_method, '')) = 'CARD' AND t.type != 'REFUND' THEN CAST(t.total_amount AS numeric) ELSE 0 END) as computed_card_sales,
+          SUM(CASE WHEN UPPER(COALESCE(t.payment_method, '')) IN ('MOBILE', 'ONLINE') AND t.type != 'REFUND' THEN CAST(t.total_amount AS numeric) ELSE 0 END) as computed_mobile_sales,
+          SUM(CASE WHEN UPPER(COALESCE(t.payment_method, '')) = 'CREDIT' OR t.type = 'CREDIT' THEN CAST(t.total_amount AS numeric) ELSE 0 END) as computed_credit_sales,
+          SUM(CASE WHEN t.type = 'REFUND' THEN CAST(t.total_amount AS numeric) ELSE 0 END) as computed_refunds,
+          COUNT(CASE WHEN t.type IN ('SALE', 'CREDIT') THEN 1 ELSE NULL END) as computed_txn_count
+        FROM transactions t
+        WHERE (
+          t.cash_shift_id = ${cashShifts.id}
+          OR (
+            t.shop_id = ${cashShifts.shopId}
+            AND t.is_voided = false
+            AND t.created_at >= ${cashShifts.startTime}
+            AND (${cashShifts.endTime} IS NULL OR t.created_at <= ${cashShifts.endTime})
+          )
+        )
+      ) agg`,
+      sql`true`
+    )
     .orderBy(desc(cashShifts.startTime))
     .limit(options.limit || 50)
     .offset(options.offset || 0);
@@ -563,13 +611,47 @@ export async function getCashShiftsHistory(options: CashShiftFilterOptions = {})
   }
 
   const results = await query;
-  return results.map((r) => ({
-    ...r.shift,
-    shopName: r.shopName || "Unknown Branch",
-    locationName: r.locationName || "Unknown Location",
-    openedByName: r.openedByName || "Unknown Staff",
-    openedByCode: r.openedByCode || "—",
-  }));
+  return results.map((r) => {
+    const shift = r.shift;
+    const computedCash = parseFloat(r.computedCashSales || "0") || 0;
+    const computedCard = parseFloat(r.computedCardSales || "0") || 0;
+    const computedMobile = parseFloat(r.computedMobileSales || "0") || 0;
+    const computedCredit = parseFloat(r.computedCreditSales || "0") || 0;
+    const computedRefund = parseFloat(r.computedRefunds || "0") || 0;
+    const computedTxns = Number(r.computedTxnCount) || 0;
+
+    const dbCashSales = parseFloat(shift.totalCashSales || "0") || 0;
+    const effectiveCashSales = shift.status === "open" || dbCashSales === 0 ? computedCash : dbCashSales;
+
+    const dbCardSales = parseFloat(shift.totalCardSales || "0") || 0;
+    const effectiveCardSales = shift.status === "open" || dbCardSales === 0 ? computedCard : dbCardSales;
+
+    const dbMobileSales = parseFloat(shift.totalMobileSales || "0") || 0;
+    const effectiveMobileSales = shift.status === "open" || dbMobileSales === 0 ? computedMobile : dbMobileSales;
+
+    const dbCreditSales = parseFloat(shift.totalCreditSales || "0") || 0;
+    const effectiveCreditSales = shift.status === "open" || dbCreditSales === 0 ? computedCredit : dbCreditSales;
+
+    const dbRefunds = parseFloat(shift.totalRefunds || "0") || 0;
+    const effectiveRefunds = shift.status === "open" || dbRefunds === 0 ? computedRefund : dbRefunds;
+
+    const dbTxnCount = shift.totalTransactions || 0;
+    const effectiveTxnCount = shift.status === "open" || dbTxnCount === 0 ? computedTxns : dbTxnCount;
+
+    return {
+      ...shift,
+      totalCashSales: effectiveCashSales.toFixed(3),
+      totalCardSales: effectiveCardSales.toFixed(3),
+      totalMobileSales: effectiveMobileSales.toFixed(3),
+      totalCreditSales: effectiveCreditSales.toFixed(3),
+      totalRefunds: effectiveRefunds.toFixed(3),
+      totalTransactions: effectiveTxnCount,
+      shopName: r.shopName || "Unknown Branch",
+      locationName: r.locationName || "Unknown Location",
+      openedByName: r.openedByName || "Unknown Staff",
+      openedByCode: r.openedByCode || "—",
+    };
+  });
 }
 
 /**
@@ -629,12 +711,16 @@ export async function getCashShiftFullDetails(shiftId: string) {
     .where(eq(cashShiftMovements.shiftId, shiftId))
     .orderBy(desc(cashShiftMovements.createdAt));
 
-  // Transactions
-  const shiftTxnConditions = [
-    eq(transactions.shopId, shiftData.shift.shopId),
-    gte(transactions.createdAt, shiftData.shift.startTime),
-    ...(shiftData.shift.endTime ? [lte(transactions.createdAt, shiftData.shift.endTime)] : []),
-  ];
+  // Transactions: match by cashShiftId OR (shopId + timestamp range)
+  const shiftTxnCondition = or(
+    eq(transactions.cashShiftId, shiftData.shift.id),
+    and(
+      eq(transactions.shopId, shiftData.shift.shopId),
+      eq(transactions.isVoided, false),
+      gte(transactions.createdAt, shiftData.shift.startTime),
+      ...(shiftData.shift.endTime ? [lte(transactions.createdAt, shiftData.shift.endTime)] : [])
+    )
+  );
 
   const shiftTransactions = await db
     .select({
@@ -649,11 +735,82 @@ export async function getCashShiftFullDetails(shiftId: string) {
     })
     .from(transactions)
     .leftJoin(staff, sql`(${transactions.cashierId} IS NOT NULL AND ${transactions.cashierId} ~ '^[0-9a-fA-F-]{36}$' AND ${transactions.cashierId}::uuid = ${staff.id})`)
-    .where(and(...shiftTxnConditions))
+    .where(shiftTxnCondition)
     .orderBy(desc(transactions.createdAt));
+
+  // Calculate live breakdown from transactions
+  let calculatedCashSales = 0;
+  let calculatedCardSales = 0;
+  let calculatedMobileSales = 0;
+  let calculatedCreditSales = 0;
+  let calculatedRefunds = 0;
+  let calculatedTransactionCount = 0;
+
+  shiftTransactions.forEach((txn) => {
+    if (txn.isVoided) return;
+    const amt = parseFloat(txn.totalAmount) || 0;
+    const method = (txn.paymentMethod || "").toUpperCase();
+
+    if (txn.type === "REFUND") {
+      calculatedRefunds += amt;
+      if (method === "CASH") {
+        calculatedCashSales -= amt;
+      }
+    } else if (txn.type === "SALE" || txn.type === "CREDIT") {
+      calculatedTransactionCount += 1;
+      if (method === "CASH") {
+        calculatedCashSales += amt;
+      } else if (method === "CARD") {
+        calculatedCardSales += amt;
+      } else if (method === "MOBILE" || method === "ONLINE") {
+        calculatedMobileSales += amt;
+      } else if (method === "CREDIT" || txn.type === "CREDIT") {
+        calculatedCreditSales += amt;
+      }
+    }
+  });
+
+  let totalCashIn = 0;
+  let totalCashOut = 0;
+  movements.forEach((m) => {
+    const amt = parseFloat(m.movement.amount) || 0;
+    if (m.movement.type === "CASH_IN" || m.movement.type === "PAY_IN") {
+      totalCashIn += amt;
+    } else {
+      totalCashOut += amt;
+    }
+  });
+
+  const openingCash = parseFloat(shiftData.shift.openingCash) || 0;
+  const currentOrExpectedCash = openingCash + calculatedCashSales + totalCashIn - totalCashOut;
+
+  const dbCash = parseFloat(shiftData.shift.totalCashSales || "0") || 0;
+  const dbCard = parseFloat(shiftData.shift.totalCardSales || "0") || 0;
+  const dbMobile = parseFloat(shiftData.shift.totalMobileSales || "0") || 0;
+  const dbCredit = parseFloat(shiftData.shift.totalCreditSales || "0") || 0;
+  const dbRefunds = parseFloat(shiftData.shift.totalRefunds || "0") || 0;
+  const dbTxnCount = shiftData.shift.totalTransactions || 0;
+
+  const effectiveCashSales = shiftData.shift.status === "open" || dbCash === 0 ? calculatedCashSales : dbCash;
+  const effectiveCardSales = shiftData.shift.status === "open" || dbCard === 0 ? calculatedCardSales : dbCard;
+  const effectiveMobileSales = shiftData.shift.status === "open" || dbMobile === 0 ? calculatedMobileSales : dbMobile;
+  const effectiveCreditSales = shiftData.shift.status === "open" || dbCredit === 0 ? calculatedCreditSales : dbCredit;
+  const effectiveRefunds = shiftData.shift.status === "open" || dbRefunds === 0 ? calculatedRefunds : dbRefunds;
+  const effectiveTxnCount = shiftData.shift.status === "open" || dbTxnCount === 0 ? calculatedTransactionCount : dbTxnCount;
+
+  const effectiveExpectedClosing = shiftData.shift.expectedClosingCash
+    ? shiftData.shift.expectedClosingCash
+    : currentOrExpectedCash.toFixed(3);
 
   return {
     ...shiftData.shift,
+    totalCashSales: effectiveCashSales.toFixed(3),
+    totalCardSales: effectiveCardSales.toFixed(3),
+    totalMobileSales: effectiveMobileSales.toFixed(3),
+    totalCreditSales: effectiveCreditSales.toFixed(3),
+    totalRefunds: effectiveRefunds.toFixed(3),
+    totalTransactions: effectiveTxnCount,
+    expectedClosingCash: effectiveExpectedClosing,
     shopName: shiftData.shopName || "Unknown Branch",
     shopCode: shiftData.shopCode || "—",
     locationName: shiftData.locationName || "Unknown Location",
