@@ -1,4 +1,4 @@
-import { getDatabase } from "@/lib/db/client";
+import { getDatabase, withTimeout } from "@/lib/db/client";
 import {
   products,
   brands,
@@ -28,7 +28,7 @@ const REVALIDATE_TIME = 3600;
 export const getCachedBrands = unstable_cache(
   async () => {
     const db = getDatabase();
-    return db.select().from(brands).orderBy(brands.name);
+    return withTimeout(db.select().from(brands).orderBy(brands.name) as Promise<any>, 6000, "getCachedBrands");
   },
   [CACHE_TAGS.BRANDS],
   {
@@ -40,14 +40,18 @@ export const getCachedBrands = unstable_cache(
 export const getCachedShops = unstable_cache(
   async () => {
     const db = getDatabase();
-    return db
-      .select({
-        id: shops.id,
-        name: shops.name,
-        locationId: shops.locationId,
-      })
-      .from(shops)
-      .where(eq(shops.isActive, true));
+    return withTimeout(
+      db
+        .select({
+          id: shops.id,
+          name: shops.name,
+          locationId: shops.locationId,
+        })
+        .from(shops)
+        .where(eq(shops.isActive, true)) as Promise<any>,
+      6000,
+      "getCachedShops"
+    );
   },
   [CACHE_TAGS.SHOPS],
   {
@@ -89,35 +93,34 @@ export const getCachedProducts = async (locationId: string) => {
   return unstable_cache(
     async () => {
       const db = getDatabase();
-      // 1. Fetch raw data with Drizzle
-      // We need to join inventory, products, brands, categories
-      // Using query builder for better type safety with relations
-
-      // Note: We use db.query.inventory.findMany.
-      // If types are not perfectly inferred, we might need to fallback to db.select with joins,
-      // but let's try assuming the schema from relations is correct.
-      const rawProducts = await db.query.inventory.findMany({
-        where: eq(inventory.locationId, locationId),
-        with: {
-          product: {
-            with: {
-              brand: true,
-              category: true,
-              // type relation is commented out in schema
-              // type: true,
-              // Checking schema: productsRelations has 'volumes' relation to 'productVolumes' table
-              volumes: true,
+      // 1. Fetch raw data with Drizzle - wrapped with timeout to avoid infinite hang
+      const rawProducts = await withTimeout(
+        db.query.inventory.findMany({
+          where: eq(inventory.locationId, locationId),
+          with: {
+            product: {
+              with: {
+                brand: true,
+                category: true,
+                volumes: true,
+              },
             },
+            batches: true,
           },
-          batches: true,
-        },
-      });
+        }) as Promise<any>,
+        8000,
+        "getCachedProducts inventory"
+      );
 
-      // Fetch open bottles separately as it might not be a direct relation on inventory in schema yet
-      const openBottles = await db
-        .select()
-        .from(openBottleDetails)
-        .where(eq(openBottleDetails.isEmpty, false));
+      // Fetch open bottles separately
+      const openBottles = await withTimeout(
+        db
+          .select()
+          .from(openBottleDetails)
+          .where(eq(openBottleDetails.isEmpty, false)) as Promise<any>,
+        6000,
+        "getCachedProducts openBottles"
+      );
       const openBottleMap = new Map();
       openBottles.forEach((ob) => {
         if (!openBottleMap.has(ob.inventoryId)) {

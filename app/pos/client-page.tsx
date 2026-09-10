@@ -379,10 +379,14 @@ export function POSClient({ initialData }: { initialData?: any }) {
   // Cash shift management state
   const [activeShift, setActiveShift] = useState<any>(initialData?.activeShift || null);
   const [isLoadingShift, setIsLoadingShift] = useState(true);
+  // Track whether the last shift check succeeded — only show lock when check succeeded AND no shift found
+  const [shiftCheckFailed, setShiftCheckFailed] = useState(!initialData?.activeShift);
   const [isCloseShiftModalOpen, setIsCloseShiftModalOpen] = useState(false);
   const [isCashMovementModalOpen, setIsCashMovementModalOpen] = useState(false);
 
-  // Refresh active shift when current branch changes (background = true for polls/focus)
+  // Refresh active shift when current branch changes (background = true for polls/focus).
+  // Timeout + anti-stacking guard so polling never hangs or piles up.
+  const isRefreshingRef = useRef(false);
   const refreshActiveShift = useCallback(async (shopId?: string, isBackground = false) => {
     const targetShopId = shopId || currentBranch?.id || inventoryLocationId;
     if (!targetShopId) {
@@ -391,23 +395,41 @@ export function POSClient({ initialData }: { initialData?: any }) {
       }
       return;
     }
-
+    if (isRefreshingRef.current) return;
+    isRefreshingRef.current = true;
     try {
       if (!isBackground) {
         setIsLoadingShift(true);
       }
       const { getActiveShift } = await import("@/lib/actions/cash-shifts");
-      const current = await getActiveShift(targetShopId);
-      
-      // If we already had an active shift and background sync got null/undefined (e.g. transient query issue),
-      // do NOT wipe the active shift and lock the POS screen.
-      if (current) {
-        setActiveShift(current);
-      } else if (!isBackground) {
-        setActiveShift(null);
+      // Client-side timeout so a hung check resolves as failure instead of hanging forever
+      const timeoutPromise = new Promise<never>((_, reject) => setTimeout(() => reject(new Error("shift refresh timeout")), 7000));
+      let succeeded = false;
+      let current: Awaited<ReturnType<typeof getActiveShift>> = null;
+      try {
+        current = await Promise.race([getActiveShift(targetShopId), timeoutPromise]);
+        succeeded = true;
+      } catch {
+        // Timeout or network error — marked as failed below
       }
-    } catch (err) {
-      console.error("Failed to refresh active cash shift:", err);
+      if (succeeded) {
+        // A background null must not wipe a known shift (transient query issue)
+        if (current) {
+          setActiveShift(current);
+        } else if (!isBackground) {
+          setActiveShift(null);
+        }
+        setShiftCheckFailed(false);
+      } else {
+        // Timeout or error — mark check as failed so the lock doesn't wrongly appear
+        setShiftCheckFailed(true);
+      }
+    } catch (err: unknown) {
+      // Mark check as failed — don't let a broken DB cause the lock to wrongly appear
+      setShiftCheckFailed(true);
+      // Ignore timeout errors silently for polling; only log unexpected ones
+      const message = err instanceof Error ? err.message : String(err);
+      if (!message.includes("timeout")) console.error("Failed to refresh active cash shift:", err);
     } finally {
       if (!isBackground) {
         setIsLoadingShift(false);
@@ -422,26 +444,36 @@ export function POSClient({ initialData }: { initialData?: any }) {
       refreshActiveShift(targetId, false);
     } else {
       setIsLoadingShift(false);
+      isRefreshingRef.current = false;
     }
   }, [currentBranch?.id, inventoryLocationId, isLoadingBranches, refreshActiveShift]);
 
-  // Periodic polling & window focus sync for active cash shift (always background!)
+  // Periodic polling & window focus/visibility sync for active cash shift (always background!)
   useEffect(() => {
     const targetId = currentBranch?.id || inventoryLocationId;
     if (!targetId) return;
 
     const interval = setInterval(() => {
-      refreshActiveShift(targetId, true);
+      // Only poll if tab is visible to reduce connection pressure causing "Connection closed"
+      if (document.visibilityState === "visible") {
+        refreshActiveShift(targetId, true);
+      }
     }, 15000);
 
     const handleFocus = () => {
       refreshActiveShift(targetId, true);
     };
 
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") refreshActiveShift(targetId, true);
+    };
+
     window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibility);
     return () => {
       clearInterval(interval);
       window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibility);
     };
   }, [currentBranch?.id, inventoryLocationId, refreshActiveShift]);
 
@@ -1361,21 +1393,8 @@ export function POSClient({ initialData }: { initialData?: any }) {
 
   // ✅ CONDITIONAL RENDERING AFTER ALL HOOKS (React Rules of Hooks)
 
-  // Show error state if there's a database error
-  if (error) {
-    return (
-      <Layout>
-        <div className="h-[calc(100vh-4rem)] flex items-center justify-center">
-          <div className="text-center">
-            <p className="text-lg text-red-600 mb-4">Database Error: {error}</p>
-            <p className="text-sm text-gray-600">
-              Using offline data as fallback
-            </p>
-          </div>
-        </div>
-      </Layout>
-    );
-  }
+  // NOTE: sync errors are shown as a non-blocking banner below — the POS
+  // must stay usable for sales even when a background sync fails.
 
   return (
     <Layout>
@@ -1383,6 +1402,22 @@ export function POSClient({ initialData }: { initialData?: any }) {
         className="h-[calc(100vh-4rem)] flex flex-col pb-0"
         suppressHydrationWarning
       >
+        {/* Non-blocking sync warning — never blocks sales */}
+        {error && (
+          <div className="flex-shrink-0 mx-0 mb-2 flex items-center justify-between gap-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            <span className="truncate">
+              Sync issue — showing last loaded products. {error}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              className="shrink-0 border-amber-300 text-amber-800 hover:bg-amber-100"
+              onClick={() => syncProducts(true, false)}
+            >
+              Retry
+            </Button>
+          </div>
+        )}
         <div className="flex-1 flex flex-col lg:flex-row gap-4 min-h-0">
           {/* Product Grid */}
           <div className="flex-1 overflow-hidden flex flex-col min-h-0">
@@ -2404,14 +2439,17 @@ export function POSClient({ initialData }: { initialData?: any }) {
       {/* Customer Add Success Animation */}
       <CustomerSuccessDialog open={showCustomerSuccess} />
 
-      {/* Strict POS Shift Lock Overlay: POS is locked and unusable if no shift is open */}
-      {!activeShift && !isLoadingShift && !isLoadingBranches && (
+      {/* Strict POS Shift Lock Overlay: POS is locked and unusable if no shift is open.
+          Only show when branch loading is done AND the shift check succeeded —
+          never flash during branch load, never lock when the DB is unreachable. */}
+      {!activeShift && !isLoadingShift && !isLoadingBranches && !shiftCheckFailed && (
         <POSShiftLockOverlay
           shopName={currentBranch?.name || "Current Register"}
           shopId={currentBranch?.id}
           locationId={inventoryLocationId || currentBranch?.id}
           onShiftOpened={(newShift) => {
             setActiveShift(newShift);
+            setShiftCheckFailed(false);
             refreshActiveShift();
           }}
         />

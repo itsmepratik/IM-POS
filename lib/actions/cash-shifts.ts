@@ -48,17 +48,21 @@ export interface ActiveShiftDetails extends CashShift {
 }
 
 import { calculateDenominationsTotal } from "@/lib/utils/cash-denomination";
+import { withTimeout } from "@/lib/db/client";
 
 
 /**
  * Fetches the currently open cash shift for a specific shop, along with live calculated totals
+ * Wrapped with timeout to NEVER hang infinitely - returns null quickly on DB issues.
  */
 export async function getActiveShift(shopId: string): Promise<ActiveShiftDetails | null> {
   if (!shopId) return null;
   const db = getDatabase();
 
-  // Try matching directly by shopId or locationId first
-  let [shift] = await db
+  // Try matching directly by shopId or locationId first.
+  // Every stage is timeout-guarded: a hung DB degrades to the next stage
+  // (ultimately null) instead of hanging the POS.
+  const directQuery = db
     .select({
       shift: cashShifts,
       staffName: staff.name,
@@ -78,10 +82,17 @@ export async function getActiveShift(shopId: string): Promise<ActiveShiftDetails
     )
     .orderBy(desc(cashShifts.startTime))
     .limit(1);
+  type ShiftLookupRows = Awaited<typeof directQuery>;
+  const emptyLookup = (): ShiftLookupRows => [];
+  let [shift]: ShiftLookupRows = await withTimeout(
+    Promise.resolve(directQuery),
+    7000,
+    "getActiveShift lookup"
+  ).catch(emptyLookup);
 
   // If not found, check if shopId might be a shop name or if we need to resolve shop via name matching
   if (!shift) {
-    const matchedShops = await db
+    const matchQuery = db
       .select({ id: shops.id, locationId: shops.locationId, name: shops.name })
       .from(shops)
       .where(or(
@@ -89,6 +100,12 @@ export async function getActiveShift(shopId: string): Promise<ActiveShiftDetails
         sql`LOWER(${shops.name}) = LOWER(${shopId})`,
         sql`LOWER(REPLACE(${shops.name}, ' ', '')) = LOWER(REPLACE(${shopId}, ' ', ''))`
       ));
+    type ShopMatchRows = Awaited<typeof matchQuery>;
+    const matchedShops: ShopMatchRows = await withTimeout(
+      Promise.resolve(matchQuery),
+      6000,
+      "getActiveShift shop-name match"
+    ).catch((): ShopMatchRows => []);
 
     if (matchedShops.length > 0) {
       const candidateIds = Array.from(
@@ -98,7 +115,7 @@ export async function getActiveShift(shopId: string): Promise<ActiveShiftDetails
       );
 
       if (candidateIds.length > 0) {
-        const [fallbackShift] = await db
+        const fallbackQuery = db
           .select({
             shift: cashShifts,
             staffName: staff.name,
@@ -121,6 +138,11 @@ export async function getActiveShift(shopId: string): Promise<ActiveShiftDetails
           )
           .orderBy(desc(cashShifts.startTime))
           .limit(1);
+        const [fallbackShift]: Awaited<typeof fallbackQuery> = await withTimeout(
+          Promise.resolve(fallbackQuery),
+          7000,
+          "getActiveShift fallback lookup"
+        ).catch(emptyLookup);
 
         if (fallbackShift) {
           shift = fallbackShift;
@@ -131,14 +153,16 @@ export async function getActiveShift(shopId: string): Promise<ActiveShiftDetails
 
   if (!shift) return null;
 
-  const currentShift = shift.shift;
+  try {
+    const currentShift = shift.shift;
 
-  // Fetch movements for this shift
-  const movements = await db
-    .select()
-    .from(cashShiftMovements)
-    .where(eq(cashShiftMovements.shiftId, currentShift.id))
-    .orderBy(desc(cashShiftMovements.createdAt));
+    // Fetch movements for this shift
+    const movementsPromise = db
+      .select()
+      .from(cashShiftMovements)
+      .where(eq(cashShiftMovements.shiftId, currentShift.id))
+      .orderBy(desc(cashShiftMovements.createdAt));
+    const movements = (await withTimeout(movementsPromise as Promise<any>, 6000, "getActiveShift movements").catch(() => [])) as any[];
 
   let totalCashIn = 0;
   let totalCashOut = 0;
@@ -151,19 +175,24 @@ export async function getActiveShift(shopId: string): Promise<ActiveShiftDetails
     }
   });
 
-  // Calculate live sales from transactions tied to this shift or created during shift
-  let shiftTxns: { id: string; paymentMethod: string | null; totalAmount: string; type: string; isVoided: boolean | null }[] = [];
-  try {
-    shiftTxns = await db
-      .select({
-        id: transactions.id,
-        paymentMethod: transactions.paymentMethod,
-        totalAmount: transactions.totalAmount,
-        type: transactions.type,
-        isVoided: transactions.isVoided,
-      })
-      .from(transactions)
-      .where(
+  // Calculate live sales from transactions tied to this shift or created during shift.
+  // Timeout-guarded with empty-array fallback so the POS never hangs on transaction calc.
+  // Scoped to the resolved shift's shop (correct even when the caller passed a shop
+  // name that was resolved via fuzzy matching) with voided transactions excluded —
+  // voids must never inflate the drawer totals.
+  const shiftTxnsQuery = db
+    .select({
+      id: transactions.id,
+      paymentMethod: transactions.paymentMethod,
+      totalAmount: transactions.totalAmount,
+      type: transactions.type,
+      isVoided: transactions.isVoided,
+    })
+    .from(transactions)
+    .where(
+      and(
+        eq(transactions.shopId, currentShift.shopId),
+        eq(transactions.isVoided, false),
         or(
           eq(transactions.cashShiftId, currentShift.id),
           and(
@@ -172,7 +201,16 @@ export async function getActiveShift(shopId: string): Promise<ActiveShiftDetails
             gte(transactions.createdAt, currentShift.startTime)
           )
         )
-      );
+      )
+    );
+  type ShiftTxnRows = Awaited<typeof shiftTxnsQuery>;
+  let shiftTxns: ShiftTxnRows = [];
+  try {
+    shiftTxns = await withTimeout(
+      Promise.resolve(shiftTxnsQuery),
+      6000,
+      "getActiveShift transactions"
+    ).catch((): ShiftTxnRows => []);
   } catch (txnQueryError) {
     console.warn("[getActiveShift] Failed to query shift transactions:", txnQueryError);
   }
@@ -227,6 +265,10 @@ export async function getActiveShift(shopId: string): Promise<ActiveShiftDetails
     totalCashOut: Number(totalCashOut.toFixed(3)),
     movements,
   };
+  } catch (error: any) {
+    console.error("getActiveShift failed - returning null to avoid POS hang:", error?.message || error);
+    return null;
+  }
 }
 
 export interface OpenShiftInput {

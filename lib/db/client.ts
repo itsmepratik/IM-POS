@@ -3,11 +3,12 @@ import postgres from "postgres";
 import * as schema from "./schema";
 import { dbConfig } from "../config";
 
-// Connection pool configuration
-const CONNECTION_POOL_SIZE = 10;
-const CONNECTION_TIMEOUT = 15;
-const IDLE_TIMEOUT = 60;
-const MAX_LIFETIME = 60 * 60;
+// Connection pool configuration - tuned for serverless / Next.js to avoid "Connection closed" and pool exhaustion
+const CONNECTION_POOL_SIZE = 5;
+const CONNECTION_TIMEOUT = 10;
+const IDLE_TIMEOUT = 30;
+const MAX_LIFETIME = 60 * 30;
+export const DB_TIMEOUT_MS = 8000;
 
 let queryClient: postgres.Sql | undefined;
 let db: ReturnType<typeof drizzle> | undefined;
@@ -65,7 +66,7 @@ function initializeConnection() {
 const performHealthCheck = async () => {
   if (!queryClient) return;
   try {
-    await queryClient`SELECT 1 as test_value`;
+    await withTimeout(queryClient`SELECT 1 as test_value`, 5000, "health check");
     connectionHealth.isHealthy = true;
     connectionHealth.consecutiveFailures = 0;
     connectionHealth.lastCheck = Date.now();
@@ -98,6 +99,18 @@ function ensureInitialized() {
 
 export { queryClient };
 export { db };
+
+/**
+ * Generic timeout wrapper - NEVER let a DB promise hang infinitely.
+ * This is the primary fix for "Staff ID verifying infinitely" and POS infinite loading.
+ */
+export function withTimeout<T>(promise: Promise<T>, ms: number = DB_TIMEOUT_MS, label = "DB operation"): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout>;
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timeoutId)) as Promise<T>;
+}
 
 // Override exports to lazy-init
 export function getQueryClient() {
@@ -210,11 +223,11 @@ export async function testDatabaseConnection(): Promise<{
 
   try {
     const startTime = Date.now();
-    const result = await client`SELECT 
+    const result = await withTimeout(client`SELECT 
       1 as test_query,
       current_timestamp as server_time,
       version() as postgres_version,
-      current_database() as database_name`;
+      current_database() as database_name`, 5000, "test connection");
     const latency = Date.now() - startTime;
 
     connectionHealth.isHealthy = true;

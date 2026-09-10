@@ -5,7 +5,7 @@ import {
 } from "@/lib/db/queries";
 import { POSClient } from "./client-page";
 import { cookies } from "next/headers";
-import { getDatabase } from "@/lib/db/client";
+import { getDatabase, withTimeout } from "@/lib/db/client";
 import { referenceNumberCounters } from "@/lib/db/schema";
 import { CategoryProvider } from "./context/CategoryContext";
 import { CartProvider } from "./context/CartContext";
@@ -25,21 +25,21 @@ export default async function POSPage() {
   const cookieStore = await cookies();
   const branchId = cookieStore.get("pos_branch_id")?.value;
 
-  // Fetch global static data — each wrapped in try/catch so a transient
-  // DB failure on one query doesn't crash the entire server render.
+  // Fetch global static data — each wrapped in try/catch + timeout so a transient
+  // DB failure or "Connection closed" never crashes the entire server render and never hangs infinitely
   let brandsData: any[] = [];
   let shopsData: any[] = [];
 
   try {
-    brandsData = await getCachedBrands();
-  } catch (e) {
-    console.error("Failed to pre-fetch brands:", e);
+    brandsData = await withTimeout(getCachedBrands() as Promise<any>, 6000, "prefetch brands");
+  } catch (e: any) {
+    console.error("Failed to pre-fetch brands:", e?.message || e);
   }
 
   try {
-    shopsData = await getCachedShops();
-  } catch (e) {
-    console.error("Failed to pre-fetch shops:", e);
+    shopsData = await withTimeout(getCachedShops() as Promise<any>, 6000, "prefetch shops");
+  } catch (e: any) {
+    console.error("Failed to pre-fetch shops:", e?.message || e);
   }
 
   let productsData: any[] = [];
@@ -48,14 +48,15 @@ export default async function POSPage() {
 
   try {
     const db = getDatabase();
-    countersData = await db
+    const countersPromise = db
       .select({
         prefix: referenceNumberCounters.prefix,
         counter: referenceNumberCounters.counter,
       })
       .from(referenceNumberCounters);
-  } catch (e) {
-    console.error("Failed to pre-fetch reference counters:", e);
+    countersData = await withTimeout(countersPromise as Promise<any>, 5000, "prefetch counters");
+  } catch (e: any) {
+    console.error("Failed to pre-fetch reference counters:", e?.message || e);
   }
 
   const saniyaShop = shopsData.find(
@@ -68,9 +69,9 @@ export default async function POSPage() {
   if (effectiveShopId) {
     try {
       const { getActiveShift } = await import("@/lib/actions/cash-shifts");
-      activeShiftData = await getActiveShift(effectiveShopId);
-    } catch (e) {
-      console.error("Failed to pre-fetch active cash shift:", e);
+      activeShiftData = await withTimeout(getActiveShift(effectiveShopId) as Promise<any>, 8000, "prefetch activeShift");
+    } catch (e: any) {
+      console.error("Failed to pre-fetch active cash shift:", e?.message || e);
     }
   }
 
@@ -78,9 +79,9 @@ export default async function POSPage() {
     const currentShop = shopsData.find((s: any) => s.id === branchId);
     if (currentShop && currentShop.locationId) {
       try {
-        productsData = await getCachedProducts(currentShop.locationId);
-      } catch (e) {
-        console.error("Failed to pre-fetch products:", e);
+        productsData = await withTimeout(getCachedProducts(currentShop.locationId) as Promise<any>, 8000, "prefetch products");
+      } catch (e: any) {
+        console.error("Failed to pre-fetch products:", e?.message || e);
       }
     }
   }

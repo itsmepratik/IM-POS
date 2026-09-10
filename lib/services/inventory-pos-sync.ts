@@ -109,8 +109,10 @@ export function useInventoryPOSSync(
 
     setSyncEvents((prev) => [...prev.slice(-49), fullEvent]); // Keep last 50 events
 
-    // Show toast for important events
-    if (event.type === "sync-error") {
+    // Show toast for important events.
+    // Background sync failures must NOT pop red error boxes over the POS —
+    // they are logged and retried silently; only manual/initial syncs toast.
+    if (event.type === "sync-error" && !event.data?.isBackground) {
       toast({
         title: "Sync Error",
         description: event.data?.message || "Failed to synchronize data",

@@ -91,7 +91,7 @@ export const fetchShops = async (): Promise<Shop[]> => {
         pos_id,
         shop_code,
         zip_code,
-        locations!inner (
+        locations!shops_location_id_locations_id_fk!inner (
           id,
           name
         )
@@ -99,7 +99,52 @@ export const fetchShops = async (): Promise<Shop[]> => {
       .eq("is_active", true)
       .order("name");
 
-    if (error) {
+    // Ambiguous FKs (PGRST201) or stale schema cache: retry without the
+    // embed and join locations client-side so branches always load.
+    let shopRows: any[] = (data as any[]) || [];
+    const embedFailed =
+      !!error &&
+      ((error as any)?.code === "PGRST201" ||
+        (typeof (error as any)?.message === "string" &&
+          ((error as any).message.includes("more than one relationship") ||
+            ((error as any).message.includes("relationship") &&
+              (error as any).message.includes("schema cache")))));
+    if (error && embedFailed) {
+      console.warn(
+        "[fetchShops] Embed query failed — falling back to split queries.",
+        (error as any)?.message,
+      );
+      const { data: rawShops, error: rawErr } = await supabase
+        .from("shops")
+        .select("*")
+        .eq("is_active", true)
+        .order("name");
+      if (rawErr) {
+        console.error("Error fetching shops:", JSON.stringify(rawErr, null, 2));
+        return [];
+      }
+      const locationIds = [
+        ...new Set(
+          (rawShops || []).map((s: any) => s.location_id).filter(Boolean),
+        ),
+      ];
+      let locationsById = new Map<string, string>();
+      if (locationIds.length > 0) {
+        const { data: locRows } = await supabase
+          .from("locations")
+          .select("id, name")
+          .in("id", locationIds);
+        locationsById = new Map(
+          (locRows || []).map((l: any) => [l.id, l.name]),
+        );
+      }
+      shopRows = (rawShops || []).map((s: any) => ({
+        ...s,
+        locations: s.location_id
+          ? { id: s.location_id, name: locationsById.get(s.location_id) || "" }
+          : null,
+      }));
+    } else if (error) {
       console.error("Error fetching shops:", JSON.stringify(error, null, 2));
       return [];
     }
@@ -131,15 +176,17 @@ export const fetchShops = async (): Promise<Shop[]> => {
       pos_id: string | null;
       shop_code: string | null;
       zip_code: string | null;
-      locations?: { id: string; name: string } | null;
+      locations?: { id: string; name: string } | { id: string; name: string }[] | null;
     }
 
-    const shops = (data || []).map((shop: ShopRow) => ({
+    const shops = (shopRows || []).map((shop: ShopRow) => ({
       id: shop.id,
       name: shop.name,
       displayName: shop.display_name || shop.name,
       locationId: shop.location_id,
-      locationName: shop.locations?.name || "",
+      locationName: Array.isArray(shop.locations)
+        ? shop.locations[0]?.name || ""
+        : shop.locations?.name || "",
       isActive: shop.is_active,
       company_name: shop.company_name,
       company_name_arabic: shop.company_name_arabic,

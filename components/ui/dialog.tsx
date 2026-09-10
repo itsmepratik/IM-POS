@@ -47,9 +47,14 @@ const DialogContent = React.forwardRef<
       ref={ref}
       asChild
       {...props}
+      onPointerDownOutside={(e) => {
+        // Outside taps must never dismiss a modal: cancel Radix's default close.
+        e.preventDefault();
+        props.onPointerDownOutside?.(e);
+      }}
       onInteractOutside={(e) => {
-        // call any user-provided handler
-        // @ts-ignore - Radix types
+        // Umbrella for pointer + focus interactions outside the modal: cancel default close.
+        e.preventDefault();
         props.onInteractOutside?.(e);
       }}
     >
@@ -88,9 +93,14 @@ const DialogContentWithoutClose = React.forwardRef<
       ref={ref}
       asChild
       {...props}
+      onPointerDownOutside={(e) => {
+        // Outside taps must never dismiss a modal: cancel Radix's default close.
+        e.preventDefault();
+        props.onPointerDownOutside?.(e);
+      }}
       onInteractOutside={(e) => {
-        // call any user-provided handler
-        // @ts-ignore - Radix types
+        // Umbrella for pointer + focus interactions outside the modal: cancel default close.
+        e.preventDefault();
         props.onInteractOutside?.(e);
       }}
     >

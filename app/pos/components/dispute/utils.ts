@@ -37,7 +37,7 @@ export const fetchProductNames = async (
     // Query products table directly for these specific IDs (UUIDs)
     const { data: productsData, error } = await supabase
       .from("products")
-      .select("id, name, brand_id, brands(id, name)")
+      .select("id, name, brand_id, brands!products_brand_id_brands_id_fk(id, name)")
       .in("id", productIds);
 
     if (error) {
@@ -91,7 +91,7 @@ export const fetchProductDetails = async (
         product_types(
           types(name)
         ),
-        categories(name)
+        categories!products_category_id_categories_id_fk(name)
       `,
       )
       .in("id", productIds);

@@ -178,100 +178,114 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
         // The DB trigger calls realtime.send() on topic 'stock-alerts'
         // with event 'stock_alert'. This is the primary, reliable delivery
         // mechanism for new stock notifications.
-        stockAlertsChannel = supabase
-          .channel("stock-alerts")
-          .on("broadcast", { event: "stock_alert" }, async (payload) => {
-            const data = payload.payload;
-            if (!data) return;
+        try {
+          stockAlertsChannel = supabase
+            .channel("stock-alerts")
+            .on("broadcast", { event: "stock_alert" }, async (payload) => {
+              const data = payload.payload;
+              if (!data) return;
 
-            // Update unread count from DB
-            const count = await getUnreadCount();
-            setUnreadCount(count);
+              // Update unread count from DB
+              const count = await getUnreadCount();
+              setUnreadCount(count);
 
-            // Show a temporary toast notification
-            const tempId = `rt-toast-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-            setNotifications((prev) => {
-              // Deduplicate by title + message within recent toasts
-              const hasDuplicate = prev.some(
-                (n) =>
-                  n.title === data.title &&
-                  n.message === data.message &&
-                  n.isTemporary,
-              );
-              if (hasDuplicate) return prev;
+              // Show a temporary toast notification
+              const tempId = `rt-toast-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+              setNotifications((prev) => {
+                // Deduplicate by title + message within recent toasts
+                const hasDuplicate = prev.some(
+                  (n) =>
+                    n.title === data.title &&
+                    n.message === data.message &&
+                    n.isTemporary,
+                );
+                if (hasDuplicate) return prev;
 
-              const toast: Notification = {
-                id: tempId,
-                type: data.type as NotificationType,
-                title: data.title,
-                message: data.message,
-                timestamp: Date.now(),
-                isPersisted: false,
-                isTemporary: true,
-                duration: 5000,
-              };
-              return [...prev, toast];
-            });
+                const toast: Notification = {
+                  id: tempId,
+                  type: data.type as NotificationType,
+                  title: data.title,
+                  message: data.message,
+                  timestamp: Date.now(),
+                  isPersisted: false,
+                  isTemporary: true,
+                  duration: 5000,
+                };
+                return [...prev, toast];
+              });
 
-            // Auto-dismiss after 5 seconds
-            setTimeout(() => {
-              setNotifications((prev) => prev.filter((n) => n.id !== tempId));
-            }, 5000);
+              // Auto-dismiss after 5 seconds
+              setTimeout(() => {
+                setNotifications((prev) => prev.filter((n) => n.id !== tempId));
+              }, 5000);
 
-            // If on notifications page, reload persisted notifications
-            if (pathnameRef.current === "/notifications") {
-              await loadNotifications(true);
-            }
-          })
-          .subscribe();
+              // If on notifications page, reload persisted notifications
+              if (pathnameRef.current === "/notifications") {
+                await loadNotifications(true);
+              }
+            })
+            .subscribe();
+        } catch (error) {
+          // Realtime may not be available on self-hosted Supabase instances
+          // This is non-critical - notifications still work via polling
+          console.warn("Stock alerts Realtime subscription failed (non-critical):", error);
+          stockAlertsChannel = null;
+        }
 
         // ── Channel 2: Postgres Changes for UPDATE/DELETE ──────────────
         // This handles mark-as-read and delete operations on the notifications table.
         // These are user-initiated actions that work reliably via postgres_changes.
-        notificationsChannel = supabase
-          .channel(`notifications:${user.id}`)
-          .on(
-            "postgres_changes",
-            {
-              event: "UPDATE",
-              schema: "public",
-              table: "notifications",
-              filter: `user_id=eq.${user.id}`,
-            },
-            async (payload) => {
-              const updatedNotification = payload.new as NotificationRecord;
-              const uiNotification = dbNotificationToUI(updatedNotification);
+        try {
+          notificationsChannel = supabase
+            .channel(`notifications:${user.id}`)
+            .on(
+              "postgres_changes",
+              {
+                event: "UPDATE",
+                schema: "public",
+                table: "notifications",
+                filter: `user_id=eq.${user.id}`,
+              },
+              async (payload) => {
+                const updatedNotification = payload.new as NotificationRecord;
+                const uiNotification = dbNotificationToUI(updatedNotification);
 
-              const count = await getUnreadCount();
-              setUnreadCount(count);
+                const count = await getUnreadCount();
+                setUnreadCount(count);
 
-              setNotifications((prev) =>
-                prev.map((n) =>
-                  n.dbId === updatedNotification.id ? uiNotification : n,
-                ),
-              );
-            },
-          )
-          .on(
-            "postgres_changes",
-            {
-              event: "DELETE",
-              schema: "public",
-              table: "notifications",
-              filter: `user_id=eq.${user.id}`,
-            },
-            async (payload) => {
-              const deletedId = payload.old.id;
+                setNotifications((prev) =>
+                  prev.map((n) =>
+                    n.dbId === updatedNotification.id ? uiNotification : n,
+                  ),
+                );
+              },
+            )
+            .on(
+              "postgres_changes",
+              {
+                event: "DELETE",
+                schema: "public",
+                table: "notifications",
+                filter: `user_id=eq.${user.id}`,
+              },
+              async (payload) => {
+                const deletedId = payload.old.id;
 
-              const count = await getUnreadCount();
-              setUnreadCount(count);
+                const count = await getUnreadCount();
+                setUnreadCount(count);
 
-              setNotifications((prev) =>
-                prev.filter((n) => n.dbId !== deletedId),
-              );
-            },
-          )
-          .subscribe();
+                setNotifications((prev) =>
+                  prev.filter((n) => n.dbId !== deletedId),
+                );
+              },
+            )
+            .subscribe();
+        } catch (error) {
+          // Realtime may not be available on self-hosted Supabase instances
+          // This is non-critical - notifications still work via polling
+          console.warn("Notifications Realtime subscription failed (non-critical):", error);
+          notificationsChannel = null;
+        }
 
         realtimeChannelRef.current = stockAlertsChannel;
       } catch (error) {

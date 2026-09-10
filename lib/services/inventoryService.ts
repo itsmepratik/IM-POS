@@ -11,6 +11,53 @@ import { syncOpenBottleDetailsToOpenCount } from "@/lib/services/sync-open-bottl
 // Create a singleton Supabase client to prevent dynamic import issues
 const supabase = createClient();
 
+// Generic timeout helper to prevent infinite hanging on Supabase network calls
+export function withSupabaseTimeout<T>(promise: Promise<T>, ms = 8000, label = "supabase"): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout>;
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timeoutId)) as Promise<T>;
+}
+
+// Canonical FK constraint names (see supabase/cloud_schema_dump.sql).
+// PostgREST fails with PGRST201 ("more than one relationship was found")
+// when duplicate FK constraints exist between two tables, so every embed
+// below names its constraint explicitly instead of relying on inference.
+export const FK = {
+  shopLocation: "shops_location_id_locations_id_fk",
+  productCategory: "products_category_id_categories_id_fk",
+  productBrand: "products_brand_id_brands_id_fk",
+  inventoryProduct: "inventory_product_id_products_id_fk",
+} as const;
+
+// True when PostgREST could not pick a relationship because several FKs
+// exist between the same tables (error code PGRST201).
+export function isAmbiguousEmbedError(err: any): boolean {
+  if (!err) return false;
+  return (
+    err?.code === "PGRST201" ||
+    (typeof err?.message === "string" &&
+      err.message.includes("more than one relationship"))
+  );
+}
+
+// True when PostgREST schema cache is stale (missing FK relationship).
+export function isSchemaCacheError(err: any): boolean {
+  if (!err) return false;
+  return (
+    typeof err?.message === "string" &&
+    err.message.includes("relationship") &&
+    err.message.includes("schema cache")
+  );
+}
+
+// Either recoverable embed failure that should trigger the split-query
+// fallback (separate selects + client-side join) instead of throwing.
+export function isRecoverableEmbedError(err: any): boolean {
+  return isAmbiguousEmbedError(err) || isSchemaCacheError(err);
+}
+
 // Type definitions
 // Type definition for Branch
 export type Branch = {
@@ -325,15 +372,52 @@ export const fetchInventoryItems = async (
       count = rpcData?.[0]?.total_count || 0;
     } else {
       // Standard fetch logic for no-search scenarios
-      // Determine join type based on filters to ensure data is returned correctly
-      const categoryJoin =
-        categoryId && categoryId !== "ALL" && categoryId !== "all"
-          ? "categories!inner"
-          : "categories";
-      const brandJoin =
-        brandId && brandId !== "ALL" && brandId !== "all" && brandId !== "none"
-          ? "brands!inner"
-          : "brands";
+      // Resolve category/brand names to IDs FIRST: filtering on
+      // `products.categories.name` / `products.brands.name` is ambiguous
+      // when duplicate FKs exist (PGRST201), so always filter by the FK id
+      // columns instead.
+      let categoryFilterId: string | null = null;
+      let brandFilterId: string | null = null;
+      let brandIsNone = false;
+
+      if (categoryId && categoryId !== "ALL" && categoryId !== "all") {
+        if (isUUID(categoryId)) {
+          categoryFilterId = categoryId;
+        } else {
+          const { data: catRow } = await sb
+            .from("categories")
+            .select("id")
+            .eq("name", categoryId)
+            .maybeSingle();
+          if (!catRow?.id) return { data: [], count: 0 };
+          categoryFilterId = catRow.id;
+        }
+      }
+
+      if (brandId && brandId !== "ALL" && brandId !== "all") {
+        if (isUUID(brandId)) {
+          brandFilterId = brandId;
+        } else if (brandId === "none") {
+          brandIsNone = true;
+        } else {
+          const { data: brandRow } = await sb
+            .from("brands")
+            .select("id")
+            .eq("name", brandId)
+            .maybeSingle();
+          if (!brandRow?.id) return { data: [], count: 0 };
+          brandFilterId = brandRow.id;
+        }
+      }
+
+      // Determine join type based on filters to ensure data is returned correctly.
+      // FK hints are explicit so duplicate constraints can't cause PGRST201.
+      const categoryJoin = categoryFilterId
+        ? `categories!${FK.productCategory}!inner`
+        : `categories!${FK.productCategory}`;
+      const brandJoin = brandFilterId
+        ? `brands!${FK.productBrand}!inner`
+        : `brands!${FK.productBrand}`;
 
       let query = sb
         .from("inventory")
@@ -346,7 +430,7 @@ export const fetchInventoryItems = async (
           open_bottles_stock,
           closed_bottles_stock,
           total_stock,
-          products!inner (
+          products!${FK.inventoryProduct}!inner (
           id,
           name,
           name,
@@ -372,22 +456,14 @@ export const fetchInventoryItems = async (
         )
         .eq("location_id", actualLocationId);
 
-      if (categoryId && categoryId !== "ALL" && categoryId !== "all") {
-        if (isUUID(categoryId)) {
-          query = query.eq("products.category_id", categoryId);
-        } else {
-          query = query.eq("products.categories.name", categoryId);
-        }
+      if (categoryFilterId) {
+        query = query.eq("products.category_id", categoryFilterId);
       }
 
-      if (brandId && brandId !== "ALL" && brandId !== "all") {
-        if (isUUID(brandId)) {
-          query = query.eq("products.brand_id", brandId);
-        } else if (brandId === "none") {
-          query = query.is("products.brand_id", null);
-        } else {
-          query = query.eq("products.brands.name", brandId);
-        }
+      if (brandFilterId) {
+        query = query.eq("products.brand_id", brandFilterId);
+      } else if (brandIsNone) {
+        query = query.is("products.brand_id", null);
       }
 
       if (filters.minPrice !== undefined && filters.minPrice !== null) {
@@ -435,10 +511,53 @@ export const fetchInventoryItems = async (
         error: fetchErr,
         count: fetchCount,
       } = await query.range(from, to);
-      if (fetchErr) throw fetchErr;
 
-      inventoryData = data || [];
-      count = fetchCount || 0;
+      // If the embedded resource query failed due to a stale PostgREST schema
+      // cache or ambiguous FK relationships (PGRST201),
+      // fall back to separate queries and client-side join
+      if (isRecoverableEmbedError(fetchErr)) {
+        console.warn(
+          "[fetchInventoryItems] Embed query failed — falling back to separate queries.",
+          fetchErr?.message,
+        );
+        const { data: rawInv, error: rawErr } = await sb
+          .from("inventory")
+          .select("id, product_id, standard_stock, selling_price, open_bottles_stock, closed_bottles_stock, total_stock")
+          .eq("location_id", actualLocationId)
+          .range(from, to);
+
+        if (rawErr) throw rawErr;
+
+        const productIds = [...new Set((rawInv || []).map((inv: any) => inv.product_id).filter(Boolean))];
+        const { data: products } = productIds.length > 0
+          ? await sb.from("products").select(`
+              id, name, description, image_url, low_stock_threshold, cost_price,
+              manufacturing_date, is_battery, battery_state, specification, bottle_size,
+              category_id, brand_id,
+              categories!${FK.productCategory} ( id, name ), brands!${FK.productBrand} ( id, name ),
+              product_types ( types ( id, name, category_id ) )
+            `).in("id", productIds)
+          : { data: [] };
+
+        const productsMap = new Map<string, any>();
+        (products || []).forEach((p: any) => productsMap.set(p.id, p));
+
+        inventoryData = (rawInv || []).map((inv: any) => ({
+          ...inv,
+          products: productsMap.get(inv.product_id) || null,
+        })).filter((inv: any) => inv.products);
+
+        // Get total count (without join, just inventory count for location)
+        const { count: totalCount } = await sb
+          .from("inventory")
+          .select("id", { count: "exact", head: true })
+          .eq("location_id", actualLocationId);
+        count = totalCount || 0;
+      } else {
+        if (fetchErr) throw fetchErr;
+        inventoryData = data || [];
+        count = fetchCount || 0;
+      }
     }
 
     // Client-side filtering for complex logic that Supabase query can't easily handle
@@ -738,7 +857,7 @@ export const fetchItems = async (
 ): Promise<Item[]> => {
   const sb = customSupabase || supabase;
   try {
-    const actualLocationId = await resolveLocationId(locationId, sb);
+    const actualLocationId = await withSupabaseTimeout(resolveLocationId(locationId, sb), 5000, "resolveLocationId");
 
     // Guard to prevent PostgreSQL 22P02 error (invalid input syntax for type uuid)
     const isUUID = (str: string) =>
@@ -752,7 +871,8 @@ export const fetchItems = async (
       return [];
     }
 
-    const { data: inventoryData, error } = await sb
+    const { data: inventoryData, error } = await withSupabaseTimeout(
+      sb
       .from("inventory")
       .select(
         `
@@ -763,7 +883,7 @@ export const fetchItems = async (
         open_bottles_stock,
         closed_bottles_stock,
         total_stock,
-        products!inner (
+        products!${FK.inventoryProduct}!inner (
           id,
           name,
           name,
@@ -777,11 +897,11 @@ export const fetchItems = async (
           specification,
           category_id,
           brand_id,
-          categories (
+          categories!${FK.productCategory} (
             id,
             name
           ),
-          brands (
+          brands!${FK.productBrand} (
             id,
             name
           ),
@@ -795,28 +915,85 @@ export const fetchItems = async (
         )
       `,
       )
-      .eq("location_id", actualLocationId);
+      .eq("location_id", actualLocationId) as Promise<any>,
+      8000,
+      "fetchItems inventory"
+    );
 
-    if (error) {
+    // If the embedded resource query failed due to a stale PostgREST schema
+    // cache or ambiguous FK relationships (PGRST201), fall back to separate
+    // queries
+    const isSchemaCacheError = isRecoverableEmbedError(error);
+
+    let resolvedInventoryData = inventoryData;
+    let resolvedError = error;
+
+    if (isSchemaCacheError) {
+      console.warn(
+        "[fetchItems] Embed query failed — falling back to separate queries.",
+        (error as any)?.message,
+      );
+      // Fetch inventory rows without joins
+      const { data: rawInventory, error: rawErr } = await withSupabaseTimeout(
+        sb
+          .from("inventory")
+          .select("id, product_id, standard_stock, selling_price, open_bottles_stock, closed_bottles_stock, total_stock")
+          .eq("location_id", actualLocationId) as Promise<any>,
+        8000,
+        "fetchItems inventory (fallback)"
+      );
+
+      if (rawErr || !rawInventory?.length) {
+        resolvedError = rawErr;
+        resolvedInventoryData = rawInventory;
+      } else {
+        // Fetch all products in one query
+        const productIds = [...new Set(rawInventory.map((inv: any) => inv.product_id).filter(Boolean))];
+        const { data: products } = await withSupabaseTimeout(
+          sb.from("products").select(`
+            id, name, description, image_url, low_stock_threshold, cost_price,
+            manufacturing_date, is_battery, battery_state, specification,
+            category_id, brand_id,
+            categories!${FK.productCategory} ( id, name ),
+            brands!${FK.productBrand} ( id, name ),
+            product_types ( types ( id, name, category_id ) )
+          `).in("id", productIds) as Promise<any>,
+          8000,
+          "fetchItems products (fallback)"
+        );
+
+        // Merge inventory rows with product data
+        const productsMap = new Map<string, any>();
+        (products || []).forEach((p: any) => productsMap.set(p.id, p));
+
+        resolvedInventoryData = rawInventory.map((inv: any) => ({
+          ...inv,
+          products: productsMap.get(inv.product_id) || null,
+        })).filter((inv: any) => inv.products); // Drop orphan inventory rows
+        resolvedError = null;
+      }
+    }
+
+    if (resolvedError) {
       console.error("Error fetching inventory:", {
-        error,
-        message: error.message,
-        details: error.details,
-        hint: error.hint,
-        code: error.code,
+        error: resolvedError,
+        message: resolvedError.message,
+        details: resolvedError.details,
+        hint: resolvedError.hint,
+        code: resolvedError.code,
         locationId,
         actualLocationId,
       });
       throw new Error(
-        `Failed to fetch inventory for location "${locationId}" (resolved to "${actualLocationId}"): ${error.message || "Unknown error"}`,
+        `Failed to fetch inventory for location "${locationId}" (resolved to "${actualLocationId}"): ${resolvedError.message || "Unknown error"}`,
       );
     }
-    if (inventoryData && inventoryData.length > 0) {
+    if (resolvedInventoryData && resolvedInventoryData.length > 0) {
     }
 
     // Transform the data to match the Item interface
     const items: Item[] = await Promise.all(
-      (inventoryData || []).map(async (inv: any) => {
+      (resolvedInventoryData || []).map(async (inv: any) => {
         const product = inv.products;
 
         const categoryName = Array.isArray(product.categories)
@@ -1641,10 +1818,14 @@ export const fetchCategories = async (): Promise<Category[]> => {
 // Fetch brands
 export const fetchBrands = async (): Promise<Brand[]> => {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await withSupabaseTimeout(
+      supabase
       .from("brands")
       .select("*")
-      .order("name");
+      .order("name") as Promise<any>,
+      6000,
+      "fetchBrands"
+    );
 
     if (error) {
       console.error("Error fetching brands:", error);
@@ -1746,7 +1927,8 @@ export const fetchShops = async (): Promise<
   }>
 > => {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await withSupabaseTimeout(
+      supabase
       .from("shops")
       .select(
         `
@@ -1775,26 +1957,77 @@ export const fetchShops = async (): Promise<
         brand_phones,
         brand_whatsapp,
         pos_id,
-        locations!inner (
+        locations!${FK.shopLocation}!inner (
           id,
           name
         )
       `,
       )
       .eq("is_active", true)
-      .order("name");
+      .order("name") as unknown as Promise<any>,
+      8000,
+      "fetchShops"
+    );
 
-    if (error) {
+    // Ambiguous FKs (PGRST201) or stale schema cache: retry without the
+    // embed and join locations client-side so branches always load.
+    let shopRows: any[] = data || [];
+    if (error && isRecoverableEmbedError(error)) {
+      console.warn(
+        "[fetchShops] Embed query failed — falling back to split queries.",
+        (error as any)?.message,
+      );
+      const { data: rawShops, error: rawErr } = await withSupabaseTimeout(
+        supabase
+          .from("shops")
+          .select("*")
+          .eq("is_active", true)
+          .order("name") as unknown as Promise<any>,
+        8000,
+        "fetchShops (fallback)",
+      );
+      if (rawErr) {
+        console.error("Error fetching shops:", JSON.stringify(rawErr, null, 2));
+        return [];
+      }
+      const locationIds = [
+        ...new Set(
+          (rawShops || []).map((s: any) => s.location_id).filter(Boolean),
+        ),
+      ];
+      let locationsById = new Map<string, string>();
+      if (locationIds.length > 0) {
+        const { data: locRows } = await withSupabaseTimeout(
+          supabase
+            .from("locations")
+            .select("id, name")
+            .in("id", locationIds) as unknown as Promise<any>,
+          8000,
+          "fetchShops locations (fallback)",
+        );
+        locationsById = new Map(
+          (locRows || []).map((l: any) => [l.id, l.name]),
+        );
+      }
+      shopRows = (rawShops || []).map((s: any) => ({
+        ...s,
+        locations: s.location_id
+          ? { id: s.location_id, name: locationsById.get(s.location_id) || "" }
+          : null,
+      }));
+    } else if (error) {
       console.error("Error fetching shops:", JSON.stringify(error, null, 2));
       return [];
     }
 
-    const shops = (data || []).map((shop: any) => ({
+    const shops = (shopRows || []).map((shop: any) => ({
       id: shop.id,
       name: shop.name,
       displayName: shop.display_name || shop.name,
       locationId: shop.location_id,
-      locationName: shop.locations?.name || "",
+      locationName: Array.isArray(shop.locations)
+        ? shop.locations[0]?.name || ""
+        : shop.locations?.name || "",
       isActive: shop.is_active,
       company_name: shop.company_name,
       company_name_arabic: shop.company_name_arabic,

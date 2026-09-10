@@ -75,12 +75,12 @@ export async function GET(req: Request) {
           name,
           display_name,
           location_id,
-          locations (
+          locations!shops_location_id_locations_id_fk (
             id,
             name
           )
         ),
-        locations (
+        locations!transactions_location_id_locations_id_fk (
           id,
           name
         )

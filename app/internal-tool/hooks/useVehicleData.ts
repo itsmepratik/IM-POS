@@ -198,7 +198,7 @@ export const useVehicleData = () => {
           volume_description,
           selling_price
         ),
-        brands (
+        brands!products_brand_id_brands_id_fk (
           name
         )
       `)
@@ -282,7 +282,7 @@ export const useVehicleData = () => {
         name,
         image_url,
         specification,
-        brands (
+        brands!products_brand_id_brands_id_fk (
           name
         ),
         inventory (

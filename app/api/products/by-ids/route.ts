@@ -42,11 +42,11 @@ export async function GET(req: Request) {
             name
           )
         ),
-        categories (
+        categories!products_category_id_categories_id_fk (
           id,
           name
         ),
-        brands (
+        brands!products_brand_id_brands_id_fk (
           id,
           name
         )

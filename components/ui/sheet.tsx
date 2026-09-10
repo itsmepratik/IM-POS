@@ -63,6 +63,16 @@ const SheetContent = React.forwardRef<
       ref={ref}
       className={cn(sheetVariants({ side }), className)}
       {...props}
+      onPointerDownOutside={(e) => {
+        // Outside taps must never dismiss a sheet: cancel Radix's default close.
+        e.preventDefault();
+        props.onPointerDownOutside?.(e);
+      }}
+      onInteractOutside={(e) => {
+        // Umbrella for pointer + focus interactions outside the sheet: cancel default close.
+        e.preventDefault();
+        props.onInteractOutside?.(e);
+      }}
     >
       <SheetPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-secondary">
         <X className="h-4 w-4" />

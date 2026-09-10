@@ -1,4 +1,4 @@
-import { getDatabase } from "@/lib/db/client";
+import { getDatabase, withTimeout } from "@/lib/db/client";
 import { staff, type Staff } from "@/lib/db/schema";
 import { eq, and, asc } from "drizzle-orm";
 
@@ -59,12 +59,13 @@ export async function validateStaffId(
   }
 
   const db = getDatabase();
-  const [member] = await db
+  const query = db
     .select()
     .from(staff)
     .where(and(eq(staff.staffId, staffId.trim()), eq(staff.isActive, true)))
     .limit(1);
-
+  const result = await withTimeout(query as Promise<any>, 6000, "validateStaffId").catch(() => []);
+  const [member] = result as any;
   if (!member) {
     return null;
   }
@@ -96,13 +97,13 @@ export async function getStaffById(
  */
 export async function getAllActiveStaff(): Promise<StaffMember[]> {
   const db = getDatabase();
-  const staffMembers = await db
+  const query = db
     .select()
     .from(staff)
     .where(eq(staff.isActive, true))
     .orderBy(asc(staff.staffId));
-
-  return staffMembers.map(mapStaff);
+  const staffMembers = await withTimeout(query as Promise<any>, 6000, "getAllActiveStaff").catch(() => []);
+  return (staffMembers as any[]).map(mapStaff);
 }
 
 /**
@@ -110,12 +111,9 @@ export async function getAllActiveStaff(): Promise<StaffMember[]> {
  */
 export async function getAllStaff(): Promise<StaffMember[]> {
   const db = getDatabase();
-  const staffMembers = await db
-    .select()
-    .from(staff)
-    .orderBy(asc(staff.staffId));
-
-  return staffMembers.map(mapStaff);
+  const query = db.select().from(staff).orderBy(asc(staff.staffId));
+  const staffMembers = await withTimeout(query as Promise<any>, 6000, "getAllStaff").catch(() => []);
+  return (staffMembers as any[]).map(mapStaff);
 }
 
 /**
@@ -127,12 +125,13 @@ export async function getStaffByTextId(
   if (!staffId) return null;
 
   const db = getDatabase();
-  const [member] = await db
+  const query = db
     .select()
     .from(staff)
     .where(eq(staff.staffId, staffId.trim()))
     .limit(1);
-
+  const result = await withTimeout(query as Promise<any>, 6000, "getStaffByTextId").catch(() => []);
+  const [member] = result as any;
   if (!member) {
     return null;
   }

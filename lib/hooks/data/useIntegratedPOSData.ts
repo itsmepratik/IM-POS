@@ -63,7 +63,7 @@ export function useIntegratedPOSData(
     } 
   }
 ): IntegratedPOSData {
-  const { currentBranch, branchLoadError, inventoryLocationId } = useBranch();
+  const { currentBranch, inventoryLocationId } = useBranch();
 
   // Use overrideLocationId if provided, otherwise use inventoryLocationId if available (for shop users with shared inventory), otherwise use currentBranch.id
   const locationIdForInventory = overrideLocationId !== undefined 
@@ -204,9 +204,12 @@ export function useIntegratedPOSData(
     };
   }, [lubricantProducts, products]);
 
-  // Determine overall error state
-  const error =
-    syncError || (branchLoadError ? "Branch selection unavailable" : null);
+  // Determine overall error state.
+  // NOTE: branchLoadError is intentionally NOT surfaced here as a blocking
+  // error. BranchContext already falls back to known branches (Offline Mode
+  // badge) and inventory still loads — blocking the whole POS over branch
+  // metadata would prevent sales with zero benefit.
+  const error = syncError;
 
   // Transform getProductAvailability to work with numeric IDs
   const getAvailabilityByNumericId = (numericId: number) => {

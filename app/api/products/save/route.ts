@@ -74,7 +74,7 @@ export async function POST(req: Request) {
       // For updates without category_id, get the existing product's category
       const { data: existingProduct, error: productError } = await supabase
         .from("products")
-        .select("category_id, categories(id, name)")
+        .select("category_id, categories!products_category_id_categories_id_fk(id, name)")
         .eq("id", body.id)
         .single();
 

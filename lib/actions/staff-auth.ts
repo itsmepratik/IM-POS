@@ -1,6 +1,6 @@
 "use server";
 
-import { getDb } from "@/lib/db/client";
+import { getDb, withTimeout } from "@/lib/db/client";
 import { staff, type Staff } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 
@@ -26,8 +26,10 @@ export async function validateStaffCodeAction(code: string): Promise<StaffValida
       return null;
     }
     const cleanCode = code.trim();
+    if (!cleanCode) return null;
 
-    const [member] = await db
+    // SECURITY: strict validation - never compromise, but never hang infinitely either
+    const query = db
       .select({
         id: staff.id,
         staffId: staff.staffId,
@@ -39,6 +41,9 @@ export async function validateStaffCodeAction(code: string): Promise<StaffValida
       .where(and(eq(staff.staffId, cleanCode), eq(staff.isActive, true)))
       .limit(1);
 
+    const result = await withTimeout(query as Promise<any>, 6000, `staff validation ${cleanCode}`);
+    const [member] = result as any[];
+
     if (!member) return null;
 
     return {
@@ -48,8 +53,13 @@ export async function validateStaffCodeAction(code: string): Promise<StaffValida
       role: member.role,
       isActive: member.isActive ?? true,
     };
-  } catch (error) {
-    console.error("Failed to validate staff code action:", error);
+  } catch (error: any) {
+    // Timeout or connection closed should return null quickly, not hang, but log for debugging
+    if (error?.message?.includes("timed out")) {
+      console.error("Staff validation timed out:", code, error.message);
+    } else {
+      console.error("Failed to validate staff code action:", error);
+    }
     return null;
   }
 }

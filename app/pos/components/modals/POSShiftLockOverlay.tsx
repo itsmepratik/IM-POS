@@ -64,9 +64,17 @@ export function POSShiftLockOverlay({
     setIsValidatingStaff(true);
     setStaffError(null);
 
+    // Client-side timeout guard - guarantees button never sticks on "Verifying..." infinitely
+    const clientTimeoutMs = 8000;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
     try {
       const { validateStaffCodeAction } = await import("@/lib/actions/staff-auth");
-      const member = await validateStaffCodeAction(staffIdInput.trim());
+      const validationPromise = validateStaffCodeAction(staffIdInput.trim());
+      const timeoutPromise = new Promise<null>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error("Verification timed out. Please check connection and try again.")), clientTimeoutMs);
+      });
+      const member: any = await Promise.race([validationPromise, timeoutPromise]);
+      if (timeoutId) clearTimeout(timeoutId);
       if (member) {
         setValidatedStaff({
           id: member.id,
@@ -79,7 +87,13 @@ export function POSShiftLockOverlay({
         setStaffError("Invalid or inactive staff ID. Try again.");
       }
     } catch (err: any) {
-      setStaffError("Failed to validate staff ID");
+      if (timeoutId) clearTimeout(timeoutId);
+      const msg = err?.message?.includes("timed out")
+        ? "Verification timed out - network is slow. Please try again."
+        : err?.message?.includes("Connection closed")
+          ? "Connection lost. Please retry."
+          : "Failed to validate staff ID. Please try again.";
+      setStaffError(msg);
     } finally {
       setIsValidatingStaff(false);
     }
@@ -106,7 +120,8 @@ export function POSShiftLockOverlay({
 
     setIsSubmitting(true);
     try {
-      const res = await openCashShift({
+      const shiftTimeoutMs = 10000;
+      const shiftPromise = openCashShift({
         shopId,
         locationId,
         openedByStaffId: validatedStaff.id,
@@ -114,6 +129,10 @@ export function POSShiftLockOverlay({
         openingDenominations: useDenominations ? denominations : undefined,
         openingNotes: openingNotes.trim() || undefined,
       });
+      const timeoutPromise = new Promise<{ success: false; error: string }>((_, reject) =>
+        setTimeout(() => reject(new Error("Shift opening timed out. Please check connection and try again.")), shiftTimeoutMs)
+      );
+      const res: any = await Promise.race([shiftPromise, timeoutPromise]);
 
       if (res.success && res.shift) {
         toast({
@@ -122,6 +141,29 @@ export function POSShiftLockOverlay({
         });
         setIsOpenShiftModalOpen(false);
         onShiftOpened(res.shift);
+      } else if (res.error?.includes("already active")) {
+        // A shift already exists in the DB but wasn't detected earlier (likely DB timeout).
+        // Re-fetch the active shift and unlock POS with it instead of showing an error.
+        try {
+          const { getActiveShift } = await import("@/lib/actions/cash-shifts");
+          const existing = await getActiveShift(shopId);
+          if (existing) {
+            toast({
+              title: "Existing Shift Found",
+              description: "An active shift was already open. POS has been unlocked with the existing shift.",
+            });
+            setIsOpenShiftModalOpen(false);
+            onShiftOpened(existing);
+            return;
+          }
+        } catch {
+          // If re-fetch also fails, fall through to the error toast
+        }
+        toast({
+          title: "Failed to Open Shift",
+          description: res.error,
+          variant: "destructive",
+        });
       } else {
         toast({
           title: "Failed to Open Shift",
@@ -132,7 +174,7 @@ export function POSShiftLockOverlay({
     } catch (err: any) {
       toast({
         title: "Error",
-        description: err?.message || "Failed to communicate with server.",
+        description: err?.message?.includes("timed out") ? "Request timed out. Please retry." : err?.message || "Failed to communicate with server.",
         variant: "destructive",
       });
     } finally {

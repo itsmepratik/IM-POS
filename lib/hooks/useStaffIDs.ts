@@ -25,13 +25,16 @@ export function useStaffIDs() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
-  // Function to fetch staff members from API
+  // Function to fetch staff members from API - with timeout to avoid infinite loading
   const fetchStaffMembers = useCallback(async () => {
     setIsLoading(true);
     setError(null);
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
     try {
-      const response = await fetch("/api/staff");
+      const response = await fetch("/api/staff", { signal: controller.signal, cache: "no-store" });
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         throw new Error(
@@ -45,22 +48,25 @@ export function useStaffIDs() {
         throw new Error(data.error || "Failed to fetch staff members");
       }
 
-      // Transform API response - use staff_id for id to maintain compatibility with existing code
-      // that uses staff_id text (like "0010") for user input
       const transformedStaff: StaffMember[] = data.data.map((staff) => ({
-        id: staff.staff_id, // Keep staff_id text for frontend compatibility (user input)
-        uuid: staff.id, // Store UUID for API calls
+        id: staff.staff_id,
+        uuid: staff.id,
         name: staff.name,
         is_active: staff.is_active,
       }));
 
       setStaffMembers(transformedStaff);
-    } catch (err) {
-      console.error("Error fetching staff members:", err);
-      setError(
-        err instanceof Error ? err : new Error("Unknown error occurred")
-      );
-      // Keep empty array on error - components should handle loading/error states
+    } catch (err: any) {
+      clearTimeout(timeoutId);
+      if (err?.name === "AbortError") {
+        console.error("Staff fetch timed out after 8s");
+        setError(new Error("Staff list timed out - please retry"));
+      } else {
+        console.error("Error fetching staff members:", err);
+        setError(
+          err instanceof Error ? err : new Error("Unknown error occurred")
+        );
+      }
       setStaffMembers([]);
     } finally {
       setIsLoading(false);
