@@ -1,3 +1,21 @@
+-- REVIEW STATUS (2026-09-10): DO NOT APPLY AS-IS — SUPERSEDED by
+-- 20260908000000_reconcile_fk_canonical_endstate.sql (plus 20260907000000 for
+-- inventory.product_id, already applied to live).
+-- Why it must not run as-written on the live DB:
+-- * PART 1 would CREATE duplicate `*_fkey` constraints that fight the
+--   canonical names the app embeds name explicitly (shops_location_id_fkey,
+--   products_category_id/brand_id_fkey, transactions_shop/location_id_fkey)
+--   and would RE-CREATE inventory_product_id_fkey (removed by 07) — each
+--   duplicate risks PGRST201 ambiguity. It only skips when the SAME `_fkey`
+--   name exists, never when the canonical twin exists.
+-- * PART 1b is harmless today (all targets absent) but subsumed by 08's
+--   conditional-drop logic (drop legacy only when the canonical twin exists).
+-- * PART 2 (6 RPCs) is fully present on live with matching signatures.
+-- * PART 3 (realtime publication) is fully populated on live.
+-- * Line 51 (DELETE orphan product_types) is destructive in principle;
+--   orphans are 0 today and 08 fails loudly instead of deleting.
+-- Kept for history — do NOT apply; apply 08 instead.
+--
 -- Migration: Comprehensive database repair after FK-destroying migrations
 --
 -- Root cause: Migrations 20260726000001 and 20260726000003 altered the inventory

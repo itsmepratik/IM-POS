@@ -1,3 +1,9 @@
+-- REVIEW STATUS (2026-09-10): SUPERSEDED by 20260908000000_reconcile_fk_canonical_endstate.sql.
+-- This file is SAFE (every branch is a no-op on the live DB today) but fully
+-- subsumed: 08 contains the same conditional-drop logic plus an exactly-one-FK
+-- assertion net and the realtime publication ensures. Kept for history —
+-- prefer applying 08. Do NOT extend this file; extend 08 instead.
+--
 -- Migration: Remove duplicate FK constraints that cause PostgREST PGRST201
 --
 -- Root cause of POS errors:
