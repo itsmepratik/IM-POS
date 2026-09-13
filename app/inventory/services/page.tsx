@@ -41,6 +41,7 @@ import {
   Trash2,
   Wrench,
   Search,
+  X,
   ToggleLeft,
   ToggleRight,
 } from "lucide-react";
@@ -263,14 +264,25 @@ function ServicesManager() {
             {services.filter((s) => s.isActive).length} active /{" "}
             {services.length} total services
           </CardDescription>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <div className="relative max-w-sm flex items-center">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
             <Input
+              type="search"
               placeholder="Search services..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 max-w-sm"
+              className="pl-9 pr-9"
             />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors focus:outline-none focus:ring-1 focus:ring-ring"
+                aria-label="Clear search"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
         </CardHeader>
         <CardContent>

@@ -1887,8 +1887,11 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated, onItemSavin
                                           onClick={() => {
                                             setEditingBatch({
                                               ...batch,
-                                              ...batch,
-                                              purchase_date: batch.purchase_date,
+                                              // Normalize DB timestamptz (e.g. "2026-09-10T00:00:00+00:00")
+                                              // to YYYY-MM-DD — the only format a native
+                                              // <input type="date"> will display. Never fall back
+                                              // to the raw value: it renders as an empty field.
+                                              purchase_date: formatDateForInput(batch.purchase_date) ?? "",
                                               cost_price: batch.cost_price,
                                             });
                                             setIsEditingBatch(true);
@@ -1941,6 +1944,13 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated, onItemSavin
                                     e.preventDefault();
                                     // Parse values for submission
                                     const parsedCostPrice = typeof editingBatch.cost_price === 'string' ? Number(editingBatch.cost_price) || 0 : editingBatch.cost_price;
+                                    // Normalize to YYYY-MM-DD so the stored value is always
+                                    // displayable in <input type="date"> on the next edit.
+                                    // The field is required, so fall back to today rather
+                                    // than persisting an undisplayable raw value.
+                                    const normalizedPurchaseDate =
+                                      formatDateForInput(editingBatch.purchase_date) ??
+                                      new Date().toISOString().split("T")[0];
                                     const parsedQtyRemaining =
                                       typeof editingBatch.current_quantity === "string"
                                         ? Number(editingBatch.current_quantity) || 0
@@ -1963,7 +1973,7 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated, onItemSavin
                                         editingBatch.id,
                                         {
                                           purchase_date:
-                                            editingBatch.purchase_date,
+                                            normalizedPurchaseDate,
                                           cost_price: parsedCostPrice,
                                           initial_quantity: safeQtyReceived,
                                           current_quantity: safeQtyRemaining,
@@ -1977,7 +1987,7 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated, onItemSavin
                                             ? {
                                                 ...batch,
                                                 purchase_date:
-                                                  editingBatch.purchase_date,
+                                                  normalizedPurchaseDate,
                                                 cost_price:
                                                   parsedCostPrice,
                                                 initial_quantity: safeQtyReceived,
@@ -1989,8 +1999,8 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated, onItemSavin
                                       // Re-sort batches by purchase date to maintain FIFO order
                                       const sortedBatches = updatedBatches.sort(
                                         (a, b) =>
-                                          new Date(a.purchase_date).getTime() -
-                                          new Date(b.purchase_date).getTime()
+                                          new Date(a.purchase_date || "").getTime() -
+                                          new Date(b.purchase_date || "").getTime()
                                       );
 
                                       setFormData((prev) => ({
@@ -2004,7 +2014,7 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated, onItemSavin
                                     } else {
                                       // Add new batch to context
                                       addBatch(formData.id, {
-                                        purchase_date: editingBatch.purchase_date,
+                                        purchase_date: normalizedPurchaseDate,
                                         cost_price: parsedCostPrice,
                                         initial_quantity: safeQtyReceived,
                                         current_quantity: safeQtyRemaining,
@@ -2017,7 +2027,7 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated, onItemSavin
                                         id: getClientOnlyId(), // Use stable ID generation function
                                         item_id: formData.id,
                                         purchase_date:
-                                          editingBatch.purchase_date,
+                                          normalizedPurchaseDate,
                                         expiration_date: null,
                                         supplier_id: null,
                                         cost_price: parsedCostPrice,
@@ -2065,7 +2075,12 @@ export function ItemModal({ open, onOpenChange, item, onItemUpdated, onItemSavin
                                       <Input
                                         id="purchaseDate"
                                         type="date"
-                                        value={editingBatch.purchase_date || ""}
+                                        // editingBatch.purchase_date is normalized to YYYY-MM-DD
+                                        // when the dialog opens; re-normalize here as a safety
+                                        // net for any legacy state. Never fall back to the raw
+                                        // value — full ISO strings render as an empty field in
+                                        // native date inputs, which was the reported bug.
+                                        value={formatDateForInput(editingBatch.purchase_date) ?? ""}
                                         onChange={(e) =>
                                           setEditingBatch({
                                             ...editingBatch,

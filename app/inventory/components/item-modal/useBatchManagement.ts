@@ -7,6 +7,7 @@ import { useState, useCallback } from "react";
 import { format } from "date-fns";
 import { v4 as uuidv4 } from "uuid";
 import { toast } from "@/components/ui/use-toast";
+import { formatDateForInput } from "@/lib/utils/dateUtils";
 import type { Batch } from "../../items-context";
 import type { ExtendedItem, NewBatchForm } from "./types";
 
@@ -289,10 +290,13 @@ export function useBatchManagement({
   const handleEditBatch = useCallback((batch: Batch) => {
     setEditingBatchId(batch.id);
     setIsEditingBatch(true);
-    setEditingBatch(batch);
+    setEditingBatch({
+      ...batch,
+      purchase_date: formatDateForInput(batch.purchase_date) || batch.purchase_date || "",
+    });
     setNewBatch({
       ...batch,
-      purchaseDate: batch.purchase_date || "",
+      purchaseDate: formatDateForInput(batch.purchase_date) || batch.purchase_date || "",
       costPrice: batch.cost_price || 0,
       quantity: batch.current_quantity || 0,
     });
