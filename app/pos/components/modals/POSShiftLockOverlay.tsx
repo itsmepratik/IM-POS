@@ -11,13 +11,15 @@ import { useToast } from "@/components/ui/use-toast";
 import { openCashShift } from "@/lib/actions/cash-shifts";
 import { DenominationBreakdown } from "@/lib/db/schema";
 import { calculateDenominationsTotal } from "@/lib/utils/cash-denomination";
+import { enrichOpenedShiftForPOS } from "@/lib/utils/cash-shift-display";
 import { Numpad } from "../Numpad";
+import type { ActiveShiftDetails } from "@/lib/actions/cash-shifts";
 
 interface POSShiftLockOverlayProps {
   shopName?: string;
   shopId?: string;
   locationId?: string;
-  onShiftOpened: (shift: any) => void;
+  onShiftOpened: (shift: ActiveShiftDetails) => void;
 }
 
 export function POSShiftLockOverlay({
@@ -132,15 +134,23 @@ export function POSShiftLockOverlay({
       const timeoutPromise = new Promise<{ success: false; error: string }>((_, reject) =>
         setTimeout(() => reject(new Error("Shift opening timed out. Please check connection and try again.")), shiftTimeoutMs)
       );
-      const res: any = await Promise.race([shiftPromise, timeoutPromise]);
+      const res = await Promise.race([shiftPromise, timeoutPromise]);
 
       if (res.success && res.shift) {
+        // Guarantee instant POS display even if the server ever returns a
+        // raw row: enrich client-side with the verified cashier + float.
+        // The server already enriches, so this is idempotent.
+        const enrichedShift = enrichOpenedShiftForPOS(res.shift, {
+          staffName: validatedStaff.name,
+          staffCode: validatedStaff.staffId,
+          shopName,
+        });
         toast({
           title: "Shift Started Successfully",
           description: `Cash shift opened by ${validatedStaff.name} with OMR ${effectiveTotal.toFixed(3)}.`,
         });
         setIsOpenShiftModalOpen(false);
-        onShiftOpened(res.shift);
+        onShiftOpened(enrichedShift);
       } else if (res.error?.includes("already active")) {
         // A shift already exists in the DB but wasn't detected earlier (likely DB timeout).
         // Re-fetch the active shift and unlock POS with it instead of showing an error.
@@ -171,10 +181,11 @@ export function POSShiftLockOverlay({
           variant: "destructive",
         });
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to communicate with server.";
       toast({
         title: "Error",
-        description: err?.message?.includes("timed out") ? "Request timed out. Please retry." : err?.message || "Failed to communicate with server.",
+        description: message.includes("timed out") ? "Request timed out. Please retry." : message,
         variant: "destructive",
       });
     } finally {

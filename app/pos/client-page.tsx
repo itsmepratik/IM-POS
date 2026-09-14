@@ -85,6 +85,11 @@ import { useToast } from "@/components/ui/use-toast";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { useCompanyInfo } from "@/lib/hooks/useCompanyInfo";
+import {
+  getShiftDisplayName,
+  getDrawerBalance,
+  shouldShowShiftLock,
+} from "@/lib/utils/cash-shift-display";
 // useNotification and createLubricantVolumeAlert moved to useLubricantVolume hook
 // Removed unused hooks
 import { Textarea } from "@/components/ui/textarea";
@@ -431,6 +436,10 @@ export function POSClient({ initialData }: { initialData?: any }) {
       const message = err instanceof Error ? err.message : String(err);
       if (!message.includes("timeout")) console.error("Failed to refresh active cash shift:", err);
     } finally {
+      // Release the guard so the post-open re-fetch, 15s poll, focus
+      // sync and checkout refresh are never swallowed (previously the
+      // flag stayed true forever and only a reload showed the new shift).
+      isRefreshingRef.current = false;
       if (!isBackground) {
         setIsLoadingShift(false);
       }
@@ -1504,10 +1513,10 @@ export function POSClient({ initialData }: { initialData?: any }) {
                       <div className="h-2 w-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.6)]" />
                       <div className="flex flex-col text-left">
                         <span className="text-[11px] font-semibold text-slate-700 leading-tight">
-                          Shift: {activeShift.openedByStaffName || "Active"}
+                          Shift: {getShiftDisplayName(activeShift)}
                         </span>
                         <span className="text-[10px] font-mono text-emerald-700 font-bold leading-tight">
-                          Drawer: OMR {(activeShift.currentCashInDrawer || 0).toFixed(3)}
+                          Drawer: OMR {getDrawerBalance(activeShift).toFixed(3)}
                         </span>
                       </div>
                       <div className="flex items-center gap-1 ml-2">
@@ -2441,16 +2450,33 @@ export function POSClient({ initialData }: { initialData?: any }) {
 
       {/* Strict POS Shift Lock Overlay: POS is locked and unusable if no shift is open.
           Only show when branch loading is done AND the shift check succeeded —
-          never flash during branch load, never lock when the DB is unreachable. */}
-      {!activeShift && !isLoadingShift && !isLoadingBranches && !shiftCheckFailed && (
+          never flash during branch load, never lock when the DB is unreachable.
+          The overlay hides the instant a shift exists — no reload required. */}
+      {shouldShowShiftLock({
+        activeShift,
+        isLoadingShift,
+        isLoadingBranches,
+        shiftCheckFailed,
+      }) && (
         <POSShiftLockOverlay
           shopName={currentBranch?.name || "Current Register"}
           shopId={currentBranch?.id}
           locationId={inventoryLocationId || currentBranch?.id}
           onShiftOpened={(newShift) => {
+            // Instant optimistic update: enriched shift already carries
+            // cashier name + drawer balance, so the header is correct on
+            // the very next render. Background revalidation then confirms
+            // live totals without flashing a loader.
             setActiveShift(newShift);
             setShiftCheckFailed(false);
-            refreshActiveShift();
+            setIsLoadingShift(false);
+            const sid =
+              (newShift as { shopId?: string } | null)?.shopId ||
+              currentBranch?.id ||
+              inventoryLocationId;
+            if (sid) {
+              void refreshActiveShift(sid, true);
+            }
           }}
         />
       )}

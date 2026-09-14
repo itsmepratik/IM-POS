@@ -49,6 +49,8 @@ export interface ActiveShiftDetails extends CashShift {
 
 import { calculateDenominationsTotal } from "@/lib/utils/cash-denomination";
 import { withTimeout } from "@/lib/db/client";
+import { openShiftInputSchema } from "@/lib/validation/cash-shifts";
+import { enrichOpenedShiftForPOS } from "@/lib/utils/cash-shift-display";
 
 
 /**
@@ -250,10 +252,10 @@ export async function getActiveShift(shopId: string): Promise<ActiveShiftDetails
 
   return {
     ...currentShift,
-    openedByStaffName: shift.staffName,
-    openedByStaffCode: shift.staffCode,
-    shopName: shift.shopName,
-    locationName: shift.locationName,
+    openedByStaffName: shift.staffName ?? undefined,
+    openedByStaffCode: shift.staffCode ?? undefined,
+    shopName: shift.shopName ?? undefined,
+    locationName: shift.locationName ?? undefined,
     currentCashInDrawer: Number(currentCashInDrawer.toFixed(3)),
     calculatedCashSales: Number(calculatedCashSales.toFixed(3)),
     calculatedCardSales: Number(calculatedCardSales.toFixed(3)),
@@ -265,8 +267,9 @@ export async function getActiveShift(shopId: string): Promise<ActiveShiftDetails
     totalCashOut: Number(totalCashOut.toFixed(3)),
     movements,
   };
-  } catch (error: any) {
-    console.error("getActiveShift failed - returning null to avoid POS hang:", error?.message || error);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("getActiveShift failed - returning null to avoid POS hang:", message);
     return null;
   }
 }
@@ -282,16 +285,23 @@ export interface OpenShiftInput {
 
 /**
  * Open a new cash shift for a shop. Prevents duplicate open shifts atomically in transaction.
+ * Returns the POS-ready enriched shift (cashier name + live drawer balance)
+ * so the POS header updates instantly with no reload / no second fetch.
  */
-export async function openCashShift(input: OpenShiftInput): Promise<{ success: boolean; shift?: CashShift; error?: string }> {
+export async function openCashShift(input: OpenShiftInput): Promise<{ success: boolean; shift?: ActiveShiftDetails; error?: string }> {
   try {
+    const parsed = openShiftInputSchema.safeParse(input);
+    if (!parsed.success) {
+      return { success: false, error: parsed.error.issues[0]?.message || "Invalid shift input" };
+    }
+    const validInput = parsed.data;
     const db = getDatabase();
 
     // Check if there is already an open shift for this shop
     const [existing] = await db
       .select({ id: cashShifts.id })
       .from(cashShifts)
-      .where(and(eq(cashShifts.shopId, input.shopId), eq(cashShifts.status, "open")))
+      .where(and(eq(cashShifts.shopId, validInput.shopId), eq(cashShifts.status, "open")))
       .limit(1);
 
     if (existing) {
@@ -299,36 +309,85 @@ export async function openCashShift(input: OpenShiftInput): Promise<{ success: b
     }
 
     // Resolve valid locationId if missing or mismatched
-    let resolvedLocationId = input.locationId;
+    let resolvedLocationId = validInput.locationId;
     const [targetShop] = await db
-      .select({ id: shops.id, locationId: shops.locationId })
+      .select({ id: shops.id, locationId: shops.locationId, name: shops.name })
       .from(shops)
-      .where(eq(shops.id, input.shopId))
+      .where(eq(shops.id, validInput.shopId))
       .limit(1);
 
-    if (targetShop?.locationId && (!resolvedLocationId || resolvedLocationId === input.shopId)) {
+    if (targetShop?.locationId && (!resolvedLocationId || resolvedLocationId === validInput.shopId)) {
       resolvedLocationId = targetShop.locationId;
     }
 
     const [created] = await db
       .insert(cashShifts)
       .values({
-        shopId: input.shopId,
+        shopId: validInput.shopId,
         locationId: resolvedLocationId,
-        openedByStaffId: input.openedByStaffId,
+        openedByStaffId: validInput.openedByStaffId,
         status: "open",
         startTime: new Date(),
-        openingCash: input.openingCash.toFixed(3),
-        openingDenominations: input.openingDenominations || null,
-        openingNotes: input.openingNotes?.trim() || null,
+        openingCash: validInput.openingCash.toFixed(3),
+        openingDenominations: validInput.openingDenominations || null,
+        openingNotes: validInput.openingNotes?.trim() || null,
       })
       .returning();
 
-    invalidateShiftCaches(input.shopId);
-    return { success: true, shift: created };
-  } catch (error: any) {
+    if (!created) {
+      return { success: false, error: "Failed to open cash shift" };
+    }
+
+    // Enrich for instant POS display: cashier name + drawer balance.
+    // Lookups are best-effort — the shift is already open even if a
+    // name lookup fails; the shared helper falls back safely.
+    let staffName: string | null = null;
+    let staffCode: string | null = null;
+    let shopName: string | null = targetShop?.name ?? null;
+    let locationName: string | null = null;
+    try {
+      const [opener] = await db
+        .select({ name: staff.name, code: staff.staffId })
+        .from(staff)
+        .where(eq(staff.id, validInput.openedByStaffId))
+        .limit(1);
+      if (opener) {
+        staffName = opener.name ?? null;
+        staffCode = opener.code ?? null;
+      }
+      if (resolvedLocationId) {
+        const [loc] = await db
+          .select({ name: locations.name })
+          .from(locations)
+          .where(eq(locations.id, resolvedLocationId))
+          .limit(1);
+        if (loc) locationName = loc.name ?? null;
+      }
+      if (!shopName) {
+        const [shopRow] = await db
+          .select({ name: shops.name })
+          .from(shops)
+          .where(eq(shops.id, validInput.shopId))
+          .limit(1);
+        if (shopRow) shopName = shopRow.name ?? null;
+      }
+    } catch (lookupError) {
+      console.warn("[openCashShift] staff/shop lookup failed, returning unenriched names:", lookupError);
+    }
+
+    const enriched: ActiveShiftDetails = enrichOpenedShiftForPOS(created, {
+      staffName,
+      staffCode,
+      shopName,
+      locationName,
+    });
+
+    invalidateShiftCaches(validInput.shopId);
+    return { success: true, shift: enriched };
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Failed to open cash shift";
     console.error("Failed to open cash shift:", error);
-    return { success: false, error: error?.message || "Failed to open cash shift" };
+    return { success: false, error: message };
   }
 }
 
