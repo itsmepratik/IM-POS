@@ -1,16 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
 import { createClient } from "@/supabase/server";
 import { generateReferenceNumber } from "@/lib/utils/reference-numbers";
-
-// Settlement request schema
-const SettlementRequestSchema = z.object({
-  referenceNumber: z.string().min(1, "Reference number is required"),
-  cashierId: z.string().min(1, "Cashier ID is required"),
-  paymentMethod: z.enum(["CASH", "CARD", "MOBILE"]).default("CASH").optional(),
-});
-
-type SettlementRequest = z.infer<typeof SettlementRequestSchema>;
+import {
+  SettlementRequestSchema,
+  type SettlementRequest,
+} from "@/lib/payments/methods";
 
 /**
  * POST /api/settle-transaction
@@ -42,6 +36,7 @@ export async function POST(req: NextRequest) {
       referenceNumber,
       cashierId,
       paymentMethod = "CASH",
+      mobilePaymentAccount,
     }: SettlementRequest = validation.data;
 
     const supabase = await createClient();
@@ -180,6 +175,8 @@ export async function POST(req: NextRequest) {
       car_plate_number: originalTransaction.car_plate_number,
       customer_id: originalTransaction.customer_id,
       original_reference_number: referenceNumber,
+      mobile_payment_account:
+        paymentMethod === "MOBILE" ? (mobilePaymentAccount as string) : null,
       receipt_html: null, // Will be generated on frontend if needed
       battery_bill_html: null,
       created_at: new Date().toISOString(),
@@ -214,6 +211,8 @@ export async function POST(req: NextRequest) {
             type: settlementTransaction.type,
             totalAmount: settlementTransaction.total_amount,
             paymentMethod: settlementTransaction.payment_method,
+            mobilePaymentAccount:
+              settlementTransaction.mobile_payment_account,
             createdAt: settlementTransaction.created_at,
           },
           originalTransaction: {

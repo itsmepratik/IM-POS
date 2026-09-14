@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Printer } from "lucide-react";
 import { motion } from "framer-motion";
 import { generateBarcodeHTML } from "@/lib/utils/barcodeGenerator";
+import { formatPaymentMethodLabel } from "@/lib/payments/methods";
 
 interface CartItem {
   id: number;
@@ -27,6 +28,14 @@ interface CartItem {
   source?: string;
 }
 
+interface TradeInItem {
+  id: string;
+  product_id: string;
+  quantity: number;
+  trade_in_value: number;
+  products?: { name: string };
+}
+
 interface ReceiptComponentProps {
   cart: CartItem[];
   paymentMethod: string;
@@ -38,6 +47,8 @@ interface ReceiptComponentProps {
   currentTime: string;
   onClose?: () => void;
   isVoided?: boolean;
+  appliedTradeInAmount?: number;
+  tradeIns?: TradeInItem[];
 }
 
 export const ReceiptComponent = ({
@@ -51,11 +62,16 @@ export const ReceiptComponent = ({
   currentTime,
   onClose,
   isVoided,
+  appliedTradeInAmount,
+  tradeIns,
 }: ReceiptComponentProps) => {
   const { brand } = useCompanyInfo();
   const POS_ID = brand.posId || "";
 
   const [localDiscount, setLocalDiscount] = useState(discount);
+  useEffect(() => {
+    setLocalDiscount(discount);
+  }, [discount]);
   const receiptRef = useRef<HTMLDivElement>(null);
   const [showReceipt, setShowReceipt] = useState(false);
   const [barcodeHtml, setBarcodeHtml] = useState<string>("");
@@ -75,10 +91,22 @@ export const ReceiptComponent = ({
   }, [cart, localDiscount]);
 
   const handlePrint = useCallback(() => {
-    const subtotal = cart.reduce(
-      (sum, item) => sum + item.price * item.quantity,
-      0,
-    );
+    // Mirror BillComponent totals: exclude "discount on old battery" line items
+    // from the sellable subtotal and treat them as a discount, then subtract
+    // any trade-in amount (same as POS A5 bill).
+    let printSubtotal = 0;
+    let printOldBatteryDiscount = 0;
+    const printSellable = cart.filter((item) => {
+      if (item.name.toLowerCase().includes("discount on old battery")) {
+        printOldBatteryDiscount += Math.abs(item.price * item.quantity);
+        return false;
+      }
+      printSubtotal += item.price * item.quantity;
+      return true;
+    });
+    void printSellable;
+
+    const subtotal = printSubtotal;
 
     const discountAmount = localDiscount
       ? localDiscount.type === "percentage"
@@ -86,7 +114,21 @@ export const ReceiptComponent = ({
         : Math.min(localDiscount.value, subtotal)
       : 0;
 
-    const total = subtotal - discountAmount;
+    const subtotalAfterDiscount = subtotal - discountAmount;
+    const tradeInDerived = (tradeIns || []).reduce(
+      (sum, ti) => sum + parseFloat(String(ti.trade_in_value || 0)),
+      0,
+    );
+    const finalTradeInAmount =
+      appliedTradeInAmount && appliedTradeInAmount > 0
+        ? appliedTradeInAmount
+        : tradeInDerived;
+    const oldBatteryDiscountAmount = printOldBatteryDiscount;
+
+    const total = Math.max(
+      0,
+      subtotalAfterDiscount - finalTradeInAmount - oldBatteryDiscountAmount,
+    );
 
     const htmlContent = `
       <!DOCTYPE html>
@@ -297,7 +339,7 @@ export const ReceiptComponent = ({
                   </tr>
                 </thead>
                 <tbody>
-                  ${cart
+                  ${printSellable
                     .map(
                       (item, _index) => `
                     <tr class="row-top">
@@ -346,6 +388,40 @@ export const ReceiptComponent = ({
                 </tbody>
               </table>
               
+              ${
+                tradeIns && tradeIns.length > 0
+                  ? `
+              <div style="margin-top: 8px; border-top: 1px dashed #000; padding-top: 5px;">
+                <p style="font-weight: bold; color: #D9534E; margin: 2px 0;">Traded-In Batteries</p>
+                <table class="receipt-table">
+                  <thead>
+                    <tr>
+                      <th class="sno">#</th>
+                      <th class="description">Item</th>
+                      <th class="qty">Qty</th>
+                      <th class="amount">Value</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${tradeIns
+                      .map(
+                        (ti, _tiIndex) => `
+                      <tr>
+                        <td class="sno">${_tiIndex + 1}</td>
+                        <td class="description">${ti.products?.name || "Battery"}</td>
+                        <td class="qty">(x${ti.quantity})</td>
+                        <td class="amount" style="color: #D9534E;">- ${parseFloat(String(ti.trade_in_value)).toFixed(3)}</td>
+                      </tr>
+                    `,
+                      )
+                      .join("")}
+                  </tbody>
+                </table>
+              </div>
+              `
+                  : ""
+              }
+
               <div class="receipt-summary">
                 <table>
                   <tr>
@@ -353,7 +429,7 @@ export const ReceiptComponent = ({
                     <td class="total-amount">OMR ${subtotal.toFixed(3)}</td>
                   </tr>
                   ${
-                    localDiscount
+                    localDiscount && discountAmount > 0
                       ? `
                   <tr class="discount-row" style="color: #22c55e; font-weight: bold;">
                     <td style="color: #22c55e; font-weight: bold;">Discount ${
@@ -362,6 +438,24 @@ export const ReceiptComponent = ({
                         : "(Amount)"
                     }</td>
                     <td class="total-amount" style="color: #22c55e; font-weight: bold;">- OMR ${discountAmount.toFixed(3)}</td>
+                  </tr>`
+                      : ""
+                  }
+                  ${
+                    finalTradeInAmount > 0
+                      ? `
+                  <tr style="color: #D9534E; font-weight: bold;">
+                    <td style="color: #D9534E; font-weight: bold;">Trade-In Amount</td>
+                    <td class="total-amount" style="color: #D9534E; font-weight: bold;">- OMR ${finalTradeInAmount.toFixed(3)}</td>
+                  </tr>`
+                      : ""
+                  }
+                  ${
+                    oldBatteryDiscountAmount > 0
+                      ? `
+                  <tr style="color: #D9534E; font-weight: bold;">
+                    <td style="color: #D9534E; font-weight: bold;">Discount on old battery</td>
+                    <td class="total-amount" style="color: #D9534E; font-weight: bold;">- OMR ${oldBatteryDiscountAmount.toFixed(3)}</td>
                   </tr>`
                       : ""
                   }
@@ -374,7 +468,7 @@ export const ReceiptComponent = ({
             </div>
             
             <div class="receipt-footer">
-              <p>Number of Items: ${cart.reduce(
+              <p>Number of Items: ${printSellable.reduce(
                 (sum, item) => sum + item.quantity,
                 0,
               )}</p>
@@ -447,11 +541,22 @@ export const ReceiptComponent = ({
     POS_ID,
     barcodeHtml,
     isVoided,
+    appliedTradeInAmount,
+    tradeIns,
   ]);
 
   if (!showReceipt) return null;
 
-  const subtotal = cart.reduce(
+  // Mirror BillComponent totals for the on-screen preview (same as print).
+  let previewOldBatteryDiscount = 0;
+  const previewSellable = cart.filter((item) => {
+    if (item.name.toLowerCase().includes("discount on old battery")) {
+      previewOldBatteryDiscount += Math.abs(item.price * item.quantity);
+      return false;
+    }
+    return true;
+  });
+  const subtotal = previewSellable.reduce(
     (sum, item) => sum + item.price * item.quantity,
     0,
   );
@@ -462,25 +567,29 @@ export const ReceiptComponent = ({
       : Math.min(localDiscount.value, subtotal)
     : 0;
 
-  const total = subtotal - discountAmount;
-  const itemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+  const subtotalAfterDiscountPreview = subtotal - discountAmount;
+  const tradeInDerivedPreview = (tradeIns || []).reduce(
+    (sum, ti) => sum + parseFloat(String(ti.trade_in_value || 0)),
+    0,
+  );
+  const finalTradeInPreview =
+    appliedTradeInAmount && appliedTradeInAmount > 0
+      ? appliedTradeInAmount
+      : tradeInDerivedPreview;
 
-  const getFormattedPaymentMethod = (method: string) => {
-    switch (method) {
-      case "card":
-        return "Card";
-      case "cash":
-        return "Cash";
-      case "mobile":
-        return "Mobile Pay";
-      case "on-hold":
-        return "on-hold";
-      case "credit":
-        return "Credit";
-      default:
-        return method.charAt(0).toUpperCase() + method.slice(1);
-    }
-  };
+  const total = Math.max(
+    0,
+    subtotalAfterDiscountPreview -
+      finalTradeInPreview -
+      previewOldBatteryDiscount,
+  );
+  const itemCount = previewSellable.reduce(
+    (sum, item) => sum + item.quantity,
+    0,
+  );
+
+  const getFormattedPaymentMethod = (method: string): string =>
+    formatPaymentMethodLabel(method);
 
   return (
     <motion.div
@@ -546,7 +655,7 @@ export const ReceiptComponent = ({
                 </tr>
               </thead>
               <tbody>
-                {cart.map((item, index) => {
+                {previewSellable.map((item, index) => {
                   let cleanName = item.name
                     .replace(
                       /\s*\(?(\d+(\.\d+)?[Ll])\s+(open|closed)\s+bottle\)?/i,
@@ -599,6 +708,40 @@ export const ReceiptComponent = ({
               </tbody>
             </table>
 
+            {tradeIns && tradeIns.length > 0 && (
+              <div className="border-t border-dashed border-black pt-1.5 mt-2.5">
+                <p className="text-[12px] font-bold text-[#D9534E] m-0 mb-1">
+                  Traded-In Batteries
+                </p>
+                <table className="w-full text-[12px]">
+                  <thead>
+                    <tr>
+                      <th className="text-left font-normal pb-1">#</th>
+                      <th className="text-left font-normal pb-1">Item</th>
+                      <th className="text-center font-normal pb-1">Qty</th>
+                      <th className="text-right font-normal pb-1">Value</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {tradeIns.map((ti, tiIndex) => (
+                      <tr key={ti.id || `ti-${tiIndex}`}>
+                        <td className="text-black py-[2px]">{tiIndex + 1}</td>
+                        <td className="text-black py-[2px] break-words">
+                          {ti.products?.name || "Battery"}
+                        </td>
+                        <td className="text-center text-black py-[2px]">
+                          (x{ti.quantity})
+                        </td>
+                        <td className="text-right text-[#D9534E] py-[2px] tabular-nums">
+                          - {parseFloat(String(ti.trade_in_value)).toFixed(3)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
             <div className="border-t border-dashed border-black pt-1.5 mt-2.5">
               <table className="w-full text-[12px]">
                 <tbody>
@@ -610,7 +753,7 @@ export const ReceiptComponent = ({
                       OMR {subtotal.toFixed(3)}
                     </td>
                   </tr>
-                  {localDiscount && (
+                  {localDiscount && discountAmount > 0 && (
                     <tr className="text-[#22c55e] font-bold">
                       <td className="py-[2px] pl-0">
                         Discount{" "}
@@ -620,6 +763,24 @@ export const ReceiptComponent = ({
                       </td>
                       <td className="text-right py-[2px] pr-0 tabular-nums">
                         - OMR {discountAmount.toFixed(3)}
+                      </td>
+                    </tr>
+                  )}
+                  {finalTradeInPreview > 0 && (
+                    <tr className="text-[#D9534E] font-bold">
+                      <td className="py-[2px] pl-0">Trade-In Amount</td>
+                      <td className="text-right py-[2px] pr-0 tabular-nums">
+                        - OMR {finalTradeInPreview.toFixed(3)}
+                      </td>
+                    </tr>
+                  )}
+                  {previewOldBatteryDiscount > 0 && (
+                    <tr className="text-[#D9534E] font-bold">
+                      <td className="py-[2px] pl-0">
+                        Discount on old battery
+                      </td>
+                      <td className="text-right py-[2px] pr-0 tabular-nums">
+                        - OMR {previewOldBatteryDiscount.toFixed(3)}
                       </td>
                     </tr>
                   )}

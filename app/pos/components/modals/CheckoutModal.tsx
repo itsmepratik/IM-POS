@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -8,33 +9,38 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Smartphone,
   Banknote,
   CreditCard,
-  ChevronDown,
   Ticket,
   Receipt,
+  ArrowLeftRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { motion } from "framer-motion";
 import { CartItem } from "../../types";
+import { validateSplitPayment } from "@/lib/payments/split-payments";
+import { getMobilePayRecipients } from "@/lib/payments/methods";
+
+export type CheckoutPaymentMethod =
+  | "card"
+  | "cash"
+  | "mobile"
+  | "on-hold"
+  | "credit"
+  | "split"
+  | null;
 
 interface CheckoutModalProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  selectedPaymentMethod:
-    | "card"
-    | "cash"
-    | "mobile"
-    | "on-hold"
-    | "credit"
-    | null;
-  setSelectedPaymentMethod: (
-    method: "card" | "cash" | "mobile" | "on-hold" | "credit" | null,
-  ) => void;
-  showOtherOptions: boolean;
-  setShowOtherOptions: (show: boolean) => void;
+  selectedPaymentMethod: CheckoutPaymentMethod;
+  setSelectedPaymentMethod: (method: CheckoutPaymentMethod) => void;
+  /** @deprecated The "Other" gate was removed — all methods render directly. Kept optional for backwards compatibility. */
+  showOtherOptions?: boolean;
+  /** @deprecated No-op now that all methods render directly. */
+  setShowOtherOptions?: (show: boolean) => void;
   isOnHoldMode: boolean;
   setIsOnHoldMode: (mode: boolean) => void;
   carPlateNumber: string;
@@ -47,6 +53,16 @@ interface CheckoutModalProps {
   staffMembers: Array<{ id: string; name: string }>;
   onPaymentComplete: () => void;
   showSuccess: boolean;
+  splitCashAmount?: number;
+  splitCardAmount?: number;
+  setSplitCashAmount?: (value: number) => void;
+  setSplitCardAmount?: (value: number) => void;
+}
+
+function parseAmountInput(raw: string): number {
+  const parsed: number = Number(raw);
+  if (!Number.isFinite(parsed) || parsed < 0) return 0;
+  return Math.round(parsed * 1000) / 1000;
 }
 
 export function CheckoutModal({
@@ -54,7 +70,6 @@ export function CheckoutModal({
   onOpenChange,
   selectedPaymentMethod,
   setSelectedPaymentMethod,
-  showOtherOptions,
   setShowOtherOptions,
   isOnHoldMode,
   setIsOnHoldMode,
@@ -68,7 +83,86 @@ export function CheckoutModal({
   staffMembers,
   onPaymentComplete,
   showSuccess,
+  splitCashAmount,
+  splitCardAmount,
+  setSplitCashAmount,
+  setSplitCardAmount,
 }: CheckoutModalProps) {
+  const [internalCash, setInternalCash] = useState<number>(0);
+  const [internalCard, setInternalCard] = useState<number>(0);
+
+  const cashAmount: number = splitCashAmount ?? internalCash;
+  const cardAmount: number = splitCardAmount ?? internalCard;
+  const updateCash: (value: number) => void =
+    setSplitCashAmount ?? setInternalCash;
+  const updateCard: (value: number) => void =
+    setSplitCardAmount ?? setInternalCard;
+
+  const isSplit: boolean = selectedPaymentMethod === "split";
+  const splitCheck = validateSplitPayment({
+    cashAmount,
+    cardAmount,
+    total,
+  });
+
+  const requiresPlate: boolean =
+    isOnHoldMode || cartContainsAnyBatteries(cart);
+  const plateMissing: boolean =
+    requiresPlate && carPlateNumber.trim().length === 0;
+  const mobileRecipientMissing: boolean =
+    selectedPaymentMethod === "mobile" && !paymentRecipient;
+
+  const isCompleteDisabled: boolean = isSplit
+    ? !splitCheck.valid || plateMissing
+    : !selectedPaymentMethod || mobileRecipientMissing || plateMissing;
+
+  function selectSingle(
+    method: Exclude<CheckoutPaymentMethod, "split" | null>,
+  ): void {
+    setSelectedPaymentMethod(method);
+    setShowOtherOptions?.(false);
+    setIsOnHoldMode(method === "on-hold");
+    if (method !== "on-hold") {
+      // Keep the plate for battery carts (still required); otherwise clear.
+      if (!cartContainsAnyBatteries(cart)) setCarPlateNumber("");
+    } else {
+      setCarPlateNumber("");
+    }
+    if (method !== "mobile") setPaymentRecipient(null);
+  }
+
+  function selectSplit(): void {
+    setSelectedPaymentMethod("split");
+    setShowOtherOptions?.(false);
+    setIsOnHoldMode(false);
+    setPaymentRecipient(null);
+    if (!cartContainsAnyBatteries(cart)) setCarPlateNumber("");
+  }
+
+  function methodButtonClass(active: boolean): string {
+    return cn(
+      "h-24 min-w-0 flex flex-col items-center justify-center gap-1.5 px-2 text-center",
+      active && "ring-2 ring-primary",
+    );
+  }
+
+  function methodLabelClass(extra?: string): string {
+    return cn("text-center text-xs sm:text-sm leading-tight", extra);
+  }
+
+  function splitEvenly(): void {
+    if (!Number.isFinite(total) || total <= 0) {
+      updateCash(0);
+      updateCard(0);
+      return;
+    }
+    // Derive the second leg from the first so the pair always sums
+    // exactly to the total (halving can leave a 1-mill residue).
+    const cash: number = Math.round((total / 2) * 1000) / 1000;
+    updateCash(cash);
+    updateCard(Math.round((total - cash) * 1000) / 1000);
+  }
+
   return (
     <Dialog
       open={isOpen}
@@ -76,7 +170,7 @@ export function CheckoutModal({
         if (!showSuccess) {
           onOpenChange(open);
           if (!open) {
-            setShowOtherOptions(false);
+            setShowOtherOptions?.(false);
           }
         }
       }}
@@ -96,130 +190,134 @@ export function CheckoutModal({
         </DialogHeader>
 
         <div className="space-y-6">
-          <div
-            className={cn(
-              "grid gap-4",
-              showOtherOptions ? "grid-cols-2" : "grid-cols-3",
-            )}
-          >
+          {/* All methods render directly — no "Other" gate. */}
+          <div className="grid gap-4 grid-cols-3">
             <Button
-              variant={
-                selectedPaymentMethod === "mobile" ? "chonky" : "outline"
-              }
-              className={cn(
-                "h-24 flex flex-col items-center justify-center gap-2",
-                selectedPaymentMethod === "mobile" && "ring-2 ring-primary",
+              variant={selectedPaymentMethod === "mobile" ? "chonky" : "outline"}
+              className={methodButtonClass(
+                selectedPaymentMethod === "mobile",
               )}
-              onClick={() => {
-                setSelectedPaymentMethod("mobile");
-                setShowOtherOptions(false);
-                setIsOnHoldMode(false);
-                setCarPlateNumber("");
-              }}
+              onClick={() => selectSingle("mobile")}
             >
-              <Smartphone className="w-6 h-6" />
-              <span>Mobile Pay</span>
+              <Smartphone className="w-6 h-6 shrink-0" />
+              <span className={methodLabelClass()}>Mobile Pay</span>
             </Button>
             <Button
               variant={selectedPaymentMethod === "cash" ? "chonky" : "outline"}
-              className={cn(
-                "h-24 flex flex-col items-center justify-center gap-2",
-                selectedPaymentMethod === "cash" && "ring-2 ring-primary",
-              )}
-              onClick={() => {
-                setSelectedPaymentMethod("cash");
-                setShowOtherOptions(false);
-                setIsOnHoldMode(false);
-                setCarPlateNumber("");
-                setPaymentRecipient(null);
-              }}
+              className={methodButtonClass(selectedPaymentMethod === "cash")}
+              onClick={() => selectSingle("cash")}
             >
-              <Banknote className="w-6 h-6" />
-              <span>Cash</span>
+              <Banknote className="w-6 h-6 shrink-0" />
+              <span className={methodLabelClass()}>Cash</span>
             </Button>
             <Button
-              variant={showOtherOptions ? "chonky" : "outline"}
-              className={cn(
-                "h-24 flex flex-col items-center justify-center gap-2",
-                (selectedPaymentMethod === "card" ||
-                  selectedPaymentMethod === "on-hold" ||
-                  selectedPaymentMethod === "credit") &&
-                  "ring-2 ring-primary",
-              )}
-              onClick={() => {
-                setShowOtherOptions(!showOtherOptions);
-                if (!showOtherOptions) {
-                  setSelectedPaymentMethod(null);
-                }
-              }}
+              variant={selectedPaymentMethod === "card" ? "chonky" : "outline"}
+              className={methodButtonClass(selectedPaymentMethod === "card")}
+              onClick={() => selectSingle("card")}
             >
-              <ChevronDown className="w-6 h-6" />
-              <span>Other</span>
+              <CreditCard className="w-6 h-6 shrink-0" />
+              <span className={methodLabelClass()}>Card</span>
+            </Button>
+            <Button
+              variant={selectedPaymentMethod === "credit" ? "chonky" : "outline"}
+              className={methodButtonClass(
+                selectedPaymentMethod === "credit",
+              )}
+              onClick={() => selectSingle("credit")}
+            >
+              <Receipt className="w-6 h-6 shrink-0" />
+              <span className={methodLabelClass()}>Credit</span>
+            </Button>
+            <Button
+              variant={
+                selectedPaymentMethod === "on-hold" ? "chonky" : "outline"
+              }
+              className={methodButtonClass(
+                selectedPaymentMethod === "on-hold",
+              )}
+              onClick={() => selectSingle("on-hold")}
+            >
+              <Ticket className="w-6 h-6 shrink-0" />
+              <span className={methodLabelClass()}>on-hold</span>
+            </Button>
+            <Button
+              variant={isSplit ? "chonky" : "outline"}
+              className={methodButtonClass(isSplit)}
+              onClick={selectSplit}
+            >
+              <ArrowLeftRight className="w-6 h-6 shrink-0" />
+              <span className={methodLabelClass()}>Split</span>
             </Button>
           </div>
 
-          {showOtherOptions && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              className="grid grid-cols-3 gap-4"
-            >
-              <Button
-                variant={
-                  selectedPaymentMethod === "card" ? "chonky" : "outline"
-                }
-                className={cn(
-                  "h-24 flex flex-col items-center justify-center gap-2",
-                  selectedPaymentMethod === "card" && "ring-2 ring-primary",
-                )}
-                onClick={() => {
-                  setSelectedPaymentMethod("card");
-                  setIsOnHoldMode(false);
-                  setCarPlateNumber("");
-                  setPaymentRecipient(null);
-                }}
-              >
-                <CreditCard className="w-6 h-6" />
-                <span>Card</span>
-              </Button>
-              <Button
-                variant={
-                  selectedPaymentMethod === "on-hold" ? "chonky" : "outline"
-                }
-                className={cn(
-                  "h-24 flex flex-col items-center justify-center gap-2",
-                  selectedPaymentMethod === "on-hold" && "ring-2 ring-primary",
-                )}
-                onClick={() => {
-                  setSelectedPaymentMethod("on-hold");
-                  setIsOnHoldMode(true);
-                  setCarPlateNumber("");
-                  setPaymentRecipient(null);
-                }}
-              >
-                <Ticket className="w-6 h-6" />
-                <span>on-hold</span>
-              </Button>
-              <Button
-                variant={
-                  selectedPaymentMethod === "credit" ? "chonky" : "outline"
-                }
-                className={cn(
-                  "h-24 flex flex-col items-center justify-center gap-2",
-                  selectedPaymentMethod === "credit" && "ring-2 ring-primary",
-                )}
-                onClick={() => {
-                  setSelectedPaymentMethod("credit");
-                  setIsOnHoldMode(false);
-                  setCarPlateNumber("");
-                  setPaymentRecipient(null);
-                }}
-              >
-                <Receipt className="w-6 h-6" />
-                <span>Credit</span>
-              </Button>
-            </motion.div>
+          {isSplit && (
+            <div className="rounded-lg border p-4 space-y-4">
+              <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                <div className="space-y-2 min-w-0">
+                  <label
+                    htmlFor="split-cash-amount"
+                    className="text-sm font-medium text-gray-600"
+                  >
+                    Cash amount
+                  </label>
+                  <Input
+                    id="split-cash-amount"
+                    type="number"
+                    min={0}
+                    step="0.001"
+                    inputMode="decimal"
+                    className="w-full"
+                    value={Number.isFinite(cashAmount) ? cashAmount : 0}
+                    onChange={(e) => {
+                      const next: number = parseAmountInput(e.target.value);
+                      updateCash(next);
+                    }}
+                    placeholder="0.000"
+                  />
+                </div>
+                <div className="space-y-2 min-w-0">
+                  <label
+                    htmlFor="split-card-amount"
+                    className="text-sm font-medium text-gray-600"
+                  >
+                    Card amount
+                  </label>
+                  <Input
+                    id="split-card-amount"
+                    type="number"
+                    min={0}
+                    step="0.001"
+                    inputMode="decimal"
+                    className="w-full"
+                    value={Number.isFinite(cardAmount) ? cardAmount : 0}
+                    onChange={(e) => {
+                      const next: number = parseAmountInput(e.target.value);
+                      updateCard(next);
+                    }}
+                    placeholder="0.000"
+                  />
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                <span className="text-gray-600">
+                  Remaining: OMR {splitCheck.remaining.toFixed(3)}
+                </span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={splitEvenly}
+                >
+                  Split evenly
+                </Button>
+              </div>
+              {!splitCheck.valid && (
+                <p role="alert" className="text-sm text-destructive">
+                  {splitCheck.errors[0] ??
+                    "Cash + card must equal the total amount."}
+                </p>
+              )}
+            </div>
           )}
 
           <div className="border-t pt-6">
@@ -249,27 +347,24 @@ export function CheckoutModal({
                   Select payment recipient:
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  {staffMembers
-                    .filter((staff) => {
-                      const staffId = staff.id;
-                      return staffId === "0020" || staffId === "0010";
-                    })
-                    .map((staff) => (
-                      <Button
-                        key={staff.id}
-                        variant={
-                          paymentRecipient === staff.name ? "chonky" : "outline"
-                        }
-                        className={cn(
-                          "h-10 text-center",
-                          paymentRecipient === staff.name &&
-                            "ring-2 ring-primary",
-                        )}
-                        onClick={() => setPaymentRecipient(staff.name)}
-                      >
-                        {staff.id === "0010" ? "Foreman" : staff.name}
-                      </Button>
-                    ))}
+                  {getMobilePayRecipients(staffMembers).map((recipient) => (
+                    <Button
+                      key={recipient.id}
+                      variant={
+                        paymentRecipient === recipient.name
+                          ? "chonky"
+                          : "outline"
+                      }
+                      className={cn(
+                        "h-10 text-center",
+                        paymentRecipient === recipient.name &&
+                          "ring-2 ring-primary",
+                      )}
+                      onClick={() => setPaymentRecipient(recipient.name)}
+                    >
+                      {recipient.label}
+                    </Button>
+                  ))}
                 </div>
               </div>
             )}
@@ -281,12 +376,7 @@ export function CheckoutModal({
             <Button
               className="w-full h-12 text-base"
               variant="chonky"
-              disabled={
-                !selectedPaymentMethod ||
-                (selectedPaymentMethod === "mobile" && !paymentRecipient) ||
-                ((isOnHoldMode || cartContainsAnyBatteries(cart)) &&
-                  !carPlateNumber.trim())
-              }
+              disabled={isCompleteDisabled}
               onClick={onPaymentComplete}
             >
               {isOnHoldMode ? "Confirm" : "Complete Payment"}

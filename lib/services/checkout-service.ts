@@ -10,6 +10,7 @@
  */
 
 import { toast } from "@/hooks/use-toast";
+import { formatPaymentMethodLabel } from "@/lib/payments/methods";
 
 // Types for checkout data
 export interface CheckoutItem {
@@ -46,6 +47,7 @@ export interface CheckoutRequest {
   mobilePaymentAccount?: string; // Account used for mobile payment (Adanan or Forman)
   mobileNumber?: string; // Mobile number used for the transaction
   referenceNumber?: string; // Client-side generated reference number
+  splitPayments?: Array<{ method: "CASH" | "CARD"; amount: number }>; // Cash/card split breakdown (paymentMethod is the encoded SPLIT string)
   services?: {
     serviceId?: string;
     name: string;
@@ -357,7 +359,7 @@ class CheckoutService {
         <div class="transaction-details" style="margin-bottom: 15px;">
           <p>Receipt: ${data.referenceNumber}</p>
           <p>Date: ${dateStr} ${timeStr}</p>
-          <p>Payment: ${data.paymentMethod.toUpperCase()}</p>
+          <p>Payment: ${formatPaymentMethodLabel(data.paymentMethod)}</p>
         </div>
         
         <div class="items" style="border-top: 1px dashed #000; padding-top: 10px; margin-bottom: 10px;">

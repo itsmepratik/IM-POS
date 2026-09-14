@@ -12,6 +12,12 @@ import { eq, sql } from "drizzle-orm";
 import { CheckoutInputSchema, calculateFinalTotal } from "@/lib/types/checkout";
 import type { CheckoutInput } from "@/lib/types/checkout";
 import { CACHE_TAGS } from "@/lib/db/cache-tags";
+import {
+  encodeSplitPaymentMethod,
+  isSplitPaymentMethod,
+  roundOMR,
+  validateSplitPayment,
+} from "@/lib/payments/split-payments";
 
 // Helper functions removed - logic moved to database stored procedure
 
@@ -63,7 +69,7 @@ export async function POST(req: NextRequest) {
     const {
       locationId,
       shopId,
-      paymentMethod,
+      paymentMethod: rawPaymentMethod,
       cashierId: cashierIdInput,
       cart,
       tradeIns,
@@ -74,6 +80,7 @@ export async function POST(req: NextRequest) {
       mobileNumber,
       referenceNumber: clientReferenceNumber,
       services,
+      splitPayments,
     } = validatedInput;
 
     const uuidRegex =
@@ -203,6 +210,52 @@ export async function POST(req: NextRequest) {
           { status: 400 },
         );
       }
+    }
+
+    // Split tender: cash + card must exactly cover the final total.
+    // The encoded method (SPLIT_CASH_x_CARD_y) is stored in payment_method.
+    let paymentMethod: string = rawPaymentMethod;
+    if (isSplitPaymentMethod(rawPaymentMethod)) {
+      if (!splitPayments || splitPayments.length !== 2) {
+        return NextResponse.json(
+          {
+            success: false,
+            error:
+              "splitPayments with one CASH and one CARD leg is required for SPLIT payments",
+          },
+          { status: 400 },
+        );
+      }
+      const cashLeg = splitPayments.find((leg) => leg.method === "CASH");
+      const cardLeg = splitPayments.find((leg) => leg.method === "CARD");
+      if (!cashLeg || !cardLeg) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "SPLIT payments require exactly one CASH and one CARD leg",
+          },
+          { status: 400 },
+        );
+      }
+      const splitCheck = validateSplitPayment({
+        cashAmount: cashLeg.amount,
+        cardAmount: cardLeg.amount,
+        total: roundOMR(finalTotal),
+      });
+      if (!splitCheck.valid) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Split amounts must equal the total amount",
+            details: splitCheck.errors,
+          },
+          { status: 400 },
+        );
+      }
+      paymentMethod = encodeSplitPaymentMethod(
+        splitCheck.cashAmount,
+        splitCheck.cardAmount,
+      );
     }
 
     // Determine Transaction Type

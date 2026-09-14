@@ -75,6 +75,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { useStaffIDs } from "@/lib/hooks/useStaffIDs";
 import { useBranch } from "@/lib/contexts/DataProvider";
 import { fetchShops } from "@/lib/services/inventoryService";
+import { formatPaymentMethodLabel } from "@/lib/payments/methods";
 
 interface TransactionDisplay extends Omit<Transaction, "items"> {
   type:
@@ -313,7 +314,9 @@ const TransactionCard = memo(
                       Payment
                     </span>
                     <span className="font-medium text-foreground capitalize">
-                      {transaction.paymentMethod}
+                      {transaction.paymentMethod
+                        ? formatPaymentMethodLabel(transaction.paymentMethod)
+                        : "-"}
                     </span>
                   </div>
 
@@ -391,7 +394,14 @@ const TransactionCard = memo(
                     onClick={() => onViewReceipt(transaction)}
                   >
                     <FileText className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
-                    <span>View Receipt</span>
+                    <span>
+                      {transaction.type === "warranty-claim"
+                        ? "View Certificate"
+                        : transaction.reference?.trim().toUpperCase().startsWith("B") ||
+                            transaction.batteryBillHtml
+                          ? "View Bill / Receipt"
+                          : "View Receipt"}
+                    </span>
                   </Button>
                 </div>
               </div>
@@ -1344,6 +1354,14 @@ export default function TransactionsPage() {
     currentDate: string;
     currentTime: string;
     isVoided?: boolean;
+    appliedTradeInAmount?: number;
+    tradeIns?: Array<{
+      id: string;
+      product_id: string;
+      quantity: number;
+      trade_in_value: number;
+      products?: { name: string };
+    }>;
   } | null>(null);
   const [billTransactionData, setBillTransactionData] = useState<{
     cart: Array<{
@@ -1374,6 +1392,9 @@ export default function TransactionsPage() {
   } | null>(null);
   const [isReceiptPreviewOpen, setIsReceiptPreviewOpen] = useState(false);
   const [isBillPreviewOpen, setIsBillPreviewOpen] = useState(false);
+  const [batteryActiveTab, setBatteryActiveTab] = useState<"bill" | "receipt">(
+    "bill",
+  );
 
   const handleViewReceipt = async (transaction: TransactionDisplay) => {
     try {
@@ -1634,18 +1655,125 @@ export default function TransactionsPage() {
         };
       }
 
-      // Determine which component to use
-      const isBatteryOnly = cartContainsOnlyBatteries();
+      // Determine which component to use.
+      // Primary check: cart contains only batteries (POS parity).
+      // Fallbacks (robustness): B-prefixed reference, stored battery bill HTML,
+      // or battery keywords in item names — so battery-only sales always get
+      // the A5 bill and never silently fall back to thermal-only.
+      const primaryBatteryOnly = cartContainsOnlyBatteries();
+      const referenceNumber: string =
+        tx.reference_number || transaction.reference || "";
+      const hasBatteryReference = /^B/i.test(referenceNumber.trim());
+      const hasStoredBatteryBill = Boolean(
+        tx.battery_bill_html || transaction.batteryBillHtml,
+      );
+      const hasBatteryNameFallback =
+        cart.length > 0 &&
+        cart
+          .filter(
+            (item: { name: string }) =>
+              !item.name.toLowerCase().includes("discount on old battery"),
+          )
+          .every((item: { name: string }) =>
+            item.name.toLowerCase().includes("batter"),
+          );
+      const isBatteryOnly =
+        primaryBatteryOnly ||
+        hasBatteryReference ||
+        hasStoredBatteryBill ||
+        hasBatteryNameFallback;
 
-      if (isWarrantyClaim || (tx.type === "SALE" && isBatteryOnly)) {
-        // Use BillComponent for warranty claims or battery-only sales
-        // For customer name: prefer actual customer name, fall back to car plate for battery transactions
-        const resolvedCustomerName = tx.customers?.name || transaction.customerName || "Guest";
+      // Resolve the trade-in AMOUNT with a safety net: some historic checkouts
+      // applied a trade-in to the total (subtotal - discount - total) without
+      // persisting a trade_in_transactions row. Infer that gap so the A5 bill
+      // and thermal receipt both show the Trade-In Amount deduction as in POS.
+      // POS parity: amount-only deduction line, never an itemised table, so
+      // no trade-in item list is passed to the preview components.
+      const resolveTradeInAmount = (): number => {
+        const dbAmount: number =
+          typeof tx.tradeInTotal === "number"
+            ? tx.tradeInTotal
+            : parseFloat(tx.tradeInTotal || "0") || 0;
+        const dbList = (tx.tradeIns || []) as Array<{
+          trade_in_value: number;
+        }>;
+        if (dbAmount > 0) return dbAmount;
+        if (dbList.length > 0) {
+          return dbList.reduce(
+            (sum, ti) => sum + parseFloat(String(ti.trade_in_value || 0)),
+            0,
+          );
+        }
+        const cartSubtotal = cart.reduce(
+          (sum: number, item: { name: string; price: number; quantity: number }) =>
+            item.name.toLowerCase().includes("discount on old battery")
+              ? sum
+              : sum + item.price * item.quantity,
+          0,
+        );
+        const storedSubtotal = parseFloat(
+          tx.subtotal_before_discount || String(cartSubtotal) || "0",
+        );
+        const storedDiscount = parseFloat(tx.discount_amount || "0") || 0;
+        const storedTotal = parseFloat(
+          tx.total_amount || String(transaction.amount) || "0",
+        );
+        const inferred = Math.max(
+          0,
+          (Number.isFinite(storedSubtotal) ? storedSubtotal : cartSubtotal) -
+            (Number.isFinite(storedDiscount) ? storedDiscount : 0) -
+            (Number.isFinite(storedTotal) ? storedTotal : 0),
+        );
+        return Math.round(inferred * 1000) / 1000;
+      };
+      const resolvedTradeInAmount = resolveTradeInAmount();
+
+      if (isWarrantyClaim) {
+        // Warranty claims always use the A5 bill/certificate only (no thermal).
+        const resolvedCustomerName =
+          tx.customers?.name || transaction.customerName || "Guest";
+        const isNumericName = /^\d+$/.test(resolvedCustomerName);
+        const finalCustomerName =
+          isNumericName && tx.car_plate_number
+            ? tx.car_plate_number
+            : resolvedCustomerName;
+
+        setReceiptTransactionData(null);
+        setBillTransactionData({
+          cart,
+          billNumber: tx.reference_number || transaction.reference,
+          currentDate,
+          currentTime,
+          customerName: finalCustomerName,
+          cashier: cashierName,
+          appliedDiscount: discount,
+          appliedTradeInAmount: resolvedTradeInAmount,
+          tradeIns: [],
+          carPlateNumber:
+            tx.car_plate_number || transaction.carPlateNumber || undefined,
+          isWarrantyClaim: true,
+          isVoided: transaction.isVoided,
+        });
+        setBatteryActiveTab("bill");
+        setIsBillPreviewOpen(true);
+      } else if (
+        (tx.type === "SALE" || tx.type === "CREDIT") &&
+        isBatteryOnly
+      ) {
+        // Battery-only SALE + CREDIT sales: populate BOTH the A5 bill and the
+        // thermal receipt (each with the same trade-in data, as in POS) and
+        // let the user choose which to print.
+        const resolvedCustomerName =
+          tx.customers?.name || transaction.customerName || "Guest";
         // If customer name is purely numeric (likely a plate/phone entered by mistake), use car plate instead
         const isNumericName = /^\d+$/.test(resolvedCustomerName);
-        const finalCustomerName = isNumericName && tx.car_plate_number
-          ? tx.car_plate_number
-          : resolvedCustomerName;
+        const finalCustomerName =
+          isNumericName && tx.car_plate_number
+            ? tx.car_plate_number
+            : resolvedCustomerName;
+
+        // POS parity: amount-only deduction line, never an itemised table.
+        const tradeInAmount = resolvedTradeInAmount;
 
         setBillTransactionData({
           cart,
@@ -1655,15 +1783,13 @@ export default function TransactionsPage() {
           customerName: finalCustomerName,
           cashier: cashierName,
           appliedDiscount: discount,
-          appliedTradeInAmount: tx.tradeInTotal || 0,
-          tradeIns: tx.tradeIns || [],
-          carPlateNumber: tx.car_plate_number || transaction.carPlateNumber || undefined,
-          isWarrantyClaim: isWarrantyClaim,
+          appliedTradeInAmount: tradeInAmount,
+          tradeIns: [],
+          carPlateNumber:
+            tx.car_plate_number || transaction.carPlateNumber || undefined,
+          isWarrantyClaim: false,
           isVoided: transaction.isVoided,
         });
-        setIsBillPreviewOpen(true);
-      } else {
-        // Use ReceiptComponent for regular sales
         setReceiptTransactionData({
           cart,
           paymentMethod: tx.payment_method || "cash",
@@ -1674,6 +1800,27 @@ export default function TransactionsPage() {
           currentDate,
           currentTime,
           isVoided: transaction.isVoided,
+          appliedTradeInAmount: tradeInAmount,
+          tradeIns: [],
+        });
+        // Default to the A5 bill (POS behavior), thermal available via tab.
+        setBatteryActiveTab("bill");
+        setIsBillPreviewOpen(true);
+      } else {
+        // Use ReceiptComponent for regular sales (with trade-ins if present)
+        setBillTransactionData(null);
+        setReceiptTransactionData({
+          cart,
+          paymentMethod: tx.payment_method || "cash",
+          cashier: cashierName,
+          discount,
+          paymentRecipient: tx.mobile_payment_account || undefined,
+          receiptNumber: tx.reference_number || transaction.reference,
+          currentDate,
+          currentTime,
+          isVoided: transaction.isVoided,
+          appliedTradeInAmount: resolvedTradeInAmount,
+          tradeIns: [],
         });
         setIsReceiptPreviewOpen(true);
       }
@@ -2068,7 +2215,11 @@ export default function TransactionsPage() {
                                         Payment
                                       </span>
                                       <span className="font-medium text-sm text-foreground capitalize">
-                                        {transaction.paymentMethod || "-"}
+                                        {transaction.paymentMethod
+                                          ? formatPaymentMethodLabel(
+                                              transaction.paymentMethod,
+                                            )
+                                          : "-"}
                                       </span>
                                     </div>
                                     <div className="flex flex-col gap-1.5">
@@ -2268,41 +2419,99 @@ export default function TransactionsPage() {
                 currentTime={receiptTransactionData.currentTime}
                 onClose={() => setIsReceiptPreviewOpen(false)}
                 isVoided={receiptTransactionData.isVoided}
+                appliedTradeInAmount={
+                  receiptTransactionData.appliedTradeInAmount
+                }
+                tradeIns={receiptTransactionData.tradeIns}
               />
             )}
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* Bill Preview Dialog - Using BillComponent from POS (for battery sales and warranty claims) */}
+      {/* Bill Preview Dialog - A5 bill + thermal receipt options for battery sales */}
       <Dialog open={isBillPreviewOpen} onOpenChange={setIsBillPreviewOpen}>
         <DialogContent className="w-[95%] max-w-[520px] p-4 rounded-lg max-h-[90vh] overflow-auto">
           <DialogHeader>
             <DialogTitle className="text-center text-xl">
               {billTransactionData?.isWarrantyClaim
                 ? "Warranty Claim Certificate"
-                : "Battery Bill Preview"}
+                : batteryActiveTab === "receipt" && receiptTransactionData
+                  ? "Thermal Receipt Preview"
+                  : "Battery Bill Preview"}
             </DialogTitle>
           </DialogHeader>
 
+          {/* Battery-only sales offer both A5 bill and thermal receipt prints */}
+          {billTransactionData &&
+            !billTransactionData.isWarrantyClaim &&
+            receiptTransactionData && (
+              <div className="inline-flex items-center rounded-xl border border-border/60 p-1 w-fit mx-auto bg-muted/40 shadow-inner">
+                <button
+                  className={cn(
+                    "px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-colors duration-300",
+                    batteryActiveTab === "bill"
+                      ? "bg-white dark:bg-zinc-800 shadow-sm text-foreground"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                  onClick={() => setBatteryActiveTab("bill")}
+                >
+                  A5 Bill
+                </button>
+                <button
+                  className={cn(
+                    "px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-colors duration-300",
+                    batteryActiveTab === "receipt"
+                      ? "bg-white dark:bg-zinc-800 shadow-sm text-foreground"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                  onClick={() => setBatteryActiveTab("receipt")}
+                >
+                  Thermal Receipt
+                </button>
+              </div>
+            )}
+
           <div className="mt-2">
-            {billTransactionData && (
-              <BillComponent
-                cart={billTransactionData.cart}
-                billNumber={billTransactionData.billNumber}
-                currentDate={billTransactionData.currentDate}
-                currentTime={billTransactionData.currentTime}
-                customerName={billTransactionData.customerName}
-                cashier={billTransactionData.cashier}
-                appliedDiscount={billTransactionData.appliedDiscount}
-                appliedTradeInAmount={billTransactionData.appliedTradeInAmount}
-                tradeIns={billTransactionData.tradeIns}
-                carPlateNumber={billTransactionData.carPlateNumber}
-                hideButton={false}
-                isWarrantyClaim={billTransactionData.isWarrantyClaim}
+            {batteryActiveTab === "receipt" &&
+            receiptTransactionData &&
+            billTransactionData &&
+            !billTransactionData.isWarrantyClaim ? (
+              <ReceiptComponent
+                cart={receiptTransactionData.cart}
+                paymentMethod={receiptTransactionData.paymentMethod}
+                cashier={receiptTransactionData.cashier}
+                discount={receiptTransactionData.discount}
+                paymentRecipient={receiptTransactionData.paymentRecipient}
+                receiptNumber={receiptTransactionData.receiptNumber}
+                currentDate={receiptTransactionData.currentDate}
+                currentTime={receiptTransactionData.currentTime}
                 onClose={() => setIsBillPreviewOpen(false)}
-                isVoided={billTransactionData.isVoided}
+                isVoided={receiptTransactionData.isVoided}
+                appliedTradeInAmount={
+                  receiptTransactionData.appliedTradeInAmount
+                }
+                tradeIns={receiptTransactionData.tradeIns}
               />
+            ) : (
+              billTransactionData && (
+                <BillComponent
+                  cart={billTransactionData.cart}
+                  billNumber={billTransactionData.billNumber}
+                  currentDate={billTransactionData.currentDate}
+                  currentTime={billTransactionData.currentTime}
+                  customerName={billTransactionData.customerName}
+                  cashier={billTransactionData.cashier}
+                  appliedDiscount={billTransactionData.appliedDiscount}
+                  appliedTradeInAmount={billTransactionData.appliedTradeInAmount}
+                  tradeIns={billTransactionData.tradeIns}
+                  carPlateNumber={billTransactionData.carPlateNumber}
+                  hideButton={false}
+                  isWarrantyClaim={billTransactionData.isWarrantyClaim}
+                  onClose={() => setIsBillPreviewOpen(false)}
+                  isVoided={billTransactionData.isVoided}
+                />
+              )
             )}
           </div>
         </DialogContent>

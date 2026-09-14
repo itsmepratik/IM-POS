@@ -9,6 +9,10 @@ import {
 import { useToast } from "@/components/ui/use-toast";
 import { useBranch } from "@/lib/contexts/DataProvider";
 import { CustomerData } from "@/app/customers/customer-form";
+import {
+  encodeSplitPaymentMethod,
+  roundOMR,
+} from "@/lib/payments/split-payments";
 
 // Receipt snapshot — preserves data after cart is cleared for receipt rendering
 export interface ReceiptSnapshot {
@@ -24,9 +28,12 @@ export interface ReceiptSnapshot {
     | "mobile"
     | "on-hold"
     | "credit"
+    | "split"
     | null;
   paymentRecipient: string | null;
   tradeinBatteries: TradeinBattery[];
+  splitCashAmount?: number;
+  splitCardAmount?: number;
 }
 
 interface UseCheckoutProps {
@@ -76,8 +83,10 @@ export function useCheckout({
   // Checkout flow state
   const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<
-    "card" | "cash" | "mobile" | "on-hold" | "credit" | null
+    "card" | "cash" | "mobile" | "on-hold" | "credit" | "split" | null
   >(null);
+  const [splitCashAmount, setSplitCashAmount] = useState<number>(0);
+  const [splitCardAmount, setSplitCardAmount] = useState<number>(0);
   const [showSuccess, setShowSuccess] = useState(false);
   const [showReceiptDialog, setShowReceiptDialog] = useState(false);
   const [showOtherOptions, setShowOtherOptions] = useState(false);
@@ -325,6 +334,23 @@ export function useCheckout({
 
   /** After payment method selection — validate, open cashier dialog */
   const handlePaymentComplete = useCallback(() => {
+    if (selectedPaymentMethod === "split") {
+      if (
+        !Number.isFinite(splitCashAmount) ||
+        !Number.isFinite(splitCardAmount) ||
+        splitCashAmount <= 0 ||
+        splitCardAmount <= 0
+      ) {
+        toast({
+          title: "Invalid Split",
+          description:
+            "Enter a cash amount and a card amount greater than zero.",
+          variant: "destructive",
+          duration: 3000,
+        });
+        return;
+      }
+    }
     if (isOnHoldMode || cartContainsAnyBatteries(cart)) {
       if (!carPlateNumber.trim()) {
         toast({
@@ -342,7 +368,16 @@ export function useCheckout({
     setFetchedCashier(null);
     setCashierIdError(null);
     setIsCashierSelectOpen(true);
-  }, [isOnHoldMode, cartContainsAnyBatteries, cart, carPlateNumber, toast]);
+  }, [
+    isOnHoldMode,
+    cartContainsAnyBatteries,
+    cart,
+    carPlateNumber,
+    selectedPaymentMethod,
+    splitCashAmount,
+    splitCardAmount,
+    toast,
+  ]);
 
   /** Prepare cart items for the checkout API */
   const prepareCartForAPI = useCallback(() => {
@@ -535,6 +570,8 @@ export function useCheckout({
     contextClearCart();
     setShowCart(false);
     setSelectedPaymentMethod(null);
+    setSplitCashAmount(0);
+    setSplitCardAmount(0);
     setAppliedDiscount(null);
     setDiscountValue(0);
     setAppliedTradeInAmount(0);
@@ -664,6 +701,25 @@ export function useCheckout({
       return;
     }
 
+    const isSplitCheckout: boolean = selectedPaymentMethod === "split";
+    if (isSplitCheckout) {
+      if (
+        !Number.isFinite(splitCashAmount) ||
+        !Number.isFinite(splitCardAmount) ||
+        splitCashAmount <= 0 ||
+        splitCardAmount <= 0
+      ) {
+        toast({
+          title: "Invalid Split",
+          description:
+            "Enter a cash amount and a card amount greater than zero.",
+          variant: "destructive",
+          duration: 3000,
+        });
+        return;
+      }
+    }
+
     // Prepare data synchronously (pure transforms, <1ms)
     let cartForAPI;
     try {
@@ -705,6 +761,12 @@ export function useCheckout({
       selectedPaymentMethod,
       paymentRecipient,
       tradeinBatteries: [...tradeinBatteries],
+      ...(isSplitCheckout
+        ? {
+            splitCashAmount: roundOMR(splitCashAmount),
+            splitCardAmount: roundOMR(splitCardAmount),
+          }
+        : {}),
     };
 
     // ── Show receipt IMMEDIATELY and clear the cart behind the scenes ──
@@ -714,11 +776,15 @@ export function useCheckout({
 
     // ── Fire API in background (non-blocking) ──────────────────────
     const servicesForAPI = prepareServicesForAPI();
+    const splitCash: number = roundOMR(splitCashAmount);
+    const splitCard: number = roundOMR(splitCardAmount);
     const payload = {
       locationId:
         inventoryLocationId || currentBranch?.id || "default-location",
       shopId: currentBranch?.id || "default-shop",
-      paymentMethod: selectedPaymentMethod.toUpperCase(),
+      paymentMethod: isSplitCheckout
+        ? encodeSplitPaymentMethod(splitCash, splitCard)
+        : (selectedPaymentMethod as string).toUpperCase(),
       cashierId: selectedCashier?.id || "default-cashier",
       cart: cartForAPI,
       carPlateNumber: carPlateNumber.trim() || undefined,
@@ -733,6 +799,14 @@ export function useCheckout({
       ...(selectedPaymentMethod === "mobile" && currentCustomer?.phone
         ? { mobileNumber: currentCustomer.phone }
         : {}),
+      ...(isSplitCheckout
+        ? {
+            splitPayments: [
+              { method: "CASH" as const, amount: splitCash },
+              { method: "CARD" as const, amount: splitCard },
+            ],
+          }
+        : {}),
     };
 
     processInBackground(payload as any);
@@ -742,6 +816,8 @@ export function useCheckout({
     carPlateNumber,
     selectedCashier,
     selectedPaymentMethod,
+    splitCashAmount,
+    splitCardAmount,
     prepareCartForAPI,
     prepareServicesForAPI,
     prepareTradeInsForAPI,
@@ -818,6 +894,10 @@ export function useCheckout({
     // Payment
     paymentRecipient,
     setPaymentRecipient,
+    splitCashAmount,
+    setSplitCashAmount,
+    splitCardAmount,
+    setSplitCardAmount,
 
     // Customer state
     isCustomerFormOpen,

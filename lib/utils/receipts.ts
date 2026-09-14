@@ -1,5 +1,6 @@
 // Receipt generation utilities for thermal and battery bills
 import { generateBarcodeHTML } from "./barcodeGenerator";
+import { formatPaymentMethodLabel } from "@/lib/payments/methods";
 
 export interface ReceiptData {
   referenceNumber: string;
@@ -328,7 +329,7 @@ export async function generateThermalReceipt(
         
         <div class="receipt-footer">
           <p>Number of Items: ${totalItemQuantity}</p>
-          <p>Payment Method: ${paymentMethod.charAt(0).toUpperCase() + paymentMethod.slice(1)}</p>
+          <p>Payment Method: ${formatPaymentMethodLabel(paymentMethod)}</p>
           ${
             paymentMethod === "mobile" && paymentRecipient
               ? `<p>Mobile Payment Recipient: ${paymentRecipient}</p>`
@@ -583,7 +584,7 @@ export async function generateBatteryBill(data: ReceiptData): Promise<string> {
           <span><strong>TOTAL AMOUNT:</strong></span>
           <span><strong>OMR ${totalAmount}</strong></span>
         </div>
-        <p><strong>Payment Method:</strong> ${paymentMethod}</p>
+        <p><strong>Payment Method:</strong> ${formatPaymentMethodLabel(paymentMethod)}</p>
         ${cashier ? `<p><strong>Cashier:</strong> ${cashier}</p>` : ""}
       </div>
       

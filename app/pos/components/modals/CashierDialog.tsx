@@ -29,6 +29,8 @@ interface CashierDialogProps {
   isProcessingCheckout: boolean;
   onFinalizePayment: () => void;
   staffMembers: Array<{ id: string; name: string }>;
+  splitCashAmount?: number;
+  splitCardAmount?: number;
 }
 
 export function CashierDialog({
@@ -49,7 +51,15 @@ export function CashierDialog({
   isProcessingCheckout,
   onFinalizePayment,
   staffMembers,
+  splitCashAmount,
+  splitCardAmount,
 }: CashierDialogProps) {
+  const showSplitSummary: boolean =
+    selectedPaymentMethod === "split" &&
+    typeof splitCashAmount === "number" &&
+    typeof splitCardAmount === "number" &&
+    splitCashAmount > 0 &&
+    splitCardAmount > 0;
   return (
     <Dialog
       open={isOpen}
@@ -142,6 +152,14 @@ export function CashierDialog({
               <div className="text-muted-foreground mb-4">
                 ID: {fetchedCashier.id}
               </div>
+              {showSplitSummary && (
+                <div className="w-full rounded-lg border p-3 mb-4 text-sm text-center">
+                  <span className="font-medium">
+                    Split: Cash OMR {(splitCashAmount as number).toFixed(3)} +
+                    Card OMR {(splitCardAmount as number).toFixed(3)}
+                  </span>
+                </div>
+              )}
 
               <Button
                 className="w-full h-12 text-base"

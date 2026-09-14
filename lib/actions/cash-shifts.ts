@@ -17,6 +17,57 @@ import {
 import { eq, and, desc, sql, gte, lte, inArray, or, isNull } from "drizzle-orm";
 import { revalidateTag, revalidatePath } from "next/cache";
 import { CACHE_TAGS } from "@/lib/db/cache-tags";
+import {
+  allocateSplitForDrawer,
+  isSplitPaymentMethod,
+} from "@/lib/payments/split-payments";
+
+interface SaleMethodTotals {
+  cash: number;
+  card: number;
+  mobile: number;
+  credit: number;
+}
+
+/**
+ * Route a sale amount into cash/card/mobile/credit buckets.
+ * Split tenders (SPLIT_CASH_x_CARD_y) allocate each leg so drawer
+ * totals stay exact without a schema migration.
+ */
+function applySaleMethodToTotals(
+  method: string,
+  amt: number,
+  txnType: string,
+  totals: SaleMethodTotals,
+): void {
+  if (method === "CASH") {
+    totals.cash += amt;
+  } else if (method === "CARD") {
+    totals.card += amt;
+  } else if (method === "MOBILE" || method === "ONLINE") {
+    totals.mobile += amt;
+  } else if (isSplitPaymentMethod(method)) {
+    const split = allocateSplitForDrawer(method, amt);
+    totals.cash += split.cash;
+    totals.card += split.card;
+  } else if (method === "CREDIT" || txnType === "CREDIT") {
+    totals.credit += amt;
+  }
+}
+
+/** Mirror the existing refund semantics for split tenders (cash leg out). */
+function applyRefundMethodToCash(
+  method: string,
+  amt: number,
+  totals: { cash: number },
+): void {
+  if (method === "CASH") {
+    totals.cash -= amt;
+  } else if (isSplitPaymentMethod(method)) {
+    const split = allocateSplitForDrawer(method, amt);
+    totals.cash -= split.cash;
+  }
+}
 
 // Revalidation helper
 function invalidateShiftCaches(shopId: string) {
@@ -230,20 +281,22 @@ export async function getActiveShift(shopId: string): Promise<ActiveShiftDetails
 
     if (txn.type === "REFUND") {
       calculatedRefunds += amt;
-      if (method === "CASH") {
-        calculatedCashSales -= amt;
-      }
+      const cashTotals = { cash: calculatedCashSales };
+      applyRefundMethodToCash(method, amt, cashTotals);
+      calculatedCashSales = cashTotals.cash;
     } else if (txn.type === "SALE" || txn.type === "CREDIT") {
       calculatedTransactionCount += 1;
-      if (method === "CASH") {
-        calculatedCashSales += amt;
-      } else if (method === "CARD") {
-        calculatedCardSales += amt;
-      } else if (method === "MOBILE" || method === "ONLINE") {
-        calculatedMobileSales += amt;
-      } else if (method === "CREDIT" || txn.type === "CREDIT") {
-        calculatedCreditSales += amt;
-      }
+      const totals: SaleMethodTotals = {
+        cash: calculatedCashSales,
+        card: calculatedCardSales,
+        mobile: calculatedMobileSales,
+        credit: calculatedCreditSales,
+      };
+      applySaleMethodToTotals(method, amt, txn.type, totals);
+      calculatedCashSales = totals.cash;
+      calculatedCardSales = totals.card;
+      calculatedMobileSales = totals.mobile;
+      calculatedCreditSales = totals.credit;
     }
   });
 
@@ -470,13 +523,22 @@ export async function closeCashShift(input: CloseShiftInput): Promise<{ success:
 
       if (txn.type === "REFUND") {
         totalRefunds += amt;
-        if (method === "CASH") totalCashSales -= amt;
+        const cashTotals = { cash: totalCashSales };
+        applyRefundMethodToCash(method, amt, cashTotals);
+        totalCashSales = cashTotals.cash;
       } else if (txn.type === "SALE" || txn.type === "CREDIT") {
         totalTransactionsCount += 1;
-        if (method === "CASH") totalCashSales += amt;
-        else if (method === "CARD") totalCardSales += amt;
-        else if (method === "MOBILE" || method === "ONLINE") totalMobileSales += amt;
-        else if (method === "CREDIT" || txn.type === "CREDIT") totalCreditSales += amt;
+        const totals: SaleMethodTotals = {
+          cash: totalCashSales,
+          card: totalCardSales,
+          mobile: totalMobileSales,
+          credit: totalCreditSales,
+        };
+        applySaleMethodToTotals(method, amt, txn.type, totals);
+        totalCashSales = totals.cash;
+        totalCardSales = totals.card;
+        totalMobileSales = totals.mobile;
+        totalCreditSales = totals.credit;
       }
     });
 
@@ -684,8 +746,8 @@ export async function getCashShiftsHistory(options: CashShiftFilterOptions = {})
     .leftJoin(
       sql`LATERAL (
         SELECT
-          SUM(CASE WHEN UPPER(COALESCE(t.payment_method, '')) = 'CASH' AND t.type != 'REFUND' THEN CAST(t.total_amount AS numeric) WHEN UPPER(COALESCE(t.payment_method, '')) = 'CASH' AND t.type = 'REFUND' THEN -CAST(t.total_amount AS numeric) ELSE 0 END) as computed_cash_sales,
-          SUM(CASE WHEN UPPER(COALESCE(t.payment_method, '')) = 'CARD' AND t.type != 'REFUND' THEN CAST(t.total_amount AS numeric) ELSE 0 END) as computed_card_sales,
+          SUM(CASE WHEN UPPER(COALESCE(t.payment_method, '')) = 'CASH' AND t.type != 'REFUND' THEN CAST(t.total_amount AS numeric) WHEN UPPER(COALESCE(t.payment_method, '')) = 'CASH' AND t.type = 'REFUND' THEN -CAST(t.total_amount AS numeric) WHEN UPPER(COALESCE(t.payment_method, '')) LIKE 'SPLIT%' AND t.type != 'REFUND' THEN COALESCE((regexp_match(UPPER(COALESCE(t.payment_method, '')), 'SPLIT_CASH_([0-9]+\.?[0-9]*)_CARD_([0-9]+\.?[0-9]*)'))[1]::numeric, 0) WHEN UPPER(COALESCE(t.payment_method, '')) LIKE 'SPLIT%' AND t.type = 'REFUND' THEN -COALESCE((regexp_match(UPPER(COALESCE(t.payment_method, '')), 'SPLIT_CASH_([0-9]+\.?[0-9]*)_CARD_([0-9]+\.?[0-9]*)'))[1]::numeric, 0) ELSE 0 END) as computed_cash_sales,
+          SUM(CASE WHEN UPPER(COALESCE(t.payment_method, '')) = 'CARD' AND t.type != 'REFUND' THEN CAST(t.total_amount AS numeric) WHEN UPPER(COALESCE(t.payment_method, '')) LIKE 'SPLIT%' AND t.type != 'REFUND' THEN COALESCE((regexp_match(UPPER(COALESCE(t.payment_method, '')), 'SPLIT_CASH_([0-9]+\.?[0-9]*)_CARD_([0-9]+\.?[0-9]*)'))[2]::numeric, 0) ELSE 0 END) as computed_card_sales,
           SUM(CASE WHEN UPPER(COALESCE(t.payment_method, '')) IN ('MOBILE', 'ONLINE') AND t.type != 'REFUND' THEN CAST(t.total_amount AS numeric) ELSE 0 END) as computed_mobile_sales,
           SUM(CASE WHEN UPPER(COALESCE(t.payment_method, '')) = 'CREDIT' OR t.type = 'CREDIT' THEN CAST(t.total_amount AS numeric) ELSE 0 END) as computed_credit_sales,
           SUM(CASE WHEN t.type = 'REFUND' THEN CAST(t.total_amount AS numeric) ELSE 0 END) as computed_refunds,
@@ -854,20 +916,22 @@ export async function getCashShiftFullDetails(shiftId: string) {
 
     if (txn.type === "REFUND") {
       calculatedRefunds += amt;
-      if (method === "CASH") {
-        calculatedCashSales -= amt;
-      }
+      const cashTotals = { cash: calculatedCashSales };
+      applyRefundMethodToCash(method, amt, cashTotals);
+      calculatedCashSales = cashTotals.cash;
     } else if (txn.type === "SALE" || txn.type === "CREDIT") {
       calculatedTransactionCount += 1;
-      if (method === "CASH") {
-        calculatedCashSales += amt;
-      } else if (method === "CARD") {
-        calculatedCardSales += amt;
-      } else if (method === "MOBILE" || method === "ONLINE") {
-        calculatedMobileSales += amt;
-      } else if (method === "CREDIT" || txn.type === "CREDIT") {
-        calculatedCreditSales += amt;
-      }
+      const totals: SaleMethodTotals = {
+        cash: calculatedCashSales,
+        card: calculatedCardSales,
+        mobile: calculatedMobileSales,
+        credit: calculatedCreditSales,
+      };
+      applySaleMethodToTotals(method, amt, txn.type, totals);
+      calculatedCashSales = totals.cash;
+      calculatedCardSales = totals.card;
+      calculatedMobileSales = totals.mobile;
+      calculatedCreditSales = totals.credit;
     }
   });
 

@@ -186,6 +186,8 @@ import { DataProvider, useBranch } from "@/lib/contexts/DataProvider";
 import { BranchSelector } from "@/components/BranchSelector";
 // parseVolumeString, findHighestVolumeFromVolumes, isHighestVolume moved to useLubricantVolume hook
 import { parseVolumeString } from "@/lib/utils/volume-parser";
+import { formatPaymentMethodLabel } from "@/lib/payments/methods";
+import { encodeSplitPaymentMethod } from "@/lib/payments/split-payments";
 
 // Extracted types
 import {
@@ -726,6 +728,10 @@ export function POSClient({ initialData }: { initialData?: any }) {
     setSelectedCashier,
     paymentRecipient,
     setPaymentRecipient,
+    splitCashAmount,
+    setSplitCashAmount,
+    splitCardAmount,
+    setSplitCardAmount,
     isCustomerFormOpen,
     setIsCustomerFormOpen,
     currentCustomer,
@@ -1870,6 +1876,10 @@ export function POSClient({ initialData }: { initialData?: any }) {
             setCarPlateNumber={setCarPlateNumber}
             paymentRecipient={paymentRecipient}
             setPaymentRecipient={setPaymentRecipient}
+            splitCashAmount={splitCashAmount}
+            splitCardAmount={splitCardAmount}
+            setSplitCashAmount={setSplitCashAmount}
+            setSplitCardAmount={setSplitCardAmount}
             total={total}
             cart={cart}
             cartContainsAnyBatteries={cartContainsAnyBatteries}
@@ -1904,7 +1914,7 @@ export function POSClient({ initialData }: { initialData?: any }) {
           contextClearCart();
           setIsOnHoldMode(false);
           setCarPlateNumber("");
-          setSelectedPaymentMethod("");
+          setSelectedPaymentMethod(null);
         }}
         carPlateNumber={carPlateNumber}
         cartItems={cart}
@@ -2232,6 +2242,8 @@ export function POSClient({ initialData }: { initialData?: any }) {
         paymentRecipient={paymentRecipient}
         isProcessingCheckout={isProcessingCheckout}
         onFinalizePayment={handleFinalizePayment}
+        splitCashAmount={splitCashAmount}
+        splitCardAmount={splitCardAmount}
       />
 
 
@@ -2267,10 +2279,26 @@ export function POSClient({ initialData }: { initialData?: any }) {
         carPlateNumber={
           receiptSnapshotRef.current?.carPlateNumber || carPlateNumber
         }
-        selectedPaymentMethod={
-          receiptSnapshotRef.current?.selectedPaymentMethod ||
-          selectedPaymentMethod
-        }
+        selectedPaymentMethod={((): string | null => {
+          const method =
+            receiptSnapshotRef.current?.selectedPaymentMethod ||
+            selectedPaymentMethod;
+          if (method === "split") {
+            const cash: number =
+              receiptSnapshotRef.current?.splitCashAmount ??
+              splitCashAmount ??
+              0;
+            const card: number =
+              receiptSnapshotRef.current?.splitCardAmount ??
+              splitCardAmount ??
+              0;
+            if (cash > 0 && card > 0) {
+              return encodeSplitPaymentMethod(cash, card);
+            }
+            return "split";
+          }
+          return method;
+        })()}
         paymentRecipient={
           receiptSnapshotRef.current?.paymentRecipient || paymentRecipient
         }
@@ -2919,22 +2947,8 @@ const ReceiptComponent = ({
     const itemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
     // Format payment method name for display
-    const getFormattedPaymentMethod = (method: string) => {
-      switch (method) {
-        case "card":
-          return "Card";
-        case "cash":
-          return "Cash";
-        case "mobile":
-          return "Mobile Pay";
-        case "on-hold":
-          return "on-hold";
-        case "credit":
-          return "Credit";
-        default:
-          return method.charAt(0).toUpperCase() + method.slice(1);
-      }
-    };
+    const getFormattedPaymentMethod = (method: string): string =>
+      formatPaymentMethodLabel(method);
 
     return (
       <motion.div

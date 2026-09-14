@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isSplitPaymentMethod } from "@/lib/payments/split-payments";
 
 // Cart item schema
 export const CartItemSchema = z.object({
@@ -50,22 +51,62 @@ export const ServiceItemSchema = z.object({
   splits: z.array(LaborSplitSchema).optional(),
 });
 
-// Checkout input schema
-export const CheckoutInputSchema = z.object({
-  locationId: z.string().min(1),
-  shopId: z.string().min(1).optional(),
-  paymentMethod: z.string().min(1),
-  cashierId: z.string().min(1).optional(),
-  cart: z.array(CartItemSchema),
-  tradeIns: z.array(TradeInItemSchema).optional(),
-  discount: DiscountSchema.optional(),
-  carPlateNumber: z.string().min(1).optional(),
-  customerId: z.string().uuid().optional(),
-  mobilePaymentAccount: z.string().optional(),
-  mobileNumber: z.string().optional(),
-  referenceNumber: z.string().optional(),
-  services: z.array(ServiceItemSchema).optional(),
+// Split tender leg — cash/card split only (exactly one of each).
+export const SplitLegSchema = z.object({
+  method: z.enum(["CASH", "CARD"]),
+  amount: z.number().positive(),
 });
+
+// Checkout input schema
+export const CheckoutInputSchema = z
+  .object({
+    locationId: z.string().min(1),
+    shopId: z.string().min(1).optional(),
+    paymentMethod: z.string().min(1),
+    cashierId: z.string().min(1).optional(),
+    cart: z.array(CartItemSchema),
+    tradeIns: z.array(TradeInItemSchema).optional(),
+    discount: DiscountSchema.optional(),
+    carPlateNumber: z.string().min(1).optional(),
+    customerId: z.string().uuid().optional(),
+    mobilePaymentAccount: z.string().optional(),
+    mobileNumber: z.string().optional(),
+    referenceNumber: z.string().optional(),
+    services: z.array(ServiceItemSchema).optional(),
+    splitPayments: z.array(SplitLegSchema).optional(),
+  })
+  .superRefine((val, ctx) => {
+    // Accept both the literal "SPLIT" and the client-encoded
+    // "SPLIT_CASH_<cash>_CARD_<card>" method string.
+    const isSplit: boolean = isSplitPaymentMethod(val.paymentMethod);
+    if (isSplit) {
+      if (!val.splitPayments || val.splitPayments.length !== 2) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message:
+            "splitPayments with exactly one CASH and one CARD leg is required for SPLIT payments",
+          path: ["splitPayments"],
+        });
+        return;
+      }
+      const methods: string[] = val.splitPayments
+        .map((leg) => leg.method)
+        .sort();
+      if (methods[0] !== "CARD" || methods[1] !== "CASH") {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "SPLIT payments require exactly one CASH and one CARD leg",
+          path: ["splitPayments"],
+        });
+      }
+    } else if (val.splitPayments !== undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "splitPayments is only allowed when paymentMethod is SPLIT",
+        path: ["splitPayments"],
+      });
+    }
+  });
 
 // Response schemas
 export const CheckoutResponseSchema = z.object({
@@ -97,6 +138,7 @@ export const CheckoutResponseSchema = z.object({
 });
 
 // Type exports
+export type SplitLeg = z.infer<typeof SplitLegSchema>;
 export type CartItem = z.infer<typeof CartItemSchema>;
 export type TradeInItem = z.infer<typeof TradeInItemSchema>;
 export type Discount = z.infer<typeof DiscountSchema>;

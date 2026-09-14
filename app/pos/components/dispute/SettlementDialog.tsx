@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 import { Spinner } from "@/components/ui/spinner";
 import { motion } from "framer-motion";
+import { Banknote, CreditCard, Smartphone } from "lucide-react";
+import { cn } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -16,6 +18,20 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  SETTLEMENT_METHODS,
+  getMobilePayRecipients,
+  getSettlementMethodLabel,
+  isAllowedSettlementMethod,
+  type MobilePayRecipient,
+  type SettlementMethod,
+} from "@/lib/payments/methods";
+
+const SETTLEMENT_ICONS: Record<SettlementMethod, typeof Banknote> = {
+  CASH: Banknote,
+  CARD: CreditCard,
+  MOBILE: Smartphone,
+};
 
 interface SettlementDialogProps {
   open: boolean;
@@ -37,6 +53,11 @@ export function SettlementDialog({ open, onOpenChange }: SettlementDialogProps) 
   } | null>(null);
   const [isProcessingSettlement, setIsProcessingSettlement] = useState(false);
   const [settlementError, setSettlementError] = useState<string | null>(null);
+  const [settlementPaymentMethod, setSettlementPaymentMethod] =
+    useState<SettlementMethod>("CASH");
+  const [settlementRecipient, setSettlementRecipient] = useState<string | null>(
+    null,
+  );
 
   const resetState = () => {
     setSettlementStep("reference");
@@ -46,7 +67,21 @@ export function SettlementDialog({ open, onOpenChange }: SettlementDialogProps) 
     setSettlementError(null);
     setFetchedSettlementCashier(null);
     setIsProcessingSettlement(false);
+    setSettlementPaymentMethod("CASH");
+    setSettlementRecipient(null);
   };
+
+  const mobileRecipients: MobilePayRecipient[] =
+    getMobilePayRecipients(staffMembers);
+  const requiresRecipient: boolean = settlementPaymentMethod === "MOBILE";
+
+  function selectSettlementMethod(method: SettlementMethod): void {
+    setSettlementPaymentMethod(method);
+    setSettlementError(null);
+    if (method !== "MOBILE") {
+      setSettlementRecipient(null);
+    }
+  }
 
   const handleOpenChange = (isOpen: boolean) => {
     onOpenChange(isOpen);
@@ -202,6 +237,78 @@ export function SettlementDialog({ open, onOpenChange }: SettlementDialogProps) 
                 </div>
               </div>
 
+              <div className="w-full mb-4">
+                <div className="text-sm font-medium text-gray-600 mb-2 text-center">
+                  Settlement payment method
+                </div>
+                <div className="grid grid-cols-3 gap-3" role="radiogroup" aria-label="Settlement payment method">
+                  {SETTLEMENT_METHODS.map((option) => {
+                    const Icon = SETTLEMENT_ICONS[option.value];
+                    const active: boolean =
+                      settlementPaymentMethod === option.value;
+                    return (
+                      <Button
+                        key={option.value}
+                        type="button"
+                        variant={active ? "chonky" : "outline"}
+                        role="radio"
+                        aria-checked={active}
+                        className={cn(
+                          "h-20 flex flex-col items-center justify-center gap-1.5",
+                          active && "ring-2 ring-primary",
+                        )}
+                        disabled={isProcessingSettlement}
+                        onClick={() => selectSettlementMethod(option.value)}
+                      >
+                        <Icon className="w-5 h-5 shrink-0" />
+                        <span className="text-xs font-medium text-center leading-tight">
+                          {option.label}
+                        </span>
+                      </Button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {requiresRecipient && (
+                <div className="w-full mb-4">
+                  <div className="text-sm font-medium text-gray-600 mb-2 text-center">
+                    Select payment recipient:
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    {mobileRecipients.map((recipient) => (
+                      <Button
+                        key={recipient.id}
+                        type="button"
+                        variant={
+                          settlementRecipient === recipient.name
+                            ? "chonky"
+                            : "outline"
+                        }
+                        className={cn(
+                          "h-10 text-center",
+                          settlementRecipient === recipient.name &&
+                            "ring-2 ring-primary",
+                        )}
+                        disabled={isProcessingSettlement}
+                        onClick={() => {
+                          setSettlementRecipient(recipient.name);
+                          setSettlementError(null);
+                        }}
+                      >
+                        {recipient.label}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {settlementError && !isProcessingSettlement && (
+                <p role="alert" className="text-destructive text-sm text-center mb-4">
+                  {settlementError}
+                </p>
+              )}
+
               {isProcessingSettlement && (
                 <div className="flex flex-col items-center justify-center gap-4 mb-4 py-4">
                   <motion.div
@@ -254,6 +361,19 @@ export function SettlementDialog({ open, onOpenChange }: SettlementDialogProps) 
                 <Button
                   className="flex-1 h-12 text-base"
                   onClick={async () => {
+                    if (!isAllowedSettlementMethod(settlementPaymentMethod)) {
+                      setSettlementError(
+                        "Select a settlement payment method (Cash, Card, or Mobile Pay).",
+                      );
+                      return;
+                    }
+                    if (requiresRecipient && !settlementRecipient) {
+                      setSettlementError(
+                        "Select a payment recipient for Mobile Pay.",
+                      );
+                      return;
+                    }
+                    setSettlementError(null);
                     setIsProcessingSettlement(true);
 
                     try {
@@ -268,7 +388,12 @@ export function SettlementDialog({ open, onOpenChange }: SettlementDialogProps) 
                           body: JSON.stringify({
                             referenceNumber: settlementReference.trim(),
                             cashierId: fetchedSettlementCashier.id,
-                            paymentMethod: "CASH",
+                            paymentMethod: settlementPaymentMethod,
+                            ...(requiresRecipient && settlementRecipient
+                              ? {
+                                  mobilePaymentAccount: settlementRecipient,
+                                }
+                              : {}),
                           }),
                         }
                       );
@@ -282,7 +407,7 @@ export function SettlementDialog({ open, onOpenChange }: SettlementDialogProps) 
                       // Show success toast
                       toast({
                         title: "Settlement Processed",
-                        description: `Reference ${settlementReference} has been converted to a regular sale by ${fetchedSettlementCashier.name}.`,
+                        description: `Reference ${settlementReference} has been settled via ${getSettlementMethodLabel(settlementPaymentMethod)} by ${fetchedSettlementCashier.name}.`,
                       });
 
                       // Reset and close
