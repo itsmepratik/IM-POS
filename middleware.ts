@@ -1,5 +1,64 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import {
+  ROLE_COOKIE_NAME,
+  ROLE_COOKIE_TTL_SECONDS,
+  isUserRole,
+  signRoleCookie,
+  verifyRoleCookie,
+  type UserRole,
+} from "@/lib/auth/role-cookie";
+
+type MiddlewareSupabaseClient = ReturnType<typeof createServerClient>;
+
+/**
+ * Resolve the user's role. A valid signed cookie is used as a 5-minute cache;
+ * otherwise the role is read from the DB. Any failure falls back to the
+ * least-privileged role ("shop") — never to admin.
+ */
+async function resolveUserRole(
+  request: NextRequest,
+  response: NextResponse,
+  supabase: MiddlewareSupabaseClient,
+  userId: string,
+): Promise<UserRole> {
+  const secret = process.env.ROLE_COOKIE_SECRET;
+
+  if (secret) {
+    const cached = await verifyRoleCookie(
+      request.cookies.get(ROLE_COOKIE_NAME)?.value,
+      userId,
+      secret,
+    );
+    if (cached) return cached;
+  }
+
+  const { data, error } = await supabase.rpc("get_user_role_for_middleware", {
+    user_id: userId,
+  });
+
+  if (error || !isUserRole(data)) {
+    // Do not cache a fallback role; retry the lookup on the next request.
+    response.cookies.delete(ROLE_COOKIE_NAME);
+    return "shop";
+  }
+
+  if (secret) {
+    response.cookies.set(
+      ROLE_COOKIE_NAME,
+      await signRoleCookie(data, userId, secret),
+      {
+        maxAge: ROLE_COOKIE_TTL_SECONDS,
+        path: "/",
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+      },
+    );
+  }
+
+  return data;
+}
 
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -33,15 +92,14 @@ export async function middleware(request: NextRequest) {
   // supabase.auth.getUser(). A simple mistake could make it very hard to debug
   // issues with users being randomly logged out.
 
-  // Fast path: validate JWT locally without network round-trip
-  // IMPORTANT: DO NOT REMOVE auth.getSession()
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  const user = session?.user ?? null;
+  // getClaims() verifies the JWT signature (locally via JWKS for asymmetric
+  // keys, otherwise against the Auth server). getSession() must NOT be used
+  // here: it trusts the cookie as-is, so a forged session would pass.
+  const { data: claimsData } = await supabase.auth.getClaims();
+  const userId = claimsData?.claims.sub ?? null;
 
   if (
-    !user &&
+    !userId &&
     !request.nextUrl.pathname.startsWith("/login") &&
     !request.nextUrl.pathname.startsWith("/auth") &&
     !request.nextUrl.pathname.startsWith("/api/")
@@ -53,34 +111,13 @@ export async function middleware(request: NextRequest) {
   }
 
   // If user is authenticated, check role-based access
-  if (user) {
-    // Get user role from database
-    let userRole = "shop";
-
-    const cachedRole = request.cookies.get("user_role")?.value;
-    if (cachedRole) {
-      userRole = cachedRole;
-    } else {
-      try {
-        const { data: roleData, error } = await supabase.rpc(
-          "get_user_role_for_middleware",
-          { user_id: user.id },
-        );
-        if (!error && roleData) {
-          userRole = roleData;
-        } else {
-          userRole =
-            user.email === "admin@hnsautomotive.com" ? "admin" : "shop";
-        }
-      } catch (error) {
-        console.error("Error getting user role in middleware:", error);
-        userRole = user.email === "admin@hnsautomotive.com" ? "admin" : "shop";
-      }
-      supabaseResponse.cookies.set("user_role", userRole, {
-        maxAge: 300,
-        path: "/",
-      });
-    }
+  if (userId) {
+    const userRole = await resolveUserRole(
+      request,
+      supabaseResponse,
+      supabase,
+      userId,
+    );
 
     const pathname = request.nextUrl.pathname;
 
