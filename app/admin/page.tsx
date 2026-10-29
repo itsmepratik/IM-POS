@@ -12,7 +12,8 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Users, Shield, Settings, BarChart3 } from "lucide-react";
+import { Users, Shield, Settings, BarChart3, DatabaseBackup } from "lucide-react";
+import Link from "next/link";
 
 export default function AdminPage() {
   return (
@@ -189,6 +190,12 @@ function AdminDashboard() {
             <Button variant="outline">
               <BarChart3 className="mr-2 h-4 w-4" />
               View Analytics
+            </Button>
+            <Button variant="outline" asChild>
+              <Link href="/admin/backup">
+                <DatabaseBackup className="mr-2 h-4 w-4" />
+                System Backup
+              </Link>
             </Button>
           </div>
         </CardContent>

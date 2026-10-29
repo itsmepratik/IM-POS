@@ -21,6 +21,7 @@ import {
   BarChart2,
   Users,
   ArrowLeftRight,
+  DatabaseBackup,
   User,
   LogOut,
   ChevronDown,
@@ -95,6 +96,13 @@ export function MobileNav({ className }: { className?: string }) {
       icon: <BarChart2 className="h-4 w-4" />,
       isAdmin: true,
       permission: "reports.access" as const,
+    },
+    {
+      title: "System Backup",
+      href: "/admin/backup",
+      icon: <DatabaseBackup className="h-4 w-4" />,
+      isAdmin: true,
+      permission: "admin.access" as const,
     },
     {
       title: "Transactions",

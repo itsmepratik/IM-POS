@@ -25,26 +25,62 @@ const envSchema = z.object({
     .default("development"),
 });
 
-// Parse and validate environment variables
-export const env = envSchema.parse({
-  NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
-  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
-  SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
-  DATABASE_URL: process.env.DATABASE_URL,
-  NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
-  NODE_ENV: process.env.NODE_ENV,
-});
+export type Env = z.infer<typeof envSchema>;
 
-// Supabase configuration
-export const supabaseConfig = {
-  url: env.NEXT_PUBLIC_SUPABASE_URL,
-  publishableKey: env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
-  serviceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY,
-} as const;
+type SslMode = boolean | "require" | "prefer" | "allow";
 
-// Database configuration
-const getSslConfig = (): boolean | "require" | "prefer" | "allow" => {
+export interface DbConfig {
+  readonly url: string;
+  readonly ssl: SslMode;
+}
+
+export interface SupabaseConfig {
+  readonly url: string;
+  readonly publishableKey: string;
+  readonly serviceRoleKey: string;
+}
+
+export interface AppConfig {
+  readonly url: string;
+  readonly isDevelopment: boolean;
+  readonly isProduction: boolean;
+}
+
+/**
+ * Validation is deferred to first use (runtime) rather than module load.
+ * `next build` imports every route module while collecting page data, and
+ * runtime-only secrets (DATABASE_URL, SUPABASE_SERVICE_ROLE_KEY) must NOT be
+ * present in the build environment. Validating eagerly would either break the
+ * build or force secrets into the image layers.
+ */
+let cachedEnv: Env | undefined;
+
+export function getEnv(): Env {
+  if (cachedEnv) return cachedEnv;
+
+  cachedEnv = envSchema.parse({
+    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    DATABASE_URL: process.env.DATABASE_URL,
+    NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+    NODE_ENV: process.env.NODE_ENV,
+  });
+
+  return cachedEnv;
+}
+
+export function getSupabaseConfig(): SupabaseConfig {
+  const env = getEnv();
+  return {
+    url: env.NEXT_PUBLIC_SUPABASE_URL,
+    publishableKey: env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+    serviceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY,
+  };
+}
+
+function resolveSslMode(env: Env): SslMode {
   const dbSsl = process.env.DB_SSL?.toLowerCase();
   if (dbSsl === "false" || dbSsl === "disable" || dbSsl === "off") {
     return false;
@@ -62,19 +98,21 @@ const getSslConfig = (): boolean | "require" | "prefer" | "allow" => {
     return "require";
   }
   return env.NODE_ENV === "production" ? "require" : "prefer";
-};
+}
 
-export const dbConfig = {
-  url: env.DATABASE_URL,
-  ssl: getSslConfig(),
-} as const;
+export function getDbConfig(): DbConfig {
+  const env = getEnv();
+  return {
+    url: env.DATABASE_URL,
+    ssl: resolveSslMode(env),
+  };
+}
 
-// Application configuration
-export const appConfig = {
-  url: env.NEXT_PUBLIC_APP_URL,
-  isDevelopment: env.NODE_ENV === "development",
-  isProduction: env.NODE_ENV === "production",
-} as const;
-
-export default env;
-
+export function getAppConfig(): AppConfig {
+  const env = getEnv();
+  return {
+    url: env.NEXT_PUBLIC_APP_URL,
+    isDevelopment: env.NODE_ENV === "development",
+    isProduction: env.NODE_ENV === "production",
+  };
+}

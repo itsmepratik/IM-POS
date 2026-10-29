@@ -94,6 +94,7 @@ export async function middleware(request: NextRequest) {
       "/transfer",
       "/transfer-2",
       "/orders",
+      "/admin",
     ];
 
     // Define shop-accessible routes

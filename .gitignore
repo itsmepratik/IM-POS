@@ -45,3 +45,9 @@ next-env.d.ts
 # Debug scripts (not for deployment)
 /scripts/
 
+# Local database backups (sensitive data — never commit)
+/backups/
+im-pos-backup-*.json
+im-pos-backup-*.sql
+im-pos-backup-*.zip
+

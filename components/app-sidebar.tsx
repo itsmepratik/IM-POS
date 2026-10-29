@@ -13,6 +13,7 @@ import {
   Warehouse,
   Building,
   ArrowLeftRight,
+  DatabaseBackup,
   Package,
   Truck,
   Inbox,
@@ -186,6 +187,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         />
       ),
       permission: "reports.access",
+      adminOnly: true,
+    },
+    {
+      title: "System Backup",
+      href: "/admin/backup",
+      icon: () => <DatabaseBackup className="!size-[22px]" />,
+      permission: "admin.access",
       adminOnly: true,
     },
     {

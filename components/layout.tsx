@@ -34,7 +34,8 @@ export function Layout({ children, pageTitle }: LayoutProps) {
     if (pathname === "/restock") return "Restock Orders";
     if (pathname === "/restock-orders") return "Restock Order History";
     if (pathname === "/purchase-orders") return "Purchase Orders";
-    if (pathname === "/admins") return "Admin";
+    if (pathname === "/admin") return "Admin";
+    if (pathname === "/admin/backup") return "System Backup";
     if (pathname === "/employees") return "Employees";
     if (pathname === "/cash-shifts" || pathname.startsWith("/cash-shifts")) return "Cash Shifts & Reconciliation";
 

@@ -1,7 +1,7 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "./schema";
-import { dbConfig } from "../config";
+import { getDbConfig } from "../config";
 
 // Connection pool configuration - tuned for serverless / Next.js to avoid "Connection closed" and pool exhaustion
 const CONNECTION_POOL_SIZE = 5;
@@ -21,7 +21,9 @@ let connectionHealth = {
 let initialized = false;
 
 function initializeConnection() {
-  if (initialized || !dbConfig.url) return;
+  if (initialized) return;
+  // Throws a ZodError on first use if runtime env is misconfigured (fail fast).
+  const dbConfig = getDbConfig();
   initialized = true;
 
   try {
@@ -83,6 +85,7 @@ const performHealthCheck = async () => {
     }
 
     if (connectionHealth.consecutiveFailures === 3) {
+      const dbConfig = getDbConfig();
       console.error("Database connection details:", {
         url: dbConfig.url ? "configured" : "missing",
         ssl: dbConfig.ssl,
@@ -158,7 +161,7 @@ export function validateDatabaseUrl(url?: string): {
   issues: string[];
   suggestions: string[];
 } {
-  const dbUrl = url || dbConfig.url;
+  const dbUrl = url || process.env.DATABASE_URL;
   const issues: string[] = [];
   const suggestions: string[] = [];
 
@@ -217,7 +220,7 @@ export async function testDatabaseConnection(): Promise<{
     return {
       success: false,
       error: "Database client not initialized",
-      details: { configured: !!dbConfig.url, ssl: dbConfig.ssl },
+      details: { configured: Boolean(process.env.DATABASE_URL) },
     };
   }
 
