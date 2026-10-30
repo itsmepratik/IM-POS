@@ -24,158 +24,24 @@
  *   - products.battery_state is normalized to 'new' | 'scrap' | 'resellable'.
  */
 import { readFileSync, writeFileSync } from "node:fs";
-import { getTableColumns } from "drizzle-orm";
-import { getTableConfig, type PgColumn, type PgTable } from "drizzle-orm/pg-core";
-import { BACKUP_TABLES, getDrizzleTable, type BackupFile, type BackupTableKey } from "./manifest";
+import type { PgColumn } from "drizzle-orm/pg-core";
+import { BACKUP_TABLES, type BackupFile } from "./manifest";
 import { verifyChecksum } from "./export";
+import {
+  assertExpectedDrops,
+  buildMeta,
+  dropOrphans,
+  fail,
+  log,
+  normalizeBatteryState,
+  quoteIdent,
+  type Row,
+} from "./legacy";
 
-type Row = Record<string, unknown>;
-
-/** Reviewed and approved drops for backup 2026-10-06 (orphaned staff references). */
-const EXPECTED_DROPS: Readonly<Record<string, readonly string[]>> = {
-  transactions: [
-    "76dc2637-9aee-45e8-8e4d-ec1acd3d3a7e", // A0179 cashier a2b9ab75-… missing
-    "dd723a0d-7d08-498d-a6da-34e8d8c3c6a7", // A0180
-    "8326747e-7f99-411d-81f5-837c2c58bcd9", // A0181
-  ],
-  service_items: [
-    "728d6104-5ab7-4935-9125-a832617b2c4f",
-    "7d8a19ce-d59a-40f6-a2ed-cda680559a3b",
-    "819bf129-8079-43a9-acee-ffbbf15b881a",
-  ],
-  cash_shifts: ["6a15c79f-385b-44a8-9080-7831464e7dbc"], // opener ebda6901-… missing
-};
-
-const BATTERY_STATES = new Set(["new", "scrap", "resellable"]);
 const INSERT_CHUNK = 200;
-
-interface ColumnMap {
-  sqlName: string;
-  column: PgColumn;
-}
-
-interface TableMeta {
-  key: BackupTableKey;
-  qualified: string;
-  columns: Map<string, ColumnMap>;
-  fks: { localKeys: string[]; parentKey: BackupTableKey; parentKeys: string[] }[];
-}
-
-function fail(message: string): never {
-  throw new Error(message);
-}
-
-function quoteIdent(name: string): string {
-  return `"${name.replace(/"/g, '""')}"`;
-}
 
 function quoteText(value: string): string {
   return `'${value.replace(/'/g, "''")}'`;
-}
-
-function log(msg: string, extra: Record<string, unknown> = {}): void {
-  process.stderr.write(`${JSON.stringify({ level: "info", msg, ...extra })}\n`);
-}
-
-function buildMeta(): Map<BackupTableKey, TableMeta> {
-  const byTable = new Map<PgTable, BackupTableKey>();
-  for (const entry of BACKUP_TABLES) byTable.set(getDrizzleTable(entry.key) as PgTable, entry.key);
-
-  const meta = new Map<BackupTableKey, TableMeta>();
-  for (const entry of BACKUP_TABLES) {
-    const table = getDrizzleTable(entry.key) as PgTable;
-    const cfg = getTableConfig(table);
-    const cols = getTableColumns(table) as Record<string, PgColumn>;
-    const columns = new Map<string, ColumnMap>();
-    const sqlToProp = new Map<string, string>();
-    for (const [prop, column] of Object.entries(cols)) {
-      columns.set(prop, { sqlName: column.name, column });
-      sqlToProp.set(column.name, prop);
-    }
-    const fks = cfg.foreignKeys.map((fk) => {
-      const ref = fk.reference();
-      const parentKey = byTable.get(ref.foreignTable) ?? fail(`FK on ${entry.key} targets a table outside the backup`);
-      const parentCols = getTableColumns(ref.foreignTable) as Record<string, PgColumn>;
-      const parentProp = (name: string): string =>
-        Object.entries(parentCols).find(([, c]) => c.name === name)?.[0] ?? fail(`unknown parent column ${name}`);
-      return {
-        localKeys: ref.columns.map((c) => sqlToProp.get(c.name) ?? fail(`unknown column ${c.name}`)),
-        parentKey,
-        parentKeys: ref.foreignColumns.map((c) => parentProp(c.name)),
-      };
-    });
-    meta.set(entry.key, {
-      key: entry.key,
-      qualified: `${quoteIdent(cfg.schema ?? "public")}.${quoteIdent(cfg.name)}`,
-      columns,
-      fks,
-    });
-  }
-  return meta;
-}
-
-/** Drop rows whose FK targets are absent, iterating to a fixpoint (handles cascades). */
-function dropOrphans(tables: Record<string, Row[]>, meta: Map<BackupTableKey, TableMeta>): Record<string, string[]> {
-  const dropped: Record<string, string[]> = {};
-  let changed = true;
-  while (changed) {
-    changed = false;
-    for (const entry of BACKUP_TABLES) {
-      const m = meta.get(entry.key) ?? fail(`no meta for ${entry.key}`);
-      const rows = tables[entry.key] ?? [];
-      const keep: Row[] = [];
-      for (const row of rows) {
-        const dangling = m.fks.find((fk) => {
-          const values = fk.localKeys.map((k) => row[k]);
-          if (values.some((v) => v === null || v === undefined)) return false;
-          const parents = tables[fk.parentKey] ?? [];
-          return !parents.some((p) => fk.parentKeys.every((pk, i) => String(p[pk]) === String(values[i])));
-        });
-        if (dangling) {
-          const id = String(row["id"] ?? JSON.stringify(row));
-          (dropped[entry.key] ??= []).push(id);
-          log("dropping orphan row", { table: entry.key, id, fk: dangling.localKeys.join(","), parent: dangling.parentKey });
-          changed = true;
-        } else {
-          keep.push(row);
-        }
-      }
-      tables[entry.key] = keep;
-    }
-  }
-  return dropped;
-}
-
-function assertExpectedDrops(dropped: Record<string, string[]>): void {
-  const keys = new Set([...Object.keys(dropped), ...Object.keys(EXPECTED_DROPS)]);
-  for (const key of keys) {
-    const got = [...(dropped[key] ?? [])].sort();
-    const want = [...(EXPECTED_DROPS[key] ?? [])].sort();
-    if (got.length !== want.length || got.some((v, i) => v !== want[i])) {
-      fail(`Unexpected orphan drop set for "${key}": got [${got.join(", ")}], expected [${want.join(", ")}]. Review the backup before seeding.`);
-    }
-  }
-}
-
-function normalizeBatteryState(products: Row[]): number {
-  let changes = 0;
-  for (const row of products) {
-    const raw = row["batteryState"];
-    if (raw === null || raw === undefined) continue;
-    if (typeof raw !== "string") fail(`non-string batteryState on product ${String(row["id"])}`);
-    const tokens = raw.split(/\s+/).filter(Boolean);
-    // A token list like ["new","resellable"] came from a corrupted edit; the specific state wins.
-    const normalized = tokens.includes("resellable") ? "resellable" : tokens.includes("scrap") ? "scrap" : tokens[0];
-    if (!normalized || !BATTERY_STATES.has(normalized)) {
-      fail(`Unmappable batteryState ${JSON.stringify(raw)} on product ${String(row["id"])}`);
-    }
-    if (normalized !== raw) {
-      log("normalizing batteryState", { id: row["id"], from: raw, to: normalized });
-      row["batteryState"] = normalized;
-      changes += 1;
-    }
-  }
-  return changes;
 }
 
 function literal(value: unknown, column: PgColumn): string {

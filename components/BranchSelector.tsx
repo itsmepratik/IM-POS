@@ -57,9 +57,9 @@ export function BranchSelector({
   }
 
   return (
-    <div className={`flex items-center gap-2 ${className}`}>
+    <div className={`flex items-center gap-2 shrink-0 ${className}`}>
       {showLabel && !compact && (
-        <span className="text-sm font-medium text-gray-600">Branch:</span>
+        <span className="text-sm font-medium text-gray-600 whitespace-nowrap">Branch:</span>
       )}
 
       <Select
@@ -68,9 +68,10 @@ export function BranchSelector({
         disabled={branches.length === 0 || isBranchLocked}
       >
         <SelectTrigger
-          className={compact ? "w-auto min-w-[120px]" : "w-[200px]"}
+          aria-label="Branch"
+          className={compact ? "w-auto min-w-[120px] whitespace-nowrap" : "w-[200px]"}
         >
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 min-w-0">
             {isBranchLocked ? (
               <Lock className="w-4 h-4 text-gray-400" />
             ) : (
@@ -97,7 +98,7 @@ export function BranchSelector({
       </Select>
 
       {currentBranch && (
-        <Badge variant="secondary" className="ml-1 hidden lg:inline-flex">
+        <Badge variant="secondary" className="ml-1 hidden lg:inline-flex whitespace-nowrap">
           {isBranchLocked ? "Locked" : "Active"}
         </Badge>
       )}
