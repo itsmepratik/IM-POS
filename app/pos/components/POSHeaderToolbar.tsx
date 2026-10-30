@@ -1,0 +1,139 @@
+"use client";
+
+import { Banknote } from "lucide-react";
+import { Cashier02Icon } from "hugeicons-react";
+import HugeiconsIcon from "@/components/HugeiconsIcon";
+import { Button } from "@/components/ui/button";
+import {
+  getShiftDisplayName,
+  getDrawerBalance,
+} from "@/lib/utils/cash-shift-display";
+
+interface POSHeaderToolbarProps {
+  /** Active cash shift, or null when no shift is open. */
+  activeShift: unknown;
+  currentTime: Date | null;
+  onOpenCashMovement: () => void;
+  onEndShift: () => void;
+  onOpenDispute: () => void;
+}
+
+/**
+ * Desktop (lg+) right-hand toolbar of the POS "Products" header.
+ *
+ * Single-row, non-wrapping layout: every control shares the same 36px height,
+ * the cashier name is the only element allowed to shrink (truncates), and
+ * secondary labels collapse to icons on narrower desktop widths instead of
+ * pushing the toolbar onto a second line.
+ */
+export function POSHeaderToolbar({
+  activeShift,
+  currentTime,
+  onOpenCashMovement,
+  onEndShift,
+  onOpenDispute,
+}: POSHeaderToolbarProps): React.JSX.Element {
+  const now = currentTime ?? new Date();
+
+  return (
+    <div className="hidden lg:flex flex-nowrap items-center justify-end gap-2 ml-auto min-w-0">
+      {activeShift !== null && activeShift !== undefined && (
+        <ShiftStrip
+          shift={activeShift}
+          onOpenCashMovement={onOpenCashMovement}
+          onEndShift={onEndShift}
+        />
+      )}
+
+      <time
+        dateTime={now.toISOString()}
+        className="hidden xl:inline-flex h-9 shrink-0 items-center whitespace-nowrap rounded-lg bg-muted px-2.5 font-mono text-xs tabular-nums text-muted-foreground"
+        suppressHydrationWarning
+      >
+        {now.toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        })}
+      </time>
+
+      <Button
+        variant="outline"
+        className="dispute-button h-9 shrink-0 gap-2 whitespace-nowrap rounded-lg px-3 transition-all duration-200 ease-in-out active:transition-none"
+        onClick={onOpenDispute}
+        aria-label="Dispute"
+        title="Dispute"
+      >
+        <HugeiconsIcon
+          icon={Cashier02Icon}
+          size={18}
+          strokeWidth={2.2}
+          className="!size-[18px]"
+        />
+        <span className="hidden xl:inline text-sm font-medium">Dispute</span>
+      </Button>
+    </div>
+  );
+}
+
+interface ShiftStripProps {
+  shift: unknown;
+  onOpenCashMovement: () => void;
+  onEndShift: () => void;
+}
+
+function ShiftStrip({
+  shift,
+  onOpenCashMovement,
+  onEndShift,
+}: ShiftStripProps): React.JSX.Element {
+  const name = getShiftDisplayName(shift);
+  const balance = getDrawerBalance(shift).toFixed(3);
+
+  return (
+    <div className="flex h-9 min-w-0 items-center rounded-lg border border-border bg-muted/40 pl-3 pr-1">
+      <div
+        role="status"
+        aria-label={`Active shift: ${name}, drawer OMR ${balance}`}
+        className="flex min-w-0 items-center gap-2"
+      >
+        <span
+          aria-hidden="true"
+          className="size-2 shrink-0 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(34,197,94,0.6)] animate-pulse motion-reduce:animate-none"
+        />
+        <span
+          className="min-w-0 truncate text-xs font-semibold text-foreground"
+          title={name}
+        >
+          {name}
+        </span>
+        <span aria-hidden="true" className="h-4 w-px shrink-0 bg-border" />
+        <span className="shrink-0 whitespace-nowrap font-mono text-xs font-bold tabular-nums text-emerald-700">
+          OMR {balance}
+        </span>
+      </div>
+
+      <div className="ml-2 flex shrink-0 items-center gap-1">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 gap-1 rounded-md px-2 text-xs font-semibold"
+          onClick={onOpenCashMovement}
+          aria-label="Cash drawer in/out or drop"
+          title="Cash Drawer In/Out / Drop"
+        >
+          <Banknote aria-hidden="true" className="size-3.5 text-amber-600" />
+          <span className="hidden xl:inline">Drawer</span>
+        </Button>
+        <Button
+          variant="destructive"
+          size="sm"
+          className="h-7 whitespace-nowrap rounded-md px-2.5 text-xs font-semibold"
+          onClick={onEndShift}
+        >
+          End Shift
+        </Button>
+      </div>
+    </div>
+  );
+}

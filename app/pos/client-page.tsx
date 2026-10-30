@@ -85,11 +85,8 @@ import { useToast } from "@/components/ui/use-toast";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { useCompanyInfo } from "@/lib/hooks/useCompanyInfo";
-import {
-  getShiftDisplayName,
-  getDrawerBalance,
-  shouldShowShiftLock,
-} from "@/lib/utils/cash-shift-display";
+import { shouldShowShiftLock } from "@/lib/utils/cash-shift-display";
+import { POSHeaderToolbar } from "./components/POSHeaderToolbar";
 // useNotification and createLubricantVolumeAlert moved to useLubricantVolume hook
 // Removed unused hooks
 import { Textarea } from "@/components/ui/textarea";
@@ -1437,9 +1434,9 @@ export function POSClient({ initialData }: { initialData?: any }) {
           {/* Product Grid */}
           <div className="flex-1 overflow-hidden flex flex-col min-h-0">
             <Card className="flex-1 overflow-hidden flex flex-col h-full">
-              <CardHeader className="flex flex-col lg:flex-row lg:flex-wrap items-start lg:items-center justify-between gap-2 lg:gap-x-4 lg:gap-y-3 space-y-0 pb-3 px-4 flex-shrink-0">
-                {/* Desktop: Show title and branch selector side by side */}
-                <div className="hidden lg:flex items-center gap-4 shrink-0">
+              <CardHeader className="flex flex-col lg:flex-row lg:flex-nowrap items-start lg:items-center justify-between gap-2 lg:gap-3 space-y-0 pb-3 px-4 flex-shrink-0">
+                {/* Desktop: title + branch selector (left), toolbar (right) — single row, never wraps */}
+                <div className="hidden lg:flex items-center gap-3 shrink-0">
                   <CardTitle className="text-xl sm:text-2xl">
                     Products
                   </CardTitle>
@@ -1511,82 +1508,13 @@ export function POSClient({ initialData }: { initialData?: any }) {
                   </CardTitle>
                 </div>
 
-                {/* Desktop: Show status indicators and buttons on the right */}
-                {/* Children never wrap internally; if the row is too narrow the whole group wraps to its own line. */}
-                <div className="hidden lg:flex flex-wrap justify-end gap-3 items-center ml-auto min-w-0">
-                  {/* Active Shift Badge & Balance */}
-                  {activeShift && (
-                    <div
-                      role="status"
-                      aria-label={`Active shift: ${getShiftDisplayName(activeShift)}, drawer OMR ${getDrawerBalance(activeShift).toFixed(3)}`}
-                      className="flex items-center gap-2 min-w-0 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5"
-                    >
-                      <div
-                        aria-hidden="true"
-                        className="h-2 w-2 shrink-0 bg-emerald-500 rounded-full animate-pulse motion-reduce:animate-none shadow-[0_0_8px_rgba(34,197,94,0.6)]"
-                      />
-                      <div className="flex flex-col text-left min-w-0">
-                        <span
-                          className="text-[11px] font-semibold text-slate-700 leading-tight truncate max-w-[11rem] xl:max-w-[16rem]"
-                          title={getShiftDisplayName(activeShift)}
-                        >
-                          Shift: {getShiftDisplayName(activeShift)}
-                        </span>
-                        <span className="text-[10px] font-mono tabular-nums text-emerald-700 font-bold leading-tight whitespace-nowrap">
-                          Drawer: OMR {getDrawerBalance(activeShift).toFixed(3)}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1 ml-2 shrink-0">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 px-2 text-xs font-semibold text-slate-700 hover:bg-slate-200/60 rounded-lg whitespace-nowrap"
-                          onClick={() => setIsCashMovementModalOpen(true)}
-                          title="Cash Drawer In/Out / Drop"
-                        >
-                          <Banknote aria-hidden="true" className="w-3.5 h-3.5 mr-1 text-amber-600" />
-                          Drawer
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          className="h-7 px-2.5 text-xs font-semibold rounded-lg shadow-sm whitespace-nowrap"
-                          onClick={() => setIsCloseShiftModalOpen(true)}
-                        >
-                          End Shift
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Clock Indicator */}
-                  <time
-                    dateTime={(currentTime || new Date()).toISOString()}
-                    className="shrink-0 whitespace-nowrap font-mono tabular-nums text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-md"
-                    suppressHydrationWarning
-                  >
-                    {(currentTime || new Date()).toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                      second: "2-digit",
-                    })}
-                  </time>
-
-                  <Button
-                    variant="outline"
-                    size="default"
-                    className="dispute-button shrink-0 whitespace-nowrap h-auto px-4 py-[8px] flex items-center gap-2 relative transition-all duration-200 ease-in-out active:transition-none rounded-xl"
-                    onClick={() => setIsDisputeDialogOpen(true)}
-                  >
-                    <HugeiconsIcon
-                      icon={Cashier02Icon}
-                      size={20}
-                      strokeWidth={2.2}
-                      className="!size-[20px]"
-                    />
-                    <span className="font-medium text-sm">Dispute</span>
-                  </Button>
-                </div>
+                <POSHeaderToolbar
+                  activeShift={activeShift}
+                  currentTime={currentTime}
+                  onOpenCashMovement={() => setIsCashMovementModalOpen(true)}
+                  onEndShift={() => setIsCloseShiftModalOpen(true)}
+                  onOpenDispute={() => setIsDisputeDialogOpen(true)}
+                />
               </CardHeader>
               <CardContent className="flex-1 overflow-hidden flex flex-col p-4 min-h-0">
                 <Tabs

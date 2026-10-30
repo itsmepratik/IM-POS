@@ -3,6 +3,18 @@
   "model": "openai/gpt-4o",
   "default_agent": "build",
   "instructions": ["AGENTS.md", ".agent/rules/**/*.md"],
+  "mcp": {
+    "shadcn": {
+      "type": "local",
+      "command": ["npx", "-y", "shadcn@latest", "mcp"],
+      "enabled": true
+    },
+    "next-devtools": {
+      "type": "local",
+      "command": ["npx", "-y", "next-devtools-mcp@latest"],
+      "enabled": true
+    }
+  },
   "permission": {
     "edit": "allow",
     "bash": {

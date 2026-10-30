@@ -97,7 +97,8 @@ export function BranchSelector({
         </SelectContent>
       </Select>
 
-      {currentBranch && (
+      {/* Compact mode drops the status badge — the trigger icon already shows lock state. */}
+      {currentBranch && !compact && (
         <Badge variant="secondary" className="ml-1 hidden lg:inline-flex whitespace-nowrap">
           {isBranchLocked ? "Locked" : "Active"}
         </Badge>
