@@ -13,6 +13,12 @@
       "type": "local",
       "command": ["npx", "-y", "next-devtools-mcp@latest"],
       "enabled": true
+    },
+    "postgres": {
+      "type": "local",
+      "command": ["bun", "scripts/mcp/postgres-tunnel.ts"],
+      "enabled": true,
+      "timeout": 60000
     }
   },
   "permission": {
