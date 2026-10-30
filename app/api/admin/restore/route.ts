@@ -99,14 +99,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       );
     }
 
-    const hardWarnings = plan.warnings.filter((w) =>
-      /mismatch|duplicate/i.test(w),
-    );
-    if (!plan.checksumValid || hardWarnings.length > 0) {
+    if (!plan.checksumValid || plan.blockers.length > 0) {
       return NextResponse.json(
         {
           success: false,
-          error: "Restore blocked by integrity warnings.",
+          error: `Restore blocked: ${plan.blockers.join(" ")}`,
+          blockers: plan.blockers,
           warnings: plan.warnings,
         },
         { status: 422 },
@@ -147,9 +145,16 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       );
     }
     if (error instanceof z.ZodError) {
+      // Request bodies are validated with safeParse above, so a thrown ZodError
+      // comes from server env validation (lib/config.ts), not from the upload.
+      const fields = error.issues.map((i) => i.path.join(".")).join(", ");
+      console.error("Backup restore blocked by server configuration:", { fields, by: adminEmail });
       return NextResponse.json(
-        { success: false, error: "Invalid input.", details: error.flatten() },
-        { status: 400 },
+        {
+          success: false,
+          error: `Server configuration error (${fields}). Fix the deployment environment and redeploy — the backup was not touched.`,
+        },
+        { status: 500 },
       );
     }
     const message = error instanceof Error ? error.message : "Restore failed.";

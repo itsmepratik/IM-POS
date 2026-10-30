@@ -15,6 +15,7 @@ import {
 export const locations = pgTable("locations", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
 
 export const shops = pgTable("shops", {
@@ -29,6 +30,24 @@ export const shops = pgTable("shops", {
   zipCode: text("zip_code").default("319"),
   brandWhatsapp: text("brand_whatsapp"), // Whatsapp number for the shop/brand
   supervisorPasswordHash: text("supervisor_password_hash"), // bcrypt hash for void authorization
+  // Receipt / bill header (used by settings, BranchContext, useCompanyInfo)
+  companyName: text("company_name"),
+  companyNameArabic: text("company_name_arabic"),
+  crNumber: text("cr_number"),
+  addressLine1: text("address_line_1"),
+  addressLine2: text("address_line_2"),
+  addressLine3: text("address_line_3"),
+  addressLineArabic1: text("address_line_arabic_1"),
+  addressLineArabic2: text("address_line_arabic_2"),
+  contactNumber: text("contact_number"),
+  contactNumberArabic: text("contact_number_arabic"),
+  serviceDescriptionEn: text("service_description_en"),
+  serviceDescriptionAr: text("service_description_ar"),
+  thankYouMessage: text("thank_you_message"),
+  thankYouMessageAr: text("thank_you_message_ar"),
+  brandName: text("brand_name"),
+  brandAddress: text("brand_address"),
+  brandPhones: text("brand_phones"),
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
@@ -41,6 +60,7 @@ export type NewShop = typeof shops.$inferInsert;
 export const categories = pgTable("categories", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull().unique(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
 
 export const types = pgTable(
@@ -67,6 +87,7 @@ export const brands = pgTable("brands", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull().unique(),
   imageUrl: text("image_url"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
 
 // Type inference for the brands table
@@ -84,8 +105,10 @@ export const products = pgTable(
     brandId: uuid("brand_id").references(() => brands.id, {
       onDelete: "set null",
     }),
-    // typeId: uuid("type_id").references(() => types.id, { onDelete: "set null" }),
-    // productType: text("product_type"),
+    // Read/written by create_checkout_transaction, search_inventory_items_v2 and the item modal.
+    typeId: uuid("type_id").references(() => types.id, { onDelete: "set null" }),
+    bottleSize: numeric("bottle_size"), // litres per closed bottle (lubricants)
+    specification: text("specification"),
     description: text("description"),
     imageUrl: text("image_url"),
     lowStockThreshold: integer("low_stock_threshold").default(0),
@@ -93,10 +116,12 @@ export const products = pgTable(
     manufacturingDate: timestamp("manufacturing_date", { withTimezone: true }),
     isBattery: boolean("is_battery").default(false),
     batteryState: text("battery_state"), // 'new', 'scrap', 'resellable'
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
   },
   (table) => ({
     categoryIdIdx: index("products_category_idx").on(table.categoryId),
     brandIdIdx: index("products_brand_idx").on(table.brandId),
+    typeIdIdx: index("products_type_idx").on(table.typeId),
     nameLowerIdx: index("products_name_lower_idx").on(sql`lower(${table.name})`),
   }),
 );
@@ -110,6 +135,7 @@ export const productVolumes = pgTable(
       .references(() => products.id, { onDelete: "cascade" }),
     volumeDescription: text("volume_description").notNull(),
     sellingPrice: numeric("selling_price").notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
   },
   (table) => ({
     productIdIdx: index("product_volumes_product_idx").on(table.productId),
@@ -126,6 +152,7 @@ export const productTypes = pgTable(
     typeId: uuid("type_id")
       .notNull()
       .references(() => types.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   },
   (table) => ({
     productIdx: index("product_types_product_idx").on(table.productId),
@@ -157,6 +184,7 @@ export const inventory = pgTable(
     totalStock: integer("total_stock").generatedAlwaysAs(
       sql`COALESCE("standard_stock", 0)`,
     ),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
   },
   (table) => ({
     productLocationIdx: index("inventory_product_location_idx").on(
@@ -182,6 +210,7 @@ export const batches = pgTable(
     }).defaultNow(),
     isActiveBatch: boolean("is_active_batch").default(false),
     batchNumber: integer("batch_number").default(1),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => ({
     inventoryActiveIdx: index("batches_inventory_active_idx").on(

@@ -31,6 +31,7 @@ interface DryRunPlan {
   perTable: { key: string; tableName: string; rows: number }[];
   totalRows: number;
   warnings: string[];
+  blockers: string[];
 }
 
 interface SelectedFile {
@@ -221,7 +222,14 @@ export function BackupClient(): React.JSX.Element {
     }
   }
 
-  const canRestore = selected !== null && confirm === CONFIRM_PHRASE && acked && !restoring;
+  const canRestore =
+    selected !== null &&
+    dryRun !== null &&
+    dryRun.checksumValid &&
+    dryRun.blockers.length === 0 &&
+    confirm === CONFIRM_PHRASE &&
+    acked &&
+    !restoring;
 
   return (
     <div className="space-y-6" aria-label="System backup console">
@@ -371,6 +379,16 @@ export function BackupClient(): React.JSX.Element {
                     </div>
                   ))}
                 </div>
+                {dryRun.blockers.length > 0 && (
+                  <div role="alert" className="rounded-md border border-red-300 bg-red-50 p-2 text-red-800">
+                    <p className="font-semibold">Restore blocked — this file cannot be restored safely:</p>
+                    <ul className="mt-1 space-y-1 list-disc pl-5">
+                      {dryRun.blockers.map((b, i) => (
+                        <li key={i}>{b}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
                 {dryRun.warnings.length > 0 && (
                   <ul className="space-y-1 text-amber-700">
                     {dryRun.warnings.map((w, i) => (
