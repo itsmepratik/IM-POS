@@ -35,7 +35,7 @@ import {
   Save,
 } from "lucide-react";
 import { useUser } from "@/lib/contexts/UserContext";
-import { BranchProvider, useBranch } from "@/lib/contexts/BranchContext";
+import { useBranch, type DbBranch } from "@/lib/contexts/BranchContext";
 import { Branch, updateShop } from "@/lib/services/inventoryService";
 import {
   Dialog,
@@ -87,14 +87,16 @@ interface UserType {
   lastActive?: string;
 }
 
+type UserFormValues = Pick<UserType, "name" | "staff_id" | "is_active">;
+
 function ShopForm({
   shop,
   onSubmit,
   onCancel,
   isLoading,
 }: {
-  shop?: Branch;
-  onSubmit: (shop: Partial<Branch>) => void;
+  shop?: DbBranch;
+  onSubmit: (shop: Partial<Branch>) => void | Promise<void>;
   onCancel: () => void;
   isLoading?: boolean;
 }) {
@@ -315,7 +317,7 @@ function ShopForm({
 }
 
 // ShopCard component for branch management
-function ShopCard({ shop }: { shop: Branch }) {
+function ShopCard({ shop }: { shop: DbBranch }) {
   const { toast } = useToast();
   const { currentBranch, selectBranch, refreshBranches } = useBranch();
   
@@ -417,7 +419,7 @@ function UserForm({
   isLoading = false,
 }: {
   user?: UserType;
-  onSubmit: (user: Partial<UserType>) => void;
+  onSubmit: (values: UserFormValues) => void | Promise<void>;
   onCancel: () => void;
   isLoading?: boolean;
 }) {
@@ -514,23 +516,8 @@ function SettingsContent() {
   const router = useRouter();
   const { currentUser } = useUser();
   const { branches } = useBranch();
-  // Stub missing actions (unused)
-  const addBranch = (_b: unknown) => { /* not implemented */ };
-  const updateBranch = (_b: unknown) => { /* not implemented */ };
-  const deleteBranch = (_id: string) => { /* not implemented */ };
   const { toast } = useToast();
 
-  const [showBranchForm, setShowBranchForm] = useState(false);
-  const [editBranch, setEditBranch] = useState<Branch | undefined>();
-  const [storeName, setStoreName] = useState("HA Automotives");
-  const [storeAddress, setStoreAddress] = useState(
-    "123 Main Street, Muscat, Oman"
-  );
-  const [storePhone, setStorePhone] = useState("+968 9123 4567");
-  const [storeEmail, setStoreEmail] = useState("info@hautomotives.com");
-  const [storeTax, setStoreTax] = useState("5");
-  const [storeCurrency, setStoreCurrency] = useState("OMR");
-  const [timeZone, setTimeZone] = useState("GMT+4");
   const [showUserForm, setShowUserForm] = useState(false);
   const [editUser, setEditUser] = useState<UserType | undefined>();
   const [isDeleting, setIsDeleting] = useState(false);
@@ -550,21 +537,17 @@ function SettingsContent() {
     description: "",
   });
 
-  const { users, isLoading, addUser, updateUser, deleteUser } =
-    useSettingsUsers();
+  const {
+    users,
+    isLoading,
+    error: usersError,
+    addUser,
+    updateUser,
+    deleteUser,
+    refreshUsers,
+  } = useSettingsUsers();
 
-  const handleAddBranch = (branch: Omit<Branch, "id">) => {
-    // Add branch with generated ID
-    addBranch({
-      ...branch,
-      id: `branch${Date.now()}`,
-    });
-    setShowBranchForm(false);
-  };
-
-  const handleAddUser = async (
-    userData: Omit<UserType, "id" | "lastActive">
-  ) => {
+  const handleAddUser = async (userData: UserFormValues): Promise<void> => {
     setIsSubmitting(true);
     try {
       const newUser = await addUser(userData);
@@ -589,10 +572,16 @@ function SettingsContent() {
     }
   };
 
-  const handleUpdateUser = async (userData: UserType) => {
+  const handleUpdateUser = async (values: UserFormValues): Promise<void> => {
+    if (!editUser) return;
     setIsSubmitting(true);
     try {
-      const success = await updateUser(userData);
+      // staff_id is immutable (it is the API key); keep the original.
+      const success = await updateUser({
+        ...editUser,
+        name: values.name,
+        is_active: values.is_active,
+      });
       if (success) {
         setEditUser(undefined); // Close the edit dialog
         setSelectedUser(null);
@@ -644,116 +633,20 @@ function SettingsContent() {
         onValueChange={setActiveTab}
         className="mt-4"
       >
-        <TabsList className="grid w-full grid-cols-4 mb-4">
-          <TabsTrigger value="general">General</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-3 mb-4">
           <TabsTrigger value="branches">Shops</TabsTrigger>
           <TabsTrigger value="users">Users</TabsTrigger>
           <TabsTrigger value="supervisor">Supervisor</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="general" className="space-y-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle>Store Information</CardTitle>
-              <CardDescription>
-                Update your store details and information
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="storeName">Store Name</Label>
-                  <Input
-                    id="storeName"
-                    value={storeName}
-                    onChange={(e) => setStoreName(e.target.value)}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="storeAddress">Address</Label>
-                  <Input
-                    id="storeAddress"
-                    value={storeAddress}
-                    onChange={(e) => setStoreAddress(e.target.value)}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="storePhone">Phone</Label>
-                  <Input
-                    id="storePhone"
-                    value={storePhone}
-                    onChange={(e) => setStorePhone(e.target.value)}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="storeEmail">Email</Label>
-                  <Input
-                    id="storeEmail"
-                    value={storeEmail}
-                    onChange={(e) => setStoreEmail(e.target.value)}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="storeTax">Tax Rate (%)</Label>
-                  <Input
-                    id="storeTax"
-                    value={storeTax}
-                    onChange={(e) => setStoreTax(e.target.value)}
-                    type="number"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="storeCurrency">Currency</Label>
-                  <Input
-                    id="storeCurrency"
-                    value={storeCurrency}
-                    onChange={(e) => setStoreCurrency(e.target.value)}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="timeZone">Time Zone</Label>
-                  <Input
-                    id="timeZone"
-                    value={timeZone}
-                    onChange={(e) => setTimeZone(e.target.value)}
-                  />
-                </div>
-              </div>
-            </CardContent>
-            <CardFooter>
-              <Button>Save Changes</Button>
-            </CardFooter>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle>Receipt Settings</CardTitle>
-              <CardDescription>
-                Customize your receipt appearance and information
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                Configure how your receipts look and what information is
-                displayed to customers.
-              </p>
-            </CardContent>
-            <CardFooter>
-              <Button variant="outline">Configure Receipt</Button>
-            </CardFooter>
-          </Card>
-        </TabsContent>
-
         <TabsContent value="branches" className="space-y-4">
-          <div className="flex justify-between items-center mb-4">
+          <div className="mb-4 space-y-1">
             <h2 className="text-lg font-semibold">Shop Management</h2>
-            {/* removed add branch button as it's not requested/supported efficiently yet and user only asked for edit */}
+            <p className="text-sm text-muted-foreground">
+              Receipt header, address, bill text and brand details are set per
+              shop — choose Edit on a shop. Changes apply to the next receipt
+              printed at that shop.
+            </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -788,6 +681,28 @@ function SettingsContent() {
               </DialogContent>
             </Dialog>
           </div>
+
+          {isLoading && users.length === 0 && (
+            <p role="status" className="py-6 text-center text-sm text-muted-foreground">
+              Loading staff…
+            </p>
+          )}
+          {usersError && (
+            <div
+              role="alert"
+              className="flex items-center justify-between gap-3 rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive"
+            >
+              <span>Could not load staff: {usersError.message}</span>
+              <Button variant="outline" size="sm" onClick={() => void refreshUsers()}>
+                Retry
+              </Button>
+            </div>
+          )}
+          {!isLoading && !usersError && users.length === 0 && (
+            <p className="py-6 text-center text-sm text-muted-foreground">
+              No staff yet. Use “Add Staff” to create the first cashier.
+            </p>
+          )}
 
           {/* Desktop view for users */}
           <div className="hidden md:block">
@@ -1074,9 +989,10 @@ function SettingsContent() {
 export default function SettingsPage() {
   return (
     <Layout>
-      <BranchProvider>
-        <SettingsContent />
-      </BranchProvider>
+      {/* Uses the app-wide BranchProvider (DataProvider). A nested provider
+          here kept a private copy of shops, so edits never reached the POS
+          receipts until a full reload. */}
+      <SettingsContent />
     </Layout>
   );
 }

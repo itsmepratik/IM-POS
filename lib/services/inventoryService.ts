@@ -1,3 +1,4 @@
+import { SHOP_PUBLIC_COLUMNS } from "@/lib/services/shop-columns";
 import { createClient } from "@/supabase/client";
 import {
   applyLubricantBatchReadFallback,
@@ -1924,6 +1925,8 @@ export const fetchShops = async (): Promise<
     brand_phones: string | null;
     brand_whatsapp: string | null;
     pos_id: string | null;
+    shop_code: string | null;
+    zip_code: string | null;
   }>
 > => {
   try {
@@ -1957,6 +1960,8 @@ export const fetchShops = async (): Promise<
         brand_phones,
         brand_whatsapp,
         pos_id,
+        shop_code,
+        zip_code,
         locations!${FK.shopLocation}!inner (
           id,
           name
@@ -1980,7 +1985,7 @@ export const fetchShops = async (): Promise<
       const { data: rawShops, error: rawErr } = await withSupabaseTimeout(
         supabase
           .from("shops")
-          .select("*")
+          .select(SHOP_PUBLIC_COLUMNS)
           .eq("is_active", true)
           .order("name") as unknown as Promise<any>,
         8000,
@@ -2048,6 +2053,11 @@ export const fetchShops = async (): Promise<
       brand_phones: shop.brand_phones,
       brand_whatsapp: shop.brand_whatsapp,
       pos_id: shop.pos_id,
+      // Required for per-shop receipt numbers ([PREFIX][SHOP_CODE][NNN][MMYY]).
+      // Previously omitted, so every shop generated "01" numbers and Saniya2
+      // collided with Saniya1's sequence (unique violation → sale rejected).
+      shop_code: (shop.shop_code as string | null) ?? null,
+      zip_code: (shop.zip_code as string | null) ?? null,
     }));
 
     return shops;
@@ -2287,7 +2297,7 @@ export const updateShop = async (
       .from("shops")
       .update(updates)
       .eq("id", id)
-      .select()
+      .select(SHOP_PUBLIC_COLUMNS)
       .single();
 
     if (error) {

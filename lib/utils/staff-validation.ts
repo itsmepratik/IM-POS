@@ -112,7 +112,9 @@ export async function getAllActiveStaff(): Promise<StaffMember[]> {
 export async function getAllStaff(): Promise<StaffMember[]> {
   const db = getDatabase();
   const query = db.select().from(staff).orderBy(asc(staff.staffId));
-  const staffMembers = await withTimeout(query as Promise<any>, 6000, "getAllStaff").catch(() => []);
+  // Propagate failures: an empty list on timeout looked like "no staff" to
+  // Settings and to the POS cashier lookup. The API route maps this to 500.
+  const staffMembers = await withTimeout(query as Promise<any>, 6000, "getAllStaff");
   return (staffMembers as any[]).map(mapStaff);
 }
 

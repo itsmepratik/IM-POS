@@ -11,6 +11,9 @@ import {
 
 type MiddlewareSupabaseClient = ReturnType<typeof createServerClient>;
 
+/** API routes that authenticate themselves (e.g. bearer secret), not by session. */
+const PUBLIC_API_PREFIXES: readonly string[] = ["/api/revalidate"];
+
 /**
  * Resolve the user's role. A valid signed cookie is used as a 5-minute cache;
  * otherwise the role is read from the DB. Any failure falls back to the
@@ -98,11 +101,27 @@ export async function middleware(request: NextRequest) {
   const { data: claimsData } = await supabase.auth.getClaims();
   const userId = claimsData?.claims.sub ?? null;
 
+  // API routes: reject anonymous callers with 401 JSON (a redirect would be
+  // meaningless to fetch()). Previously every /api/* route — checkout,
+  // refunds, voids, staff PII, supervisor password — was publicly callable.
+  // Only routes that authenticate by other means are listed here.
+  if (!userId && request.nextUrl.pathname.startsWith("/api/")) {
+    const isPublicApi = PUBLIC_API_PREFIXES.some((prefix) =>
+      request.nextUrl.pathname.startsWith(prefix),
+    );
+    if (!isPublicApi) {
+      return NextResponse.json(
+        { success: false, error: "Unauthorized — please sign in." },
+        { status: 401 },
+      );
+    }
+    return supabaseResponse;
+  }
+
   if (
     !userId &&
     !request.nextUrl.pathname.startsWith("/login") &&
-    !request.nextUrl.pathname.startsWith("/auth") &&
-    !request.nextUrl.pathname.startsWith("/api/")
+    !request.nextUrl.pathname.startsWith("/auth")
   ) {
     // no user, potentially respond by redirecting the user to the login page
     const url = request.nextUrl.clone();

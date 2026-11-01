@@ -1,0 +1,548 @@
+-- Migration: Location/shift integrity + production hardening
+-- Date: 2026-10-31
+--
+-- Root cause fixed: POS for Saniya2 appeared unlocked using Saniya1's shift
+-- (both shops share the "Saniya" inventory location and the app matched
+-- shifts by location). Sales were then rejected by /api/checkout.
+--
+-- 1. create_checkout_transaction: requires p_shop_id to belong to
+--    p_location_id, locks the shop's open shift (FOR SHARE) and writes
+--    cash_shift_id atomically with the sale.
+-- 2. At most one open cash shift per shop (partial unique index).
+-- 3. One inventory row per (product, location) (unique, replaces plain index).
+-- 4. Domain CHECK constraints on cash shift / movement enums and amounts.
+-- 5. Index hygiene: drop duplicate reference index, add FK / reporting indexes.
+--
+-- All existing rows were verified to satisfy every new constraint before
+-- this migration was written. Runs in a single transaction.
+
+BEGIN;
+
+-- ── 1. Checkout procedure ─────────────────────────────────────────────────
+CREATE OR REPLACE FUNCTION public.create_checkout_transaction(p_location_id uuid, p_shop_id uuid, p_cashier_id uuid, p_items jsonb, p_total_amount numeric, p_payment_method text, p_type text, p_customer_id uuid DEFAULT NULL::uuid, p_discount_value numeric DEFAULT NULL::numeric, p_discount_type text DEFAULT NULL::text, p_discount_amount numeric DEFAULT NULL::numeric, p_subtotal_before_discount numeric DEFAULT NULL::numeric, p_car_plate_number text DEFAULT NULL::text, p_mobile_payment_account text DEFAULT NULL::text, p_mobile_number text DEFAULT NULL::text, p_notes text DEFAULT NULL::text, p_trade_ins jsonb DEFAULT NULL::jsonb, p_reference_number text DEFAULT NULL::text, p_services jsonb DEFAULT NULL::jsonb)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'extensions'
+AS $function$
+
+DECLARE
+  v_transaction_id UUID;
+  v_reference_number TEXT;
+  v_ref_prefix TEXT;
+  v_item JSONB;
+  v_product_id UUID;
+  v_product_id_text TEXT;
+  v_quantity NUMERIC;
+  v_item_source TEXT;
+  v_volume_desc TEXT;
+  v_inventory_id UUID;
+  v_standard_stock INTEGER;
+  v_closed_bottles INTEGER;
+  v_open_bottles INTEGER;
+  v_product_name TEXT;
+  v_is_lubricant BOOLEAN;
+  v_bottle_size NUMERIC;
+  v_remaining_qty NUMERIC;
+  v_open_bottle RECORD;
+  v_new_open_vol NUMERIC;
+  v_counter INTEGER;
+  v_is_battery_sale BOOLEAN := FALSE;
+  v_batch RECORD;
+  v_batch_alloc NUMERIC;
+  v_batch_remaining NUMERIC;
+  v_batch_deduction NUMERIC;
+  v_sold_volume_per_unit NUMERIC;
+  v_total_req_volume NUMERIC;
+  v_bottles_to_open INTEGER;
+  v_residual_open_volume NUMERIC;
+
+  -- Trade-in variables
+  v_trade_in JSONB;
+  v_ti_size TEXT;
+  v_ti_condition TEXT;
+  v_ti_name TEXT;
+  v_ti_cost_price NUMERIC;
+  v_ti_quantity INTEGER;
+  v_ti_trade_in_value NUMERIC;
+  v_parts_category_id UUID;
+  v_battery_type_id UUID;
+  v_ti_product_id UUID;
+  v_ti_inventory_id UUID;
+  v_ti_selling_price NUMERIC;
+
+  -- Service items variables
+  v_service JSONB;
+  v_service_item_id UUID;
+  v_si_name TEXT;
+  v_si_amount NUMERIC;
+  v_si_quantity NUMERIC;
+  v_si_service_id UUID;
+  v_service_category TEXT;
+  v_labor_split JSONB;
+
+  -- Cash shift the sale is recorded against (locked for the duration of the sale)
+  v_cash_shift_id UUID;
+BEGIN
+  -- Validate inputs: allow empty cart when services (labor) are present
+  IF (p_items IS NULL OR jsonb_array_length(p_items) = 0)
+     AND (p_services IS NULL OR jsonb_array_length(p_services) = 0) THEN
+    RAISE EXCEPTION 'Cart cannot be empty';
+  END IF;
+
+  PERFORM 1 FROM locations WHERE id = p_location_id;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Location not found: %', p_location_id;
+  END IF;
+
+  -- A shop may only sell from its own inventory location.
+  IF p_shop_id IS NULL THEN
+    RAISE EXCEPTION 'Shop is required for checkout';
+  END IF;
+  PERFORM 1 FROM shops WHERE id = p_shop_id AND location_id = p_location_id;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Shop % does not belong to location %', p_shop_id, p_location_id;
+  END IF;
+
+  -- Every sale is recorded against the shop's own open cash shift. FOR SHARE
+  -- blocks the shift from being closed until this sale commits, so the drawer
+  -- totals can never miss a sale (previously the shift was linked afterwards
+  -- in a separate, non-atomic statement).
+  SELECT id INTO v_cash_shift_id
+  FROM cash_shifts
+  WHERE shop_id = p_shop_id AND status = 'open'
+  FOR SHARE;
+  IF v_cash_shift_id IS NULL THEN
+    RAISE EXCEPTION 'No active cash shift for this shop. Open a cash shift first.';
+  END IF;
+
+  -- Reference number handling
+  IF p_reference_number IS NOT NULL AND p_reference_number != '' THEN
+    v_reference_number := p_reference_number;
+    IF v_reference_number ~ '^WB' THEN v_ref_prefix := 'WB';
+    ELSIF v_reference_number ~ '^OH' THEN v_ref_prefix := 'OH';
+    ELSIF v_reference_number ~ '^ST' THEN v_ref_prefix := 'ST';
+    ELSIF v_reference_number ~ '^B' THEN v_ref_prefix := 'B';
+    ELSIF v_reference_number ~ '^R' THEN v_ref_prefix := 'R';
+    ELSE v_ref_prefix := 'A';
+    END IF;
+  ELSE
+    -- Check for battery sale
+    FOR v_item IN SELECT * FROM jsonb_array_elements(p_items)
+    LOOP
+      v_product_id_text := v_item->>'productId';
+      IF v_product_id_text ~ '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$' THEN
+        v_product_id := v_product_id_text::UUID;
+        SELECT EXISTS (
+          SELECT 1 FROM products p
+          LEFT JOIN categories c ON p.category_id = c.id
+          WHERE p.id = v_product_id
+          AND (
+            p.is_battery = TRUE OR
+            p.name ILIKE '%battery%' OR
+            p.name ILIKE '%batteries%'
+          )
+        ) INTO v_is_battery_sale;
+        IF v_is_battery_sale THEN EXIT; END IF;
+      END IF;
+    END LOOP;
+
+    IF v_is_battery_sale THEN
+      v_ref_prefix := 'B';
+    ELSE
+      CASE UPPER(p_type)
+        WHEN 'ON_HOLD' THEN v_ref_prefix := 'OH';
+        WHEN 'CREDIT' THEN v_ref_prefix := 'CR';
+        WHEN 'WARRANTY_CLAIM' THEN v_ref_prefix := 'WBX';
+        WHEN 'STOCK_TRANSFER' THEN v_ref_prefix := 'ST';
+        ELSE v_ref_prefix := 'A';
+      END CASE;
+    END IF;
+
+    INSERT INTO reference_number_counters (prefix, counter, updated_at)
+    VALUES (v_ref_prefix, 0, NOW())
+    ON CONFLICT (prefix) DO UPDATE
+    SET counter = reference_number_counters.counter + 1, updated_at = NOW()
+    RETURNING counter INTO v_counter;
+
+    IF v_counter = 0 THEN
+      UPDATE reference_number_counters SET counter = 1, updated_at = NOW()
+      WHERE prefix = v_ref_prefix AND counter = 0
+      RETURNING counter INTO v_counter;
+    END IF;
+
+    v_reference_number := v_ref_prefix || LPAD(v_counter::TEXT, 4, '0');
+  END IF;
+
+  -- Process Items (Stock Deduction)
+  FOR v_item IN SELECT * FROM jsonb_array_elements(p_items)
+  LOOP
+    v_product_id_text := v_item->>'productId';
+
+    IF NOT (v_product_id_text ~ '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$') THEN
+      CONTINUE;
+    END IF;
+
+    v_product_id := v_product_id_text::UUID;
+    v_quantity := (v_item->>'quantity')::NUMERIC;
+    v_item_source := COALESCE(v_item->>'source', 'CLOSED');
+    v_volume_desc := v_item->>'volumeDescription';
+    v_batch_deduction := 0;
+
+    SELECT id, standard_stock, closed_bottles_stock, open_bottles_stock
+    INTO v_inventory_id, v_standard_stock, v_closed_bottles, v_open_bottles
+    FROM inventory
+    WHERE product_id = v_product_id AND location_id = p_location_id
+    FOR UPDATE;
+
+    IF v_inventory_id IS NULL THEN
+      RAISE EXCEPTION 'Inventory record not found for product % at location %', v_product_id, p_location_id;
+    END IF;
+
+    -- Check if product is a lubricant (fluid)
+    SELECT
+      COALESCE(c.name IN ('Lubricants', 'Fluids', 'Additives'), FALSE),
+      p.name,
+      COALESCE(p.bottle_size, 0)
+    INTO v_is_lubricant, v_product_name, v_bottle_size
+    FROM products p
+    LEFT JOIN categories c ON p.category_id = c.id
+    WHERE p.id = v_product_id;
+
+    IF v_is_lubricant AND v_item_source = 'OPEN' AND v_bottle_size > 0 THEN
+      -- ================================================================
+      -- OPEN branch: consume from existing open bottles first,
+      -- then open new closed bottles if needed
+      -- ================================================================
+
+      v_sold_volume_per_unit := (substring(v_volume_desc from '(^[0-9]+(\.[0-9]+)?)'))::NUMERIC;
+      IF v_sold_volume_per_unit IS NULL OR v_sold_volume_per_unit = 0 THEN
+        v_sold_volume_per_unit := v_bottle_size;
+      END IF;
+
+      IF v_volume_desc ~* 'ml' AND v_sold_volume_per_unit > 1 THEN
+        v_sold_volume_per_unit := v_sold_volume_per_unit / 1000.0;
+      END IF;
+
+      v_total_req_volume := v_sold_volume_per_unit * v_quantity;
+      v_remaining_qty := v_total_req_volume;
+
+      -- Deduct from open bottles (smallest remaining first)
+      FOR v_open_bottle IN
+        SELECT id, current_volume
+        FROM open_bottle_details
+        WHERE inventory_id = v_inventory_id AND current_volume > 0 AND is_empty = FALSE
+        ORDER BY current_volume ASC
+      LOOP
+        EXIT WHEN v_remaining_qty <= 0;
+
+        v_new_open_vol := GREATEST(0, v_open_bottle.current_volume - v_remaining_qty);
+        v_batch_deduction := LEAST(v_remaining_qty, v_open_bottle.current_volume);
+
+        UPDATE open_bottle_details
+        SET current_volume = v_new_open_vol,
+            is_empty = (v_new_open_vol <= 0)
+        WHERE id = v_open_bottle.id;
+
+        -- If the bottle just became empty, decrement open count and total stock
+        IF v_new_open_vol <= 0 THEN
+          v_open_bottles := v_open_bottles - 1;
+          v_standard_stock := v_standard_stock - 1;
+        END IF;
+
+        v_remaining_qty := v_remaining_qty - v_batch_deduction;
+      END LOOP;
+
+      -- If still remaining, open new closed bottles
+      IF v_remaining_qty > 0 THEN
+        v_bottles_to_open := CEIL(v_remaining_qty / v_bottle_size)::INTEGER;
+        IF v_closed_bottles < v_bottles_to_open THEN
+          RAISE EXCEPTION 'Insufficient stock for % (need % closed bottles, have %)', v_product_name, v_bottles_to_open, v_closed_bottles;
+        END IF;
+
+        v_closed_bottles := v_closed_bottles - v_bottles_to_open;
+        v_open_bottles := v_open_bottles + v_bottles_to_open;
+        -- standard_stock unchanged: total bottles the same, just moved from closed to open
+
+        v_residual_open_volume := (v_bottles_to_open * v_bottle_size) - v_remaining_qty;
+        IF v_residual_open_volume > 0 THEN
+          INSERT INTO open_bottle_details (inventory_id, initial_volume, current_volume, is_empty, opened_at)
+          VALUES (v_inventory_id, v_bottle_size, v_residual_open_volume, FALSE, NOW());
+        END IF;
+      END IF;
+
+      UPDATE inventory
+      SET standard_stock = v_standard_stock,
+          closed_bottles_stock = v_closed_bottles,
+          open_bottles_stock = v_open_bottles
+      WHERE id = v_inventory_id;
+
+    ELSIF v_is_lubricant AND v_item_source = 'CLOSED' AND v_bottle_size > 0 THEN
+      -- ================================================================
+      -- CLOSED branch: open new bottles, track residual.
+      -- standard_stock unchanged (bottles move from closed to open).
+      -- ================================================================
+
+      v_sold_volume_per_unit := (substring(v_volume_desc from '(^[0-9]+(\.[0-9]+)?)'))::NUMERIC;
+      IF v_sold_volume_per_unit IS NULL OR v_sold_volume_per_unit = 0 THEN
+        v_sold_volume_per_unit := v_bottle_size;
+      END IF;
+
+      IF v_volume_desc ~* 'ml' AND v_sold_volume_per_unit > 1 THEN
+        v_sold_volume_per_unit := v_sold_volume_per_unit / 1000.0;
+      END IF;
+
+      v_total_req_volume := v_sold_volume_per_unit * v_quantity;
+      v_remaining_qty := v_total_req_volume;
+
+      IF v_remaining_qty > 0 THEN
+        v_bottles_to_open := CEIL(v_remaining_qty / v_bottle_size)::INTEGER;
+        IF v_closed_bottles < v_bottles_to_open THEN
+          RAISE EXCEPTION 'Insufficient closed bottle stock for % (need %, have %)', v_product_name, v_bottles_to_open, v_closed_bottles;
+        END IF;
+
+        v_closed_bottles := v_closed_bottles - v_bottles_to_open;
+        v_open_bottles := v_open_bottles + v_bottles_to_open;
+        -- standard_stock unchanged: total bottle count stays the same
+
+        v_residual_open_volume := (v_bottles_to_open * v_bottle_size) - v_remaining_qty;
+        IF v_residual_open_volume > 0 THEN
+          INSERT INTO open_bottle_details (inventory_id, initial_volume, current_volume, is_empty, opened_at)
+          VALUES (v_inventory_id, v_bottle_size, v_residual_open_volume, FALSE, NOW());
+        END IF;
+      END IF;
+
+      UPDATE inventory
+      SET standard_stock = v_standard_stock,  -- unchanged (total bottle count)
+          closed_bottles_stock = v_closed_bottles,
+          open_bottles_stock = v_open_bottles
+      WHERE id = v_inventory_id;
+
+    ELSE
+      -- Standard product handling (non-lubricant or non-fluid)
+      IF v_standard_stock < v_quantity THEN
+        RAISE EXCEPTION 'Insufficient stock for % (need %, have %)', v_product_name, v_quantity, v_standard_stock;
+      END IF;
+
+      UPDATE inventory
+      SET standard_stock = v_standard_stock - v_quantity
+      WHERE id = v_inventory_id;
+    END IF;
+
+    -- FIFO Batch deduction
+    v_remaining_qty := v_quantity;
+    FOR v_batch IN
+      SELECT id, stock_remaining
+      FROM batches
+      WHERE inventory_id = v_inventory_id AND stock_remaining > 0
+      ORDER BY purchase_date ASC, id ASC
+    LOOP
+      EXIT WHEN v_remaining_qty <= 0;
+
+      v_batch_alloc := LEAST(v_remaining_qty, v_batch.stock_remaining);
+      v_batch_remaining := v_batch.stock_remaining - v_batch_alloc;
+
+      UPDATE batches
+      SET stock_remaining = v_batch_remaining,
+          is_active_batch = CASE WHEN v_batch_remaining = 0 THEN FALSE ELSE is_active_batch END
+      WHERE id = v_batch.id;
+
+      v_remaining_qty := v_remaining_qty - v_batch_alloc;
+    END LOOP;
+  END LOOP;
+
+  -- Create Transaction Record
+  INSERT INTO transactions (
+    reference_number, location_id, shop_id, cashier_id, type,
+    total_amount, items_sold, payment_method, car_plate_number,
+    mobile_payment_account, mobile_number, customer_id,
+    discount_type, discount_value, discount_amount, subtotal_before_discount,
+    notes, cash_shift_id, created_at
+  ) VALUES (
+    v_reference_number, p_location_id, p_shop_id, p_cashier_id, p_type,
+    p_total_amount, p_items, p_payment_method, p_car_plate_number,
+    p_mobile_payment_account, p_mobile_number, p_customer_id,
+    p_discount_type, p_discount_value, p_discount_amount, p_subtotal_before_discount,
+    p_notes, v_cash_shift_id, NOW()
+  ) RETURNING id INTO v_transaction_id;
+
+  -- Populate service_items from cart items
+  FOR v_item IN SELECT * FROM jsonb_array_elements(p_items)
+  LOOP
+    v_product_id_text := v_item->>'productId';
+    IF v_product_id_text ~ '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$' THEN
+      INSERT INTO service_items (transaction_id, item_type, product_id, name, quantity, unit_price, cost_price, volume_description, source)
+      VALUES (v_transaction_id, 'product', v_product_id_text::UUID,
+        COALESCE(v_item->>'volumeDescription', v_item->>'name', 'Unknown'),
+        COALESCE((v_item->>'quantity')::NUMERIC, 1),
+        COALESCE((v_item->>'sellingPrice')::NUMERIC, 0),
+        COALESCE((v_item->>'costPrice')::NUMERIC, 0),
+        v_item->>'volumeDescription', v_item->>'source');
+    ELSE
+      INSERT INTO service_items (transaction_id, item_type, name, quantity, unit_price, cost_price, volume_description)
+      VALUES (v_transaction_id, 'labor',
+        COALESCE(v_item->>'volumeDescription', v_item->>'name', 'Labor Service'),
+        COALESCE((v_item->>'quantity')::NUMERIC, 1),
+        COALESCE((v_item->>'sellingPrice')::NUMERIC, 0), 0,
+        v_item->>'volumeDescription');
+    END IF;
+  END LOOP;
+
+  -- Populate service_items and labor_splits from p_services
+  IF p_services IS NOT NULL AND jsonb_array_length(p_services) > 0 THEN
+    FOR v_service IN SELECT * FROM jsonb_array_elements(p_services)
+    LOOP
+      v_si_name := v_service->>'name';
+      v_si_amount := (v_service->>'amount')::NUMERIC;
+      v_si_quantity := COALESCE((v_service->>'quantity')::NUMERIC, 1);
+      v_si_service_id := NULL;
+
+      IF v_service->>'serviceId' IS NOT NULL AND v_service->>'serviceId' != '' THEN
+        IF (v_service->>'serviceId') ~ '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$' THEN
+          v_si_service_id := (v_service->>'serviceId')::UUID;
+        END IF;
+      END IF;
+
+      IF v_si_service_id IS NULL AND v_si_name IS NOT NULL THEN
+        SELECT id INTO v_si_service_id FROM services
+        WHERE lower(name) = lower(v_si_name) AND is_active = true LIMIT 1;
+      END IF;
+
+      v_service_category := 'service';
+      IF v_si_service_id IS NOT NULL THEN
+        SELECT category INTO v_service_category FROM services WHERE id = v_si_service_id;
+      END IF;
+
+      INSERT INTO service_items (transaction_id, item_type, service_id, name, quantity, unit_price, cost_price, notes)
+      VALUES (v_transaction_id, COALESCE(v_service_category, 'service'), v_si_service_id,
+        COALESCE(v_si_name, 'Custom Service'), v_si_quantity, v_si_amount, 0, v_service->>'description')
+      RETURNING id INTO v_service_item_id;
+
+      IF v_service->>'splits' IS NOT NULL AND jsonb_array_length((v_service->>'splits')::JSONB) > 0 THEN
+        FOR v_labor_split IN SELECT * FROM jsonb_array_elements((v_service->>'splits')::JSONB)
+        LOOP
+          INSERT INTO labor_splits (service_item_id, staff_id, split_type, amount, percentage, description)
+          VALUES (v_service_item_id,
+            CASE WHEN v_labor_split->>'staffId' IS NOT NULL AND (v_labor_split->>'staffId') ~ '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
+              THEN (v_labor_split->>'staffId')::UUID ELSE NULL END,
+            COALESCE(v_labor_split->>'splitType', 'technician_share'),
+            COALESCE((v_labor_split->>'amount')::NUMERIC, 0),
+            (v_labor_split->>'percentage')::NUMERIC,
+            v_labor_split->>'description');
+        END LOOP;
+      END IF;
+    END LOOP;
+  END IF;
+
+  -- Process Trade-Ins
+  IF p_trade_ins IS NOT NULL AND jsonb_array_length(p_trade_ins) > 0 THEN
+    SELECT id INTO v_parts_category_id FROM categories WHERE name = 'Parts' LIMIT 1;
+    SELECT id INTO v_battery_type_id FROM types WHERE (name ILIKE 'Battery' OR name ILIKE 'Batteries') LIMIT 1;
+
+    IF v_parts_category_id IS NOT NULL THEN
+      FOR v_trade_in IN SELECT * FROM jsonb_array_elements(p_trade_ins)
+      LOOP
+        v_ti_size := v_trade_in->>'size';
+        v_ti_condition := v_trade_in->>'condition';
+        v_ti_name := v_trade_in->>'name';
+        v_ti_cost_price := (v_trade_in->>'costPrice')::NUMERIC;
+        v_ti_quantity := (v_trade_in->>'quantity')::INTEGER;
+        v_ti_trade_in_value := (v_trade_in->>'tradeInValue')::NUMERIC;
+
+        SELECT id INTO v_ti_product_id FROM products
+        WHERE name ILIKE '%' || v_ti_size || '%trade%' AND category_id = v_parts_category_id
+        LIMIT 1;
+
+        IF v_ti_product_id IS NULL THEN
+          INSERT INTO products (name, category_id, type_id, cost_price, description, is_battery)
+          VALUES ('Trade-In: ' || v_ti_size || ' (' || v_ti_condition || ')', v_parts_category_id, v_battery_type_id, v_ti_cost_price, 'Trade-in battery - ' || v_ti_size || ' (' || v_ti_condition || ')', true)
+          RETURNING id INTO v_ti_product_id;
+        END IF;
+
+        SELECT id INTO v_ti_inventory_id FROM inventory
+        WHERE product_id = v_ti_product_id AND location_id = p_location_id;
+
+        IF v_ti_inventory_id IS NULL THEN
+          INSERT INTO inventory (product_id, location_id, standard_stock)
+          VALUES (v_ti_product_id, p_location_id, 0)
+          RETURNING id INTO v_ti_inventory_id;
+        END IF;
+
+        UPDATE inventory SET standard_stock = standard_stock + v_ti_quantity WHERE id = v_ti_inventory_id;
+
+        INSERT INTO batches (inventory_id, quantity_received, stock_remaining, cost_price, purchase_date, is_active_batch, batch_number, supplier)
+        VALUES (v_ti_inventory_id, v_ti_quantity, v_ti_quantity, v_ti_cost_price, CURRENT_DATE, true, 1, 'Trade-in (' || v_ti_condition || ')');
+      END LOOP;
+    END IF;
+  END IF;
+
+  RETURN jsonb_build_object(
+    'transaction_id', v_transaction_id,
+    'reference_number', v_reference_number
+  );
+END;
+
+$function$;
+
+
+-- ── 2. One open shift per shop ─────────────────────────────────────────────
+CREATE UNIQUE INDEX IF NOT EXISTS cash_shifts_one_open_per_shop
+  ON public.cash_shifts (shop_id)
+  WHERE status = 'open';
+
+-- ── 3. One inventory row per product per location ─────────────────────────
+-- The checkout procedure does SELECT ... INTO on (product_id, location_id);
+-- a duplicate row would make stock deduction nondeterministic.
+CREATE UNIQUE INDEX IF NOT EXISTS inventory_product_location_key
+  ON public.inventory (product_id, location_id);
+DROP INDEX IF EXISTS public.inventory_product_location_idx;
+
+-- ── 4. Domain constraints ──────────────────────────────────────────────────
+ALTER TABLE public.cash_shifts
+  ADD CONSTRAINT cash_shifts_status_check
+    CHECK (status IN ('open', 'closed', 'reconciled')),
+  ADD CONSTRAINT cash_shifts_reconciliation_status_check
+    CHECK (reconciliation_status IS NULL
+           OR reconciliation_status IN ('pending', 'balanced', 'overage', 'shortage', 'approved')),
+  ADD CONSTRAINT cash_shifts_opening_cash_check
+    CHECK (opening_cash >= 0);
+
+ALTER TABLE public.cash_shift_movements
+  ADD CONSTRAINT cash_shift_movements_type_check
+    CHECK (type IN ('CASH_IN', 'CASH_OUT', 'DROP', 'PAY_IN', 'PAY_OUT')),
+  ADD CONSTRAINT cash_shift_movements_amount_check
+    CHECK (amount > 0);
+
+-- ── 5. Index hygiene ───────────────────────────────────────────────────────
+-- Exact duplicate of the UNIQUE constraint index on reference_number.
+DROP INDEX IF EXISTS public.transactions_ref_idx;
+
+-- Per-shop / per-location history and reports filter by shop or location and
+-- sort by date; composite indexes serve both and replace the shop-only index.
+CREATE INDEX IF NOT EXISTS transactions_shop_created_idx
+  ON public.transactions (shop_id, created_at DESC);
+DROP INDEX IF EXISTS public.transactions_shop_idx;
+CREATE INDEX IF NOT EXISTS transactions_location_created_idx
+  ON public.transactions (location_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS transactions_cashier_idx
+  ON public.transactions (cashier_id);
+
+-- POS product grid loads all inventory for one location.
+CREATE INDEX IF NOT EXISTS inventory_location_idx
+  ON public.inventory (location_id);
+
+-- Unindexed foreign keys (FK checks on delete + join paths).
+CREATE INDEX IF NOT EXISTS service_items_batch_idx
+  ON public.service_items (batch_id);
+CREATE INDEX IF NOT EXISTS trade_in_transactions_transaction_idx
+  ON public.trade_in_transactions (transaction_id);
+CREATE INDEX IF NOT EXISTS cash_shifts_location_idx
+  ON public.cash_shifts (location_id);
+
+-- Keep the procedure server-only (the API route calls it as the DB owner).
+REVOKE EXECUTE ON FUNCTION public.create_checkout_transaction(
+  uuid, uuid, uuid, jsonb, numeric, text, text, uuid, numeric, text, numeric,
+  numeric, text, text, text, text, jsonb, text, jsonb
+) FROM PUBLIC, anon, authenticated;
+
+COMMIT;

@@ -14,7 +14,7 @@ import {
   type NewCashShiftMovement,
   type DenominationBreakdown,
 } from "@/lib/db/schema";
-import { eq, and, desc, sql, gte, lte, inArray, or, isNull } from "drizzle-orm";
+import { eq, and, desc, sql, gte, lte, or } from "drizzle-orm";
 import { revalidateTag, revalidatePath } from "next/cache";
 import { CACHE_TAGS } from "@/lib/db/cache-tags";
 import {
@@ -103,18 +103,38 @@ import { withTimeout } from "@/lib/db/client";
 import { openShiftInputSchema } from "@/lib/validation/cash-shifts";
 import { enrichOpenedShiftForPOS } from "@/lib/utils/cash-shift-display";
 
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Postgres unique_violation (23505). Drizzle >=0.44 wraps driver errors in
+ * DrizzleQueryError with the postgres-js error on `.cause`, so check both.
+ */
+function isUniqueViolation(error: unknown): boolean {
+  const hasCode = (value: unknown): boolean =>
+    typeof value === "object" &&
+    value !== null &&
+    "code" in value &&
+    (value as { code: unknown }).code === "23505";
+  if (hasCode(error)) return true;
+  return error instanceof Error && hasCode(error.cause);
+}
+
 
 /**
  * Fetches the currently open cash shift for a specific shop, along with live calculated totals
  * Wrapped with timeout to NEVER hang infinitely - returns null quickly on DB issues.
  */
 export async function getActiveShift(shopId: string): Promise<ActiveShiftDetails | null> {
-  if (!shopId) return null;
+  // Shifts are strictly per shop (register). Never match by location or by
+  // fuzzy shop name: several shops share one inventory location (e.g. Saniya1
+  // and Saniya2), and a location-level match made one shop's POS appear
+  // unlocked using another shop's shift — the checkout API (which correctly
+  // checks by shop) then rejected every sale.
+  if (!shopId || !UUID_PATTERN.test(shopId)) return null;
   const db = getDatabase();
 
-  // Try matching directly by shopId or locationId first.
-  // Every stage is timeout-guarded: a hung DB degrades to the next stage
-  // (ultimately null) instead of hanging the POS.
+  // Timeout-guarded: a hung DB resolves to null instead of hanging the POS.
   const directQuery = db
     .select({
       shift: cashShifts,
@@ -129,80 +149,18 @@ export async function getActiveShift(shopId: string): Promise<ActiveShiftDetails
     .leftJoin(locations, eq(cashShifts.locationId, locations.id))
     .where(
       and(
-        or(eq(cashShifts.shopId, shopId), eq(cashShifts.locationId, shopId)),
+        eq(cashShifts.shopId, shopId),
         eq(cashShifts.status, "open")
       )
     )
     .orderBy(desc(cashShifts.startTime))
     .limit(1);
   type ShiftLookupRows = Awaited<typeof directQuery>;
-  const emptyLookup = (): ShiftLookupRows => [];
-  let [shift]: ShiftLookupRows = await withTimeout(
+  const [shift]: ShiftLookupRows = await withTimeout(
     Promise.resolve(directQuery),
     7000,
     "getActiveShift lookup"
-  ).catch(emptyLookup);
-
-  // If not found, check if shopId might be a shop name or if we need to resolve shop via name matching
-  if (!shift) {
-    const matchQuery = db
-      .select({ id: shops.id, locationId: shops.locationId, name: shops.name })
-      .from(shops)
-      .where(or(
-        eq(shops.id, shopId),
-        sql`LOWER(${shops.name}) = LOWER(${shopId})`,
-        sql`LOWER(REPLACE(${shops.name}, ' ', '')) = LOWER(REPLACE(${shopId}, ' ', ''))`
-      ));
-    type ShopMatchRows = Awaited<typeof matchQuery>;
-    const matchedShops: ShopMatchRows = await withTimeout(
-      Promise.resolve(matchQuery),
-      6000,
-      "getActiveShift shop-name match"
-    ).catch((): ShopMatchRows => []);
-
-    if (matchedShops.length > 0) {
-      const candidateIds = Array.from(
-        new Set(
-          matchedShops.flatMap((s) => [s.id, s.locationId]).filter(Boolean) as string[]
-        )
-      );
-
-      if (candidateIds.length > 0) {
-        const fallbackQuery = db
-          .select({
-            shift: cashShifts,
-            staffName: staff.name,
-            staffCode: staff.staffId,
-            shopName: shops.name,
-            locationName: locations.name,
-          })
-          .from(cashShifts)
-          .leftJoin(staff, eq(cashShifts.openedByStaffId, staff.id))
-          .leftJoin(shops, eq(cashShifts.shopId, shops.id))
-          .leftJoin(locations, eq(cashShifts.locationId, locations.id))
-          .where(
-            and(
-              or(
-                inArray(cashShifts.shopId, candidateIds),
-                inArray(cashShifts.locationId, candidateIds)
-              ),
-              eq(cashShifts.status, "open")
-            )
-          )
-          .orderBy(desc(cashShifts.startTime))
-          .limit(1);
-        const [fallbackShift]: Awaited<typeof fallbackQuery> = await withTimeout(
-          Promise.resolve(fallbackQuery),
-          7000,
-          "getActiveShift fallback lookup"
-        ).catch(emptyLookup);
-
-        if (fallbackShift) {
-          shift = fallbackShift;
-        }
-      }
-    }
-  }
+  ).catch((): ShiftLookupRows => []);
 
   if (!shift) return null;
 
@@ -361,19 +319,20 @@ export async function openCashShift(input: OpenShiftInput): Promise<{ success: b
       return { success: false, error: "A cash shift is already active for this shop. Please close it first." };
     }
 
-    // Resolve valid locationId if missing or mismatched
-    let resolvedLocationId = validInput.locationId;
+    // The shop is the source of truth for its location — never trust the
+    // client-supplied locationId (it may be stale or a shop id).
     const [targetShop] = await db
       .select({ id: shops.id, locationId: shops.locationId, name: shops.name })
       .from(shops)
       .where(eq(shops.id, validInput.shopId))
       .limit(1);
 
-    if (targetShop?.locationId && (!resolvedLocationId || resolvedLocationId === validInput.shopId)) {
-      resolvedLocationId = targetShop.locationId;
+    if (!targetShop) {
+      return { success: false, error: "Shop not found. Refresh and select a valid location." };
     }
+    const resolvedLocationId = targetShop.locationId;
 
-    const [created] = await db
+    const created = await db
       .insert(cashShifts)
       .values({
         shopId: validInput.shopId,
@@ -385,8 +344,18 @@ export async function openCashShift(input: OpenShiftInput): Promise<{ success: b
         openingDenominations: validInput.openingDenominations || null,
         openingNotes: validInput.openingNotes?.trim() || null,
       })
-      .returning();
+      .returning()
+      .then((rows) => rows[0])
+      .catch((insertError: unknown) => {
+        // Partial unique index `cash_shifts_one_open_per_shop` closes the
+        // race between the pre-check above and this insert.
+        if (isUniqueViolation(insertError)) return "duplicate" as const;
+        throw insertError;
+      });
 
+    if (created === "duplicate") {
+      return { success: false, error: "A cash shift is already active for this shop. Please close it first." };
+    }
     if (!created) {
       return { success: false, error: "Failed to open cash shift" };
     }

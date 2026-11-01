@@ -39,6 +39,8 @@ describe("SplitLegSchema", () => {
   });
 });
 
+const SHOP_ID = "22222222-2222-4222-8222-222222222222";
+
 describe("CheckoutInputSchema - split checkout", () => {
   const baseCart = [
     { productId: "11111111-1111-1111-1111-111111111111", quantity: 1, sellingPrice: 6.5 },
@@ -46,8 +48,7 @@ describe("CheckoutInputSchema - split checkout", () => {
 
   it("accepts SPLIT with a cash + card breakdown", () => {
     const parsed = CheckoutInputSchema.safeParse({
-      locationId: "loc-1",
-      shopId: "shop-1",
+      shopId: SHOP_ID,
       paymentMethod: "SPLIT",
       cart: baseCart,
       splitPayments: [
@@ -60,7 +61,7 @@ describe("CheckoutInputSchema - split checkout", () => {
 
   it("rejects SPLIT without a breakdown", () => {
     const parsed = CheckoutInputSchema.safeParse({
-      locationId: "loc-1",
+      shopId: SHOP_ID,
       paymentMethod: "SPLIT",
       cart: baseCart,
     });
@@ -69,7 +70,7 @@ describe("CheckoutInputSchema - split checkout", () => {
 
   it("rejects SPLIT with a single leg", () => {
     const parsed = CheckoutInputSchema.safeParse({
-      locationId: "loc-1",
+      shopId: SHOP_ID,
       paymentMethod: "SPLIT",
       cart: baseCart,
       splitPayments: [{ method: "CASH", amount: 6.5 }],
@@ -82,8 +83,7 @@ describe("CheckoutInputSchema - split checkout", () => {
     // (SPLIT_CASH_<cash>_CARD_<card>), not the literal "SPLIT".
     // Rejecting it caused "Transaction Recording Issue" on every split sale.
     const parsed = CheckoutInputSchema.safeParse({
-      locationId: "loc-1",
-      shopId: "shop-1",
+      shopId: SHOP_ID,
       paymentMethod: "SPLIT_CASH_4.000_CARD_2.500",
       cart: baseCart,
       splitPayments: [
@@ -96,17 +96,30 @@ describe("CheckoutInputSchema - split checkout", () => {
 
   it("rejects the encoded SPLIT method string without a breakdown", () => {
     const parsed = CheckoutInputSchema.safeParse({
-      locationId: "loc-1",
+      shopId: SHOP_ID,
       paymentMethod: "SPLIT_CASH_4.000_CARD_2.500",
       cart: baseCart,
     });
     expect(parsed.success).toBe(false);
   });
 
+  it("rejects a missing or placeholder shopId", () => {
+    // Regression: "default-shop" used to be silently resolved to the first
+    // shop in the table, recording the sale against the wrong register.
+    for (const shopId of [undefined, "default-shop", "Saniya2"]) {
+      const parsed = CheckoutInputSchema.safeParse({
+        shopId,
+        paymentMethod: "CASH",
+        cart: baseCart,
+      });
+      expect(parsed.success).toBe(false);
+    }
+  });
+
   it("still accepts single-method checkouts without splitPayments", () => {
     for (const method of ["CASH", "CARD", "MOBILE", "CREDIT", "ON_HOLD"]) {
       const parsed = CheckoutInputSchema.safeParse({
-        locationId: "loc-1",
+        shopId: SHOP_ID,
         paymentMethod: method,
         cart: baseCart,
       });

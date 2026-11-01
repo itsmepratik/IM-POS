@@ -1,15 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { db } from "@/lib/db/client";
-import { transactions, shops } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { getDatabase } from "@/lib/db/client";
+import { transactions, shops, cashShifts } from "@/lib/db/schema";
+import { and, eq } from "drizzle-orm";
+import { randomUUID } from "node:crypto";
 
-// Input validation schema
+// Input validation schema. The shop is required and is the source of truth
+// for the location; the client-supplied locationId is ignored.
 const MiscellaneousDeductionSchema = z.object({
   amount: z.number().positive("Amount must be positive"),
   cashierId: z.string().min(1, "Cashier ID is required"),
-  locationId: z.string().uuid("Valid location ID is required"),
-  shopId: z.string().uuid().optional(),
+  locationId: z.string().uuid().optional(),
+  shopId: z.string().uuid("A valid shop must be selected"),
 });
 
 /**
@@ -18,11 +20,12 @@ const MiscellaneousDeductionSchema = z.object({
  */
 export async function POST(req: NextRequest) {
   try {
+    const db = getDatabase();
     const body = await req.json();
 
     // Validate input
     const validatedInput = MiscellaneousDeductionSchema.parse(body);
-    const { amount, cashierId, locationId, shopId } = validatedInput;
+    const { amount, cashierId, shopId } = validatedInput;
 
     // Validate cashier/staff ID and convert to UUID
     const { getStaffUuidById } = await import("@/lib/utils/staff-validation");
@@ -39,31 +42,28 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Derive locationId from shopId if shopId is provided
-    let actualLocationId = locationId;
-    if (shopId) {
-      const [shopData] = await db
-        .select({ locationId: shops.locationId })
-        .from(shops)
-        .where(eq(shops.id, shopId))
-        .limit(1);
-
-      if (shopData) {
-        actualLocationId = shopData.locationId;
-      } else {
-        return NextResponse.json(
-          {
-            success: false,
-            message: `Shop ${shopId} does not exist`,
-          },
-          { status: 400 }
-        );
-      }
+    const [shopData] = await db
+      .select({ locationId: shops.locationId })
+      .from(shops)
+      .where(eq(shops.id, shopId))
+      .limit(1);
+    if (!shopData) {
+      return NextResponse.json(
+        { success: false, message: `Shop ${shopId} does not exist` },
+        { status: 400 }
+      );
     }
+    const actualLocationId: string = shopData.locationId;
 
-    // Generate reference number with MISC prefix
-    const timestamp = Date.now().toString().slice(-8);
-    const referenceNumber = `MISC-${timestamp}`;
+    // Record against this shop's open cash shift (if any) for reconciliation.
+    const [openShift] = await db
+      .select({ id: cashShifts.id })
+      .from(cashShifts)
+      .where(and(eq(cashShifts.shopId, shopId), eq(cashShifts.status, "open")))
+      .limit(1);
+
+    // Collision-free reference (previously the last 8 ms digits of Date.now()).
+    const referenceNumber = `MISC-${randomUUID().slice(0, 13).toUpperCase()}`;
 
     // Create the negative transaction as EXPENSE type
     const [transaction] = await db
@@ -71,7 +71,8 @@ export async function POST(req: NextRequest) {
       .values({
         referenceNumber,
         locationId: actualLocationId,
-        shopId: shopId || null,
+        shopId,
+        cashShiftId: openShift?.id ?? null,
         cashierId: staffUuid, // Use UUID instead of staff_id text
         type: "EXPENSE",
         totalAmount: (-amount).toString(), // Negative amount for expense
@@ -108,7 +109,7 @@ export async function POST(req: NextRequest) {
         {
           success: false,
           message: "Validation error",
-          errors: error.errors,
+          errors: error.issues,
         },
         { status: 400 }
       );

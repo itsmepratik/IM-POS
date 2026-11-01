@@ -55,6 +55,8 @@ interface UseCheckoutProps {
   setAppliedTradeInAmount: (amount: number) => void;
   setShowCart: (show: boolean) => void;
   initialCounters?: { prefix: string; counter: number }[];
+  /** Shop id of the currently open cash shift (null when none). */
+  activeShiftShopId: string | null;
   onCheckoutSuccess?: () => void;
 }
 
@@ -75,10 +77,29 @@ export function useCheckout({
   setAppliedTradeInAmount,
   setShowCart,
   initialCounters,
+  activeShiftShopId,
   onCheckoutSuccess,
 }: UseCheckoutProps) {
   const { toast } = useToast();
   const { currentBranch, inventoryLocationId } = useBranch();
+
+  /**
+   * The checkout API only accepts sales for a shop with its own open cash
+   * shift. Enforce the same rule before showing a receipt so a sale is never
+   * "completed" on screen and then rejected by the server.
+   */
+  const ensureShiftForCurrentShop = useCallback((): boolean => {
+    if (currentBranch?.id && activeShiftShopId === currentBranch.id) {
+      return true;
+    }
+    toast({
+      title: "No Open Cash Shift",
+      description: `${currentBranch?.name ?? "This location"} has no open cash shift. Open a shift for this location before selling.`,
+      variant: "destructive",
+      duration: 6000,
+    });
+    return false;
+  }, [activeShiftShopId, currentBranch?.id, currentBranch?.name, toast]);
 
   // Checkout flow state
   const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
@@ -231,6 +252,7 @@ export function useCheckout({
   /** Begin checkout — validate stock, open customer form */
   const handleCheckout = useCallback(async () => {
     if (isCheckoutLoading) return;
+    if (!ensureShiftForCurrentShop()) return;
     setIsCheckoutLoading(true);
 
     try {
@@ -330,7 +352,7 @@ export function useCheckout({
     } finally {
       setIsCheckoutLoading(false);
     }
-  }, [cart, isCheckoutLoading, getAvailabilityByNumericId, toast]);
+  }, [cart, isCheckoutLoading, getAvailabilityByNumericId, ensureShiftForCurrentShop, toast]);
 
   /** After payment method selection — validate, open cashier dialog */
   const handlePaymentComplete = useCallback(() => {
@@ -494,9 +516,8 @@ export function useCheckout({
             });
           } else {
             toast({
-              title: "Transaction Recording Issue",
-              description:
-                "Payment was accepted but recording to the database failed. Please note your receipt number and contact support.",
+              title: "Sale NOT Recorded",
+              description: `Reason: ${result.error || "Unknown error"}. Receipt ${payload.referenceNumber ?? ""} was not saved — re-ring this sale after resolving the issue.`,
               variant: "destructive",
               duration: 0, // persistent until dismissed
             });
@@ -544,9 +565,8 @@ export function useCheckout({
             syncProducts(false, true).catch(() => {});
           } else {
             toast({
-              title: "On-Hold Recording Issue",
-              description:
-                "Transaction ticket was generated but database recording failed. Contact support.",
+              title: "On-Hold NOT Recorded",
+              description: `Reason: ${result.error || "Unknown error"}. Ticket ${payload.referenceNumber ?? ""} was not saved.`,
               variant: "destructive",
               duration: 0,
             });
@@ -596,6 +616,9 @@ export function useCheckout({
   // SYNCHRONOUS — shows success/ticket immediately, fires API in background.
   const handleFinalizePayment = useCallback(() => {
     if (isProcessingCheckout) return;
+    // Re-check at the final step: the branch or shift may have changed
+    // while the checkout/cashier dialogs were open.
+    if (!ensureShiftForCurrentShop()) return;
 
     // ─── On Hold workflow ───────────────────────────────────────────
     if (isOnHoldMode) {
@@ -812,6 +835,7 @@ export function useCheckout({
     processInBackground(payload as any);
   }, [
     isProcessingCheckout,
+    ensureShiftForCurrentShop,
     isOnHoldMode,
     carPlateNumber,
     selectedCashier,

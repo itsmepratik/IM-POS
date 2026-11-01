@@ -70,6 +70,7 @@
     "react-hook-form": "^7.71.1",
     "react-select": "^5.10.2",
     "recharts": "2.15.4",
+    "server-only": "^0.0.1",
     "sharp": "^0.34.5",
     "tailwind": "^4.0.0",
     "tailwind-merge": "^3.4.0",

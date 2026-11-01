@@ -1,7 +1,9 @@
 import { sql } from "drizzle-orm";
 import {
   boolean,
+  check,
   index,
+  uniqueIndex,
   integer,
   jsonb,
   numeric,
@@ -187,10 +189,12 @@ export const inventory = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
   },
   (table) => ({
-    productLocationIdx: index("inventory_product_location_idx").on(
+    // One inventory row per product per location (checkout deducts by this pair).
+    productLocationKey: uniqueIndex("inventory_product_location_key").on(
       table.productId,
       table.locationId,
     ),
+    locationIdx: index("inventory_location_idx").on(table.locationId),
   }),
 );
 
@@ -264,10 +268,18 @@ export const transactions = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   },
   (table) => ({
-    referenceNumberIdx: index("transactions_ref_idx").on(table.referenceNumber),
+    // reference_number is covered by its UNIQUE constraint index.
     createdAtIdx: index("transactions_date_idx").on(table.createdAt),
     customerIdIdx: index("transactions_customer_idx").on(table.customerId),
-    shopIdIdx: index("transactions_shop_idx").on(table.shopId),
+    shopCreatedIdx: index("transactions_shop_created_idx").on(
+      table.shopId,
+      table.createdAt.desc(),
+    ),
+    locationCreatedIdx: index("transactions_location_created_idx").on(
+      table.locationId,
+      table.createdAt.desc(),
+    ),
+    cashierIdx: index("transactions_cashier_idx").on(table.cashierId),
     cashShiftIdx: index("transactions_cash_shift_idx").on(table.cashShiftId),
   }),
 );
@@ -287,18 +299,26 @@ export const tradeInPrices = pgTable(
   }),
 );
 
-export const tradeInTransactions = pgTable("trade_in_transactions", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  transactionId: uuid("transaction_id")
-    .notNull()
-    .references(() => transactions.id, { onDelete: "cascade" }),
-  productId: uuid("product_id")
-    .notNull()
-    .references(() => products.id, { onDelete: "restrict" }),
-  quantity: integer("quantity").notNull(),
-  tradeInValue: numeric("trade_in_value").notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
-});
+export const tradeInTransactions = pgTable(
+  "trade_in_transactions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    transactionId: uuid("transaction_id")
+      .notNull()
+      .references(() => transactions.id, { onDelete: "cascade" }),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id, { onDelete: "restrict" }),
+    quantity: integer("quantity").notNull(),
+    tradeInValue: numeric("trade_in_value").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  },
+  (table) => ({
+    transactionIdx: index("trade_in_transactions_transaction_idx").on(
+      table.transactionId,
+    ),
+  }),
+);
 
 export const customers = pgTable(
   "customers",
@@ -485,6 +505,7 @@ export const serviceItems = pgTable(
     productIdx: index("service_items_product_idx").on(table.productId),
     serviceIdx: index("service_items_service_idx").on(table.serviceId),
     typeIdx: index("service_items_type_idx").on(table.itemType),
+    batchIdx: index("service_items_batch_idx").on(table.batchId),
   }),
 );
 
@@ -583,6 +604,23 @@ export const cashShifts = pgTable(
     ),
     startTimeIdx: index("cash_shifts_start_time_idx").on(table.startTime),
     openedByIdx: index("cash_shifts_opened_by_idx").on(table.openedByStaffId),
+    locationIdx: index("cash_shifts_location_idx").on(table.locationId),
+    // At most one open shift per shop (register).
+    oneOpenPerShop: uniqueIndex("cash_shifts_one_open_per_shop")
+      .on(table.shopId)
+      .where(sql`status = 'open'`),
+    statusCheck: check(
+      "cash_shifts_status_check",
+      sql`${table.status} IN ('open', 'closed', 'reconciled')`,
+    ),
+    reconciliationStatusCheck: check(
+      "cash_shifts_reconciliation_status_check",
+      sql`${table.reconciliationStatus} IS NULL OR ${table.reconciliationStatus} IN ('pending', 'balanced', 'overage', 'shortage', 'approved')`,
+    ),
+    openingCashCheck: check(
+      "cash_shifts_opening_cash_check",
+      sql`${table.openingCash} >= 0`,
+    ),
   }),
 );
 
@@ -607,6 +645,14 @@ export const cashShiftMovements = pgTable(
   (table) => ({
     shiftIdx: index("cash_shift_movements_shift_idx").on(table.shiftId),
     staffIdx: index("cash_shift_movements_staff_idx").on(table.staffId),
+    typeCheck: check(
+      "cash_shift_movements_type_check",
+      sql`${table.type} IN ('CASH_IN', 'CASH_OUT', 'DROP', 'PAY_IN', 'PAY_OUT')`,
+    ),
+    amountCheck: check(
+      "cash_shift_movements_amount_check",
+      sql`${table.amount} > 0`,
+    ),
   }),
 );
 

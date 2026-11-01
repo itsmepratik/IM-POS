@@ -344,8 +344,8 @@ export function MiscellaneousDialog({ open, onOpenChange }: MiscellaneousDialogP
                             amount: miscellaneousAmount,
                             cashierId: fetchedMiscellaneousCashier.id,
                             locationId:
-                              inventoryLocationId || currentBranch?.id || "default-location",
-                            shopId: currentBranch?.id || "default-shop",
+                              inventoryLocationId ?? undefined,
+                            shopId: currentBranch?.id,
                           }),
                         }
                       );

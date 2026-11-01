@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
-import { db } from "@/lib/db/client";
-import { transactions, shops, products, inventory } from "@/lib/db/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { getDatabase } from "@/lib/db/client";
+import { transactions, shops, products, inventory, batches } from "@/lib/db/schema";
+import { eq, and, desc, inArray } from "drizzle-orm";
+import { requireUser, authErrorResponse } from "@/lib/auth/require-user";
 
 export async function GET(req: NextRequest) {
   try {
+    const db = getDatabase();
     const { searchParams } = req.nextUrl;
     const locationId = searchParams.get("locationId");
     const referenceNumber = searchParams.get("referenceNumber");
@@ -90,29 +92,56 @@ export async function GET(req: NextRequest) {
 const VoidTransactionSchema = z.object({
   referenceNumber: z.string().min(1, "Reference number is required"),
   supervisorPassword: z.string().min(1, "Supervisor password is required"),
-  locationId: z.string().uuid(),
+  // Accepted for backwards compatibility but NOT trusted: the supervisor
+  // password is always checked against the shop that made the sale.
+  locationId: z.string().uuid().optional(),
   shopId: z.string().uuid().optional(),
   voidReason: z.string().optional(),
 });
 
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    await requireUser();
+    const db = getDatabase();
+    const body: unknown = await req.json();
 
     const validatedInput = VoidTransactionSchema.parse(body);
-    const { referenceNumber, supervisorPassword, locationId, shopId, voidReason } = validatedInput;
+    const { referenceNumber, supervisorPassword, voidReason } = validatedInput;
 
-    const shopFilter = shopId ? eq(shops.id, shopId) : eq(shops.locationId, locationId);
+    // Resolve the owning shop from the sale itself. Previously the client's
+    // shopId/locationId chose the shop, and a location-only lookup picked an
+    // arbitrary shop at that location (Saniya2 voids were checked against
+    // Saniya1's supervisor password).
+    const [owner] = await db
+      .select({ shopId: transactions.shopId })
+      .from(transactions)
+      .where(eq(transactions.referenceNumber, referenceNumber))
+      .limit(1);
+    if (!owner) {
+      return NextResponse.json(
+        { success: false, error: `Transaction with reference ${referenceNumber} not found` },
+        { status: 404 },
+      );
+    }
+    if (!owner.shopId) {
+      return NextResponse.json(
+        { success: false, error: "Transaction has no shop; it cannot be voided from the POS." },
+        { status: 400 },
+      );
+    }
 
     const [shop] = await db
-      .select()
+      .select({ supervisorPasswordHash: shops.supervisorPasswordHash })
       .from(shops)
-      .where(shopFilter)
+      .where(eq(shops.id, owner.shopId))
       .limit(1);
 
     if (!shop || !shop.supervisorPasswordHash) {
       return NextResponse.json(
-        { success: false, error: "Supervisor password not configured. Set it in Settings." },
+        { success: false, error: "Supervisor password not configured for this shop. Set it in Settings." },
         { status: 400 },
       );
     }
@@ -149,20 +178,35 @@ export async function POST(req: NextRequest) {
         quantity: number;
         sellingPrice: number;
         volumeDescription?: string;
+        batchId?: string;
       }>) || [];
 
-      if (items.length > 0) {
-        const productIds = items.map((item) => item.productId);
+      // Labor / service lines carry non-UUID ids (e.g. "9999") and have no
+      // stock to restore — previously they made every such sale un-voidable.
+      const stockItems = items.filter((item) => UUID_PATTERN.test(item.productId));
+
+      if (stockItems.length > 0) {
+        const productIds = stockItems.map((item) => item.productId);
+        // inArray, not and(eq, eq, ...): an AND of different ids never matched
+        // more than one product, so multi-item voids lost product metadata.
         const productsData = await tx
           .select()
           .from(products)
-          .where(and(...productIds.map((id) => eq(products.id, id))));
+          .where(inArray(products.id, productIds));
 
-        const productMap = new Map(productsData.map((p) => [p.id, p]));
+        const knownProductIds = new Set(productsData.map((p) => p.id));
 
-        for (const item of items) {
+        // Stock is derived from batches: create_checkout_transaction deducts
+        // batches.stock_remaining FIFO and tr_sync_inventory_from_batches
+        // recomputes inventory. Restore the same quantity to a batch so the
+        // trigger recomputes inventory — writing inventory directly (old code)
+        // was overwritten by the next batch change, and every line with a
+        // volumeDescription was wrongly restocked as closed lubricant bottles.
+        for (const item of stockItems) {
+          if (!knownProductIds.has(item.productId)) continue; // product deleted since sale
+
           const [inventoryRecord] = await tx
-            .select()
+            .select({ id: inventory.id, standardStock: inventory.standardStock })
             .from(inventory)
             .where(
               and(
@@ -176,23 +220,36 @@ export async function POST(req: NextRequest) {
             throw new Error(`Inventory not found for product ${item.productId}`);
           }
 
-          const product = productMap.get(item.productId);
-          if (product?.isBattery) {
-            continue;
-          }
+          // Prefer the batch recorded on the sale line, else the newest batch.
+          const recordedBatchId =
+            typeof item.batchId === "string" && UUID_PATTERN.test(item.batchId)
+              ? item.batchId
+              : null;
+          const [targetBatch] = await tx
+            .select({ id: batches.id, stockRemaining: batches.stockRemaining })
+            .from(batches)
+            .where(
+              recordedBatchId
+                ? and(eq(batches.id, recordedBatchId), eq(batches.inventoryId, inventoryRecord.id))
+                : eq(batches.inventoryId, inventoryRecord.id),
+            )
+            .orderBy(desc(batches.purchaseDate))
+            .limit(1);
 
-          if (product?.productType === "lubricant" || item.volumeDescription) {
+          if (targetBatch) {
             await tx
-              .update(inventory)
+              .update(batches)
               .set({
-                closedBottlesStock: (inventoryRecord.closedBottlesStock ?? 0) + item.quantity,
+                stockRemaining: targetBatch.stockRemaining + Math.round(item.quantity),
+                isActiveBatch: true,
               })
-              .where(eq(inventory.id, inventoryRecord.id));
+              .where(eq(batches.id, targetBatch.id));
           } else {
+            // No batch history for this item: adjust inventory directly.
             await tx
               .update(inventory)
               .set({
-                standardStock: (inventoryRecord.standardStock ?? 0) + item.quantity,
+                standardStock: (inventoryRecord.standardStock ?? 0) + Math.round(item.quantity),
               })
               .where(eq(inventory.id, inventoryRecord.id));
           }
@@ -218,9 +275,11 @@ export async function POST(req: NextRequest) {
       message: `Transaction ${referenceNumber} voided successfully`,
     });
   } catch (error) {
+    const authResponse = authErrorResponse(error);
+    if (authResponse) return authResponse;
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { success: false, error: "Invalid input", details: error.errors },
+        { success: false, error: "Invalid input", details: error.issues },
         { status: 400 },
       );
     }

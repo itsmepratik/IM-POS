@@ -7,8 +7,8 @@ import {
   getDatabaseHealth,
   testDatabaseConnection,
 } from "@/lib/db/client";
-import { shops, inventory, products, batches, locations } from "@/lib/db/schema";
-import { eq, sql } from "drizzle-orm";
+import { shops, inventory, cashShifts } from "@/lib/db/schema";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { CheckoutInputSchema, calculateFinalTotal } from "@/lib/types/checkout";
 import type { CheckoutInput } from "@/lib/types/checkout";
 import { CACHE_TAGS } from "@/lib/db/cache-tags";
@@ -25,7 +25,38 @@ const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000; // 1 second
 
 // Helper for delay
-const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const delay = (ms: number): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, ms));
+
+interface PgErrorInfo {
+  message: string;
+  code?: string;
+  constraint?: string;
+}
+
+/**
+ * Drizzle >=0.44 wraps driver errors in DrizzleQueryError ("Failed query:
+ * <sql>") with the postgres-js error on `.cause`. Extract the real Postgres
+ * message/code/constraint so callers can classify and display it.
+ */
+function unwrapPgError(error: unknown): PgErrorInfo {
+  const read = (value: unknown): PgErrorInfo | null => {
+    if (typeof value !== "object" || value === null) return null;
+    const v = value as { message?: unknown; code?: unknown; constraint_name?: unknown };
+    if (typeof v.code !== "string") return null;
+    return {
+      message: typeof v.message === "string" ? v.message : "Database error",
+      code: v.code,
+      constraint: typeof v.constraint_name === "string" ? v.constraint_name : undefined,
+    };
+  };
+  const direct = read(error);
+  if (direct) return direct;
+  if (error instanceof Error) {
+    return read(error.cause) ?? { message: error.message };
+  }
+  return { message: String(error) };
+}
 
 export async function POST(req: NextRequest) {
   const startTime = Date.now();
@@ -56,18 +87,21 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
 
     // Validate Input
-    let validatedInput;
-    try {
-      validatedInput = CheckoutInputSchema.parse(body);
-    } catch (error) {
+    const parsedInput = CheckoutInputSchema.safeParse(body);
+    if (!parsedInput.success) {
+      const firstIssue = parsedInput.error.issues[0];
       return NextResponse.json(
-        { success: false, error: "Invalid input", details: error },
+        {
+          success: false,
+          error: `Invalid input: ${firstIssue ? `${firstIssue.path.join(".") || "body"} — ${firstIssue.message}` : "unknown"}`,
+          details: parsedInput.error.issues,
+        },
         { status: 400 },
       );
     }
+    const validatedInput = parsedInput.data;
 
     const {
-      locationId,
       shopId,
       paymentMethod: rawPaymentMethod,
       cashierId: cashierIdInput,
@@ -83,60 +117,31 @@ export async function POST(req: NextRequest) {
       splitPayments,
     } = validatedInput;
 
-    const uuidRegex =
-      /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
-
-    // Resolve locationId to a valid UUID if it is a placeholder string
-    let resolvedLocationId = locationId;
-    if (!uuidRegex.test(resolvedLocationId)) {
-      const [locationData] = await db
-        .select({ id: locations.id })
-        .from(locations)
-        .where(eq(sql`lower(${locations.name})`, resolvedLocationId.toLowerCase()))
-        .limit(1);
-      if (locationData) {
-        resolvedLocationId = locationData.id;
-      } else {
-        const [fallbackLoc] = await db.select({ id: locations.id }).from(locations).limit(1);
-        if (fallbackLoc) {
-          resolvedLocationId = fallbackLoc.id;
-        }
-      }
+    // The shop is the single source of truth: its location is the inventory
+    // the sale deducts from. No placeholder / fuzzy / "first shop" fallbacks —
+    // those silently recorded sales against the wrong register.
+    const [shopRow] = await db
+      .select({ id: shops.id, locationId: shops.locationId, shopCode: shops.shopCode })
+      .from(shops)
+      .where(eq(shops.id, shopId))
+      .limit(1);
+    if (!shopRow) {
+      return NextResponse.json(
+        { success: false, error: "Selected shop no longer exists. Refresh the POS and select a location." },
+        { status: 400 },
+      );
     }
-
-    // Resolve shopId to a valid UUID if it is a placeholder string
-    let resolvedShopId = shopId;
-    if (resolvedShopId && !uuidRegex.test(resolvedShopId)) {
-      const [shopData] = await db
-        .select({ id: shops.id })
-        .from(shops)
-        .where(eq(sql`lower(${shops.name})`, resolvedShopId.toLowerCase()))
-        .limit(1);
-      if (shopData) {
-        resolvedShopId = shopData.id;
-      } else {
-        // Fallback to first shop matching location, or just first shop
-        const [fallbackShop] = await db
-          .select({ id: shops.id })
-          .from(shops)
-          .where(eq(shops.locationId, resolvedLocationId))
-          .limit(1);
-        if (fallbackShop) {
-          resolvedShopId = fallbackShop.id;
-        } else {
-          const [firstShop] = await db.select({ id: shops.id }).from(shops).limit(1);
-          if (firstShop) resolvedShopId = firstShop.id;
-        }
-      }
-    }
+    const resolvedShopId: string = shopRow.id;
+    const actualLocationId: string = shopRow.locationId;
 
     // Validate Cashier
-    let cashierId: string | undefined = cashierIdInput;
-    if (
-      cashierId &&
-      cashierId !== "default-cashier" &&
-      cashierId !== "on-hold-system"
-    ) {
+    // Placeholder ids ("default-cashier", "on-hold-system") mean "no cashier"
+    // — they must never reach the ::uuid cast in the stored procedure.
+    let cashierId: string | undefined =
+      cashierIdInput === "default-cashier" || cashierIdInput === "on-hold-system"
+        ? undefined
+        : cashierIdInput;
+    if (cashierId) {
       const { getStaffUuidById } = await import("@/lib/utils/staff-validation");
       const staffUuid = await getStaffUuidById(cashierId);
       if (!staffUuid) {
@@ -148,10 +153,9 @@ export async function POST(req: NextRequest) {
       cashierId = staffUuid;
     }
 
-    // STRICT CASH SHIFT VALIDATION:
-    // Every sale, credit, and on-hold transaction requires an active cash shift for this shop.
-    const { cashShifts } = await import("@/lib/db/schema");
-    const { and } = await import("drizzle-orm");
+    // STRICT CASH SHIFT VALIDATION (fast-fail with a clear message).
+    // The stored procedure re-checks and locks the shift atomically, so this
+    // pre-check is UX only — it cannot be raced into an unlinked sale.
     const [activeShift] = await db
       .select({ id: cashShifts.id })
       .from(cashShifts)
@@ -162,13 +166,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: "No active cash shift found for this register. POS is locked. Please open a cash shift first.",
+          error: "No active cash shift for this shop. Open a cash shift for this location first.",
         },
-        { status: 403 },
+        { status: 409 },
       );
     }
-
-    const activeCashShiftId = activeShift.id;
 
     // Process Cart — allow empty cart when services (labor) are present
     const hasServices = services && services.length > 0;
@@ -193,24 +195,6 @@ export async function POST(req: NextRequest) {
       : 0;
     const subtotalBeforeDiscount = cartSubtotal + servicesTotal;
     const finalTotal = cartFinalTotal + servicesTotal;
-
-    // Determine Location (Lookup logic)
-    let actualLocationId = resolvedLocationId;
-    if (resolvedShopId && resolvedShopId !== resolvedLocationId) {
-      const [shopData] = await db
-        .select({ locationId: shops.locationId })
-        .from(shops)
-        .where(eq(shops.id, resolvedShopId))
-        .limit(1);
-      if (shopData) {
-        actualLocationId = shopData.locationId;
-      } else {
-        return NextResponse.json(
-          { success: false, error: `Shop ${resolvedShopId} not found` },
-          { status: 400 },
-        );
-      }
-    }
 
     // Split tender: cash + card must exactly cover the final total.
     // The encoded method (SPLIT_CASH_x_CARD_y) is stored in payment_method.
@@ -273,18 +257,7 @@ export async function POST(req: NextRequest) {
       // Sync reference counter to DB
       try {
         // Format of clientReferenceNumber is: [PREFIX][SHOP_CODE][3-DIGIT-COUNTER][MMYY]
-        // Resolve shopCode from database for safety
-        let shopCode = "01";
-        if (resolvedShopId) {
-          const [shopData] = await db
-            .select({ shopCode: shops.shopCode })
-            .from(shops)
-            .where(eq(shops.id, resolvedShopId))
-            .limit(1);
-          if (shopData && shopData.shopCode) {
-            shopCode = shopData.shopCode;
-          }
-        }
+        const shopCode = shopRow.shopCode || "01";
 
         // The prefix in clientReferenceNumber is at the start (1 or 2 letters: e.g. WB, R, OH, ST, B, A)
         let prefix = "A";
@@ -394,17 +367,18 @@ export async function POST(req: NextRequest) {
               })
             : [];
 
-        // 2. Fetch Inventory for these products (EXPLICIT - not subquery)
+        // 2. Fetch Inventory for these products AT THIS SHOP'S LOCATION only —
+        // otherwise cost snapshots could come from another location's batches.
         const inventoryData =
           validProductIds.length > 0
             ? await db
                 .select()
                 .from(inventory)
                 .where(
-                  sql`${inventory.productId} IN (${sql.join(
-                    validProductIds.map((id) => sql`${id}::uuid`),
-                    sql`, `,
-                  )})`,
+                  and(
+                    eq(inventory.locationId, actualLocationId),
+                    inArray(inventory.productId, validProductIds),
+                  ),
                 )
             : [];
 
@@ -522,20 +496,11 @@ export async function POST(req: NextRequest) {
           throw new Error("Database transaction returned no result");
         }
 
-        const transactionData = result[0].data as any;
-
-        // Atomically associate this transaction with the active cash shift
-        if (transactionData.transaction_id && activeCashShiftId) {
-          try {
-            const { transactions } = await import("@/lib/db/schema");
-            await db
-              .update(transactions)
-              .set({ cashShiftId: activeCashShiftId })
-              .where(eq(transactions.id, transactionData.transaction_id));
-          } catch (shiftLinkErr) {
-            console.error("Failed to link transaction to active cash shift:", shiftLinkErr);
-          }
-        }
+        // cash_shift_id is written by the procedure in the same transaction.
+        const transactionData = result[0].data as {
+          transaction_id: string;
+          reference_number: string;
+        };
 
         const processingTime = Date.now() - startTime;
 
@@ -563,18 +528,36 @@ export async function POST(req: NextRequest) {
             processingTime,
           },
         });
-      } catch (e: any) {
-        console.error(`[${requestId}] Error attempt ${attempt}:`, e);
+      } catch (e: unknown) {
+        const pg = unwrapPgError(e);
+        console.error(`[${requestId}] Error attempt ${attempt}:`, pg.code, pg.message);
         lastError = e;
 
-        // If it's not a connection error, don't retry, just fail
+        // Two terminals generated the same client receipt number: issue a
+        // server-side number and retry instead of losing the sale. The new
+        // number is returned to the client, which updates the receipt.
+        if (
+          pg.code === "23505" &&
+          pg.constraint === "transactions_reference_number_unique" &&
+          attempt < MAX_RETRIES
+        ) {
+          const { generateReferenceNumber } = await import("@/lib/utils/reference-numbers");
+          referenceNumber = await generateReferenceNumber(
+            transactionType,
+            (referenceNumber ?? "").startsWith("B"),
+            paymentMethod,
+            resolvedShopId,
+          );
+          continue;
+        }
+
         const isConnectionError =
-          e.message?.includes("connection") ||
-          e.message?.includes("timeout") ||
-          e.message?.includes("ETIMEDOUT") ||
-          e.message?.includes("ECONNRESET") ||
-          e.code === "57P01" || // admin_shutdown
-          e.code === "57P03"; // cannot_connect_now
+          pg.message.includes("connection") ||
+          pg.message.includes("timeout") ||
+          pg.message.includes("ETIMEDOUT") ||
+          pg.message.includes("ECONNRESET") ||
+          pg.code === "57P01" || // admin_shutdown
+          pg.code === "57P03"; // cannot_connect_now
 
         if (!isConnectionError) {
           break; // Logical error, don't retry
@@ -594,16 +577,21 @@ export async function POST(req: NextRequest) {
 
     // If we're here, all retries failed
     throw lastError;
-  } catch (error: any) {
-    console.error("Checkout Error (Final):", error);
-    // Mimic previous error handling structure
+  } catch (error: unknown) {
+    const pg = unwrapPgError(error);
+    console.error(`[${requestId}] Checkout Error (Final):`, pg.code, pg.message);
+    // P0001 = RAISE EXCEPTION in the procedure (business rule: no shift,
+    // insufficient stock, shop/location mismatch). Return the human message
+    // verbatim with 409 so the client shows it and does not retry.
+    // Never echo raw driver errors (they contain SQL and parameters).
+    const isBusinessRule = pg.code === "P0001";
     return NextResponse.json(
       {
         success: false,
-        error: error.message || "Unknown Error",
-        details: { requestId, error },
+        error: isBusinessRule ? pg.message : `Checkout failed (${pg.code ?? "unknown"}). Reference: ${requestId}`,
+        details: { requestId },
       },
-      { status: 500 },
+      { status: isBusinessRule ? 409 : 500 },
     );
   }
 }

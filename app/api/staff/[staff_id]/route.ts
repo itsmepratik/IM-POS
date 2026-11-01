@@ -1,22 +1,40 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getStaffByTextId } from "@/lib/utils/staff-validation";
 import { z } from "zod";
+import { requireAdmin, authErrorResponse } from "@/lib/auth/require-user";
+import { STAFF_PUBLIC_COLUMNS } from "@/lib/services/staff-columns";
+
+type StaffRouteContext = { params: Promise<{ staff_id: string }> };
+
+function internalError(error: unknown): NextResponse {
+  const authResponse = authErrorResponse(error);
+  if (authResponse) return authResponse;
+  return NextResponse.json(
+    {
+      success: false,
+      error: "Internal server error",
+      details: error instanceof Error ? error.message : "Unknown error",
+    },
+    { status: 500 },
+  );
+}
 
 /**
  * GET /api/staff/[staff_id]
- * Fetch a single staff member by staff_id
+ * Fetch a single staff member by staff_id (admin only — full HR record).
  */
 export async function GET(
-  req: NextRequest,
-  { params }: { params: Promise<{ staff_id: string }> }
-) {
+  _req: NextRequest,
+  { params }: StaffRouteContext,
+): Promise<NextResponse> {
   try {
+    await requireAdmin();
     const { staff_id } = await params;
 
     if (!staff_id) {
       return NextResponse.json(
         { success: false, error: "Staff ID is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -29,20 +47,13 @@ export async function GET(
           error: "Staff member not found",
           details: `No staff member found with ID: ${staff_id}`,
         },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
     return NextResponse.json({ success: true, data: staff });
   } catch (error) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Internal server error",
-        details: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 }
-    );
+    return internalError(error);
   }
 }
 
@@ -66,19 +77,20 @@ const UpdateStaffSchema = z.object({
 
 /**
  * PATCH /api/staff/[staff_id]
- * Update a staff member
+ * Update a staff member (admin only).
  */
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: Promise<{ staff_id: string }> }
-) {
+  { params }: StaffRouteContext,
+): Promise<NextResponse> {
   try {
+    await requireAdmin();
     const { staff_id } = await params;
 
     if (!staff_id) {
       return NextResponse.json(
         { success: false, error: "Staff ID is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -90,11 +102,11 @@ export async function PATCH(
           error: "Staff member not found",
           details: `No staff member found with ID: ${staff_id}`,
         },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
-    const body = await req.json();
+    const body: unknown = await req.json();
     const validation = UpdateStaffSchema.safeParse(body);
 
     if (!validation.success) {
@@ -104,7 +116,7 @@ export async function PATCH(
           error: "Invalid request data",
           details: validation.error.flatten(),
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -131,7 +143,7 @@ export async function PATCH(
       .from("staff")
       .update(updateData)
       .eq("staff_id", staff_id)
-      .select()
+      .select(STAFF_PUBLIC_COLUMNS)
       .single();
 
     if (error || !updatedStaff) {
@@ -141,38 +153,34 @@ export async function PATCH(
           error: "Failed to update staff member",
           details: error?.message,
         },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
     return NextResponse.json({ success: true, data: updatedStaff });
   } catch (error) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Internal server error",
-        details: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 }
-    );
+    return internalError(error);
   }
 }
 
 /**
  * DELETE /api/staff/[staff_id]
- * Delete a staff member
+ * Delete a staff member (admin only). Staff referenced by sales, shifts or
+ * labor history (RESTRICT foreign keys) cannot be hard-deleted without
+ * destroying the audit trail, so they are deactivated instead.
  */
 export async function DELETE(
-  req: NextRequest,
-  { params }: { params: Promise<{ staff_id: string }> }
-) {
+  _req: NextRequest,
+  { params }: StaffRouteContext,
+): Promise<NextResponse> {
   try {
+    await requireAdmin();
     const { staff_id } = await params;
 
     if (!staff_id) {
       return NextResponse.json(
         { success: false, error: "Staff ID is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -183,7 +191,7 @@ export async function DELETE(
     if (!existing) {
       return NextResponse.json(
         { success: false, error: "Staff member not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -192,6 +200,29 @@ export async function DELETE(
       .delete()
       .eq("staff_id", staff_id);
 
+    if (error?.code === "23503") {
+      const { error: deactivateError } = await supabase
+        .from("staff")
+        .update({ is_active: false, updated_at: new Date().toISOString() })
+        .eq("staff_id", staff_id);
+      if (deactivateError) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Failed to deactivate staff member",
+            details: deactivateError.message,
+          },
+          { status: 500 },
+        );
+      }
+      return NextResponse.json({
+        success: true,
+        deactivated: true,
+        message:
+          "Staff member has transaction or shift history, so they were deactivated instead of deleted.",
+      });
+    }
+
     if (error) {
       return NextResponse.json(
         {
@@ -199,22 +230,16 @@ export async function DELETE(
           error: "Failed to delete staff member",
           details: error.message,
         },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
     return NextResponse.json({
       success: true,
+      deactivated: false,
       message: "Staff member deleted successfully",
     });
   } catch (error) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Internal server error",
-        details: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 }
-    );
+    return internalError(error);
   }
 }

@@ -1,13 +1,34 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getAllStaff, getStaffByTextId } from "@/lib/utils/staff-validation";
+import { requireAdmin, requireUser, authErrorResponse } from "@/lib/auth/require-user";
+import { STAFF_PUBLIC_COLUMNS } from "@/lib/services/staff-columns";
+
+/** HR / personal fields only admins may read. */
+const STAFF_PII_FIELDS = [
+  "salary",
+  "national_id",
+  "date_of_birth",
+  "address",
+  "emergency_contact",
+  "emergency_phone",
+  "notes",
+] as const;
+
+function stripPii<T extends object>(row: T): Partial<T> {
+  const copy = { ...row } as Record<string, unknown>;
+  for (const field of STAFF_PII_FIELDS) delete copy[field];
+  return copy as Partial<T>;
+}
 
 /**
  * GET /api/staff
- * Fetch all staff members
+ * Fetch all staff members. Any signed-in user (POS needs cashier lookup);
+ * personal/HR fields are returned to admins only.
  */
 export async function GET(req: NextRequest) {
   try {
+    const identity = await requireUser();
     const { searchParams } = new URL(req.url);
     const role = searchParams.get("role");
     const activeOnly = searchParams.get("active") === "true";
@@ -27,9 +48,11 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      data: staffMembers,
+      data: identity.role === "admin" ? staffMembers : staffMembers.map(stripPii),
     });
   } catch (error) {
+    const authResponse = authErrorResponse(error);
+    if (authResponse) return authResponse;
     return NextResponse.json(
       {
         success: false,
@@ -66,6 +89,7 @@ const CreateStaffSchema = z.object({
  */
 export async function POST(req: NextRequest) {
   try {
+    await requireAdmin();
     const body = await req.json();
     const validation = CreateStaffSchema.safeParse(body);
 
@@ -137,7 +161,7 @@ export async function POST(req: NextRequest) {
     const { data: newStaff, error } = await supabase
       .from("staff")
       .insert(insertData)
-      .select()
+      .select(STAFF_PUBLIC_COLUMNS)
       .single();
 
     if (error || !newStaff) {
@@ -153,6 +177,8 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true, data: newStaff }, { status: 201 });
   } catch (error) {
+    const authResponse = authErrorResponse(error);
+    if (authResponse) return authResponse;
     return NextResponse.json(
       {
         success: false,

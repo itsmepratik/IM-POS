@@ -1,3 +1,4 @@
+import { SHOP_PUBLIC_COLUMNS } from "@/lib/services/shop-columns";
 // Shop/Branch management service
 // Extracted from inventoryService.ts
 
@@ -116,7 +117,7 @@ export const fetchShops = async (): Promise<Shop[]> => {
       );
       const { data: rawShops, error: rawErr } = await supabase
         .from("shops")
-        .select("*")
+        .select(SHOP_PUBLIC_COLUMNS)
         .eq("is_active", true)
         .order("name");
       if (rawErr) {
@@ -228,15 +229,24 @@ export const updateShop = async (
       .from("shops")
       .update(updates)
       .eq("id", id)
-      .select()
+      .select(SHOP_PUBLIC_COLUMNS)
       .single();
 
     if (error) {
       console.error("Error updating shop:", error);
       throw new Error("Failed to update shop");
     }
+    if (!data) return null;
 
-    return data;
+    // Map the snake_case row to the camelCase Shop shape returned by
+    // fetchShops (the raw row was previously returned as if it were a Shop).
+    return {
+      ...data,
+      displayName: data.display_name || data.name,
+      locationId: data.location_id,
+      locationName: "",
+      isActive: data.is_active,
+    };
   } catch (error) {
     console.error("Error in updateShop:", error);
     throw error;

@@ -19,8 +19,10 @@ const RefundSchema = z.object({
   ),
   reason: z.string().optional(),
   cashierId: z.string().min(1, "Cashier ID is required"),
-  shopId: z.string().min(1, "Shop ID is required"), // Changed from .uuid() to support non-UUID IDs
-  locationId: z.string().min(1, "Location ID is required"), // Changed from .uuid() to support non-UUID IDs
+  // Fallbacks only: the refund is always recorded against the ORIGINAL
+  // transaction's shop/location (see below).
+  shopId: z.string().uuid("A valid shop must be selected"),
+  locationId: z.string().uuid().optional(),
   customerId: z.string().optional().nullable(), // Made optional and nullable
   carPlateNumber: z.string().optional(),
 });
@@ -453,7 +455,8 @@ export async function POST(req: Request) {
 
     // Use location_id and shop_id from original transaction if provided, otherwise use from request
     // This ensures we use valid UUIDs from the original transaction
-    const locationId = originalTransaction.location_id || refundData.locationId;
+    const locationId: string =
+      originalTransaction.location_id || refundData.locationId || "";
     const shopId = originalTransaction.shop_id || refundData.shopId;
 
     // Validate UUID format for location_id and shop_id

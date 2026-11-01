@@ -16,6 +16,8 @@ import { useUser } from "@/lib/contexts/UserContext";
 export type DbBranch = {
   id: string;
   name: string;
+  /** Inventory location this shop sells from (shops.location_id). */
+  location_id?: string;
   address: string | null;
   phone: string | null;
   email: string | null;
@@ -135,6 +137,7 @@ export function BranchProvider({ children }: { children: ReactNode }) {
         let dbBranches: DbBranch[] = shops.map((shop) => ({
           id: shop.id,
           name: shop.displayName || shop.name,
+          location_id: shop.locationId,
           address: shop.locationName || null,
           phone: null,
           email: null,
@@ -274,21 +277,28 @@ export function BranchProvider({ children }: { children: ReactNode }) {
         }
         setBranches(dbBranches);
 
-        // FOR ADMINS: Always default to Sanaiya1, ignore localStorage
+        // FOR ADMINS: keep the shop the admin last selected (this load may be a
+        // refresh after editing a shop); default to Saniya1 only when nothing
+        // valid is saved. Previously every load/refresh forced Saniya1, so
+        // "Set as Current" never stuck.
         if (userIsAdmin) {
+          const savedAdminBranchId =
+            currentBranch?.id ?? localStorage.getItem("selectedBranchId");
+          const savedAdminBranch = savedAdminBranchId
+            ? dbBranches.find((b) => b.id === savedAdminBranchId)
+            : undefined;
           const saniya1Branch = dbBranches.find(
             (b) =>
               b.name.toLowerCase().includes("saniya1") ||
               b.name.toLowerCase().includes("sanaiya1"),
           );
-          const defaultBranch = saniya1Branch || dbBranches[0];
+          const defaultBranch = savedAdminBranch || saniya1Branch || dbBranches[0];
 
-          // Validate that we are actually switching or setting
-          if (!currentBranch || currentBranch.id !== defaultBranch.id) {
-            setCurrentBranch(defaultBranch);
-            localStorage.setItem("selectedBranchId", defaultBranch.id);
-            document.cookie = `pos_branch_id=${defaultBranch.id}; path=/; max-age=31536000; SameSite=Lax`;
-          }
+          // Always take the freshly loaded record: after a shop edit the id is
+          // unchanged but the bill/brand fields are new, and receipts read them
+          // from currentBranch.
+          setCurrentBranch(defaultBranch);
+          localStorage.setItem("selectedBranchId", defaultBranch.id);
 
           // Set inventory location from shop's location_id
           const defaultShop = shops.find((s) => s.id === defaultBranch.id);
@@ -484,26 +494,10 @@ export function BranchProvider({ children }: { children: ReactNode }) {
 
     const branch = branches.find((b) => b.id === branchId);
     if (branch) {
-      // For admin: Derive inventory location from shop's location_id
-      const userIsAdmin = currentUser?.role === "admin" || isAdmin();
-      if (userIsAdmin) {
-        // Fetch shop to get location_id
-        const fetchShopLocation = async () => {
-          try {
-            const { fetchShops } =
-              await import("@/lib/services/inventoryService");
-            const shops = await fetchShops();
-            const selectedShop = shops.find((s) => s.id === branchId);
-            if (selectedShop) {
-              setInventoryLocationId(selectedShop.locationId);
-            }
-          } catch (error) {
-            console.error("Error fetching shop location:", error);
-          }
-        };
-        fetchShopLocation();
-      }
-
+      // Switch shop and its inventory location in the same render. The old
+      // async refetch left a window where the new shop was shown with the
+      // previous shop's location (wrong product stock / prices).
+      setInventoryLocationId(branch.location_id ?? null);
       setCurrentBranch(branch);
       localStorage.setItem("selectedBranchId", branchId);
       // Set cookie for Server Component access (1 year expiry)

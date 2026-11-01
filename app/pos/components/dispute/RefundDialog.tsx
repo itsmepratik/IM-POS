@@ -50,7 +50,7 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
   const { addPersistentNotification } = useNotification();
   const { staffMembers } = useStaffIDs();
   const { brand } = useCompanyInfo();
-  const { currentBranch } = useBranch();
+  const { currentBranch, inventoryLocationId } = useBranch();
   const [receiptNumber, setReceiptNumber] = useState("");
   const [currentReceipt, setCurrentReceipt] = useState<Receipt | null>(null);
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
@@ -283,8 +283,11 @@ export function RefundDialog({ isOpen, onClose }: RefundDialogProps) {
           refundItems: selectedRefundItems,
           reason: "Customer refund request",
           cashierId: activeCashier.id,
-          shopId: currentBranch?.id || "default-shop",
-          locationId: currentBranch?.id || "default-location",
+          // The server uses the original transaction's shop/location; these
+          // are the current register's real ids (previously the shop id was
+          // sent as the location id).
+          shopId: currentBranch?.id,
+          locationId: inventoryLocationId ?? undefined,
           customerId: currentCustomer?.id,
           carPlateNumber: currentReceipt.receiptNumber.includes("B")
             ? "N/A"

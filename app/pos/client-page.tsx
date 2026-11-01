@@ -389,18 +389,24 @@ export function POSClient({ initialData }: { initialData?: any }) {
   const [isCashMovementModalOpen, setIsCashMovementModalOpen] = useState(false);
 
   // Refresh active shift when current branch changes (background = true for polls/focus).
-  // Timeout + anti-stacking guard so polling never hangs or piles up.
-  const isRefreshingRef = useRef(false);
+  // Shifts are strictly per shop: only ever query by the selected shop's id
+  // (never the inventory location, which several shops share).
+  // `inFlightShopRef` prevents stacking polls for the same shop without
+  // blocking the refresh triggered by switching to a different shop.
+  // `selectedShopIdRef` lets a late response for a previously selected shop
+  // be discarded instead of unlocking the POS with the wrong shift.
+  const inFlightShopRef = useRef<string | null>(null);
+  const selectedShopIdRef = useRef<string | null>(null);
   const refreshActiveShift = useCallback(async (shopId?: string, isBackground = false) => {
-    const targetShopId = shopId || currentBranch?.id || inventoryLocationId;
+    const targetShopId = shopId || currentBranch?.id;
     if (!targetShopId) {
       if (!isLoadingBranches) {
         setIsLoadingShift(false);
       }
       return;
     }
-    if (isRefreshingRef.current) return;
-    isRefreshingRef.current = true;
+    if (inFlightShopRef.current === targetShopId) return;
+    inFlightShopRef.current = targetShopId;
     try {
       if (!isBackground) {
         setIsLoadingShift(true);
@@ -416,9 +422,11 @@ export function POSClient({ initialData }: { initialData?: any }) {
       } catch {
         // Timeout or network error — marked as failed below
       }
+      // The user switched shops while this request was in flight — drop it.
+      if (selectedShopIdRef.current !== targetShopId) return;
       if (succeeded) {
         // A background null must not wipe a known shift (transient query issue)
-        if (current) {
+        if (current && current.shopId === targetShopId) {
           setActiveShift(current);
         } else if (!isBackground) {
           setActiveShift(null);
@@ -436,29 +444,36 @@ export function POSClient({ initialData }: { initialData?: any }) {
       if (!message.includes("timeout")) console.error("Failed to refresh active cash shift:", err);
     } finally {
       // Release the guard so the post-open re-fetch, 15s poll, focus
-      // sync and checkout refresh are never swallowed (previously the
-      // flag stayed true forever and only a reload showed the new shift).
-      isRefreshingRef.current = false;
-      if (!isBackground) {
+      // sync and checkout refresh are never swallowed.
+      if (inFlightShopRef.current === targetShopId) {
+        inFlightShopRef.current = null;
+      }
+      if (!isBackground && selectedShopIdRef.current === targetShopId) {
         setIsLoadingShift(false);
       }
     }
-  }, [currentBranch?.id, inventoryLocationId, isLoadingBranches]);
+  }, [currentBranch?.id, isLoadingBranches]);
 
   useEffect(() => {
     if (isLoadingBranches) return;
-    const targetId = currentBranch?.id || inventoryLocationId;
-    if (targetId) {
-      refreshActiveShift(targetId, false);
+    const shopId = currentBranch?.id ?? null;
+    selectedShopIdRef.current = shopId;
+    // Never keep a shift that belongs to a different shop (stale state from
+    // the previous branch or a server prefetch for another cookie branch):
+    // selling under it is exactly what the checkout API rejects.
+    setActiveShift((prev: { shopId?: string } | null) =>
+      prev && prev.shopId === shopId ? prev : null,
+    );
+    if (shopId) {
+      refreshActiveShift(shopId, false);
     } else {
       setIsLoadingShift(false);
-      isRefreshingRef.current = false;
     }
-  }, [currentBranch?.id, inventoryLocationId, isLoadingBranches, refreshActiveShift]);
+  }, [currentBranch?.id, isLoadingBranches, refreshActiveShift]);
 
   // Periodic polling & window focus/visibility sync for active cash shift (always background!)
   useEffect(() => {
-    const targetId = currentBranch?.id || inventoryLocationId;
+    const targetId = currentBranch?.id;
     if (!targetId) return;
 
     const interval = setInterval(() => {
@@ -483,7 +498,7 @@ export function POSClient({ initialData }: { initialData?: any }) {
       window.removeEventListener("focus", handleFocus);
       document.removeEventListener("visibilitychange", handleVisibility);
     };
-  }, [currentBranch?.id, inventoryLocationId, refreshActiveShift]);
+  }, [currentBranch?.id, refreshActiveShift]);
 
   const {
     cart,
@@ -761,6 +776,7 @@ export function POSClient({ initialData }: { initialData?: any }) {
     setAppliedTradeInAmount,
     setShowCart,
     initialCounters: initialData?.counters,
+    activeShiftShopId: (activeShift as { shopId?: string } | null)?.shopId ?? null,
     onCheckoutSuccess: () => {
       refreshActiveShift();
     },
@@ -2438,8 +2454,7 @@ export function POSClient({ initialData }: { initialData?: any }) {
             setIsLoadingShift(false);
             const sid =
               (newShift as { shopId?: string } | null)?.shopId ||
-              currentBranch?.id ||
-              inventoryLocationId;
+              currentBranch?.id;
             if (sid) {
               void refreshActiveShift(sid, true);
             }

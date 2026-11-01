@@ -23,19 +23,18 @@ export function useSettingsUsers() {
       const result = await response.json();
       
       if (result.success) {
-        setUsers(result.data.map((staff: any) => ({
+        setUsers((result.data as Array<{ id: string; name: string; staff_id: string; is_active: boolean; updated_at?: string | null }>).map((staff) => ({
           id: staff.id,
           name: staff.name,
           staff_id: staff.staff_id,
           is_active: staff.is_active,
-          lastActive: undefined // backend doesn't track this yet
+          lastActive: staff.updated_at ?? undefined,
         })));
       } else {
         throw new Error(result.error || 'Failed to fetch staff');
       }
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Unknown error occurred'))
-      console.error("Error fetching staff:", err);
     } finally {
       setIsLoading(false)
     }
@@ -118,7 +117,12 @@ export function useSettingsUsers() {
       const result = await response.json();
       
       if (result.success) {
-        setUsers(prev => prev.filter(u => u.id !== userId));
+        // Staff with sales/shift history are deactivated, not deleted.
+        if (result.deactivated) {
+          setUsers(prev => prev.map(u => (u.id === userId ? { ...u, is_active: false } : u)));
+        } else {
+          setUsers(prev => prev.filter(u => u.id !== userId));
+        }
         return true;
       } else {
         throw new Error(result.error || 'Failed to delete user');

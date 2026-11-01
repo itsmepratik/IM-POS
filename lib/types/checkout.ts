@@ -60,8 +60,11 @@ export const SplitLegSchema = z.object({
 // Checkout input schema
 export const CheckoutInputSchema = z
   .object({
-    locationId: z.string().min(1),
-    shopId: z.string().min(1).optional(),
+    // Advisory only: the server always derives the inventory location from
+    // the shop, so a stale client value can never deduct from the wrong stock.
+    locationId: z.string().uuid().optional(),
+    // Required: sales are recorded against this shop's own open cash shift.
+    shopId: z.string().uuid({ message: "A valid shop must be selected" }),
     paymentMethod: z.string().min(1),
     cashierId: z.string().min(1).optional(),
     cart: z.array(CartItemSchema),
