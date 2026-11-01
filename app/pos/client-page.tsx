@@ -1446,14 +1446,17 @@ export function POSClient({ initialData }: { initialData?: any }) {
             </Button>
           </div>
         )}
-        <div className="flex-1 flex flex-col lg:flex-row gap-4 min-h-0">
-          {/* Product Grid */}
-          <div className="flex-1 overflow-hidden flex flex-col min-h-0">
-            <Card className="flex-1 overflow-hidden flex flex-col h-full">
-              <CardHeader className="flex flex-col lg:flex-row lg:flex-nowrap items-start lg:items-center justify-between gap-2 lg:gap-3 space-y-0 pb-3 px-4 flex-shrink-0">
-                {/* Desktop: title + branch selector (left), toolbar (right) — single row, never wraps */}
+        <div className="flex-1 flex flex-col lg:flex-row gap-4 min-h-0 min-w-0">
+          {/* Product Grid — min-w-0 so it shrinks to the space left beside the cart */}
+          <div className="flex-1 min-w-0 overflow-hidden flex flex-col min-h-0">
+            <Card className="flex-1 min-w-0 overflow-hidden flex flex-col h-full">
+              {/* @container: the header adapts to its OWN width (the cart takes a
+                  fixed share of the screen, so viewport breakpoints can't know
+                  how much room the header really has). */}
+              <CardHeader className="@container flex flex-col lg:flex-row lg:flex-wrap items-start lg:items-center justify-between gap-2 lg:gap-3 space-y-0 pb-3 px-4 flex-shrink-0 min-w-0">
+                {/* Desktop: title + branch selector (left), toolbar (right) — single row */}
                 <div className="hidden lg:flex items-center gap-3 shrink-0">
-                  <CardTitle className="text-xl sm:text-2xl">
+                  <CardTitle className="hidden @2xl:block text-xl @4xl:text-2xl">
                     Products
                   </CardTitle>
                   <BranchSelector compact={true} showLabel={false} />

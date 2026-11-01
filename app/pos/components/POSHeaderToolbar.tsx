@@ -21,10 +21,14 @@ interface POSHeaderToolbarProps {
 /**
  * Desktop (lg+) right-hand toolbar of the POS "Products" header.
  *
- * Single-row, non-wrapping layout: every control shares the same 36px height,
- * the cashier name is the only element allowed to shrink (truncates), and
- * secondary labels collapse to icons on narrower desktop widths instead of
- * pushing the toolbar onto a second line.
+ * Sizing is driven by the header's own width (`@container` on CardHeader),
+ * not the viewport — the cart column takes a fixed share of the screen, so
+ * only the container knows how much room is really available.
+ *
+ * Overflow strategy (never scrolls, never wraps inside the toolbar):
+ *  - Fixed controls (drawer icon, End Shift, Dispute) never shrink.
+ *  - The cashier name truncates first; the clock and the Dispute label are
+ *    shown only when the header is wide enough.
  */
 export function POSHeaderToolbar({
   activeShift,
@@ -36,7 +40,10 @@ export function POSHeaderToolbar({
   const now = currentTime ?? new Date();
 
   return (
-    <div className="hidden lg:flex flex-nowrap items-center justify-end gap-2 ml-auto min-w-0">
+    // basis-80: the toolbar only drops below the title (header wraps) when
+    // less than 20rem is left — about the width of its non-shrinking controls.
+    // Above that it grows to fill the row and the cashier name truncates.
+    <div className="hidden lg:flex min-w-0 flex-1 basis-80 flex-nowrap items-center justify-end gap-2">
       {activeShift !== null && activeShift !== undefined && (
         <ShiftStrip
           shift={activeShift}
@@ -47,7 +54,7 @@ export function POSHeaderToolbar({
 
       <time
         dateTime={now.toISOString()}
-        className="hidden xl:inline-flex h-9 shrink-0 items-center whitespace-nowrap rounded-lg bg-muted px-2.5 font-mono text-xs tabular-nums text-muted-foreground"
+        className="hidden @4xl:inline-flex h-9 shrink-0 items-center whitespace-nowrap rounded-lg bg-muted px-2.5 font-mono text-xs tabular-nums text-muted-foreground"
         suppressHydrationWarning
       >
         {now.toLocaleTimeString([], {
@@ -59,7 +66,7 @@ export function POSHeaderToolbar({
 
       <Button
         variant="outline"
-        className="dispute-button h-9 shrink-0 gap-2 whitespace-nowrap rounded-lg px-3 transition-all duration-200 ease-in-out active:transition-none"
+        className="dispute-button h-9 shrink-0 gap-2 whitespace-nowrap rounded-lg px-2.5 @3xl:px-3 transition-all duration-200 ease-in-out active:transition-none"
         onClick={onOpenDispute}
         aria-label="Dispute"
         title="Dispute"
@@ -70,7 +77,7 @@ export function POSHeaderToolbar({
           strokeWidth={2.2}
           className="!size-[18px]"
         />
-        <span className="hidden xl:inline text-sm font-medium">Dispute</span>
+        <span className="hidden @3xl:inline text-sm font-medium">Dispute</span>
       </Button>
     </div>
   );
@@ -91,7 +98,7 @@ function ShiftStrip({
   const balance = getDrawerBalance(shift).toFixed(3);
 
   return (
-    <div className="flex h-9 min-w-0 items-center rounded-lg border border-border bg-muted/40 pl-3 pr-1">
+    <div className="flex h-9 min-w-0 shrink items-center gap-2 rounded-lg border border-border bg-muted/40 pl-3 pr-1">
       <div
         role="status"
         aria-label={`Active shift: ${name}, drawer OMR ${balance}`}
@@ -113,17 +120,17 @@ function ShiftStrip({
         </span>
       </div>
 
-      <div className="ml-2 flex shrink-0 items-center gap-1">
+      <div className="flex shrink-0 items-center gap-1">
+        {/* Icon-only by design: the banknote + tooltip identify the action. */}
         <Button
           variant="ghost"
-          size="sm"
-          className="h-7 gap-1 rounded-md px-2 text-xs font-semibold"
+          size="icon"
+          className="size-7 rounded-md"
           onClick={onOpenCashMovement}
           aria-label="Cash drawer in/out or drop"
           title="Cash Drawer In/Out / Drop"
         >
-          <Banknote aria-hidden="true" className="size-3.5 text-amber-600" />
-          <span className="hidden xl:inline">Drawer</span>
+          <Banknote aria-hidden="true" className="size-4 text-amber-600" />
         </Button>
         <Button
           variant="destructive"
